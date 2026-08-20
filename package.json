@@ -24,6 +24,7 @@
     "shell:build": "node scripts/build-launcher-shell.mjs",
     "bootstrap:build": "powershell.exe -NoProfile -File scripts/build-bootstrap-installer.ps1",
     "bootstrap:smoke": "powershell.exe -NoProfile -File scripts/smoke-bootstrap-installer.ps1",
+    "release:verify-public-downloads": "node scripts/verify-public-downloads.mjs",
     "sign:manifest": "node scripts/sign-manifest.mjs",
     "sign:store-trust": "node scripts/sign-store-trust.mjs",
     "verify:skins": "node scripts/verify-skin-catalog.mjs",

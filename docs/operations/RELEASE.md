@@ -48,6 +48,13 @@ Windows Authenticode 的开源免费路径见 [Code signing policy](../CODE_SIGN
 2. 使用 Microsoft Defender 扫描联网引导器、完整离线 EXE 和安装后的完整目录，任何检测都阻止发布。
 3. Windows 正式安装器必须以 `Get-AuthenticodeSignature` 验证为 `Valid`；下载页显示的发布者必须与批准的 SignPath Foundation 证书一致。未获批阶段只允许明确标为 unsigned beta，不能把更新目录的 Ed25519 签名当作 Authenticode。
 4. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器和签名清单。完整离线包发布到百度网盘。Gitee/OSS 大模块只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
+   OSS 的公开下载对象必须在上传时显式指定 `--acl public-read`，不得依赖 Bucket 的默认私有 ACL，也不得使用 `public-read-write`。例如：
+
+   ```sh
+   ossutil cp <local-file> oss://ailishishu-deepseek-harness/download/<file-name> --acl public-read --content-disposition attachment
+   ```
+
+   稳定地址被覆盖后，必须在不携带 OSS 凭据的普通网络环境执行 `npm run release:verify-public-downloads`。任意地址不是 HTTPS、返回非 200、缺少正整数 `Content-Length` 或内容为 XML 错误页，都必须中止发布。该约定只赋予匿名读取；Bucket 列目录、上传、覆盖和删除权限继续保持关闭。
 5. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
 6. 使用生产私钥签名：
 
