@@ -4,6 +4,8 @@
 
 配套驾驭工程教学：[https://ailishishu.com/learn/deepseek-harness/](https://ailishishu.com/learn/deepseek-harness/)
 
+安全与信任：[代码签名政策](docs/CODE_SIGNING_POLICY.md) · [隐私说明](PRIVACY.md) · [安全问题报告](SECURITY.md)
+
 > 当前状态：Windows x64 0.10.4 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、63 款免费签名皮肤和 56 个可互动宠物均已验证。
 
 > 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。当前大模块只有 GitHub Release 是已验证公开渠道；Gitee 或 OSS 大模块只会在真实文件可匿名下载后加入，避免发布无效地址。
@@ -72,9 +74,9 @@ npm run dist:win
 npm run dist:mac
 ```
 
-构建结果写入 `release/`。生产公钥和发布地址已配置；正式对外分发还建议补充：
+构建结果写入 `release/`。生产公钥和发布地址已配置。当前 Windows 0.10.4 安装器尚未取得公开受信任的 Authenticode 签名，Windows 可能显示“未知发布者”；项目正在申请 SignPath Foundation 的开源免费代码签名，获批前不会把 Ed25519 更新目录签名冒充 Windows 发布者签名。正式对外分发还需补充：
 
-1. Windows 代码签名证书；
+1. Windows Authenticode 代码签名（优先申请 SignPath Foundation 开源免费签名）；
 2. Apple Developer ID 签名和 notarization；
 3. 独立的 macOS 构建机和实际设备验收。
 
@@ -128,6 +130,10 @@ docs/operations 发布清单示例和运维说明
 - DeepSeek API Key 由 Harness 自己的 Settings → Models 管理；启动器只传递 `DSH_HOME` 和本地运行参数。
 - 第三方插件是受信任可执行代码。目录签名只能保证“目录来自发布者”，不能替代插件代码审查。
 - 签名私钥只应存在于离线发布机或受保护的 CI Secret；整合包只带公钥。
+
+## Code signing policy
+
+本项目的 Windows 正式版必须由公开仓库的 GitHub 托管构建产生，经过测试、人工批准和 Authenticode 签名后才允许替换稳定下载地址。免费代码签名计划使用 SignPath Foundation：**Free code signing provided by SignPath.io, certificate by SignPath Foundation**。完整角色、来源验证、隐私和发布要求见[代码签名政策](docs/CODE_SIGNING_POLICY.md)。
 
 ## License
 

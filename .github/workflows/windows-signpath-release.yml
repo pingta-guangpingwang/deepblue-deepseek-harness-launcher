@@ -1,0 +1,95 @@
+name: Windows trusted signing candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version from package.json that is being approved for signing
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-sign:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out the public release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: npm
+
+      - name: Verify requested version
+        shell: pwsh
+        run: |
+          $actual = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($actual -ne '${{ inputs.version }}') {
+            throw "Requested version ${{ inputs.version }} does not match package.json $actual"
+          }
+
+      - name: Install, test, and build unsigned Windows installers
+        shell: pwsh
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run dist:win
+
+      - name: Prepare the exact signing bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path signing-input -Force | Out-Null
+          Copy-Item "release/deepblue-deepseek-harness-launcher-${{ inputs.version }}-win-x64-online.exe" signing-input/
+          Copy-Item "release/deepblue-deepseek-harness-launcher-${{ inputs.version }}-win-x64-offline.exe" signing-input/
+
+      - name: Upload unsigned artifact to GitHub
+        id: upload-unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ inputs.version }}-unsigned
+          path: signing-input/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Submit trusted build to SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: '${{ vars.SIGNPATH_PROJECT_SLUG }}'
+          signing-policy-slug: '${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}'
+          artifact-configuration-slug: '${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}'
+          github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: signing-output
+          parameters: |
+            version: ${{ toJSON(inputs.version) }}
+
+      - name: Verify every returned executable is trusted and versioned
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem signing-output -Recurse -File -Filter *.exe)
+          if ($files.Count -ne 2) { throw "Expected 2 signed installers, found $($files.Count)" }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature $file.FullName
+            if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature: $($file.Name) / $($signature.Status)" }
+            if ($file.VersionInfo.ProductName -ne '深蓝DeepSeekHarness启动器') { throw "Unexpected product name: $($file.Name)" }
+            if (-not $file.Name.Contains('${{ inputs.version }}')) { throw "Version missing from file name: $($file.Name)" }
+          }
+
+      - name: Upload signed candidates for manual release approval
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ inputs.version }}-signed
+          path: signing-output/**/*.exe
+          if-no-files-found: error
+          retention-days: 14

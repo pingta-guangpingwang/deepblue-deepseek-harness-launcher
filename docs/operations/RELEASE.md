@@ -40,13 +40,16 @@ npm run build
 
 Windows 运行 `npm run dist:win`，产出小型联网引导器、UI 壳、三个运行模块和百度网盘兜底的完整离线 EXE，并生成 `windows-artifacts.json`；macOS 运行 `npm run dist:mac`。正式公开前必须使用最新 Defender 定义扫描安装 EXE 和安装目录，并评估 Windows SmartScreen 信誉与 macOS 签名、notarization。
 
+Windows Authenticode 的开源免费路径见 [Code signing policy](../CODE_SIGNING_POLICY.md)。申请 SignPath 项目时，将 [`signpath-artifact-configuration.xml`](../signpath-artifact-configuration.xml) 导入为正式 artifact configuration。SignPath Foundation 审核通过后，在 GitHub `main` 上手工运行 `Windows trusted signing candidate`，输入与 `package.json` 一致的版本号。工作流只把 GitHub 托管 runner 的 unsigned artifact 送入 SignPath，等待人工批准，取回签名文件后再次验证发布者、产品名和版本；签名候选仍不能自动覆盖稳定地址。
+
 ## 4. 上传与清单
 
 1. `dist:win` 构建并真实启动模块化 Harness Web；计算引导器、UI 壳和模块的 SHA-256 与字节大小。
 2. 使用 Microsoft Defender 扫描联网引导器、完整离线 EXE 和安装后的完整目录，任何检测都阻止发布。
-3. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器和签名清单。完整离线包发布到百度网盘。Gitee/OSS 大模块只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
-4. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
-4. 使用生产私钥签名：
+3. Windows 正式安装器必须以 `Get-AuthenticodeSignature` 验证为 `Valid`；下载页显示的发布者必须与批准的 SignPath Foundation 证书一致。未获批阶段只允许明确标为 unsigned beta，不能把更新目录的 Ed25519 签名当作 Authenticode。
+4. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器和签名清单。完整离线包发布到百度网盘。Gitee/OSS 大模块只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
+5. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
+6. 使用生产私钥签名：
 
 ```sh
 LAUNCHER_SIGNING_KEY=/secure/runtime-production-v2-1-private.pem \
@@ -54,10 +57,10 @@ LAUNCHER_SIGNING_KEY_ID=runtime-production-v2-1 \
 npm run sign:manifest -- release/launcher-catalog-payload.json release/launcher-manifest-v2.json
 ```
 
-5. 把签名后的清单原子发布到 OSS `release-v2/launcher-manifest.json`。
-6. 用上一正式版启动器执行“检查更新”，验证差异模块确认弹窗、每模块与总进度、公开渠道预检、主渠道失败后的自动回退、签名、SHA-256、失败整批回滚和成功后自动重启；清单中的每条应急 URL 都必须在无凭据客户端返回可下载响应，403/404 地址不得发布。
-7. 将通过审核并重新签名的皮肤、宠物目录同步到对应公开 Gitee 仓库。两个仓库的 `catalog.json`、`trust.json` 与资源地址均为固定 URL；安装包只携带目录正文作为离线浏览兜底，不携带商店媒体。
-8. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
+7. 把签名后的清单原子发布到 OSS `release-v2/launcher-manifest.json`。
+8. 用上一正式版启动器执行“检查更新”，验证差异模块确认弹窗、每模块与总进度、公开渠道预检、主渠道失败后的自动回退、签名、SHA-256、失败整批回滚和成功后自动重启；清单中的每条应急 URL 都必须在无凭据客户端返回可下载响应，403/404 地址不得发布。
+9. 将通过审核并重新签名的皮肤、宠物目录同步到对应公开 Gitee 仓库。两个仓库的 `catalog.json`、`trust.json` 与资源地址均为固定 URL；安装包只携带目录正文作为离线浏览兜底，不携带商店媒体。
+10. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
 
 ## 5. 灰度和回滚
 
