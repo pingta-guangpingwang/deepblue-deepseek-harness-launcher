@@ -4,9 +4,9 @@
 
 配套驾驭工程教学：[https://ailishishu.com/learn/deepseek-harness/](https://ailishishu.com/learn/deepseek-harness/)
 
-> 当前状态：Windows x64 0.10.1 公测版。不到 1 MB 的联网引导器、模块化运行时、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、官方模型勾选目录、63 款免费签名皮肤和 56 个可互动宠物均已验证。
+> 当前状态：Windows x64 0.10.2 公测版。不到 1 MB 的联网引导器、模块化运行时、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、官方模型勾选目录、63 款免费签名皮肤和 56 个可互动宠物均已验证。
 
-> 模块化发行状态：签名目录 schema 2、GitHub/OSS 回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。Gitee 镜像只会在公开仓库真实可用后加入，避免发布无效地址。
+> 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。当前大模块只有 GitHub Release 是已验证公开渠道；Gitee 或 OSS 大模块只会在真实文件可匿名下载后加入，避免发布无效地址。
 
 ## 已实现
 
@@ -15,7 +15,7 @@
 - 独立用户数据：`DSH_HOME` 放在应用用户数据目录，不写入安装目录。
 - 版本管理：新版本安装到并行目录；更新前备份用户数据；已安装版本可回滚。
 - 模块化运行时：Node、Harness 与 pnpm 使用签名清单独立安装；界面显示每个模块、实际字节、所用渠道和总进度，下载前探测渠道，失败自动切换，校验失败不激活，旧版本保留为回滚点。
-- 国内网络：GitHub 承担开源模块主分发，OSS只作应急兜底；npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线版断网时仍可启动。
+- 国内网络：GitHub 承担开源模块主分发，OSS只托管小引导器与签名目录；npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线版由百度网盘兜底。
 - 更新安全：远程版本、插件和模型目录必须通过 Ed25519 签名；启动器整合包下载后校验 SHA-256。
 - 插件管理：调用 Harness 官方 `dsh plugin --profile web add/update/remove` 流程，并把配置的 npm 国内源传给 pnpm。
 - 模型目录：国内平台优先，覆盖 DeepSeek、千问、豆包、Kimi、智谱、千帆、腾讯 TokenHub、MiniMax、阶跃、硅基流动和百川；已知平台直接勾选 2026-08-18 核对的官方模型，不再手填模型参数；不下载模型权重，用户主动保存的 API Key 只进入 Windows 安全存储。
@@ -89,7 +89,7 @@ npm run dist:mac
 | 源码、说明 | GitHub | Gitee（仓库建成后） |
 | Ed25519 schema-2 远程签名清单 | OSS `release-v2` | GitHub Release 附件 |
 | Windows 小型联网安装器 | OSS | GitHub Releases |
-| UI 壳、Node、Harness、pnpm 内容寻址模块 | GitHub Releases | OSS 应急兜底；Gitee可用后再加入 |
+| UI 壳、Node、Harness、pnpm 内容寻址模块 | GitHub Releases | Gitee/OSS 有真实公开制品后再加入 |
 | 完整离线包 | 百度网盘 | 不占用 OSS 日常流量 |
 | npm 插件依赖 | npmmirror | npm 官方源 |
 

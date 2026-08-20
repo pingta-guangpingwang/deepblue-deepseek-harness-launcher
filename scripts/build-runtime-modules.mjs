@@ -86,8 +86,7 @@ const [nodeArtifact, harnessArtifact, packageManagerArtifact] = await Promise.al
 function mirrors(artifact) {
   const tag = `runtime-v${launcher.version}`
   return [
-    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${artifact.fileName}` },
-    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${artifact.fileName}` }
+    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${artifact.fileName}` }
   ]
 }
 

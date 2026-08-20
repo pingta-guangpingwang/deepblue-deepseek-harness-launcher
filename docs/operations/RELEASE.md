@@ -9,7 +9,7 @@
 - OSS/CDN 基础地址；
 - npmmirror 或其他 npm registry。
 
-GitHub 保存源码和内容寻址模块；Gitee仓库只在真实可用后加入镜像。OSS/CDN 对外发布不到 1 MB 的联网引导器、`release-v2/launcher-manifest.json` 和应急模块，不承载日常完整离线包流量。
+GitHub 保存源码和内容寻址模块；Gitee 仓库只在真实可用后加入镜像。OSS/CDN 对外发布不到 1 MB 的联网引导器和 `release-v2/launcher-manifest.json`，不承载大模块与完整离线包日常流量。
 
 ## 2. 生成签名密钥
 
@@ -44,7 +44,7 @@ Windows 运行 `npm run dist:win`，产出小型联网引导器、UI 壳、三�
 
 1. `dist:win` 构建并真实启动模块化 Harness Web；计算引导器、UI 壳和模块的 SHA-256 与字节大小。
 2. 使用 Microsoft Defender 扫描联网引导器、完整离线 EXE 和安装后的完整目录，任何检测都阻止发布。
-3. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器、签名清单和应急副本。完整离线包发布到百度网盘。
+3. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器和签名清单。完整离线包发布到百度网盘。Gitee/OSS 大模块只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
 4. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
 4. 使用生产私钥签名：
 

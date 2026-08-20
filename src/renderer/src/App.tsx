@@ -429,7 +429,7 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
 
       <div className="version-side-column">
         <Card title="下载源" action={<button className="icon-button" onClick={onSources}><RefreshCw size={15} /></button>}>
-          <p className="card-intro">下载前逐个探测；默认优先 GitHub，失败后自动切换到签名清单中的下一条可用渠道。</p>
+          <p className="card-intro">下载前检测签名渠道；清单提供多个真实镜像时，失败会自动切换。当前大模块使用 GitHub。</p>
           <div className="source-priority">
             {snapshot.sources.map((source, index) => (
               <div key={source.id}><span>{index + 1}</span><strong>{source.name}</strong><StatusDot status={source.status} /><small>{source.latencyMs ? `${source.latencyMs}ms` : source.status === 'unconfigured' ? '待配置' : '—'}</small></div>
