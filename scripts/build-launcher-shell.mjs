@@ -3,11 +3,12 @@ import { createReadStream } from 'node:fs'
 import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { discoverMainRuntimePackages } from './launcher-runtime-packages.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const releaseRoot = path.join(root, 'release')
 const packagedRoot = path.join(releaseRoot, 'win-unpacked')
-const stagingRoot = path.join(releaseRoot, '.launcher-shell-stage')
+const stagingRoot = path.join(releaseRoot, `.launcher-shell-stage-${process.pid}`)
 const generatedFile = path.join(releaseRoot, 'launcher-shell.generated.json')
 const launcherPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
 
@@ -85,11 +86,16 @@ await cp(packagedRoot, stagingRoot, { recursive: true, dereference: true })
 
 const appRoot = path.join(stagingRoot, 'resources', 'app')
 const modulesRoot = path.join(appRoot, 'node_modules')
-const selected = await packageClosure(modulesRoot, ['tar', 'yaml'])
+const mainEntry = await readFile(path.join(appRoot, 'out', 'main', 'index.js'), 'utf8')
+const runtimeRoots = discoverMainRuntimePackages(mainEntry)
+for (const packageName of runtimeRoots) {
+  if (!launcherPackage.dependencies?.[packageName]) throw new Error(`Main process imports undeclared runtime package ${packageName}`)
+}
+const selected = await packageClosure(modulesRoot, runtimeRoots)
 await pruneModules(modulesRoot, selected)
 const packagedManifestPath = path.join(appRoot, 'package.json')
 const packagedManifest = JSON.parse(await readFile(packagedManifestPath, 'utf8'))
-packagedManifest.dependencies = { tar: launcherPackage.dependencies.tar, yaml: launcherPackage.dependencies.yaml }
+packagedManifest.dependencies = Object.fromEntries(runtimeRoots.map((packageName) => [packageName, launcherPackage.dependencies[packageName]]))
 await writeFile(packagedManifestPath, `${JSON.stringify(packagedManifest, null, 2)}\n`, 'utf8')
 
 for (const forbidden of ['node', 'pnpm', '@deepseek-ai/dsh']) {

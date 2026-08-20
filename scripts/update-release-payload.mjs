@@ -22,6 +22,7 @@ payload.modelTemplates = modelProviderTemplates
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '修复 0.10.4 在线壳遗漏主进程运行依赖导致启动时报 ERR_MODULE_NOT_FOUND；0.10.5 会按构建产物自动发现并打齐依赖闭包',
     '首次启动先确认运行资源位置，再开始拉取 Node、Harness 与按需模块；程序安装位置和大型运行资源可以分别放在不同磁盘',
     '设置页新增运行资源安全迁移、目录打开和桌面/开始菜单快捷方式检测修复；迁移成功后保留原位置作为安全副本',
     'Windows 完整安装器改为引导安装，可选择程序目录；在线轻量引导器继续提供目录选择并只下载启动器 UI 壳',
