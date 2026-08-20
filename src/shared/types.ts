@@ -481,6 +481,7 @@ export interface LauncherSnapshot {
   activeHarnessVersion: string
   latestHarnessVersion: string
   launcherUpdate?: LauncherUpdateInfo
+  runtimeUpdates: RuntimeUpdateState
   environment: EnvironmentItem[]
   sources: SourceHealth[]
   tasks: LauncherTask[]
@@ -512,6 +513,22 @@ export interface LauncherUpdateInfo {
   version: string
   notes: string[]
   artifact: { platform: string; arch: string; distribution?: DistributionMode; url: string; sha256: string; size: number }
+}
+
+export interface RuntimeModuleUpdateItem {
+  id: RuntimeModuleId
+  label: string
+  currentVersion: string
+  nextVersion: string
+  size: number
+  required: boolean
+}
+
+export interface RuntimeUpdateState {
+  status: 'idle' | 'available' | 'installing' | 'restarting' | 'failed'
+  items: RuntimeModuleUpdateItem[]
+  taskId?: string
+  message?: string
 }
 
 export type RuntimeModuleId =
@@ -560,6 +577,7 @@ export interface LauncherApi {
   startHarness(): Promise<LauncherSnapshot>
   stopHarness(): Promise<LauncherSnapshot>
   installHarness(version?: string): Promise<LauncherSnapshot>
+  applyRuntimeUpdates(): Promise<LauncherSnapshot>
   downloadLauncherUpdate(): Promise<LauncherSnapshot>
   rollbackHarness(version: string): Promise<LauncherSnapshot>
   repair(): Promise<LauncherSnapshot>
@@ -609,6 +627,7 @@ export interface SignedCatalogPayload {
   harness: HarnessVersion[]
   plugins: CatalogPlugin[]
   models: ModelCatalogItem[]
+  modelTemplates?: ModelProviderTemplate[]
   runtimeModules?: RuntimeModuleRelease[]
 }
 

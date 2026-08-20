@@ -48,6 +48,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:start', () => controller?.startHarness())
   ipcMain.handle('launcher:stop', () => controller?.stopHarness())
   ipcMain.handle('launcher:install', (_event, version?: string) => controller?.installHarness(version))
+  ipcMain.handle('launcher:apply-runtime-updates', () => controller?.applyRuntimeUpdates())
   ipcMain.handle('launcher:download-update', () => controller?.downloadLauncherUpdate())
   ipcMain.handle('launcher:rollback', (_event, version: string) => controller?.rollbackHarness(version))
   ipcMain.handle('launcher:repair', () => controller?.repair())

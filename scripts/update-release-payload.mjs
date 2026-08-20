@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { modelProviderTemplates } from '../src/shared/model-provider-catalog.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 const release = path.join(root, 'release')
@@ -17,6 +18,7 @@ const bootstrapSha256 = createHash('sha256').update(bootstrapBytes).digest('hex'
 payload.schemaVersion = 2
 payload.generatedAt = new Date().toISOString()
 payload.runtimeModules = runtimeModules.modules
+payload.modelTemplates = modelProviderTemplates
 payload.launcher = {
   version: packageJson.version,
   notes: [

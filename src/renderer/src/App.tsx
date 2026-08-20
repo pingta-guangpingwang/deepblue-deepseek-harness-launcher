@@ -1399,6 +1399,84 @@ function StorageSetupDialog({ snapshot, busy, error, onConfirm, onChoose }: {
   </div>
 }
 
+function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLater }: {
+  snapshot: LauncherSnapshot
+  busy: boolean
+  onConfirm: () => void
+  onLater: () => void
+}): ReactNode {
+  const dialogRef = useRef<HTMLElement>(null)
+  const update = snapshot.runtimeUpdates
+  const task = update.taskId ? snapshot.tasks.find((item) => item.id === update.taskId) : undefined
+  const locked = update.status === 'installing' || update.status === 'restarting'
+  const totalBytes = update.items.reduce((sum, item) => sum + item.size, 0)
+
+  useEffect(() => {
+    const preferred = dialogRef.current?.querySelector<HTMLButtonElement>('.primary-button:not(:disabled), .quiet-button:not(:disabled)')
+    preferred?.focus()
+    const keydown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape' && !locked) onLater()
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [locked, onLater])
+
+  const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    if (event.key !== 'Tab') return
+    const controls = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])]
+    if (!controls.length) {
+      event.preventDefault()
+      dialogRef.current?.focus()
+      return
+    }
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (!first || !last) return
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  return <div className="runtime-update-backdrop" role="presentation">
+    <section ref={dialogRef} tabIndex={-1} className="runtime-update-dialog" role="dialog" aria-modal="true" aria-labelledby="runtimeUpdateTitle" aria-describedby="runtimeUpdateDescription" onKeyDown={keepFocusInside}>
+      <div className="runtime-update-heading">
+        <span className={classNames('runtime-update-icon', update.status)}>{update.status === 'failed' ? <CircleAlert size={25} /> : update.status === 'restarting' ? <RotateCcw size={25} /> : <PackageCheck size={25} />}</span>
+        <div><span>签名模块更新</span><h2 id="runtimeUpdateTitle">{update.status === 'available' ? `发现 ${update.items.length} 个模块可更新` : update.status === 'failed' ? '更新未完成' : update.status === 'restarting' ? '安装完成，准备重启' : '正在安装更新'}</h2><p id="runtimeUpdateDescription">{update.message || '只下载有变化的模块，不会重新获取整套启动器。'}</p></div>
+      </div>
+
+      <div className="runtime-update-list" aria-label="本次更新模块">
+        {update.items.map((item) => {
+          const step = task?.steps?.find((candidate) => candidate.id === item.id)
+          return <div className="runtime-update-item" key={item.id}>
+            <span className={classNames('runtime-update-state', step?.status || 'queued')}>{step?.status === 'completed' ? <Check size={16} /> : step?.status === 'failed' ? <X size={16} /> : <Package size={16} />}</span>
+            <span><strong>{item.label}</strong><small>{item.currentVersion} <ArrowRight size={12} /> {item.nextVersion}</small></span>
+            <b>{compactBytes(item.size)}</b>
+            {step && <div className="runtime-update-item-progress"><span style={{ width: `${step.progress}%` }} /></div>}
+            {step && <small className="runtime-update-item-detail">{moduleSourceLabel(step.source)}{step.source ? ' · ' : ''}{modulePhaseLabel(step.phase)} · {step.progress}%</small>}
+          </div>
+        })}
+      </div>
+
+      {task && <div className="runtime-update-total">
+        <div><span>总下载与安装进度</span><strong>{task.progress}%</strong></div>
+        <div className="runtime-update-total-track" role="progressbar" aria-label="模块更新总进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={task.progress}><span style={{ width: `${task.progress}%` }} /></div>
+        <small>{compactBytes(task.receivedBytes || 0)} / {compactBytes(task.totalBytes || totalBytes)} · {task.detail}</small>
+      </div>}
+
+      <div className="runtime-update-note"><ShieldCheck size={17} /><span>每个模块都会校验大小和 SHA-256，并先安装到临时目录；任一模块失败会恢复本轮已切换的版本。</span></div>
+      <div className="runtime-update-actions">
+        {!locked && <button className="quiet-button" disabled={busy} onClick={onLater}>{update.status === 'failed' ? '关闭' : '稍后更新'}</button>}
+        {!locked && <button className="primary-button" disabled={busy} onClick={onConfirm}>{busy ? <LoaderCircle className="spin" size={17} /> : <Download size={17} />}{update.status === 'failed' ? '重新下载' : `下载并安装 · ${compactBytes(totalBytes)}`}</button>}
+        {locked && <span className="runtime-update-locked"><LoaderCircle className="spin" size={17} />{update.status === 'restarting' ? '正在重启，请稍候…' : '更新期间请勿关闭启动器'}</span>}
+      </div>
+    </section>
+  </div>
+}
+
 function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen, onCreateShortcuts }: {
   snapshot: LauncherSnapshot
   actionMessage: string
@@ -1473,6 +1551,7 @@ export default function App(): ReactNode {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [storageError, setStorageError] = useState('')
+  const [dismissedRuntimeUpdate, setDismissedRuntimeUpdate] = useState('')
 
   useEffect(() => {
     if (!window.launcher) return
@@ -1486,6 +1565,8 @@ export default function App(): ReactNode {
 
   const currentPage = pageTitles[page]
   const statusLabel = useMemo(() => snapshot.runStatus === 'running' ? '运行中' : snapshot.runStatus === 'starting' ? '启动中' : snapshot.runStatus === 'error' ? '需要处理' : '未运行', [snapshot.runStatus])
+  const runtimeUpdateSignature = snapshot.runtimeUpdates.items.map((item) => `${item.id}:${item.nextVersion}`).join('|')
+  const showRuntimeUpdate = !snapshot.installation.setupRequired && snapshot.runtimeUpdates.items.length > 0 && snapshot.runtimeUpdates.status !== 'idle' && (snapshot.runtimeUpdates.status !== 'available' || dismissedRuntimeUpdate !== runtimeUpdateSignature)
 
   const run = async (name: string, action?: () => Promise<LauncherSnapshot | void>, demo?: () => void): Promise<boolean> => {
     if (busy) return false
@@ -1541,12 +1622,44 @@ export default function App(): ReactNode {
     void storageAction('shortcuts', () => window.launcher!.createShortcuts(), () => ({ ...snapshot, installation: { ...snapshot.installation, desktopShortcutReady: true, startMenuShortcutReady: true } }))
   }
   const checkSources = (): void => {
+    setDismissedRuntimeUpdate('')
     if (window.launcher) void run('sources', () => window.launcher!.checkSources())
     else setSnapshot((current) => ({ ...current, sources: current.sources.map((source) => source.enabled ? { ...source, status: 'available', latencyMs: source.latencyMs || 68 } : source) }))
   }
   const repair = (): void => { if (window.launcher) void run('repair', () => window.launcher!.repair()) }
   const refresh = (): void => { if (window.launcher) void run('refresh', () => window.launcher!.refreshEnvironment()) }
   const install = (version: string): void => { if (window.launcher) void run('install', () => window.launcher!.installHarness(version)) }
+  const applyRuntimeUpdates = (): void => {
+    if (window.launcher) {
+      void run('runtime-updates', () => window.launcher!.applyRuntimeUpdates())
+      return
+    }
+    const items = snapshot.runtimeUpdates.items
+    const taskId = `runtime-update-${Date.now()}`
+    const totalBytes = items.reduce((sum, item) => sum + item.size, 0)
+    const task = {
+      id: taskId,
+      title: '更新启动器功能模块',
+      detail: '正在从 GitHub 下载签名模块',
+      status: 'running' as const,
+      progress: 8,
+      receivedBytes: 0,
+      totalBytes,
+      createdAt: new Date().toISOString(),
+      steps: items.map((item) => ({ id: item.id, label: item.label, status: 'downloading' as const, phase: 'download' as const, progress: 8, receivedBytes: 0, totalBytes: item.size, source: 'github' as const }))
+    }
+    setSnapshot((current) => ({ ...current, tasks: [task, ...current.tasks], runtimeUpdates: { status: 'installing', items, taskId, message: '正在下载并校验签名模块，请保持启动器运行' } }))
+    window.setTimeout(() => setSnapshot((current) => ({
+      ...current,
+      tasks: current.tasks.map((entry) => entry.id === taskId ? { ...entry, progress: 56, receivedBytes: Math.round(totalBytes * .56), detail: '下载完成，正在校验并解压', steps: entry.steps?.map((step, index) => ({ ...step, progress: index === 0 ? 100 : 38, receivedBytes: index === 0 ? step.totalBytes : Math.round(step.totalBytes * .38), phase: index === 0 ? 'completed' as const : 'download' as const, status: index === 0 ? 'completed' as const : 'downloading' as const })) } : entry),
+      runtimeUpdates: { status: 'installing', items, taskId, message: '正在校验并安装模块' }
+    })), 650)
+    window.setTimeout(() => setSnapshot((current) => ({
+      ...current,
+      tasks: current.tasks.map((entry) => entry.id === taskId ? { ...entry, progress: 100, receivedBytes: totalBytes, detail: '全部模块已安装，准备重启', status: 'completed', steps: entry.steps?.map((step) => ({ ...step, progress: 100, receivedBytes: step.totalBytes, phase: 'completed', status: 'completed' })) } : entry),
+      runtimeUpdates: { status: 'restarting', items, taskId, message: '更新安装完成，启动器即将自动重启' }
+    })), 1_400)
+  }
   const downloadLauncherUpdate = (): void => { if (window.launcher) void run('launcher-update', () => window.launcher!.downloadLauncherUpdate()) }
   const rollback = (version: string): void => { if (window.launcher) void run('rollback', () => window.launcher!.rollbackHarness(version)) }
   const pluginAction = (action: 'install' | 'update' | 'remove', spec: string): void => { if (window.launcher) void run('plugin', () => window.launcher!.pluginAction(action, spec)) }
@@ -1663,6 +1776,7 @@ export default function App(): ReactNode {
         </div>
       </main>
       {snapshot.installation.setupRequired && <StorageSetupDialog snapshot={snapshot} busy={busy.startsWith('storage-')} error={storageError} onConfirm={confirmStorageSetup} onChoose={chooseStorageRoot} />}
+      {showRuntimeUpdate && <RuntimeUpdateDialog snapshot={snapshot} busy={busy === 'runtime-updates'} onConfirm={applyRuntimeUpdates} onLater={() => setDismissedRuntimeUpdate(runtimeUpdateSignature)} />}
     </div>
   )
 }

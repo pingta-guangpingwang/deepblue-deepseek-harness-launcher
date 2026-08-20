@@ -3,12 +3,20 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.3',
+  launcherVersion: '0.10.4',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
   activeHarnessVersion: '0.1.0-rc.6',
   latestHarnessVersion: '0.1.0-rc.6',
+  runtimeUpdates: {
+    status: 'available',
+    message: '检测到 2 个独立模块可更新',
+    items: [
+      { id: 'harness-core', label: 'DeepSeek Harness 核心', currentVersion: '0.1.0-rc.6', nextVersion: '0.1.0-rc.7', size: 48_600_000, required: true },
+      { id: 'package-manager', label: 'pnpm 插件环境', currentVersion: '11.22.0', nextVersion: '11.23.0', size: 6_900_000, required: true }
+    ]
+  },
   environment: [
     { id: 'node', label: '内置 Node.js', version: '24.16.0', status: 'ready', detail: '独立运行时可用，不修改系统环境' },
     { id: 'harness', label: 'Harness 核心', version: '0.1.0-rc.6', status: 'ready', detail: '整合包内置版本' },
@@ -26,7 +34,7 @@ export const mockSnapshot: LauncherSnapshot = {
     { id: 'environment', title: '验证整合包运行环境', detail: '4 项检查全部通过', status: 'completed', progress: 100, createdAt: new Date().toISOString() }
   ],
   logs: [
-    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.3 已启动' },
+    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.4 已启动' },
     { id: 2, time: '20:21:03', level: 'INFO', message: '内置 Node.js 24.16.0 可用' },
     { id: 3, time: '20:21:04', level: 'INFO', message: 'Harness 0.1.0-rc.6 完整性检查通过' },
     { id: 4, time: '20:21:05', level: 'INFO', message: '选择工作区后即可启动本地服务' }

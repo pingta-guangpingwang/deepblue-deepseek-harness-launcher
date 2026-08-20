@@ -15,6 +15,7 @@ import type {
   ModelHubState,
   ModelProviderConnection,
   ModelProviderDraft,
+  ModelProviderTemplate,
   ModelUsageSummary,
   MultimodalTestRequest,
   MultimodalTestResult
@@ -39,9 +40,9 @@ function validBaseURL(value: string): boolean {
   }
 }
 
-function envName(providerId: string, explicit?: string): string {
+function envName(providerId: string, explicit?: string, templates: ModelProviderTemplate[] = modelProviderTemplates): string {
   if (explicit && /^[A-Za-z_][A-Za-z0-9_]*$/.test(explicit)) return explicit
-  const template = modelProviderTemplates.find((item) => item.id === providerId)
+  const template = templates.find((item) => item.id === providerId)
   if (template) return template.apiKeyEnv
   return `${providerId.replace(/[^a-z0-9]/gi, '_').toUpperCase()}_API_KEY`
 }
@@ -50,11 +51,14 @@ function providerEnvName(provider: PersistedConfig['modelRouting']['providers'][
   return envName(provider.id, provider.apiKeyEnv)
 }
 
-export function normalizeModelProviderDraft(draft: ModelProviderDraft): Omit<ModelProviderDraft, 'apiKey'> {
+export function normalizeModelProviderDraft(
+  draft: ModelProviderDraft,
+  templates: ModelProviderTemplate[] = modelProviderTemplates
+): Omit<ModelProviderDraft, 'apiKey'> {
   const id = draft.id.trim().toLowerCase()
   if (!/^[a-z][a-z0-9-]{1,39}$/.test(id)) throw new Error('提供方 ID 必须以小写字母开头，只能包含小写字母、数字和连字符')
   if ((draft.apiKey?.length || 0) > 16_384) throw new Error('API Key 长度异常，请检查后重试')
-  const template = modelProviderTemplates.find((item) => item.id === id)
+  const template = templates.find((item) => item.id === id)
   if (template && !template.custom) {
     const selectedIds = new Set(draft.models.map((model) => model.id.trim()))
     const models = template.suggestedModels
@@ -96,6 +100,7 @@ export function normalizeModelProviderDraft(draft: ModelProviderDraft): Omit<Mod
 }
 
 export class ModelStore {
+  private templates: ModelProviderTemplate[] = structuredClone(modelProviderTemplates)
   private secrets: SecretDocument = { version: 1, values: {} }
   private usage: Record<string, ModelUsageSummary> = {}
   private readonly watchTargets: string[] = []
@@ -126,7 +131,7 @@ export class ModelStore {
 
   state(message?: string): ModelHubState {
     const providers: ModelProviderConnection[] = this.config.modelRouting.providers.map((provider) => {
-      const template = modelProviderTemplates.find((item) => item.id === provider.id)
+      const template = this.templates.find((item) => item.id === provider.id)
       const key = providerEnvName(provider)
       return {
         ...provider,
@@ -147,7 +152,7 @@ export class ModelStore {
         model: activeModel?.id || 'deepseek-v4-flash',
         displayName: activeModel?.name || 'DeepSeek V4 Flash'
       },
-      templates: modelProviderTemplates,
+      templates: structuredClone(this.templates),
       providers,
       usage: this.usage,
       secureStorageAvailable: safeStorage.isEncryptionAvailable(),
@@ -155,10 +160,15 @@ export class ModelStore {
     }
   }
 
+  syncTemplates(templates: ModelProviderTemplate[]): ModelHubState {
+    this.templates = structuredClone(templates)
+    return this.state('模型目录已从签名在线目录更新；已添加连接保持不变')
+  }
+
   async saveProvider(draft: ModelProviderDraft): Promise<ModelHubState> {
-    const normalized = normalizeModelProviderDraft(draft)
+    const normalized = normalizeModelProviderDraft(draft, this.templates)
     const existing = this.config.modelRouting.providers.findIndex((item) => item.id === normalized.id)
-    const apiKeyEnv = envName(normalized.id, existing >= 0 ? this.config.modelRouting.providers[existing]?.apiKeyEnv : undefined)
+    const apiKeyEnv = envName(normalized.id, existing >= 0 ? this.config.modelRouting.providers[existing]?.apiKeyEnv : undefined, this.templates)
     const persisted = { ...normalized, apiKeyEnv }
     if (existing >= 0) this.config.modelRouting.providers[existing] = persisted
     else this.config.modelRouting.providers.push(persisted)

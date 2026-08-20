@@ -52,6 +52,19 @@ describe('model provider templates', () => {
     })
   })
 
+  it('can apply a trusted signed template without changing the launcher shell', () => {
+    const liveTemplates = modelProviderTemplates.map((template) => template.id === 'deepseek-official' ? {
+      ...template,
+      catalogUpdatedAt: '2026-08-20',
+      suggestedModels: [...template.suggestedModels, { id: 'deepseek-v4-mini', name: 'DeepSeek V4 Mini' }]
+    } : template)
+    const normalized = normalizeModelProviderDraft({
+      id: 'deepseek-official', name: 'ignored', api: 'openai-completions', baseURL: 'https://ignored.example',
+      models: [{ id: 'deepseek-v4-mini', name: 'ignored' }]
+    }, liveTemplates)
+    expect(normalized.models).toEqual([{ id: 'deepseek-v4-mini', name: 'DeepSeek V4 Mini' }])
+  })
+
   it('opens resource cards on one click and keeps manual model entry custom-only', () => {
     const app = readFileSync(path.resolve('src/renderer/src/App.tsx'), 'utf8')
     expect(app).toMatch(/resource-market-card[\s\S]{0,180}onClick=\{\(\) => openResource\(item\)\}/)

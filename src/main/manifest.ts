@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { verify } from 'node:crypto'
-import type { RuntimeModuleArtifact, RuntimeModuleId, RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload, SourceConfig } from '../shared/types'
+import type { ModelProviderTemplate, RuntimeModuleArtifact, RuntimeModuleId, RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload, SourceConfig } from '../shared/types'
 
 const RUNTIME_MODULE_IDS = new Set<RuntimeModuleId>([
   'node-runtime',
@@ -20,6 +20,9 @@ const SHA256_PATTERN = /^[a-f0-9]{64}$/
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/
 const SAFE_RELATIVE_PATH = /^(?![A-Za-z]:)(?![\\/])(?!.*(?:^|[\\/])\.\.(?:[\\/]|$))[0-9A-Za-z._\\/-]+$/
 const RUNTIME_CATALOG_KEY_ID = 'runtime-production-v2-1'
+const MODEL_PROVIDER_ID = /^[a-z][a-z0-9-]{1,39}$/
+const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -106,6 +109,48 @@ export function validateRuntimeModules(modules: unknown): modules is RuntimeModu
   return modules.every((module) => visit(module.id))
 }
 
+function safeCatalogUrl(value: unknown, allowEmpty = false): boolean {
+  if (allowEmpty && value === '') return true
+  if (typeof value !== 'string' || value.length > 2_048) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+/** Validates model templates before the signed online catalog can replace the bundled fallback. */
+export function validateModelTemplates(value: unknown): value is ModelProviderTemplate[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) return false
+  const ids = new Set<string>()
+  const envNames = new Set<string>()
+  return value.every((candidate) => {
+    if (!isRecord(candidate)) return false
+    const template = candidate as unknown as ModelProviderTemplate
+    if (!MODEL_PROVIDER_ID.test(template.id) || ids.has(template.id)) return false
+    if (typeof template.name !== 'string' || template.name.length < 1 || template.name.length > 80) return false
+    if (typeof template.description !== 'string' || template.description.length < 1 || template.description.length > 300) return false
+    if (!['china', 'global', 'custom'].includes(template.region)) return false
+    if (!['deepseek', 'openai-responses', 'openai-completions', 'anthropic-messages', 'google-generative-ai'].includes(template.api)) return false
+    if (!safeCatalogUrl(template.baseURL, template.custom) || !safeCatalogUrl(template.docsUrl, template.custom)) return false
+    if (template.billingUrl !== undefined && !safeCatalogUrl(template.billingUrl)) return false
+    if (!ENV_NAME.test(template.apiKeyEnv) || envNames.has(template.apiKeyEnv)) return false
+    if (typeof template.catalogUpdatedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(template.catalogUpdatedAt)) return false
+    if (typeof template.custom !== 'boolean' || typeof template.featured !== 'boolean') return false
+    if (!Array.isArray(template.suggestedModels) || template.suggestedModels.length > 50) return false
+    if (template.suggestedModels.some((model) => (
+      !isRecord(model) || !MODEL_ID.test(model.id) || typeof model.name !== 'string' || model.name.length < 1 || model.name.length > 100 ||
+      (model.description !== undefined && (typeof model.description !== 'string' || model.description.length > 300)) ||
+      (model.recommended !== undefined && typeof model.recommended !== 'boolean')
+    ))) return false
+    if (new Set(template.suggestedModels.map((model) => model.id)).size !== template.suggestedModels.length) return false
+    ids.add(template.id)
+    envNames.add(template.apiKeyEnv)
+    return true
+  })
+}
+
 function stablePayload(payload: SignedCatalogPayload): Buffer {
   return Buffer.from(JSON.stringify(payload), 'utf8')
 }
@@ -115,6 +160,7 @@ export function verifyCatalogManifest(manifest: SignedCatalogManifest, publicKey
     if (expectedKeyId && manifest.keyId !== expectedKeyId) return false
     if (manifest.algorithm !== 'ed25519' || ![1, 2].includes(manifest.payload.schemaVersion)) return false
     if (manifest.payload.schemaVersion === 2 && !validateRuntimeModules(manifest.payload.runtimeModules)) return false
+    if (manifest.payload.modelTemplates !== undefined && !validateModelTemplates(manifest.payload.modelTemplates)) return false
     if (manifest.payload.schemaVersion === 1 && manifest.payload.runtimeModules !== undefined) return false
     return verify(null, stablePayload(manifest.payload), publicKey, Buffer.from(manifest.signature, 'base64'))
   } catch {

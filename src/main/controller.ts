@@ -9,7 +9,8 @@ import { bundledModels, bundledPlugins, bundledVersions } from './catalog'
 import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
 import { fetchLatestNpmVersion, fetchSignedCatalog } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
-import { RuntimeModuleStore } from './runtime-modules'
+import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
+import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
 import { SkinStore } from './skins'
 import { PetStore } from './pets'
 import { ModelStore } from './model-store'
@@ -29,6 +30,7 @@ import type {
   ModelProviderDraft,
   MultimodalTestRequest,
   MultimodalTestResult,
+  RuntimeModuleId,
   RuntimeModuleRelease,
   SourceConfig,
   SourceHealth
@@ -42,31 +44,6 @@ const PNPM_ALLOWED_BUILDS = [
   'node-pty',
   'protobufjs'
 ]
-
-const RUNTIME_MODULE_LABELS: Record<string, string> = {
-  'node-runtime': 'Node.js 运行环境',
-  'harness-core': 'DeepSeek Harness 核心',
-  'package-manager': 'pnpm 插件环境',
-  'terminal-native': '终端原生组件',
-  'launcher-ui': '启动器 UI 壳'
-}
-
-function runtimeModulePlan(target: RuntimeModuleRelease, catalog: RuntimeModuleRelease[], platform: string, arch: string): Array<{ release: RuntimeModuleRelease; bytes: number }> {
-  const plan: Array<{ release: RuntimeModuleRelease; bytes: number }> = []
-  const visited = new Set<string>()
-  const visit = (release: RuntimeModuleRelease): void => {
-    if (visited.has(release.id)) return
-    visited.add(release.id)
-    for (const dependencyId of release.dependencies) {
-      const dependency = catalog.find((candidate) => candidate.id === dependencyId)
-      if (dependency) visit(dependency)
-    }
-    const artifact = release.artifacts.find((candidate) => candidate.platform === platform && candidate.arch === arch)
-    if (artifact) plan.push({ release, bytes: artifact.size })
-  }
-  visit(target)
-  return plan
-}
 
 function moduleStepProgress(phase: LauncherTaskStep['phase'], receivedBytes: number, totalBytes: number): number {
   if (phase === 'queued') return 0
@@ -129,6 +106,7 @@ export class LauncherController {
       runStatus: 'stopped',
       activeHarnessVersion: this.config.activeVersion,
       latestHarnessVersion: '0.1.0-rc.6',
+      runtimeUpdates: { status: 'idle', items: [] },
       environment: this.checkingEnvironment(),
       sources,
       tasks: [],
@@ -356,30 +334,13 @@ export class LauncherController {
         task.progress = 0
         task.detail = `准备 ${task.steps.length} 个签名模块`
         this.emit()
-        const installed = await this.moduleStore.install(modularRelease, this.runtimeModules, process.platform, process.arch, (progress) => {
-          const step = task.steps?.find((candidate) => candidate.id === progress.moduleId)
-          if (!step) return
-          const phase = progress.phase
-          step.phase = phase
-          step.status = moduleStepStatus(phase)
-          step.progress = Math.max(step.progress, moduleStepProgress(phase, progress.receivedBytes, progress.totalBytes))
-          step.receivedBytes = Math.max(step.receivedBytes, Math.min(progress.receivedBytes, progress.totalBytes))
-          if (progress.mirrorId === 'github' || progress.mirrorId === 'gitee' || progress.mirrorId === 'oss') step.source = progress.mirrorId
-          step.message = progress.message
-          if (phase === 'source-fallback' && progress.message) this.log('WARN', progress.message)
-          const totalWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes), 0) || 1
-          const completedWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes) * candidate.progress / 100, 0) || 0
-          task.receivedBytes = task.steps?.reduce((sum, candidate) => sum + Math.min(candidate.receivedBytes, candidate.totalBytes), 0) || 0
-          task.progress = Math.min(99, Math.round(completedWeight / totalWeight * 100))
-          task.detail = phase === 'source-check'
-            ? `正在检测 ${runtimeSourceLabel(progress.mirrorId)} · ${step.label}`
-            : phase === 'source-fallback'
-              ? `${runtimeSourceLabel(progress.mirrorId)} 不可用，自动切换 · ${step.label}`
-              : phase === 'download'
-                ? `从 ${runtimeSourceLabel(progress.mirrorId)} 下载 · ${step.label}`
-                : `${step.label} · ${phase === 'verify' ? '校验' : phase === 'extract' ? '解压' : phase === 'probe' ? '可运行性检测' : '启用'}`
-          this.emit()
-        })
+        const installed = await this.moduleStore.install(
+          modularRelease,
+          this.runtimeModules,
+          process.platform,
+          process.arch,
+          (progress) => this.updateModuleTask(task, progress)
+        )
         this.config.activeVersion = version
         await writeConfig(this.config)
         for (const step of task.steps) {
@@ -461,6 +422,112 @@ export class LauncherController {
         activeStep.message = task.detail
       }
       this.log('ERROR', `安装失败：${task.detail}`)
+      this.emit()
+    }
+    return this.getSnapshot()
+  }
+
+  async applyRuntimeUpdates(): Promise<LauncherSnapshot> {
+    if (this.snapshot.runtimeUpdates.status === 'installing' || this.snapshot.runtimeUpdates.status === 'restarting') return this.getSnapshot()
+    const requested = [...this.snapshot.runtimeUpdates.items]
+    if (!requested.length) return this.getSnapshot()
+    const requestedIds = new Set(requested.map((item) => item.id))
+    const releases = [...new Map(requested.flatMap((item) => {
+      const target = this.runtimeModules.find((release) => release.id === item.id)
+      return target ? runtimeModulePlan(target, this.runtimeModules, process.platform, process.arch) : []
+    }).filter(({ release }) => requestedIds.has(release.id)).map(({ release }) => [release.id, release])).values()]
+    if (releases.length !== requested.length) {
+      this.snapshot.runtimeUpdates = { ...this.snapshot.runtimeUpdates, status: 'failed', message: '签名目录已变化，请重新检查更新' }
+      this.emit()
+      return this.getSnapshot()
+    }
+
+    const task = this.addTask(`runtime-update-${Date.now()}`, '更新启动器功能模块', `准备更新 ${requested.length} 个模块`)
+    task.steps = requested.map((item) => ({
+      id: item.id,
+      label: item.label,
+      status: 'queued',
+      phase: 'queued',
+      progress: 0,
+      receivedBytes: 0,
+      totalBytes: item.size
+    }))
+    task.totalBytes = requested.reduce((sum, item) => sum + item.size, 0)
+    task.receivedBytes = 0
+    task.progress = 0
+    this.snapshot.runtimeUpdates = {
+      status: 'installing',
+      items: requested,
+      taskId: task.id,
+      message: '正在下载并校验签名模块，请保持启动器运行'
+    }
+    this.log('INFO', `用户确认更新 ${requested.map((item) => `${item.label} ${item.nextVersion}`).join('、')}`)
+    this.emit()
+
+    const activated: RuntimeModuleId[] = []
+    const previousActiveHarnessVersion = this.config.activeVersion
+    try {
+      if (this.service) await this.stopHarness()
+      if (this.config.settings.backupBeforeUpdate && requestedIds.has('harness-core')) await this.backupUserData()
+      for (const release of releases) {
+        await this.moduleStore.install(
+          release,
+          this.runtimeModules,
+          process.platform,
+          process.arch,
+          (progress) => this.updateModuleTask(task, progress)
+        )
+        activated.push(release.id)
+        if (release.id === 'harness-core') this.config.activeVersion = release.version
+      }
+      await writeConfig(this.config)
+      for (const step of task.steps) {
+        step.status = 'completed'
+        step.phase = 'completed'
+        step.progress = 100
+        step.receivedBytes = step.totalBytes
+      }
+      task.status = 'completed'
+      task.progress = 100
+      task.receivedBytes = task.totalBytes
+      task.detail = '全部模块已安装，正在安全重启启动器'
+      this.snapshot.runtimeUpdates = {
+        status: 'restarting',
+        items: requested,
+        taskId: task.id,
+        message: '更新安装完成，启动器即将自动重启'
+      }
+      await this.refreshEnvironment()
+      this.log('INFO', '模块更新安装完成，准备重启启动器')
+      this.emit()
+      if (app.isPackaged) {
+        setTimeout(() => {
+          app.relaunch()
+          app.exit(0)
+        }, 1_200)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.config.activeVersion = previousActiveHarnessVersion
+      let rollbackFailure = ''
+      for (const moduleId of activated.reverse()) {
+        try {
+          const versions = await this.moduleStore.versions(moduleId)
+          if (versions.previous) await this.moduleStore.rollback(moduleId)
+        } catch (rollbackError) {
+          rollbackFailure = rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+          this.log('ERROR', `${RUNTIME_MODULE_LABELS[moduleId]} 自动回滚失败：${rollbackFailure}`)
+        }
+      }
+      task.status = 'failed'
+      task.detail = rollbackFailure ? `${message}；部分模块回滚失败，请执行快速修复` : `${message}；已恢复更新前模块`
+      const activeStep = task.steps?.find((step) => !['completed', 'queued'].includes(step.status))
+      if (activeStep) {
+        activeStep.status = 'failed'
+        activeStep.message = message
+      }
+      this.snapshot.runtimeUpdates = { status: 'failed', items: requested, taskId: task.id, message: task.detail }
+      this.log('ERROR', `模块更新失败：${task.detail}`)
       this.emit()
     }
     return this.getSnapshot()
@@ -1306,14 +1373,57 @@ export class LauncherController {
       }))
       this.snapshot.plugins = signedCatalog.plugins
       this.snapshot.models = signedCatalog.models
+      if (signedCatalog.modelTemplates?.length) this.snapshot.modelHub = this.modelStore.syncTemplates(signedCatalog.modelTemplates)
+      await this.detectRuntimeUpdates()
       this.log('INFO', `已同步签名目录（${signedCatalog.generatedAt}，运行模块 ${this.runtimeModules.length} 个）`)
     }
+  }
+
+  private async detectRuntimeUpdates(): Promise<void> {
+    if (this.snapshot.runtimeUpdates.status === 'installing' || this.snapshot.runtimeUpdates.status === 'restarting') return
+    const currentVersions: Partial<Record<RuntimeModuleId, string>> = {}
+    for (const release of this.runtimeModules) {
+      const versions = await this.moduleStore.versions(release.id)
+      if (versions.active) currentVersions[release.id] = versions.active
+    }
+    currentVersions['harness-core'] ||= this.snapshot.environment.find((item) => item.id === 'harness')?.version
+    currentVersions['node-runtime'] ||= this.snapshot.environment.find((item) => item.id === 'node')?.version
+    currentVersions['package-manager'] ||= this.snapshot.environment.find((item) => item.id === 'pnpm')?.version
+    const items = planRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
+    this.snapshot.runtimeUpdates = items.length
+      ? { status: 'available', items, message: `检测到 ${items.length} 个独立模块可更新` }
+      : { status: 'idle', items: [] }
   }
 
   private addTask(id: string, title: string, detail: string): LauncherTask {
     const task: LauncherTask = { id, title, detail, status: 'running', progress: 4, createdAt: new Date().toISOString() }
     this.snapshot.tasks = [task, ...this.snapshot.tasks].slice(0, 20)
     return task
+  }
+
+  private updateModuleTask(task: LauncherTask, progress: RuntimeModuleInstallProgress): void {
+    const step = task.steps?.find((candidate) => candidate.id === progress.moduleId)
+    if (!step) return
+    const phase = progress.phase
+    step.phase = phase
+    step.status = moduleStepStatus(phase)
+    step.progress = Math.max(step.progress, moduleStepProgress(phase, progress.receivedBytes, progress.totalBytes))
+    step.receivedBytes = Math.max(step.receivedBytes, Math.min(progress.receivedBytes, progress.totalBytes))
+    if (progress.mirrorId === 'github' || progress.mirrorId === 'gitee' || progress.mirrorId === 'oss') step.source = progress.mirrorId
+    step.message = progress.message
+    if (phase === 'source-fallback' && progress.message) this.log('WARN', progress.message)
+    const totalWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes), 0) || 1
+    const completedWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes) * candidate.progress / 100, 0) || 0
+    task.receivedBytes = task.steps?.reduce((sum, candidate) => sum + Math.min(candidate.receivedBytes, candidate.totalBytes), 0) || 0
+    task.progress = Math.min(99, Math.round(completedWeight / totalWeight * 100))
+    task.detail = phase === 'source-check'
+      ? `正在检测 ${runtimeSourceLabel(progress.mirrorId)} · ${step.label}`
+      : phase === 'source-fallback'
+        ? `${runtimeSourceLabel(progress.mirrorId)} 不可用，自动切换 · ${step.label}`
+        : phase === 'download'
+          ? `从 ${runtimeSourceLabel(progress.mirrorId)} 下载 · ${step.label}`
+          : `${step.label} · ${phase === 'verify' ? '校验' : phase === 'extract' ? '解压' : phase === 'probe' ? '可运行性检测' : '启用'}`
+    this.emit()
   }
 
   private async backupUserData(): Promise<void> {

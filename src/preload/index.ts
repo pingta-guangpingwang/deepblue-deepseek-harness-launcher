@@ -8,6 +8,7 @@ const api: LauncherApi = {
   startHarness: () => ipcRenderer.invoke('launcher:start'),
   stopHarness: () => ipcRenderer.invoke('launcher:stop'),
   installHarness: (version?: string) => ipcRenderer.invoke('launcher:install', version),
+  applyRuntimeUpdates: () => ipcRenderer.invoke('launcher:apply-runtime-updates'),
   downloadLauncherUpdate: () => ipcRenderer.invoke('launcher:download-update'),
   rollbackHarness: (version: string) => ipcRenderer.invoke('launcher:rollback', version),
   repair: () => ipcRenderer.invoke('launcher:repair'),

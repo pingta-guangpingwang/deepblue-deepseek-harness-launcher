@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { validateRuntimeModules, verifyCatalogManifest } from './manifest'
+import { validateModelTemplates, validateRuntimeModules, verifyCatalogManifest } from './manifest'
+import { modelProviderTemplates } from '../shared/model-provider-catalog'
 import type { RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload } from '../shared/types'
 
 const payload: SignedCatalogPayload = {
@@ -99,11 +100,25 @@ describe('catalog signature verification', () => {
     expect(verifyCatalogManifest(legacyManifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
   })
 
+  it('accepts a signed live model directory and rejects unsafe or duplicate templates', () => {
+    expect(validateModelTemplates(modelProviderTemplates)).toBe(true)
+    expect(validateModelTemplates(modelProviderTemplates.map((template, index) => index === 0 ? { ...template, baseURL: 'http://attacker.example' } : template))).toBe(false)
+    expect(validateModelTemplates([...modelProviderTemplates, modelProviderTemplates[0]])).toBe(false)
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+    const modularPayload: SignedCatalogPayload = { ...payload, schemaVersion: 2, runtimeModules: [runtimeModule], modelTemplates: modelProviderTemplates }
+    const manifest: SignedCatalogManifest = {
+      keyId: 'test', algorithm: 'ed25519', payload: modularPayload,
+      signature: sign(null, Buffer.from(JSON.stringify(modularPayload)), privateKey).toString('base64')
+    }
+    expect(verifyCatalogManifest(manifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(true)
+  })
+
   it('publishes launcher updates through permanent download URLs', () => {
     const script = readFileSync(path.resolve('scripts/update-release-payload.mjs'), 'utf8')
     expect(script).toContain("const stableDownloadBaseUrl = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/download'")
     expect(script).toContain('deepblue-deepseek-harness-launcher-win-x64-online.exe')
     expect(script).toContain("distribution: 'online'")
+    expect(script).toContain('payload.modelTemplates = modelProviderTemplates')
     expect(script).not.toContain("distribution: 'offline'")
     expect(script).not.toContain('`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/releases/${packageJson.version}`')
   })
