@@ -1,0 +1,128 @@
+{
+  "name": "deepseek-harness-launcher",
+  "version": "0.10.0",
+  "description": "深蓝 DeepSeekHarness 新手整合启动器。",
+  "type": "module",
+  "main": "out/main/index.js",
+  "author": "DeepSeek Harness Launcher contributors",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.renderer.config.ts",
+    "build": "npm run typecheck && electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run && node scripts/smoke-appearance-runtime-cache.mjs",
+    "test:runtime": "node scripts/smoke-web.mjs",
+    "test:plugin": "node scripts/smoke-plugin.mjs",
+    "test:version": "node scripts/smoke-version.mjs",
+    "keys:generate": "node scripts/generate-signing-key.mjs",
+    "catalog:prepare": "node scripts/update-release-payload.mjs",
+    "modules:build": "node scripts/sync-runtime-peers.mjs && node scripts/build-runtime-modules.mjs",
+    "modules:smoke": "node scripts/run-runtime-module-smoke.mjs",
+    "shell:build": "node scripts/build-launcher-shell.mjs",
+    "bootstrap:build": "powershell.exe -NoProfile -File scripts/build-bootstrap-installer.ps1",
+    "bootstrap:smoke": "powershell.exe -NoProfile -File scripts/smoke-bootstrap-installer.ps1",
+    "sign:manifest": "node scripts/sign-manifest.mjs",
+    "sign:store-trust": "node scripts/sign-store-trust.mjs",
+    "verify:skins": "node scripts/verify-skin-catalog.mjs",
+    "verify:pets": "node scripts/verify-pet-catalog.mjs",
+    "package": "npm run build && electron-builder --dir",
+    "dist:win": "npm run build && electron-builder --dir && powershell.exe -NoProfile -File scripts/build-windows-variants.ps1",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-atomic-write": "0.1.0-rc.6",
+    "node": "24.16.0",
+    "pnpm": "11.22.0",
+    "tar": "7.5.22",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "electron": "43.4.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "lucide-react": "0.468.0",
+    "playwright": "^1.57.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "typescript": "5.9.3",
+    "vite": "7.2.4",
+    "vitest": "4.0.15"
+  },
+  "build": {
+    "appId": "org.deepseek-harness.launcher",
+    "productName": "深蓝DeepSeekHarness启动器",
+    "asar": false,
+    "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "skin-store/catalog.payload.json",
+        "to": "skin-store/catalog.payload.json"
+      },
+      {
+        "from": "pet-store/catalog.payload.json",
+        "to": "pet-store/catalog.payload.json"
+      }
+    ],
+    "win": {
+      "icon": "resources/icon.png",
+      "target": [
+        "dir"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "深蓝DeepSeekHarness启动器",
+      "uninstallDisplayName": "深蓝DeepSeekHarness启动器",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ]
+    },
+    "mac": {
+      "icon": "resources/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
+      "artifactName": "DeepSeek-Harness-Launcher-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "安装深蓝DeepSeekHarness启动器",
+      "backgroundColor": "#edf2f8"
+    }
+  }
+}

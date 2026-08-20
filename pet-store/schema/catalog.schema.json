@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeepSeekHarness Pet Catalog",
+  "type": "object",
+  "required": ["keyId", "algorithm", "payload", "signature"],
+  "properties": {
+    "keyId": { "type": "string" },
+    "algorithm": { "const": "ed25519" },
+    "signature": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["schemaVersion", "generatedAt", "pageSize", "items"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "pageSize": { "const": 20 },
+        "items": { "type": "array" }
+      }
+    }
+  }
+}

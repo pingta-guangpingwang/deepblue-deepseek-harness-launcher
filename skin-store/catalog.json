@@ -1,0 +1,2889 @@
+{
+  "keyId": "skin-production-20260817",
+  "algorithm": "ed25519",
+  "payload": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-08-17T08:55:56.254815+00:00",
+    "pageSize": 20,
+    "items": [
+      {
+        "id": "deep-ocean-whale",
+        "name": "深海鲸歌",
+        "description": "发光鲸鱼穿行于深海数据城，适合深色半透明界面。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "深海",
+          "鲸鱼",
+          "蓝色",
+          "宁静"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/deep-ocean-whale.webp",
+          "sha256": "0e7c4ddcd19a0a62a437c1cadacb65169e9b397c8809770638caf6d713504d3b",
+          "size": 23360,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/deep-ocean-whale.png",
+          "sha256": "caebe4f83861bc4ba2faf51215ab928119c6a18de28a80549ee1d4f85da1f767",
+          "size": 2219828,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "anime-star-observatory",
+        "name": "星海观测者",
+        "description": "原创成年赛博伙伴眺望全息星海，主体位于右侧。",
+        "mediaKind": "image",
+        "styles": [
+          "anime",
+          "cyber"
+        ],
+        "tags": [
+          "二次元",
+          "星海",
+          "伙伴",
+          "蓝紫"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/anime-star-observatory.webp",
+          "sha256": "37300966665e0b8f694e362d148cf4406901724b8c9451706f5c4c81592d3fd5",
+          "size": 19188,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/anime-star-observatory.png",
+          "sha256": "138f4d6b7c371e7849ac8a972be26f54488e3160606d9f136d88675e682d4ff1",
+          "size": 2168129,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "68% 50%",
+          "overlay": "rgba(3, 7, 23, 0.28)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.7
+        }
+      },
+      {
+        "id": "pixel-neon-workspace",
+        "name": "像素霓虹工位",
+        "description": "雨夜巨城和小机器人陪伴的像素风工作室。",
+        "mediaKind": "image",
+        "styles": [
+          "pixel",
+          "cyber"
+        ],
+        "tags": [
+          "像素风",
+          "机器人",
+          "城市",
+          "雨夜"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/pixel-neon-workspace.webp",
+          "sha256": "7d86aaf33a9e2cbc5ab35d389a2f5fb87204f4a078860b2a2bc6909e51e6199d",
+          "size": 21844,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/pixel-neon-workspace.png",
+          "sha256": "8f5260242bd868b8cc90df81fce5c48509d7a1efb0f08324ab4bdb532e8ef9ff",
+          "size": 1686631,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(1, 7, 18, 0.36)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "ai-studio-presenter",
+        "name": "深蓝演播伙伴",
+        "description": "原创虚构成年演播伙伴，留出大面积低干扰阅读区。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "cyber"
+        ],
+        "tags": [
+          "真人风",
+          "伙伴",
+          "演播室",
+          "留白"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/ai-studio-presenter.webp",
+          "sha256": "fe24e907b0038df83a127531af32f0ea91771859cbea7062eee9f39fa01e172e",
+          "size": 8824,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/ai-studio-presenter.png",
+          "sha256": "f67712282160161693f6163c630d176187e273d2ce330854b2706b71b57fd796",
+          "size": 1399667,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "72% 50%",
+          "overlay": "rgba(2, 8, 18, 0.34)",
+          "blurPx": 1,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "liquid-glass-horizon",
+        "name": "流光玻璃海",
+        "description": "干净克制的液态玻璃与青色地平线，适合极简工作台。",
+        "mediaKind": "animated-image",
+        "styles": [
+          "minimal",
+          "cyber"
+        ],
+        "tags": [
+          "极简",
+          "液态玻璃",
+          "蓝色",
+          "动态"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/liquid-glass-horizon.webp",
+          "sha256": "8a34432332f2ab54c11d7e3da13a0e109e7ee4a307dd521ea8168050799858d8",
+          "size": 11050,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/liquid-glass-horizon.png",
+          "sha256": "5a9811131f75c1fa46ea4b445faed11ff07b5c9f6570a438ee84be777c6c3643",
+          "size": 1395796,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(1, 7, 20, 0.18)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "aurora-alpine-lake",
+        "name": "极光静湖",
+        "description": "蓝调雪山、极光和安静湖面，适合长时间专注。",
+        "mediaKind": "image",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "极光",
+          "雪山",
+          "湖泊",
+          "自然"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/aurora-alpine-lake.webp",
+          "sha256": "c81f58f51ef86b7c7d1090b912a822e5a87a77f46d1604d699db2d00d1f92231",
+          "size": 17974,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/aurora-alpine-lake.png",
+          "sha256": "18f8919869fb5ab076dc92c0820fef7427b9c6960b334762416d37795f79b391",
+          "size": 1881325,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "52% 50%",
+          "overlay": "rgba(1, 10, 22, 0.28)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "anime-cyber-engineer",
+        "name": "机巧工程师",
+        "description": "原创成年工程师与维修机器人，主体位于右侧。",
+        "mediaKind": "image",
+        "styles": [
+          "anime",
+          "cyber"
+        ],
+        "tags": [
+          "二次元",
+          "工程师",
+          "机器人",
+          "工坊"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/anime-cyber-engineer.webp",
+          "sha256": "6a47874212dbef6c44ab06fe668b5b9e19d6f2f84ec6c0fb9628da33b77804ae",
+          "size": 18970,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/anime-cyber-engineer.png",
+          "sha256": "a2bae7965d25ffbd6c669103313e9c1298166f6bf88064abf98ef472ab9cce39",
+          "size": 1707017,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "72% 50%",
+          "overlay": "rgba(2, 8, 19, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "neural-constellation",
+        "name": "神经星图",
+        "description": "抽象神经星座围绕安静中心，适合信息密集界面。",
+        "mediaKind": "animated-image",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "神经网络",
+          "星图",
+          "抽象",
+          "动态"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/neural-constellation.webp",
+          "sha256": "be37abae783082d3e02ccb6d4ff8fc87d9935974929180dcc8c6083bfa9d9a09",
+          "size": 28298,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/neural-constellation.png",
+          "sha256": "cb352f0ae381326152b84b09abbdf3fad5c84631714cb258138aab5aa1d65298",
+          "size": 2045014,
+          "mime": "image/png"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness Skin Store contributors",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(1, 6, 18, 0.18)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-aurora-library-motion",
+        "name": "极光藏书阁 · 动态原景",
+        "description": "极光与书页缓慢流动的未来图书馆，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "极光",
+          "图书馆",
+          "静心",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-aurora-library-motion.webp",
+          "sha256": "47aa0ae562b7f2b1bb8141f938d6fdbcf60380f7ee6c856b067b0e2309ffaf24",
+          "size": 16832,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-motion.mp4",
+          "sha256": "5434635a5cb2d0835bcf48e75f067d79807dd9c267bc850479c03700eb360107",
+          "size": 3726168,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-poster.webp",
+          "sha256": "c97cb2b716a3e5fd73767c1f22552d8ffe7846e4a51897b33c297cbe2a57f2ba",
+          "size": 82468,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-aurora-library-motion-alt",
+        "name": "极光藏书阁 · 动态异色",
+        "description": "极光与书页缓慢流动的未来图书馆，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "极光",
+          "图书馆",
+          "静心",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-aurora-library-motion-alt.webp",
+          "sha256": "b2a05e4a13e64fb3ec8dbf939ba748d52fff7d46c1be437cbf8e9f696e0cf698",
+          "size": 17024,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-motion-alt.mp4",
+          "sha256": "a79b4de3db54d78c2a40f284b05b6ad2b7c2673a6e8149949206cc5e5e8c30b7",
+          "size": 985710,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-poster.webp",
+          "sha256": "c97cb2b716a3e5fd73767c1f22552d8ffe7846e4a51897b33c297cbe2a57f2ba",
+          "size": 82468,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-aurora-library-still-focus",
+        "name": "极光藏书阁 · 专注定格",
+        "description": "极光与书页缓慢流动的未来图书馆，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "极光",
+          "图书馆",
+          "静心",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-aurora-library-still-focus.webp",
+          "sha256": "47aa0ae562b7f2b1bb8141f938d6fdbcf60380f7ee6c856b067b0e2309ffaf24",
+          "size": 16832,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-still-focus.webp",
+          "sha256": "3abdad98ac43779c3629c24cf846043281495f1a5e88f3cccc596782e659c36c",
+          "size": 89048,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-aurora-library-still-soft",
+        "name": "极光藏书阁 · 柔光定格",
+        "description": "极光与书页缓慢流动的未来图书馆，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "极光",
+          "图书馆",
+          "静心",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-aurora-library-still-soft.webp",
+          "sha256": "6a822305abd08cd14fc3d9e469d300f224ee792976a3c71400f534e81d798c38",
+          "size": 17102,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-still-soft.webp",
+          "sha256": "94e218af0f122e330f0fa0a3d8fab3770a9493be11ac04a6c121589212ffe85c",
+          "size": 90632,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-aurora-library-still-vivid",
+        "name": "极光藏书阁 · 鲜明定格",
+        "description": "极光与书页缓慢流动的未来图书馆，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "极光",
+          "图书馆",
+          "静心",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-aurora-library-still-vivid.webp",
+          "sha256": "2ce5f6e429eb9f5a3424e235ef773d27b89af64f022813f5ec426259305bc3e4",
+          "size": 18004,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-aurora-library-still-vivid.webp",
+          "sha256": "06af74b229f378bfd59fd6f0876e46ebe901d4421031c8a805d86fdec097b4f3",
+          "size": 94758,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-neon-rain-studio-motion",
+        "name": "霓虹雨夜工坊 · 动态原景",
+        "description": "雨滴与远城灯光呼吸的创作空间，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber"
+        ],
+        "tags": [
+          "雨夜",
+          "霓虹",
+          "工作室",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-neon-rain-studio-motion.webp",
+          "sha256": "0431b984ea6ae6f54b629ef77601954b4ef792136d7985ed3f93155421325aad",
+          "size": 17032,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-motion.mp4",
+          "sha256": "2b5ea9d32fc0ea0fdc6f2bf20b9d8d4d4d16539bdbadfd9d8d810022a230684b",
+          "size": 3010248,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-poster.webp",
+          "sha256": "1cedaf13d941c7e3ca6f87447bf962db2c02235c885f1bfdeb68acd72f0e57f7",
+          "size": 122610,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-neon-rain-studio-motion-alt",
+        "name": "霓虹雨夜工坊 · 动态异色",
+        "description": "雨滴与远城灯光呼吸的创作空间，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber"
+        ],
+        "tags": [
+          "雨夜",
+          "霓虹",
+          "工作室",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-neon-rain-studio-motion-alt.webp",
+          "sha256": "8f4096ce456478e436fafa49497bcbe0c6974ad7a16378aa14f29a9c5aa5a0bb",
+          "size": 17096,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-motion-alt.mp4",
+          "sha256": "a0b9ada5c97216fb1544781b14a4162c2780f3e0cf26d3ea89af6b12a6130a03",
+          "size": 706787,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-poster.webp",
+          "sha256": "1cedaf13d941c7e3ca6f87447bf962db2c02235c885f1bfdeb68acd72f0e57f7",
+          "size": 122610,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-neon-rain-studio-still-focus",
+        "name": "霓虹雨夜工坊 · 专注定格",
+        "description": "雨滴与远城灯光呼吸的创作空间，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber"
+        ],
+        "tags": [
+          "雨夜",
+          "霓虹",
+          "工作室",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-neon-rain-studio-still-focus.webp",
+          "sha256": "0431b984ea6ae6f54b629ef77601954b4ef792136d7985ed3f93155421325aad",
+          "size": 17032,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-still-focus.webp",
+          "sha256": "3608c9267f1ef84aa42c231a0bb3bedf376943ea75aecc5e276d6c1191699d00",
+          "size": 132986,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-neon-rain-studio-still-soft",
+        "name": "霓虹雨夜工坊 · 柔光定格",
+        "description": "雨滴与远城灯光呼吸的创作空间，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber"
+        ],
+        "tags": [
+          "雨夜",
+          "霓虹",
+          "工作室",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-neon-rain-studio-still-soft.webp",
+          "sha256": "50464afd6ce42c3aa5e22395a1eb73f0e7c3cf1df0996f948638138d2728b86d",
+          "size": 18258,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-still-soft.webp",
+          "sha256": "d072d6f6ad943b741a1f9a990ccd502b06873ca0b525be219d73a9fc4bb07bf3",
+          "size": 141814,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-neon-rain-studio-still-vivid",
+        "name": "霓虹雨夜工坊 · 鲜明定格",
+        "description": "雨滴与远城灯光呼吸的创作空间，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber"
+        ],
+        "tags": [
+          "雨夜",
+          "霓虹",
+          "工作室",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-neon-rain-studio-still-vivid.webp",
+          "sha256": "b74fd052cafc1dc7c4d7b06e3de7eac6b709f87ac02a5c192991fd7e4bfa6628",
+          "size": 19364,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-neon-rain-studio-still-vivid.webp",
+          "sha256": "a572305915cd0c0981845b125b5e8227e7f5d37c576811a4874e059de32d9e28",
+          "size": 145766,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-cloud-sea-sunrise-motion",
+        "name": "云海晨光台 · 动态原景",
+        "description": "云层与晨光缓慢变化的高空观景台，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "云海",
+          "日出",
+          "明亮",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-cloud-sea-sunrise-motion.webp",
+          "sha256": "91a32cac5ebf3bdd3c0dd381b9d8f74a675df8ffcc0889eb70b832cfbb15ae87",
+          "size": 6330,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-motion.mp4",
+          "sha256": "51d257796760cea7b915513a0520ca586302f56a806e9ff2f90b61a84f1071da",
+          "size": 2628962,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-poster.webp",
+          "sha256": "67645e0b86231a28f8a75ff47b4df131582411ed0d226a81fd1348329d794bc6",
+          "size": 33962,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-cloud-sea-sunrise-motion-alt",
+        "name": "云海晨光台 · 动态异色",
+        "description": "云层与晨光缓慢变化的高空观景台，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "云海",
+          "日出",
+          "明亮",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-cloud-sea-sunrise-motion-alt.webp",
+          "sha256": "38a96d8cb7f09c01b0162edd8d70d5e566ce14ca0966ae72bdcc157281ef65bc",
+          "size": 6384,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-motion-alt.mp4",
+          "sha256": "fbbc62dbbe16c3b7fb32ae0b7d3a921e6880fe18bb4b7248971fe03c71b33011",
+          "size": 782435,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-poster.webp",
+          "sha256": "67645e0b86231a28f8a75ff47b4df131582411ed0d226a81fd1348329d794bc6",
+          "size": 33962,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-cloud-sea-sunrise-still-focus",
+        "name": "云海晨光台 · 专注定格",
+        "description": "云层与晨光缓慢变化的高空观景台，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "云海",
+          "日出",
+          "明亮",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-cloud-sea-sunrise-still-focus.webp",
+          "sha256": "91a32cac5ebf3bdd3c0dd381b9d8f74a675df8ffcc0889eb70b832cfbb15ae87",
+          "size": 6330,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-still-focus.webp",
+          "sha256": "1c073e5108dd97905bf7d0a65d0ec1dbbaf85ef08c01cdd8244913218fa2b815",
+          "size": 37834,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-cloud-sea-sunrise-still-soft",
+        "name": "云海晨光台 · 柔光定格",
+        "description": "云层与晨光缓慢变化的高空观景台，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "云海",
+          "日出",
+          "明亮",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-cloud-sea-sunrise-still-soft.webp",
+          "sha256": "312ef12b7b3690d3601818a4d5c0fe0495bd47adb9be0e5ad630cdc47b970304",
+          "size": 6624,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-still-soft.webp",
+          "sha256": "d55b82cf44a6a549fe98df7cadc6e33f855970574945624f953258875c7ee350",
+          "size": 37630,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-cloud-sea-sunrise-still-vivid",
+        "name": "云海晨光台 · 鲜明定格",
+        "description": "云层与晨光缓慢变化的高空观景台，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "云海",
+          "日出",
+          "明亮",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-cloud-sea-sunrise-still-vivid.webp",
+          "sha256": "ece24c47328262b9da1dab69cc89c47c02e428a5d6e8105f03be4f6ca1de547a",
+          "size": 7674,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-cloud-sea-sunrise-still-vivid.webp",
+          "sha256": "041cba616939b8d0652c388d75d60eea99a885aa0e20df32b30fb13273e93ee4",
+          "size": 45708,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-deep-ocean-city-motion",
+        "name": "深海数据城 · 动态原景",
+        "description": "鲸影穿过水下光束的静谧数据城市，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "深海",
+          "鲸影",
+          "蓝色",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-deep-ocean-city-motion.webp",
+          "sha256": "4f4fe595a223554d2c03793c7e7d037abeca7a357f50229aa1351a4a4583adf0",
+          "size": 24758,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-motion.mp4",
+          "sha256": "67d21a032aecf48654c1fed8a4e7c969a058607eb20f311b017a4313439491d4",
+          "size": 3835154,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-poster.webp",
+          "sha256": "dae22c55f9c295d1349a3ca214a784c2e7e6a2c83387fcbb1baee2f07147e9a7",
+          "size": 142816,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-deep-ocean-city-motion-alt",
+        "name": "深海数据城 · 动态异色",
+        "description": "鲸影穿过水下光束的静谧数据城市，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "深海",
+          "鲸影",
+          "蓝色",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-deep-ocean-city-motion-alt.webp",
+          "sha256": "9343a65ab189eb61e211a2dedcb03e4347c784118320c315a7dcecfbfbb645e9",
+          "size": 25152,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-motion-alt.mp4",
+          "sha256": "a4c767a45354479a56f037fb15ed4c79cd8fbb87d56ae5542c36b5348ffb5f02",
+          "size": 1019383,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-poster.webp",
+          "sha256": "dae22c55f9c295d1349a3ca214a784c2e7e6a2c83387fcbb1baee2f07147e9a7",
+          "size": 142816,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-deep-ocean-city-still-focus",
+        "name": "深海数据城 · 专注定格",
+        "description": "鲸影穿过水下光束的静谧数据城市，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "深海",
+          "鲸影",
+          "蓝色",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-deep-ocean-city-still-focus.webp",
+          "sha256": "4f4fe595a223554d2c03793c7e7d037abeca7a357f50229aa1351a4a4583adf0",
+          "size": 24758,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-still-focus.webp",
+          "sha256": "129440763d14c8427fd985af07fcd8bc698e0c3311a2b729e28d5889fccb04e8",
+          "size": 154940,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-deep-ocean-city-still-soft",
+        "name": "深海数据城 · 柔光定格",
+        "description": "鲸影穿过水下光束的静谧数据城市，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "深海",
+          "鲸影",
+          "蓝色",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-deep-ocean-city-still-soft.webp",
+          "sha256": "51ce5b651eb9accfaaae65e02ad33a63a1250a5e91a9f9b1bc16e421f73096a1",
+          "size": 25566,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-still-soft.webp",
+          "sha256": "3ee6b15230f849335a2e06de360185ca010245c1ae67460aa71ad1ab6a9ee8a7",
+          "size": 161146,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-deep-ocean-city-still-vivid",
+        "name": "深海数据城 · 鲜明定格",
+        "description": "鲸影穿过水下光束的静谧数据城市，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "cyber"
+        ],
+        "tags": [
+          "深海",
+          "鲸影",
+          "蓝色",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-deep-ocean-city-still-vivid.webp",
+          "sha256": "5de30a8bfb456b3dc0ab60d0d888d36829a1876ad31bd2a145d664e7b1d99cb3",
+          "size": 26478,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-deep-ocean-city-still-vivid.webp",
+          "sha256": "864536a5845acbde058d7d4307525b7491da1b23c8bd5c3519f3c18176faae3e",
+          "size": 165534,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-ink-mountain-rain-motion",
+        "name": "水墨烟雨山 · 动态原景",
+        "description": "云雾穿山、细雨入水的新中式远景，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "水墨",
+          "山水",
+          "雨",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-ink-mountain-rain-motion.webp",
+          "sha256": "f15eded2136c0674dae412555ef54fe57aa3dcffd9a84cec3eeb22d6c9024c3f",
+          "size": 6356,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-motion.mp4",
+          "sha256": "d82c039d8e8afb68bac77b09ba8a755bce23c6e7485a46593a16c4be78fd046b",
+          "size": 2018039,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-poster.webp",
+          "sha256": "4f42ce4e7169dcec48b5a8247b0b2b9c25a0d246177838565b0e2c77c55e4145",
+          "size": 30476,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-ink-mountain-rain-motion-alt",
+        "name": "水墨烟雨山 · 动态异色",
+        "description": "云雾穿山、细雨入水的新中式远景，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "水墨",
+          "山水",
+          "雨",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-ink-mountain-rain-motion-alt.webp",
+          "sha256": "07f9532a1a80267614f40a8c22ef6ec57dba5531fe5e00dc7c44979116f61345",
+          "size": 6378,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-motion-alt.mp4",
+          "sha256": "0cee855b6648e8d188adf8d3f338372af3fa8117abec4a3588d416f5029fc4e9",
+          "size": 407955,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-poster.webp",
+          "sha256": "4f42ce4e7169dcec48b5a8247b0b2b9c25a0d246177838565b0e2c77c55e4145",
+          "size": 30476,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-ink-mountain-rain-still-focus",
+        "name": "水墨烟雨山 · 专注定格",
+        "description": "云雾穿山、细雨入水的新中式远景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "水墨",
+          "山水",
+          "雨",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-ink-mountain-rain-still-focus.webp",
+          "sha256": "f15eded2136c0674dae412555ef54fe57aa3dcffd9a84cec3eeb22d6c9024c3f",
+          "size": 6356,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-still-focus.webp",
+          "sha256": "a396c41fdec48aa2495ae17572c53518467c4f340c4585b0e000714c5983d7f5",
+          "size": 33422,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-ink-mountain-rain-still-soft",
+        "name": "水墨烟雨山 · 柔光定格",
+        "description": "云雾穿山、细雨入水的新中式远景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "水墨",
+          "山水",
+          "雨",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-ink-mountain-rain-still-soft.webp",
+          "sha256": "27f5ff28b7e52d3b5d49fa065b999d605c932aa1d9823c289d022b120ba1d4c1",
+          "size": 6734,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-still-soft.webp",
+          "sha256": "b5f61f5f21a4adfd2c83c13e95d64dfa357fd2ff30fe01672cf082339970ba33",
+          "size": 34728,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-ink-mountain-rain-still-vivid",
+        "name": "水墨烟雨山 · 鲜明定格",
+        "description": "云雾穿山、细雨入水的新中式远景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature",
+          "minimal"
+        ],
+        "tags": [
+          "水墨",
+          "山水",
+          "雨",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-ink-mountain-rain-still-vivid.webp",
+          "sha256": "41f8029a8231576fe1f6aa580b4514f79491f9cd714208c54777ed32ad8b8ffa",
+          "size": 6980,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-ink-mountain-rain-still-vivid.webp",
+          "sha256": "5fe01dfcf4bbb2d43c83a8a536785e09da7ea1b84b6fde51290cf79c3ccd0afa",
+          "size": 36648,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-desert-stars-motion",
+        "name": "沙海星穹站 · 动态原景",
+        "description": "银河掠过沙漠研究站的安静长夜，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "星空",
+          "沙漠",
+          "研究站",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-desert-stars-motion.webp",
+          "sha256": "5d946aec3cf6fd13c70e060938ac4a17ab701d94d115269a0b4f977867537dcc",
+          "size": 24096,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-motion.mp4",
+          "sha256": "9ee76ffaf3440cd6b311d1a11c7119869c6ffafcf105ec97de25643fbe5c3154",
+          "size": 5266300,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-poster.webp",
+          "sha256": "b0e744f2df8d9447ce72c69220cdca6b915c5602abd84b31a454759edfcc68c7",
+          "size": 133124,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-desert-stars-motion-alt",
+        "name": "沙海星穹站 · 动态异色",
+        "description": "银河掠过沙漠研究站的安静长夜，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "星空",
+          "沙漠",
+          "研究站",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-desert-stars-motion-alt.webp",
+          "sha256": "858e5bf6f03f505aac118181fd06b06b41e63f8b23d29b4fb560f16861d83717",
+          "size": 24046,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-motion-alt.mp4",
+          "sha256": "03a5f378111202febe2ae3b744da86735a6d82f5a1384b147e71349131f6b15b",
+          "size": 1017502,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-poster.webp",
+          "sha256": "b0e744f2df8d9447ce72c69220cdca6b915c5602abd84b31a454759edfcc68c7",
+          "size": 133124,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-desert-stars-still-focus",
+        "name": "沙海星穹站 · 专注定格",
+        "description": "银河掠过沙漠研究站的安静长夜，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "星空",
+          "沙漠",
+          "研究站",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-desert-stars-still-focus.webp",
+          "sha256": "5d946aec3cf6fd13c70e060938ac4a17ab701d94d115269a0b4f977867537dcc",
+          "size": 24096,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-still-focus.webp",
+          "sha256": "f58fe4f93490136638e158c45c3817221d22a58fee254b823d301096aca0f9e3",
+          "size": 148618,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-desert-stars-still-soft",
+        "name": "沙海星穹站 · 柔光定格",
+        "description": "银河掠过沙漠研究站的安静长夜，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "星空",
+          "沙漠",
+          "研究站",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-desert-stars-still-soft.webp",
+          "sha256": "9222c30af438516918d5356445d29a5b3ed0841a82d05ca2709d96a4fa98ecdf",
+          "size": 25392,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-still-soft.webp",
+          "sha256": "5d88164609d822981bcd70207e1b58249a848f5ba70af0f80db7392fdcbb7d54",
+          "size": 149718,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-desert-stars-still-vivid",
+        "name": "沙海星穹站 · 鲜明定格",
+        "description": "银河掠过沙漠研究站的安静长夜，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "星空",
+          "沙漠",
+          "研究站",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-desert-stars-still-vivid.webp",
+          "sha256": "28853ec8ce9ab8e8f88fd37d27d0fe2baff3db978234a0c66acdb7859671021f",
+          "size": 26442,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-desert-stars-still-vivid.webp",
+          "sha256": "1b67f9c5b59ef8a28f57be60a30a25078eb1ab506d2895cbdad316bf3e3308eb",
+          "size": 152804,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-forest-fireflies-motion",
+        "name": "萤火森语屋 · 动态原景",
+        "description": "雨后森林与萤火虫围绕的玻璃小屋，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "森林",
+          "萤火虫",
+          "治愈",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-forest-fireflies-motion.webp",
+          "sha256": "711cf055b8763afe6e707e1f5681adb0052a15567dd3969d23744adb3a770917",
+          "size": 18212,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-motion.mp4",
+          "sha256": "62766d4b6d5990a469d8ef53c74f7c9b8f24dbb2ca23b932c8b836830ddf9ab7",
+          "size": 2939615,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-poster.webp",
+          "sha256": "8d62d9ef5d8a698ae20d67274fd8c475352201ba4857ced280bb3c90729d70b7",
+          "size": 104004,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-forest-fireflies-motion-alt",
+        "name": "萤火森语屋 · 动态异色",
+        "description": "雨后森林与萤火虫围绕的玻璃小屋，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "森林",
+          "萤火虫",
+          "治愈",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-forest-fireflies-motion-alt.webp",
+          "sha256": "8db9603b4bc0052119c9dd22615de5e06199c7a0f04e1ac093c6d39c4526c80a",
+          "size": 18432,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-motion-alt.mp4",
+          "sha256": "ad9679555cb1a95ca5203a29096b527d3df83d57b89b67f863ddfcb2f586c212",
+          "size": 785531,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-poster.webp",
+          "sha256": "8d62d9ef5d8a698ae20d67274fd8c475352201ba4857ced280bb3c90729d70b7",
+          "size": 104004,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-forest-fireflies-still-focus",
+        "name": "萤火森语屋 · 专注定格",
+        "description": "雨后森林与萤火虫围绕的玻璃小屋，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "森林",
+          "萤火虫",
+          "治愈",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-forest-fireflies-still-focus.webp",
+          "sha256": "711cf055b8763afe6e707e1f5681adb0052a15567dd3969d23744adb3a770917",
+          "size": 18212,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-still-focus.webp",
+          "sha256": "0ac448b032259a606908df569c437beaff95cfdf2196dcc226776ff3daa5ce36",
+          "size": 115262,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-forest-fireflies-still-soft",
+        "name": "萤火森语屋 · 柔光定格",
+        "description": "雨后森林与萤火虫围绕的玻璃小屋，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "森林",
+          "萤火虫",
+          "治愈",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-forest-fireflies-still-soft.webp",
+          "sha256": "e912c439eed5b58bfef18ec1631ab6f3822ebf53f846a73c5c6c6594630ee58b",
+          "size": 18624,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-still-soft.webp",
+          "sha256": "6ba03e30465e72179b71f9f6517e4376576d4a6bea514bc7663efaa4313a0cc6",
+          "size": 117904,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-forest-fireflies-still-vivid",
+        "name": "萤火森语屋 · 鲜明定格",
+        "description": "雨后森林与萤火虫围绕的玻璃小屋，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "nature"
+        ],
+        "tags": [
+          "森林",
+          "萤火虫",
+          "治愈",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-forest-fireflies-still-vivid.webp",
+          "sha256": "6df9f48a0ce6d153af0a5b36e245232b3a0aeb08600b6da2c17b15c6ed563558",
+          "size": 19402,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-forest-fireflies-still-vivid.webp",
+          "sha256": "1ad857db7151ce75cdd9b9c48cdee1c701d1fe5ac1123d2422f766c6c2be916c",
+          "size": 123680,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-crystal-cavern-motion",
+        "name": "水晶回声洞 · 动态原景",
+        "description": "晶体光泽与水面倒影缓慢流动，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "水晶",
+          "洞穴",
+          "蓝紫",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-crystal-cavern-motion.webp",
+          "sha256": "194ceb6e64cbbe23669e4b64eaccab6d892703524d6b4b6a359b5fd9dfe2698e",
+          "size": 39612,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-motion.mp4",
+          "sha256": "849a6793c3bfff4d120b0c5baff970cbbe779dcd464a52e239acce3c6f8b33f7",
+          "size": 4199033,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-poster.webp",
+          "sha256": "ca48c3d201573da096674a7fff8d345002a426cf4bb4a832a08ecda0deb9a8a6",
+          "size": 198812,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-crystal-cavern-motion-alt",
+        "name": "水晶回声洞 · 动态异色",
+        "description": "晶体光泽与水面倒影缓慢流动，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "水晶",
+          "洞穴",
+          "蓝紫",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-crystal-cavern-motion-alt.webp",
+          "sha256": "d2f008cfe5e609be615da665bbacc46af17c55bc4b3f1ebca9e5da8168d1e1dc",
+          "size": 39566,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-motion-alt.mp4",
+          "sha256": "ad9ce67cfccaf48792a04a2112c75bd9bdb27ddb324a704e6cb76e801f1f7e3b",
+          "size": 1197066,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-poster.webp",
+          "sha256": "ca48c3d201573da096674a7fff8d345002a426cf4bb4a832a08ecda0deb9a8a6",
+          "size": 198812,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-crystal-cavern-still-focus",
+        "name": "水晶回声洞 · 专注定格",
+        "description": "晶体光泽与水面倒影缓慢流动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "水晶",
+          "洞穴",
+          "蓝紫",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-crystal-cavern-still-focus.webp",
+          "sha256": "194ceb6e64cbbe23669e4b64eaccab6d892703524d6b4b6a359b5fd9dfe2698e",
+          "size": 39612,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-still-focus.webp",
+          "sha256": "e503009dd32854475d7407e7c289d0e2e46d43b196bdf35523eb50cab06a6809",
+          "size": 217962,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-crystal-cavern-still-soft",
+        "name": "水晶回声洞 · 柔光定格",
+        "description": "晶体光泽与水面倒影缓慢流动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "水晶",
+          "洞穴",
+          "蓝紫",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-crystal-cavern-still-soft.webp",
+          "sha256": "f846f7a8e060f990445943c9c918736c8572769a255811163ccfe171794c720e",
+          "size": 39236,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-still-soft.webp",
+          "sha256": "3feac1bd73a9b7ebb43ad3f59c5c0de414caf3aef238d53a81c13ffec45dbab7",
+          "size": 223184,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-crystal-cavern-still-vivid",
+        "name": "水晶回声洞 · 鲜明定格",
+        "description": "晶体光泽与水面倒影缓慢流动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "nature"
+        ],
+        "tags": [
+          "水晶",
+          "洞穴",
+          "蓝紫",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-crystal-cavern-still-vivid.webp",
+          "sha256": "c23a51ef00e2f447a25273e12e30a09cb1157ce6daaa34224de98c6228fe1061",
+          "size": 42346,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-crystal-cavern-still-vivid.webp",
+          "sha256": "ac2642fba8f75cb36f5ca560957c24ba55e5a6e96958b8e8913967c44514be7d",
+          "size": 238694,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-orbital-earth-motion",
+        "name": "近地轨道窗 · 动态原景",
+        "description": "地球云层从安静舷窗外缓慢转动，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "太空",
+          "地球",
+          "深蓝",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-orbital-earth-motion.webp",
+          "sha256": "2074c1bbb6015511f7aeececd1d1e4944d71e62e526872873f2aa76992d99b87",
+          "size": 16224,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-motion.mp4",
+          "sha256": "245d3df4e528f7b8b732fea2d32d7a443bc2819267b15f92fe87acd441497d2c",
+          "size": 2868355,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-poster.webp",
+          "sha256": "3ec50b441cf54d7183a83f192c2fd308fae10059b0e9937b36ac0c0b7c1cb0cb",
+          "size": 81454,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-orbital-earth-motion-alt",
+        "name": "近地轨道窗 · 动态异色",
+        "description": "地球云层从安静舷窗外缓慢转动，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "太空",
+          "地球",
+          "深蓝",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-orbital-earth-motion-alt.webp",
+          "sha256": "5be37e258940f2d6b59f3423ffdbb164e9daa38820525fbf766c39f9192265a9",
+          "size": 16306,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-motion-alt.mp4",
+          "sha256": "90c7adf2a8b09c724098a7c422f9aa8000f494d4c5a99e3f6ca1ef9890c5f630",
+          "size": 678181,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-poster.webp",
+          "sha256": "3ec50b441cf54d7183a83f192c2fd308fae10059b0e9937b36ac0c0b7c1cb0cb",
+          "size": 81454,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-orbital-earth-still-focus",
+        "name": "近地轨道窗 · 专注定格",
+        "description": "地球云层从安静舷窗外缓慢转动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "太空",
+          "地球",
+          "深蓝",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-orbital-earth-still-focus.webp",
+          "sha256": "2074c1bbb6015511f7aeececd1d1e4944d71e62e526872873f2aa76992d99b87",
+          "size": 16224,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-still-focus.webp",
+          "sha256": "bf60b68158f53bbad247d42b6423b39819db3cb2e076fe6d2d7a8da50d996dd8",
+          "size": 88490,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-orbital-earth-still-soft",
+        "name": "近地轨道窗 · 柔光定格",
+        "description": "地球云层从安静舷窗外缓慢转动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "太空",
+          "地球",
+          "深蓝",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-orbital-earth-still-soft.webp",
+          "sha256": "aec8f94f55451ba2145f6cf1dfbf2c5064e5edf50a4fd4a54641da0b81304f87",
+          "size": 16550,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-still-soft.webp",
+          "sha256": "6a856cefbd200cb4f961a7d2d1da5d959210d0333620f074c7ebc6b73d0109ea",
+          "size": 92558,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-orbital-earth-still-vivid",
+        "name": "近地轨道窗 · 鲜明定格",
+        "description": "地球云层从安静舷窗外缓慢转动，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "cyber",
+          "minimal"
+        ],
+        "tags": [
+          "太空",
+          "地球",
+          "深蓝",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-orbital-earth-still-vivid.webp",
+          "sha256": "5e9e61464c0ccd910d0fad608d7d918aa53c093b897714845846d9acb0610644",
+          "size": 18338,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-orbital-earth-still-vivid.webp",
+          "sha256": "1e05e1934b4ff6e46eb1a722139bc8df32cf0ea32a83c86bb6fff3d699374b85",
+          "size": 95962,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-lantern-river-town-motion",
+        "name": "灯河古镇夜 · 动态原景",
+        "description": "灯笼倒影随河面轻轻流动的东方夜景，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "古镇",
+          "灯笼",
+          "河流",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-lantern-river-town-motion.webp",
+          "sha256": "9900ba8056514343971f5da941843bc47e22685f8f5517a139b5e96d596a2925",
+          "size": 22276,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-motion.mp4",
+          "sha256": "ecdfe3d0a1e43a0843079eabda8df52f6e8850fa00d47bd79da0fbf6d4a2d597",
+          "size": 5685033,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-poster.webp",
+          "sha256": "bd7b447920d79bed9595b45fb672156a34aa19c34090b8194087a09c4f3362cb",
+          "size": 97872,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-lantern-river-town-motion-alt",
+        "name": "灯河古镇夜 · 动态异色",
+        "description": "灯笼倒影随河面轻轻流动的东方夜景，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "古镇",
+          "灯笼",
+          "河流",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-lantern-river-town-motion-alt.webp",
+          "sha256": "01c7c54a998707fe67a22f416e9542658d2af0b66b82ea862ea12096a4c35868",
+          "size": 22634,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-motion-alt.mp4",
+          "sha256": "93bdb9284d058d95e179b9f412150594eeb76490d59fdb3a1d94fb18c9556fcd",
+          "size": 1790017,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-poster.webp",
+          "sha256": "bd7b447920d79bed9595b45fb672156a34aa19c34090b8194087a09c4f3362cb",
+          "size": 97872,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-lantern-river-town-still-focus",
+        "name": "灯河古镇夜 · 专注定格",
+        "description": "灯笼倒影随河面轻轻流动的东方夜景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "古镇",
+          "灯笼",
+          "河流",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-lantern-river-town-still-focus.webp",
+          "sha256": "9900ba8056514343971f5da941843bc47e22685f8f5517a139b5e96d596a2925",
+          "size": 22276,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-still-focus.webp",
+          "sha256": "b465e93e012977734bcbadf238d6a068961d95df328f079f3b13f11eaf60c247",
+          "size": 105394,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-lantern-river-town-still-soft",
+        "name": "灯河古镇夜 · 柔光定格",
+        "description": "灯笼倒影随河面轻轻流动的东方夜景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "古镇",
+          "灯笼",
+          "河流",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-lantern-river-town-still-soft.webp",
+          "sha256": "3ece12aa2af590cb3579436ebeb2ea6f602ff025ecded464e4c89819c5da3c2d",
+          "size": 22058,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-still-soft.webp",
+          "sha256": "ba9d89fb6230c1031695cf1ede34980f6c9f21cca8333edbc6491c0ee19fdd52",
+          "size": 109168,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-lantern-river-town-still-vivid",
+        "name": "灯河古镇夜 · 鲜明定格",
+        "description": "灯笼倒影随河面轻轻流动的东方夜景，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "nature"
+        ],
+        "tags": [
+          "古镇",
+          "灯笼",
+          "河流",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-lantern-river-town-still-vivid.webp",
+          "sha256": "3bec94f08312ca0cd5d3ecede7c386d87de6f97dc8d4ce701056c93da0e7900c",
+          "size": 24124,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-lantern-river-town-still-vivid.webp",
+          "sha256": "2a4196cc36cc5f63d87f442ccc0f5d8838024597af3a4310284ee6983135f88a",
+          "size": 116678,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      },
+      {
+        "id": "sd2-moonlit-dance-studio-motion",
+        "name": "月镜舞台 · 动态原景",
+        "description": "原创成年舞者在月光水镜舞台舒展起舞，远景构图不干扰阅读，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "minimal"
+        ],
+        "tags": [
+          "舞蹈",
+          "月光",
+          "东方美学",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": true,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-moonlit-dance-studio-motion.webp",
+          "sha256": "37d59d015c86e4ef68b8c7b9889ce639827ba43f8401c68087a174830e7a3b55",
+          "size": 4174,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-motion.mp4",
+          "sha256": "579f1ce22894ed36033ffe20ba30da660d18d863ed8e2d7796e7d6ecb8ba156d",
+          "size": 2294637,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-poster.webp",
+          "sha256": "d6a40fe1455aed6d87b8cd2cc8509a1695fd4d507bb1216812d2a8fd7e7c606a",
+          "size": 19886,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.72
+        }
+      },
+      {
+        "id": "sd2-moonlit-dance-studio-motion-alt",
+        "name": "月镜舞台 · 动态异色",
+        "description": "原创成年舞者在月光水镜舞台舒展起舞，远景构图不干扰阅读，适合作为低干扰动态壁纸。",
+        "mediaKind": "video",
+        "styles": [
+          "realistic",
+          "minimal"
+        ],
+        "tags": [
+          "舞蹈",
+          "月光",
+          "东方美学",
+          "动态壁纸",
+          "1080P"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-moonlit-dance-studio-motion-alt.webp",
+          "sha256": "0dd5639d2b66f195b045203e9b29223a46e3c48b9c665e74847db064e0507ad0",
+          "size": 4144,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-motion-alt.mp4",
+          "sha256": "7996f237b536b2efb3d092effb158ad30788e4f1fd6a160d6feee18a6267c872",
+          "size": 532017,
+          "mime": "video/mp4"
+        },
+        "poster": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-poster.webp",
+          "sha256": "d6a40fe1455aed6d87b8cd2cc8509a1695fd4d507bb1216812d2a8fd7e7c606a",
+          "size": 19886,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.74
+        }
+      },
+      {
+        "id": "sd2-moonlit-dance-studio-still-focus",
+        "name": "月镜舞台 · 专注定格",
+        "description": "原创成年舞者在月光水镜舞台舒展起舞，远景构图不干扰阅读，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "minimal"
+        ],
+        "tags": [
+          "舞蹈",
+          "月光",
+          "东方美学",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-moonlit-dance-studio-still-focus.webp",
+          "sha256": "37d59d015c86e4ef68b8c7b9889ce639827ba43f8401c68087a174830e7a3b55",
+          "size": 4174,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-still-focus.webp",
+          "sha256": "dc5e1964ba813bb9e9ede506faaf8f038b42706591690bc388153d277777fb51",
+          "size": 22326,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.78
+        }
+      },
+      {
+        "id": "sd2-moonlit-dance-studio-still-soft",
+        "name": "月镜舞台 · 柔光定格",
+        "description": "原创成年舞者在月光水镜舞台舒展起舞，远景构图不干扰阅读，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "minimal"
+        ],
+        "tags": [
+          "舞蹈",
+          "月光",
+          "东方美学",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-moonlit-dance-studio-still-soft.webp",
+          "sha256": "e51ea1bc9f0f99b9a374080817ae95c65410237d972aaf99d5db700721597a8a",
+          "size": 4480,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-still-soft.webp",
+          "sha256": "9f55c0a5be524b07985e3b491595554c2ac67061c8d3c3a4b16ba0d06ee6eb55",
+          "size": 23558,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.8
+        }
+      },
+      {
+        "id": "sd2-moonlit-dance-studio-still-vivid",
+        "name": "月镜舞台 · 鲜明定格",
+        "description": "原创成年舞者在月光水镜舞台舒展起舞，远景构图不干扰阅读，保留1080P清晰细节。",
+        "mediaKind": "image",
+        "styles": [
+          "realistic",
+          "minimal"
+        ],
+        "tags": [
+          "舞蹈",
+          "月光",
+          "东方美学",
+          "1080P",
+          "静态壁纸"
+        ],
+        "featured": false,
+        "contentRating": "everyone",
+        "thumbnail": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/thumbnails/sd2-moonlit-dance-studio-still-vivid.webp",
+          "sha256": "e91b9da52904e6bf484dc7455295e726a1c87b6ffd7d4f8af78ba4745786614f",
+          "size": 4336,
+          "mime": "image/webp"
+        },
+        "media": {
+          "url": "https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/assets/sd2-moonlit-dance-studio-still-vivid.webp",
+          "sha256": "ed773be8e6461c1d6415285c87494d7db6d66d477dc167401c79794f72e08dd3",
+          "size": 24292,
+          "mime": "image/webp"
+        },
+        "license": {
+          "name": "CC0-1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "author": "DeepSeekHarness 原创 AI 视觉实验室",
+          "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-skins",
+          "attribution": "原创生成素材；禁止冒充真人或第三方IP。"
+        },
+        "presentation": {
+          "position": "50% 50%",
+          "overlay": "rgba(2, 9, 20, 0.34)",
+          "blurPx": 0,
+          "surfaceOpacity": 0.76
+        }
+      }
+    ]
+  },
+  "signature": "wExDar2+jujTKRJnuzyHTDH8OxMpZykgsCILhzGTAoIbiYu+YT44ackgaXm/fCnLw/zwyBKZm7zfOPd9AH2zCQ=="
+}

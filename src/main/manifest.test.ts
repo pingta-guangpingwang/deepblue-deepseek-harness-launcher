@@ -1,0 +1,119 @@
+import { describe, expect, it } from 'vitest'
+import { generateKeyPairSync, sign } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { validateRuntimeModules, verifyCatalogManifest } from './manifest'
+import type { RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload } from '../shared/types'
+
+const payload: SignedCatalogPayload = {
+  schemaVersion: 1,
+  generatedAt: '2026-08-15T00:00:00.000Z',
+  harness: [],
+  plugins: [],
+  models: []
+}
+
+const runtimeModule: RuntimeModuleRelease = {
+  id: 'node-runtime',
+  version: '24.16.0',
+  required: true,
+  installWhen: 'harness',
+  dependencies: [],
+  artifacts: [{
+    platform: 'win32',
+    arch: 'x64',
+    format: 'tar.gz',
+    sha256: 'a'.repeat(64),
+    size: 10,
+    unpackedSize: 20,
+    mirrors: [
+      { id: 'gitee', url: 'https://gitee.com/wanggp123/deepseek-harness-launcher/releases/download/v1/node.tar.gz' },
+      { id: 'github', url: 'https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/v1/node.tar.gz' }
+    ]
+  }],
+  probe: { path: 'bin/node.exe', args: ['--version'], expectedPattern: '^v24\\.', timeoutMs: 5_000 }
+}
+
+describe('catalog signature verification', () => {
+  it('accepts an unchanged Ed25519-signed payload', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+    const manifest: SignedCatalogManifest = {
+      keyId: 'test',
+      algorithm: 'ed25519',
+      payload,
+      signature: sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64')
+    }
+    expect(verifyCatalogManifest(manifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(true)
+    expect(verifyCatalogManifest(manifest, publicKey.export({ type: 'spki', format: 'pem' }).toString(), 'another-key')).toBe(false)
+  })
+
+  it('rejects a payload changed after signing', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+    const signature = sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64')
+    const manifest: SignedCatalogManifest = {
+      keyId: 'test',
+      algorithm: 'ed25519',
+      payload: { ...payload, generatedAt: 'tampered' },
+      signature
+    }
+    expect(verifyCatalogManifest(manifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
+  })
+
+  it('accepts only a closed acyclic signed runtime module graph', () => {
+    expect(validateRuntimeModules([
+      runtimeModule,
+      {
+        ...runtimeModule,
+        id: 'harness-core',
+        version: '0.1.0-rc.6',
+        dependencies: ['node-runtime'],
+        probe: undefined
+      }
+    ])).toBe(true)
+    expect(validateRuntimeModules([{ ...runtimeModule, dependencies: ['node-runtime'] }])).toBe(false)
+    expect(validateRuntimeModules([{
+      ...runtimeModule,
+      artifacts: [{
+        ...runtimeModule.artifacts[0]!,
+        mirrors: [{ id: 'github', url: 'https://github.com/another-owner/malware/releases/download/v1/node.tar.gz' }]
+      }]
+    }])).toBe(false)
+  })
+
+  it('requires schema 2 before accepting runtime modules', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+    const modularPayload: SignedCatalogPayload = { ...payload, schemaVersion: 2, runtimeModules: [runtimeModule] }
+    const manifest: SignedCatalogManifest = {
+      keyId: 'test',
+      algorithm: 'ed25519',
+      payload: modularPayload,
+      signature: sign(null, Buffer.from(JSON.stringify(modularPayload)), privateKey).toString('base64')
+    }
+    expect(verifyCatalogManifest(manifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(true)
+    const legacyPayload = { ...modularPayload, schemaVersion: 1 as const }
+    const legacyManifest = {
+      ...manifest,
+      payload: legacyPayload,
+      signature: sign(null, Buffer.from(JSON.stringify(legacyPayload)), privateKey).toString('base64')
+    }
+    expect(verifyCatalogManifest(legacyManifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
+  })
+
+  it('publishes launcher updates through permanent download URLs', () => {
+    const script = readFileSync(path.resolve('scripts/update-release-payload.mjs'), 'utf8')
+    expect(script).toContain("const stableDownloadBaseUrl = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/download'")
+    expect(script).toContain('deepblue-deepseek-harness-launcher-win-x64-online.exe')
+    expect(script).toContain("distribution: 'online'")
+    expect(script).not.toContain("distribution: 'offline'")
+    expect(script).not.toContain('`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/releases/${packageJson.version}`')
+  })
+
+  it('keeps the modular catalog on an isolated v2 trust root and endpoint', () => {
+    const manifestSource = readFileSync(path.resolve('src/main/manifest.ts'), 'utf8')
+    const configSource = readFileSync(path.resolve('src/main/config.ts'), 'utf8')
+    expect(manifestSource).toContain("RUNTIME_CATALOG_KEY_ID = 'runtime-production-v2-1'")
+    expect(manifestSource).toContain("'runtime-update-public-key.pem'")
+    expect(configSource).toContain('/release-v2/launcher-manifest.json')
+    expect(configSource).not.toContain('/release/launcher-manifest.json')
+  })
+})

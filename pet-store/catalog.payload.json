@@ -1,0 +1,2754 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-17T08:55:56.254815+00:00",
+  "pageSize": 20,
+  "items": [
+    {
+      "id": "deepblue-whale-helper",
+      "name": "深蓝鲸小助手",
+      "description": "来自深海的温柔鲸鱼，会安静地陪你完成任务。",
+      "mediaKind": "static",
+      "species": "whale",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "鲸鱼",
+        "深蓝",
+        "治愈"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/deepblue-whale-helper.webp",
+        "sha256": "6a15ea1eacd97ba2578907c3597d3b16fa5ce2bb6a2c6367dff97708798d04e0",
+        "size": 21278,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/deepblue-whale-helper.png",
+        "sha256": "bd6cbbecfed228794bd629afcb0b9c87c5b83623fd96f8b59bd3b9a0e0dfe101",
+        "size": 1020847,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 178,
+        "idleMotion": "float",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢慢来，我陪着你。",
+          "深呼吸，再试一次。",
+          "今天也很有进展！"
+        ]
+      }
+    },
+    {
+      "id": "orange-code-kitten",
+      "name": "橘子代码猫",
+      "description": "活泼的橘猫程序员，喜欢在工作台边缘蹦来蹦去。",
+      "mediaKind": "static",
+      "species": "cat",
+      "styles": [
+        "cute",
+        "playful"
+      ],
+      "tags": [
+        "橘猫",
+        "编程",
+        "活泼"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/orange-code-kitten.webp",
+        "sha256": "3ea9daf871fb61903de09356830d938db2f9a3e9352e3f3f1ce6e8e407f3eb54",
+        "size": 29882,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/orange-code-kitten.png",
+        "sha256": "b181ad6b1af0d00071be40a9da56fdbaf1c74b4a4c5056351c8507eb99e0fbe2",
+        "size": 1619114,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 168,
+        "idleMotion": "bounce",
+        "clickMotion": "hop",
+        "speechLines": [
+          "喵！这个问题交给我。",
+          "再写一行就休息！",
+          "运行成功了吗？"
+        ]
+      }
+    },
+    {
+      "id": "corgi-space-scout",
+      "name": "柯基太空侦察员",
+      "description": "穿着深蓝太空服的小柯基，随时准备探索新任务。",
+      "mediaKind": "static",
+      "species": "dog",
+      "styles": [
+        "cute",
+        "playful"
+      ],
+      "tags": [
+        "柯基",
+        "太空",
+        "冒险"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/corgi-space-scout.webp",
+        "sha256": "73d91c2da240ae37ae6dd19f1678c6f3ff3022454553ab51b00356ca4a47b9ee",
+        "size": 25400,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/corgi-space-scout.png",
+        "sha256": "45f2b5dd553f15e1f91773ebc176632223ed113785840bd38b1af96eb4ede522",
+        "size": 1331645,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "bounce",
+        "clickMotion": "spin",
+        "speechLines": [
+          "侦察完毕，一切正常！",
+          "出发，探索下一步。",
+          "收到你的指令啦！"
+        ]
+      }
+    },
+    {
+      "id": "arctic-cyber-fox",
+      "name": "极光赛博狐",
+      "description": "带着青蓝极光纹路的雪狐，安静又机敏。",
+      "mediaKind": "static",
+      "species": "fantasy",
+      "styles": [
+        "cute",
+        "calm",
+        "cyber"
+      ],
+      "tags": [
+        "雪狐",
+        "极光",
+        "赛博"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/arctic-cyber-fox.webp",
+        "sha256": "54a84c0b2b556ef89095e0ac7d0a19459204a18b5e5dab008fb0b79d67f584ae",
+        "size": 29564,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/arctic-cyber-fox.png",
+        "sha256": "1dc19813aa2caf61813f69a46521b885e0821e78a69d377932ff9afc75aa48c3",
+        "size": 1491633,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 180,
+        "idleMotion": "float",
+        "clickMotion": "heart",
+        "speechLines": [
+          "极光会照亮答案。",
+          "我在这里守着工作台。",
+          "保持专注，也要休息。"
+        ]
+      }
+    },
+    {
+      "id": "pocket-helper-robot",
+      "name": "口袋助手机器人",
+      "description": "圆滚滚的蓝色小机器人，认真记录每一次进展。",
+      "mediaKind": "static",
+      "species": "robot",
+      "styles": [
+        "cute",
+        "cyber"
+      ],
+      "tags": [
+        "机器人",
+        "助手",
+        "未来"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/pocket-helper-robot.webp",
+        "sha256": "9e896d9336c9af602dbbd8f1bc95c0b79ec0c785f5b9af2ffa347c006115c44d",
+        "size": 28662,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/pocket-helper-robot.png",
+        "sha256": "58614500a4457de9b4536bb600f409d39abdd0291b85e1c4af8f64a3fc491e71",
+        "size": 1151985,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 164,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "状态良好，继续前进。",
+          "已记录这次进展。",
+          "需要我陪你检查吗？"
+        ]
+      }
+    },
+    {
+      "id": "pixel-star-slime",
+      "name": "像素星星史莱姆",
+      "description": "会发出星光的像素史莱姆，小小一只但元气满满。",
+      "mediaKind": "static",
+      "species": "pixel",
+      "styles": [
+        "cute",
+        "playful",
+        "pixel"
+      ],
+      "tags": [
+        "像素",
+        "史莱姆",
+        "星星"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/pixel-star-slime.webp",
+        "sha256": "c0af7556fcf5e4f8d3dc0e97846309d97c4d0731b9465d680c01890b731cdc41",
+        "size": 19650,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/pixel-star-slime.png",
+        "sha256": "a40f925a08b4519ac0826ae017408227551460a3078dcffcea75ef39a26717b1",
+        "size": 562332,
+        "mime": "image/png"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness Pet Store contributors",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets"
+      },
+      "behavior": {
+        "widthPx": 150,
+        "idleMotion": "bounce",
+        "clickMotion": "hop",
+        "speechLines": [
+          "啵！获得一颗小星星。",
+          "今天的能量满格！",
+          "一起跳到下一步吧！"
+        ]
+      }
+    },
+    {
+      "id": "sd2-cloud-cat-luna",
+      "name": "云朵猫·露娜",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "cat",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-cloud-cat-luna.webp",
+        "sha256": "98141ec9a9e04810f5fd0c59fb8576f7a64789a0d996a07a5476b67b0f7d8d0d",
+        "size": 8952,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-cloud-cat-luna.webp",
+        "sha256": "010bb0ba0924000561e69a92846594e33c2a2d9015e9593ff67e002bb055943b",
+        "size": 306320,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-corgi-engineer-luban",
+      "name": "工程柯基·鲁班",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "dog",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-corgi-engineer-luban.webp",
+        "sha256": "f7d02f9b26434cd4e0d54a0630ec0c4ec0e7733133d80051d4c5d2058a9b283a",
+        "size": 17670,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-corgi-engineer-luban.webp",
+        "sha256": "9ea838c771081614525015057efa82d3763f497aef356b088172be8d37472f0d",
+        "size": 611004,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-blue-whale-bubble",
+      "name": "蓝鲸·泡泡",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "whale",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-blue-whale-bubble.webp",
+        "sha256": "242bfb5a21e6a057430e4ed83db46ecb66f29a9d008443284bf68302887ec204",
+        "size": 10112,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-blue-whale-bubble.webp",
+        "sha256": "ebd4fd1a079fbdca53c06476db62bbe9d24e98db5757b9f125e0578198c9896a",
+        "size": 365774,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-fox-explorer-lan",
+      "name": "探险狐·小岚",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-fox-explorer-lan.webp",
+        "sha256": "2170585e31b31a76d25c9c8e9004af990ee62f272298963e03e4370170b06821",
+        "size": 19018,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-fox-explorer-lan.webp",
+        "sha256": "166212286d4e3387b01605985910466e42893ed2d27cfc9866dbd04e03de6c8c",
+        "size": 651506,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-halo-robot-core",
+      "name": "光环机器人·小核",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "robot",
+      "styles": [
+        "cyber",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-halo-robot-core.webp",
+        "sha256": "e4a6c5a25424321264a5828720adb74a5c4fd7d45a07e589040e3fc309991734",
+        "size": 16226,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-halo-robot-core.webp",
+        "sha256": "1ec33eea828affe9c51493dc913147a88d8b6d8acb7dafde9f7a9361c39afde8",
+        "size": 573036,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-star-slime-jelly",
+      "name": "星星史莱姆·果冻",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cute",
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-star-slime-jelly.webp",
+        "sha256": "6a689519c3dfcb230126c2919933bfc982b2a0c8fdc8a340bec9e5b4431c07ec",
+        "size": 11324,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-star-slime-jelly.webp",
+        "sha256": "b1f6c0ca5c437fe68dfba168c40e7e3db4b7ee2035263f90b31c4b23c0ed56d3",
+        "size": 412936,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-red-panda-reader-momo",
+      "name": "书卷小熊猫·墨墨",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-red-panda-reader-momo.webp",
+        "sha256": "69f73ae6272ee227029dd52877cacafe8e03f4d725053b1faff39e5fecc57599",
+        "size": 17152,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-red-panda-reader-momo.webp",
+        "sha256": "cbaf0f24e6bb69ae00f5afe466c6cac41e16f72f1c419bd279c647fca8dbf1d9",
+        "size": 592214,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-moon-rabbit-xianyue",
+      "name": "月兔·弦月",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-moon-rabbit-xianyue.webp",
+        "sha256": "645f3c56bc9f1b60d9f2288b31dd60fd15e32a533ff2b774d5c979414d518c92",
+        "size": 17540,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-moon-rabbit-xianyue.webp",
+        "sha256": "a2b8265afacb961e576a386e359a4b9a164adcc00bd248c7426374756d5c7f1e",
+        "size": 629154,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-cyber-axolotl-nini",
+      "name": "赛博六角龙·霓霓",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "cyber",
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-cyber-axolotl-nini.webp",
+        "sha256": "01fb9cd455c242ba394209eddf407ec1601c00fe85d98edfcd204bd131073cf7",
+        "size": 21482,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-cyber-axolotl-nini.webp",
+        "sha256": "90838fb8160b40e876e8e587465af3dc99800d7b4bb7feb1e1e09c97937bc407",
+        "size": 730662,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-ember-dragon-tuanhuo",
+      "name": "赤焰幼龙·团火",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-ember-dragon-tuanhuo.webp",
+        "sha256": "2fca8965f0e32e957a0717fb26a5f4db8f11ac532f2dac243596fdca65eafa33",
+        "size": 22228,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-ember-dragon-tuanhuo.webp",
+        "sha256": "acfc77b22f43b446c4d47af90890b1e2caf9b0414fe7798eca3d2f19c2055a64",
+        "size": 820696,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-tuxedo-astronomer",
+      "name": "礼服猫·星野",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "cat",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-tuxedo-astronomer.webp",
+        "sha256": "a5fa9a197fbad44cf97bb875349d17fe340d5e55e89265be1c4d9ba63536c26a",
+        "size": 15826,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-tuxedo-astronomer.webp",
+        "sha256": "a82a057be3b83de438ebd223fea65d24698f960f679aa40efdacc9e15df8171e",
+        "size": 536272,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-husky-courier",
+      "name": "哈士奇·快递风",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "dog",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-husky-courier.webp",
+        "sha256": "845cce64fd622682b0b86d1c15e21776ddeb4e4fb8f93847ef7af70134463d7d",
+        "size": 13670,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-husky-courier.webp",
+        "sha256": "a18fdb8fa50af5d4282529cbacad0ff6b57eccdea47fa4bf3edaea59216c8c70",
+        "size": 472506,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-manta-navigator",
+      "name": "蝠鲼·小航",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-manta-navigator.webp",
+        "sha256": "fce3c27bad95e9161b814582b5966b197983f398d2a103416ac20f8595ece9ce",
+        "size": 6854,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-manta-navigator.webp",
+        "sha256": "bd74c7fcc431340eadf4f6758de96d1008cbd0005cb3c2852a499c88f3a49871",
+        "size": 247148,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-raccoon-mechanic",
+      "name": "浣熊机械师·扳手",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-raccoon-mechanic.webp",
+        "sha256": "14ce52281a2b3e2788768a05834e6679a427c841b984b605c53d3207040da662",
+        "size": 13896,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-raccoon-mechanic.webp",
+        "sha256": "47cc3e8703e7d61fc5f5a2fccad01c5d680f1ed2a7906d3c187b7dfc6fa81fb1",
+        "size": 480788,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-tea-robot",
+      "name": "茶壶机器人·沏沏",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "robot",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-tea-robot.webp",
+        "sha256": "adfaaaacba2133c8db44860ebe028d36c49c2f474e36c20bab774ff4f768fcea",
+        "size": 9564,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-tea-robot.webp",
+        "sha256": "f373023cae35d56d8ad81b73d6105a8ae1e305063aa9776c5401f47d19d225d8",
+        "size": 325410,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-mushroom-sprite",
+      "name": "蘑菇精灵·伞伞",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-mushroom-sprite.webp",
+        "sha256": "3c33ed3993b245b3441c9f117e7c96d70ccc497cabbd219cb39bc0d934866943",
+        "size": 11136,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-mushroom-sprite.webp",
+        "sha256": "4b6bc6a59e8aaa4111f85caeead538d6709f45364aac1cd022eb09028cc3ded1",
+        "size": 388460,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-capybara-musician",
+      "name": "水豚乐手·慢慢",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-capybara-musician.webp",
+        "sha256": "fa6fb28007331981adb4e9f8f2fc219c29b04bae2536759a9f634655e94b3a15",
+        "size": 11580,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-capybara-musician.webp",
+        "sha256": "dedb9c24ec8a014b9f4928ee9e3d29a2f2401cedb16c5c3a181b03648f3e6b59",
+        "size": 394122,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-snow-owl-scholar",
+      "name": "雪鸮学者·知知",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-snow-owl-scholar.webp",
+        "sha256": "6ace6e5e1ec03e2e789ded55bca951c4a2096b32f9567a92a48defbaefc91388",
+        "size": 13454,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-snow-owl-scholar.webp",
+        "sha256": "66011c039b03c0121440e77ce3c249038fb0815cabd52a2d222777baed432038",
+        "size": 467910,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-jelly-space-traveler",
+      "name": "水母旅者·星漂",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cyber",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-jelly-space-traveler.webp",
+        "sha256": "9f76434fee3c9f191beb5b6dad13c8e7a53f17b279c375b4555aea0489ab2246",
+        "size": 18108,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-jelly-space-traveler.webp",
+        "sha256": "bb46982632609083ac7e0521835b7f68b32edbe90ef7edab6966575fbdfcdf73",
+        "size": 696370,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-baby-griffin",
+      "name": "幼年狮鹫·翼团",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-baby-griffin.webp",
+        "sha256": "8bd45cd0716b0d43b4a2e10874ccb9c7deaf8832f571fbf2479989a53b3fa6c3",
+        "size": 11490,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-baby-griffin.webp",
+        "sha256": "f37bd81cdceadf36722246408edc0ea695926c31b838267f67eaec4beb7f32cf",
+        "size": 411434,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-code-cat",
+      "name": "代码猫·黑糖",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "cat",
+      "styles": [
+        "cyber",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-code-cat.webp",
+        "sha256": "8db4d30d040737eadeae8f95f4c6b2e5dd08765cb28cd3065b1ec63daea341c2",
+        "size": 17874,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-code-cat.webp",
+        "sha256": "9bf63d02f831267019f069db42d8e5098faf144adfc727bcd39e6e3e287a682e",
+        "size": 632234,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-retriever-chef",
+      "name": "金毛厨师·小焙",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "dog",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-retriever-chef.webp",
+        "sha256": "60e81739b9e8933e878bbc962bcadc83989d847b9e23f991b9aa39c578169465",
+        "size": 19968,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-retriever-chef.webp",
+        "sha256": "b77bd3429e4e6174f251eb2b487f3cf51df38b9f71be74d4620ac2860ce88960",
+        "size": 735490,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-koi-spirit",
+      "name": "锦鲤灵·绯绯",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-koi-spirit.webp",
+        "sha256": "6c92a9f86c5ecd37a70acb65a290e1ca5be8e4d803bd6369672004a4c6d76997",
+        "size": 13016,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-koi-spirit.webp",
+        "sha256": "b78a7fd5433c15f19fde7376676f4d6d0348a10210c74869ae6daeda6b8ca55c",
+        "size": 491174,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-otter-inventor",
+      "name": "水獭发明家·齿轮",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-otter-inventor.webp",
+        "sha256": "4b73c542af49b3e6ef5666fbd875fedb36a80f7c7b6838782be725a257def2ad",
+        "size": 15024,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-otter-inventor.webp",
+        "sha256": "4d4676ab5bd6eb7d6cf409bcf4dbc129606d2c7c4710b58dc5b8acdcd6e8d0a4",
+        "size": 517142,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-blue-cube-robot",
+      "name": "方糖机器人·蓝蓝",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "robot",
+      "styles": [
+        "cyber",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-blue-cube-robot.webp",
+        "sha256": "ae36816562d15d17ec93ba6d8c56eb8d407d34ab88232abc424f175dd9432227",
+        "size": 14300,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-blue-cube-robot.webp",
+        "sha256": "9906abfa8d6f9fac9b6b7a13f9c13ef0e551e881a5b7c13e788a55ee50e07cdf",
+        "size": 502530,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-cactus-sprite",
+      "name": "仙人掌精灵·刺梨",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-cactus-sprite.webp",
+        "sha256": "80d45d3bf72c5672e429a5423ac4a6fc39fde22c97a2010ca5010a0301a3b5ec",
+        "size": 11588,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-cactus-sprite.webp",
+        "sha256": "65227b04d00fff29c33d74ce8b4d5e0f89992a82feb87096896d3a95f3f3cdae",
+        "size": 398606,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-alpaca-traveler",
+      "name": "羊驼旅者·绒云",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-alpaca-traveler.webp",
+        "sha256": "f336b7ed072b238c300d8910397517add7cd97c71fc1017be22c55efe9dac4a3",
+        "size": 14004,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-alpaca-traveler.webp",
+        "sha256": "1c6362cfecceea6ffef5cf645d7039cbbef14659030f39638acab200e01755d0",
+        "size": 493180,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-penguin-pilot",
+      "name": "企鹅飞行员·小翼",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-penguin-pilot.webp",
+        "sha256": "1b0fe2d9ef9cc07eccf7a1ee7fd1dcbb71284e673470a48539f341909edc9df1",
+        "size": 15874,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-penguin-pilot.webp",
+        "sha256": "0c1ac7b05eeafa49a371ac3773f6fdf38c61fc1addbc73e5cab8e6851c75ba89",
+        "size": 554130,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-moon-jelly",
+      "name": "月光水母·柔光",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-moon-jelly.webp",
+        "sha256": "575abf65330c4dbf8ceac95216df486934c5f1853bc2dd56c8fa5fd3dc1a8ac1",
+        "size": 24224,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-moon-jelly.webp",
+        "sha256": "88b709ffc3e498b24d5581d41acbaebb01225ab0e1c2623da32a97fafad83a69",
+        "size": 868314,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-baby-phoenix",
+      "name": "幼凤·暖羽",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-baby-phoenix.webp",
+        "sha256": "d720a4594e0428bd86d147c13ab9b994803715d4b1b6c95fb14bea8c521db524",
+        "size": 19532,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-baby-phoenix.webp",
+        "sha256": "af90393870eb687f85f56a1806ed09578d7d9e50625afe30fcfb050fea983a45",
+        "size": 686938,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-tabby-detective",
+      "name": "银虎斑侦探·寻迹",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "cat",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-tabby-detective.webp",
+        "sha256": "d330827a1b05afd1d00494e7ec29c188008779423271ecf7edf7b3159cf02a40",
+        "size": 15978,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-tabby-detective.webp",
+        "sha256": "7c02e4165d5aaa07d5e9d1b17305b95f9d5949bf3e73babb32542c5df1ca3cb5",
+        "size": 565842,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-shiba-gardener",
+      "name": "柴犬园丁·花豆",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "dog",
+      "styles": [
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-shiba-gardener.webp",
+        "sha256": "b3262b1958fc8b9581c3d6393a885b737a409663c560160e8fec80264932f3ab",
+        "size": 13896,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-shiba-gardener.webp",
+        "sha256": "8db511e8099e3d3f41a09de694e37ca87bdc0ba0afead5e97db6b38dac7b674c",
+        "size": 498272,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-turtle-cartographer",
+      "name": "海龟绘图师·小岛",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-turtle-cartographer.webp",
+        "sha256": "2e379dd84be10c527ab46db6ff873ac9e8b555471b6d853c8255247fe7089800",
+        "size": 14488,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-turtle-cartographer.webp",
+        "sha256": "5fb2f3c0ea7ced91f7e7691f910d9658dfe3e85c2eaacb68cfc6503978915150",
+        "size": 500422,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-beaver-architect",
+      "name": "河狸建筑师·木尺",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-beaver-architect.webp",
+        "sha256": "39c7c40499f57e0ddb87fd3fdbbf8b33c570c77768e245632f7159da5fc237fc",
+        "size": 12410,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-beaver-architect.webp",
+        "sha256": "8391f59d5a690dd80d86d07823112b5b4a7ed43ef7ebcecdd760e31ae484c7f2",
+        "size": 424600,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-retro-tv-robot",
+      "name": "电视机器人·频道",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "robot",
+      "styles": [
+        "pixel",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-retro-tv-robot.webp",
+        "sha256": "40cdbf5f5189f85cae49a5ac174afd1652bf254b2ca95fcfda927f1a9ab14f11",
+        "size": 14732,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-retro-tv-robot.webp",
+        "sha256": "a6b0af38d67197c946048e3d70001bf153365fe8cc0bcdc57c4cae4b3cf59308",
+        "size": 528572,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-acorn-guardian",
+      "name": "橡果守卫·小栎",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-acorn-guardian.webp",
+        "sha256": "5142b23564483bf8151e3345467e67330d942064b5ba89270fdcccb246e3d65b",
+        "size": 13464,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-acorn-guardian.webp",
+        "sha256": "5e5fb42a6a787b94bb5afcb6fa684986bad93a9f049399f7ef41143835042a7a",
+        "size": 454348,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-yak-tea-merchant",
+      "name": "牦牛茶商·暖壶",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-yak-tea-merchant.webp",
+        "sha256": "6d768224b8b06d76dbae6f2a6d0988b488a8b42179093183ee33bb4fe87be327",
+        "size": 12788,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-yak-tea-merchant.webp",
+        "sha256": "10f08048428f9dc3ea3373114d1f75dcfb12c1f9f462ee5c48a7e74670b62d75",
+        "size": 444550,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-puffin-photographer",
+      "name": "海鹦摄影师·咔嚓",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-puffin-photographer.webp",
+        "sha256": "69d1218767ada2d61a7916648b3b05b7f440656ccdba5d14eb638e598adb9857",
+        "size": 13320,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-puffin-photographer.webp",
+        "sha256": "bc144e7c02a71353a84d587346a67325f01cc5682bb191a87199567940a3ad30",
+        "size": 457460,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-comet-ghost",
+      "name": "彗星幽灵·尾光",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-comet-ghost.webp",
+        "sha256": "7f0ef90dd69d9d82698177ee8e3f11fc722487f01153c2d95dabb8ed70ee6d4f",
+        "size": 11058,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-comet-ghost.webp",
+        "sha256": "fc42678a25dd1e07d00ef3b1976e2a8754214506f9a3ee475c823a06a102f153",
+        "size": 393036,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-jade-qilin",
+      "name": "碧玉小麟·青团",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-jade-qilin.webp",
+        "sha256": "7ad950ff2499550b044d92d14857b5a8558974252dfb5e8b2813ac730ca479b5",
+        "size": 12978,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-jade-qilin.webp",
+        "sha256": "2e26a0ff941fb34a550d9e93f9fcfa6ed69f997b64f026fd93e92be26693a502",
+        "size": 450476,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-calico-painter",
+      "name": "三花画家·彩点",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "cat",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-calico-painter.webp",
+        "sha256": "304f847c5d814d5aa0d274b07bb9aa0994f44462e20974b9b372a5a89309e86d",
+        "size": 13288,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-calico-painter.webp",
+        "sha256": "e64ba1733fd46a103af483920bb6936000e8d386f3b37603b45d0ab57ebc9d5f",
+        "size": 467702,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-samoyed-cloudkeeper",
+      "name": "萨摩耶·云守",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "dog",
+      "styles": [
+        "cute",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-samoyed-cloudkeeper.webp",
+        "sha256": "2998e7792de18fca98b7e8d042c44c5321b6e0dd2ca778862ae5b18319eaa2a6",
+        "size": 12664,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-samoyed-cloudkeeper.webp",
+        "sha256": "f6504e0996115e0726e4e808804f696b23ae62923fa61c4292d1cf323ef1b510",
+        "size": 432810,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-seahorse-magician",
+      "name": "海马魔法师·旋星",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-seahorse-magician.webp",
+        "sha256": "125e86287f72b89143fb34182b1d73f69bebb9237c59bb76994de51e609632da",
+        "size": 13852,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-seahorse-magician.webp",
+        "sha256": "ff9e1ec4bc1317ec7d1099dbfd70eb26d1f725fbee569f3c8a96b675f52bbe15",
+        "size": 488518,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-mole-geologist",
+      "name": "鼹鼠地质家·岩岩",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-mole-geologist.webp",
+        "sha256": "68067d0ce4feb5527d1f431d8a65088d43fc301f24dce4e7ebd14b6db331981b",
+        "size": 9952,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-mole-geologist.webp",
+        "sha256": "24399eceb73b1b983b5c46a8c60d984085077c30ddfa91e75376578118486c7d",
+        "size": 348620,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-lantern-robot",
+      "name": "灯塔机器人·明明",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "robot",
+      "styles": [
+        "cyber",
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-lantern-robot.webp",
+        "sha256": "11fb5291a36350e37021ee690954f91d872a45c414af63136ea40b54f7a876ed",
+        "size": 14982,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-lantern-robot.webp",
+        "sha256": "588ab0fb81c67c73967bbad354c99f1eef0744badadcff899d47d52c13d2435e",
+        "size": 530640,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-lotus-sprite",
+      "name": "莲叶精灵·荷露",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm",
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-lotus-sprite.webp",
+        "sha256": "9bd7b14d2d8a3ddff296d8719948e10140ea93cabe457bc553cb7e46b90c7e9e",
+        "size": 13962,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-lotus-sprite.webp",
+        "sha256": "99647a7f8c77f82afdf37fcbc3c0b15cb2606e6410b91f836b4466961b9d0fca",
+        "size": 510916,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-fennec-stargazer",
+      "name": "耳廓狐·望星",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "calm"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-fennec-stargazer.webp",
+        "sha256": "75b8ee25a5b7bea14676a83dcfad45f5be87f23be918d68d5cdb4bb103bdeb2c",
+        "size": 12146,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-fennec-stargazer.webp",
+        "sha256": "82828d8d3423d7fd9b838236f7285e87f82b5ffd961ed8e80f1336862feb6ad0",
+        "size": 427018,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 96,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-seal-medic",
+      "name": "海豹医师·小蓝",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "other",
+      "styles": [
+        "cute"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-seal-medic.webp",
+        "sha256": "8c92cb269d56a93c714ad20e414ac1eef6c1283bd0265c069bd772d64b414509",
+        "size": 11444,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-seal-medic.webp",
+        "sha256": "2591c614b41d28a8a0915074e7791349676b0df4979b2fd1812f7e4173bcd849",
+        "size": 388304,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 188,
+        "idleMotion": "bounce",
+        "clickMotion": "heart",
+        "speechLines": [
+          "今天先完成最重要的一小步。",
+          "我在旁边陪你。",
+          "别忘了休息一下眼睛。"
+        ],
+        "autoSpeakIntervalSec": 108,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-crystal-bat",
+      "name": "水晶蝠·紫晶",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "cyber",
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": false,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-crystal-bat.webp",
+        "sha256": "6b891b6a1803bacbb90cdf3a40327ca20514f2a043ad65942884a309398d03cd",
+        "size": 15090,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-crystal-bat.webp",
+        "sha256": "3ae329b25517a2303f367421b8345ed6fa472b189a44a2632b212ce7cede18c7",
+        "size": 497044,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 200,
+        "idleMotion": "float",
+        "clickMotion": "spin",
+        "speechLines": [
+          "需要我帮你守住专注吗？",
+          "进度正在变好。",
+          "点我一下，换个心情。"
+        ],
+        "autoSpeakIntervalSec": 72,
+        "hoverMotion": "perk"
+      }
+    },
+    {
+      "id": "sd2-jade-lion",
+      "name": "翡翠小狮·镇镇",
+      "description": "Seedance 2.0 原创透明帧动画宠物，可拖动、点击互动并主动陪伴。",
+      "mediaKind": "animated",
+      "species": "fantasy",
+      "styles": [
+        "playful"
+      ],
+      "tags": [
+        "帧动画",
+        "透明",
+        "可拖动",
+        "会说话"
+      ],
+      "featured": true,
+      "contentRating": "everyone",
+      "thumbnail": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/thumbnails/sd2-jade-lion.webp",
+        "sha256": "c7a834ebd0ccde3b95b388fbdc8ad0b7f69da7c3ec918578f577e9fc5111394a",
+        "size": 14026,
+        "mime": "image/webp"
+      },
+      "media": {
+        "url": "https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/assets/sd2-jade-lion.webp",
+        "sha256": "9a116d1df2149f8bb098ecf0e7331a026b89658b7b5e0388b44770fd13ba75b0",
+        "size": 505064,
+        "mime": "image/webp"
+      },
+      "license": {
+        "name": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "author": "DeepSeekHarness 原创 AI 视觉实验室",
+        "sourceUrl": "https://gitee.com/wanggp123/deepseek-harness-pets",
+        "attribution": "原创生成角色；禁止冒充第三方IP。"
+      },
+      "behavior": {
+        "widthPx": 176,
+        "idleMotion": "float",
+        "clickMotion": "hop",
+        "speechLines": [
+          "慢一点也没关系。",
+          "我会记住这个工作位置。",
+          "继续，我们快完成了。"
+        ],
+        "autoSpeakIntervalSec": 84,
+        "hoverMotion": "perk"
+      }
+    }
+  ]
+}

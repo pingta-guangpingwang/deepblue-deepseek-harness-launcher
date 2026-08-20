@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-15T15:54:42.2438509+08:00",
+  "title": "Design System: 深蓝 DeepSeekHarness 启动器",
+  "extensions": {
+    "colorMeta": {
+      "deepseek-blue": {
+        "role": "primary",
+        "displayName": "DeepSeek 蓝",
+        "canonical": "#4d6bfe",
+        "tonalRamp": ["#121b55", "#1f2d82", "#3044b6", "#4d6bfe", "#7188ff", "#9aa9ff", "#c7cfff", "#eef1ff"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "纸白",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#202124", "#45474d", "#6b6e75", "#9699a1", "#bec1c7", "#dedfe3", "#f1f2f4", "#ffffff"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "操作墨色",
+        "canonical": "#202124",
+        "tonalRamp": ["#101112", "#202124", "#3d3f43", "#666970", "#9699a1", "#c2c4c9", "#e4e6ea", "#f7f8fa"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "品牌标题", "purpose": "DeepSeek Harness 首页品牌名。" },
+      "body": { "displayName": "操作正文", "purpose": "状态说明、配置和帮助文字。" },
+      "label": { "displayName": "控件标签", "purpose": "导航、按钮和短状态。" }
+    },
+    "shadows": [
+      { "name": "primary-action", "value": "0 10px 22px rgba(77,107,254,.2)", "purpose": "仅用于首页主要启动按钮。" },
+      { "name": "mobile-drawer", "value": "18px 0 40px rgba(0,0,0,.24)", "purpose": "仅用于窄屏展开的侧栏。" }
+    ],
+    "motion": [
+      { "name": "control-state", "value": "160ms ease", "purpose": "按钮与导航的悬停、选中和抽屉状态。" }
+    ],
+    "breakpoints": [
+      { "name": "desktop-compact", "value": "1240px" },
+      { "name": "sidebar-compact", "value": "1050px" },
+      { "name": "drawer", "value": "860px" },
+      { "name": "phone", "value": "540px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "常规主要动作。",
+      "html": "<button class=\"ds-primary\">保存设置</button>",
+      "css": ".ds-primary{height:36px;padding:0 16px;border:0;border-radius:10px;background:#4d6bfe;color:#fff;font-weight:600;transition:background .16s ease,transform .16s ease}.ds-primary:hover{background:#3e57d8;transform:translateY(-1px)}.ds-primary:focus-visible{outline:3px solid rgba(77,107,254,.25);outline-offset:1px}"
+    },
+    {
+      "name": "Launch Button",
+      "kind": "button",
+      "refersTo": "launch-button",
+      "description": "首页最强的一键启动动作。",
+      "html": "<button class=\"ds-launch\">启动 DeepSeek Harness</button>",
+      "css": ".ds-launch{height:58px;padding:0 24px;border:0;border-radius:12px;background:#4d6bfe;color:#fff;font-size:17px;font-weight:700;box-shadow:0 10px 22px rgba(77,107,254,.2);transition:background .18s ease,transform .18s ease,box-shadow .18s ease}.ds-launch:hover{background:#3e57d8;transform:translateY(-1px);box-shadow:0 13px 28px rgba(77,107,254,.26)}.ds-launch:focus-visible{outline:3px solid rgba(77,107,254,.25);outline-offset:1px}"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "description": "白色侧栏中的当前页面状态。",
+      "html": "<button class=\"ds-nav\">首页<span></span></button>",
+      "css": ".ds-nav{height:46px;width:180px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border:0;border-radius:10px;background:#eef1ff;color:#4d6bfe;font-weight:700}.ds-nav span{width:6px;height:6px;border-radius:50%;background:#4d6bfe}.ds-nav:focus-visible{outline:3px solid rgba(77,107,254,.25);outline-offset:1px}"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "平面信息容器。",
+      "html": "<section class=\"ds-card\"><strong>环境就绪检查</strong><p>所有必要组件已准备好。</p></section>",
+      "css": ".ds-card{padding:18px;border:1px solid #e4e6ea;border-radius:16px;background:#fff;color:#202124}.ds-card p{margin:8px 0 0;color:#666970;font-size:12px}"
+    },
+    {
+      "name": "Distribution Chip",
+      "kind": "chip",
+      "description": "显示在线或离线发行类型。",
+      "html": "<span class=\"ds-chip\">完整离线版</span>",
+      "css": ".ds-chip{display:inline-flex;padding:7px 11px;border-radius:999px;background:#4d6bfe;color:#fff;font-size:11px;font-weight:700}"
+    }
+  ],
+  "narrative": {
+    "northStar": "DeepSeek 操作台",
+    "overview": "界面以 DeepSeek 鲸鱼标志作为身份锚点，以浅色产品界面承载环境检测、下载源和进程状态。视觉保持克制、平面和可信。",
+    "keyCharacteristics": ["大型 DeepSeek 鲸鱼标志与真实运行状态并置。", "纸白内容面、浅灰画布和单一 DeepSeek 蓝强调色。", "无装饰性玻璃、霓虹和赛博网格。", "操作名称与状态优先于装饰。"],
+    "rules": [
+      { "name": "The One Blue Rule", "body": "DeepSeek 蓝只承担品牌、选中状态、链接和主要动作，不能把每个信息块都涂成蓝色。", "section": "colors" },
+      { "name": "The Measurement Rule", "body": "等宽字体只用于真实测量值、标识符和日志，不作为科技感装饰。", "section": "typography" },
+      { "name": "The Flat Workspace Rule", "body": "信息容器保持平面；阴影只属于主要动作或移动侧栏，不用于每张卡片。", "section": "elevation" }
+    ],
+    "dos": ["Do 在首页第一屏保留明显的鲸鱼标志和主要启动按钮。", "Do 使用真实版本、端口、源站和运行状态。", "Do 保持蓝色稀缺，让主要动作和当前状态易于扫描。"],
+    "donts": ["Don't 使用通用赛博朋克背景、霓虹网格或渐变文字。", "Don't 用新的航船、火箭或抽象 AI 图标替换 DeepSeek 鲸鱼标志。", "Don't 用阴影和卡片嵌套代替信息层级。"]
+  }
+}

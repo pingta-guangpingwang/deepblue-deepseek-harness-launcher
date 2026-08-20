@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { modelProviderTemplates, normalizeModelProviderDraft } from './model-store'
+
+describe('model provider templates', () => {
+  it('ships a broad domestic API directory without duplicating identities or secrets', () => {
+    const expectedDomestic = [
+      'deepseek-official', 'qwen', 'volcengine', 'moonshot', 'zhipu', 'qianfan',
+      'tencent-tokenhub', 'minimax', 'stepfun', 'siliconflow', 'baichuan'
+    ]
+    const domestic = modelProviderTemplates.filter((template) => template.region === 'china')
+
+    expect(domestic.map((template) => template.id)).toEqual(expectedDomestic)
+    expect(new Set(modelProviderTemplates.map((template) => template.id)).size).toBe(modelProviderTemplates.length)
+    expect(new Set(modelProviderTemplates.map((template) => template.apiKeyEnv)).size).toBe(modelProviderTemplates.length)
+    expect(domestic.find((template) => template.id === 'volcengine')?.name).toContain('豆包')
+    expect(domestic.find((template) => template.id === 'qwen')?.name).toContain('千问')
+    expect(domestic.find((template) => template.id === 'moonshot')?.name).toContain('Kimi')
+  })
+
+  it('uses verified HTTPS defaults while keeping custom gateways user-defined', () => {
+    for (const template of modelProviderTemplates) {
+      if (template.docsUrl) expect(new URL(template.docsUrl).protocol).toBe('https:')
+      if (template.custom) {
+        expect(template.baseURL).toBe('')
+        expect(template.region).toBe('custom')
+      } else {
+        expect(new URL(template.baseURL).protocol).toBe('https:')
+      }
+    }
+  })
+
+  it('ships a dated selectable model catalog for every known provider', () => {
+    for (const template of modelProviderTemplates) {
+      expect(template.catalogUpdatedAt).toBe('2026-08-18')
+      if (template.custom) continue
+      expect(template.suggestedModels.length).toBeGreaterThan(0)
+      expect(template.suggestedModels.some((model) => model.recommended)).toBe(true)
+      expect(new Set(template.suggestedModels.map((model) => model.id)).size).toBe(template.suggestedModels.length)
+    }
+  })
+
+  it('locks known providers to official connection and model values', () => {
+    const normalized = normalizeModelProviderDraft({
+      id: 'openai', name: '伪造名称', api: 'openai-completions', baseURL: 'https://attacker.example/v1', apiKey: 'secret', custom: true,
+      models: [{ id: 'gpt-5.6-terra', name: '伪造显示名' }, { id: 'not-an-official-model', name: '旁路模型' }]
+    })
+    expect(normalized).toMatchObject({
+      id: 'openai', name: 'OpenAI', api: 'openai-responses', baseURL: 'https://api.openai.com/v1', custom: false,
+      models: [{ id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' }]
+    })
+  })
+
+  it('opens resource cards on one click and keeps manual model entry custom-only', () => {
+    const app = readFileSync(path.resolve('src/renderer/src/App.tsx'), 'utf8')
+    expect(app).toMatch(/resource-market-card[\s\S]{0,180}onClick=\{\(\) => openResource\(item\)\}/)
+    expect(app).not.toMatch(/resource-market-card[^\n]+onDoubleClick/)
+    expect(app).toContain("draft.custom ? <label className=\"wide\"><span>模型列表")
+    expect(app).toContain('选择官方模型')
+  })
+})

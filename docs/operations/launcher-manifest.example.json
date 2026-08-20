@@ -1,0 +1,34 @@
+{
+  "keyId": "replace-with-production-key-id",
+  "algorithm": "ed25519",
+  "payload": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-08-15T05:00:00.000Z",
+    "launcher": {
+      "version": "0.2.0",
+      "notes": ["Online lightweight and complete offline editions"],
+      "artifacts": [
+        {
+          "platform": "win32",
+          "arch": "x64",
+          "distribution": "online",
+          "url": "https://example.com/releases/0.2.2/deepblue-deepseek-harness-launcher-0.2.2-win-x64-online.exe",
+          "sha256": "replace-with-online-sha256",
+          "size": 117324427
+        },
+        {
+          "platform": "win32",
+          "arch": "x64",
+          "distribution": "offline",
+          "url": "https://example.com/releases/0.2.2/deepblue-deepseek-harness-launcher-0.2.2-win-x64-offline.exe",
+          "sha256": "replace-with-offline-sha256",
+          "size": 138714754
+        }
+      ]
+    },
+    "harness": [],
+    "plugins": [],
+    "models": []
+  },
+  "signature": "replace-with-base64-ed25519-signature"
+}
