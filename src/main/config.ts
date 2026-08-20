@@ -5,16 +5,16 @@ import type { LauncherLibraryEntry, LauncherSettings, ModelProviderDraft, Source
 
 const defaultSources: SourceConfig[] = [
   {
-    id: 'github',
-    name: 'GitHub',
-    baseUrl: 'https://github.com/pingta-guangpingwang/deepseek-harness.git',
+    id: 'gitee',
+    name: 'Gitee',
+    baseUrl: 'https://gitee.com/wanggp123/deepseek-harness.git',
     enabled: true,
     kind: 'repository'
   },
   {
-    id: 'gitee',
-    name: 'Gitee',
-    baseUrl: 'https://gitee.com/wanggp123/deepseek-harness.git',
+    id: 'github',
+    name: 'GitHub',
+    baseUrl: 'https://github.com/pingta-guangpingwang/deepseek-harness.git',
     enabled: true,
     kind: 'repository'
   },

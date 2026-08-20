@@ -149,6 +149,24 @@ describe('catalog signature verification', () => {
     expect(script).not.toContain('`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/releases/${packageJson.version}`')
   })
 
+  it('publishes every modular artifact in the Gitee, GitHub, OSS fallback order', () => {
+    const runtimeBuilder = readFileSync(path.resolve('scripts/build-runtime-modules.mjs'), 'utf8')
+    const shellBuilder = readFileSync(path.resolve('scripts/build-launcher-shell.mjs'), 'utf8')
+    const bootstrapBuilder = readFileSync(path.resolve('scripts/build-bootstrap-installer.ps1'), 'utf8')
+    const bootstrapInstaller = readFileSync(path.resolve('scripts/bootstrap/installer.nsi'), 'utf8')
+    for (const source of [runtimeBuilder, shellBuilder]) {
+      const gitee = source.indexOf("{ id: 'gitee'")
+      const github = source.indexOf("{ id: 'github'")
+      const oss = source.indexOf("{ id: 'oss'")
+      expect(gitee).toBeGreaterThan(-1)
+      expect(gitee).toBeLessThan(github)
+      expect(github).toBeLessThan(oss)
+    }
+    expect(bootstrapBuilder).toContain('SHELL_URL_GITEE')
+    expect(bootstrapInstaller.indexOf('SHELL_URL_GITEE')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_GITHUB'))
+    expect(bootstrapInstaller.indexOf('SHELL_URL_GITHUB')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
+  })
+
   it('keeps the modular catalog on an isolated v2 trust root and endpoint', () => {
     const manifestSource = readFileSync(path.resolve('src/main/manifest.ts'), 'utf8')
     const configSource = readFileSync(path.resolve('src/main/config.ts'), 'utf8')

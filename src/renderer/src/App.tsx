@@ -1524,7 +1524,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
         <label className="field-label"><span>更新通道<small>稳定版优先；预览版更快获得新能力</small></span><select value={draft.channel} onChange={(event) => setDraft({ ...draft, channel: event.target.value as LauncherSettings['channel'] })}><option value="stable">稳定版</option><option value="preview">预览版</option></select></label>
       </Card>
       <Card className="source-settings" title="下载与仓库源">
-        <p className="card-intro">GitHub 可达时优先使用；Gitee 与 OSS 地址填好后会参与自动择优。npmmirror 负责 npm 软件包和插件依赖。</p>
+        <p className="card-intro">运行模块固定按 Gitee、GitHub、OSS 的顺序探测与切换；OSS 只作最后应急兜底。npmmirror 负责 npm 软件包和插件依赖。</p>
         {draft.sources.map((source, index) => (
           <div className="source-setting-row" key={source.id}>
             <Toggle checked={source.enabled} onChange={(enabled) => updateSource(index, { enabled })} />

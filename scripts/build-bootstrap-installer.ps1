@@ -33,6 +33,7 @@ $lines = @(
   "!define SHELL_EXECUTABLE `"$(Escape-Nsis ([string]$generated.executable))`"",
   "!define SHELL_SHA256 `"$([string]$generated.sha256)`"",
   "!define SHELL_SIZE `"$([string]$generated.size)`"",
+  "!define SHELL_URL_GITEE `"$(Escape-Nsis $mirrors.gitee)`"",
   "!define SHELL_URL_GITHUB `"$(Escape-Nsis $mirrors.github)`"",
   "!define SHELL_URL_OSS `"$(Escape-Nsis $mirrors.oss)`""
 )

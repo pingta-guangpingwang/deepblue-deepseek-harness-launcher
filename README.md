@@ -6,9 +6,9 @@
 
 安全与信任：[代码签名政策](docs/CODE_SIGNING_POLICY.md) · [隐私说明](PRIVACY.md) · [安全问题报告](SECURITY.md)
 
-> 当前状态：Windows x64 0.10.7 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、63 款免费签名皮肤和 56 个可互动宠物均已验证。
+> 当前状态：Windows x64 0.10.8 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、63 款免费签名皮肤和 56 个可互动宠物均已验证。
 
-> 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。UI 壳同时携带经过同一严格校验的运行模块目录副本；运行目录、UI 壳与三个运行模块均使用 GitHub 主线路和 OSS 应急线路，GitHub 失败时自动切换，平时不消耗 OSS 大文件流量。
+> 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。UI 壳同时携带经过同一严格校验的运行模块目录副本；运行目录、UI 壳与三个运行模块均按 Gitee、GitHub、OSS 的顺序自动探测与切换，OSS 只作最后应急兜底。
 
 ## 已实现
 
@@ -17,7 +17,7 @@
 - 独立用户数据：首次启动可确认或更换 Node、Harness、插件、皮肤、宠物与 `DSH_HOME` 的存放位置；以后可在设置中安全迁移，旧位置保留为恢复副本。
 - 版本管理：新版本安装到并行目录；更新前备份用户数据；已安装版本可回滚。
 - 模块化运行时：Node、Harness 与 pnpm 使用签名清单独立安装；界面显示每个模块、实际字节、所用渠道和总进度，下载前探测渠道，失败自动切换，校验失败不激活，旧版本保留为回滚点。
-- 国内网络：GitHub 承担开源模块主分发，OSS只托管小引导器与签名目录；npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线版由百度网盘兜底。
+- 国内网络：Gitee 优先提供开源模块，GitHub Releases 为第二线路，OSS 只做最后应急兜底；npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线版由百度网盘兜底。
 - 更新安全：远程版本、插件和模型目录必须通过 Ed25519 签名；启动器整合包下载后校验 SHA-256。
 - 插件管理：调用 Harness 官方 `dsh plugin --profile web add/update/remove` 流程，并把配置的 npm 国内源传给 pnpm。
 - 模型目录：国内平台优先，覆盖 DeepSeek、千问、豆包、Kimi、智谱、千帆、腾讯 TokenHub、MiniMax、阶跃、硅基流动和百川；已知平台直接勾选 2026-08-18 核对的官方模型，不再手填模型参数；不下载模型权重，用户主动保存的 API Key 只进入 Windows 安全存储。
@@ -74,7 +74,7 @@ npm run dist:win
 npm run dist:mac
 ```
 
-构建结果写入 `release/`。生产公钥和发布地址已配置。当前 Windows 0.10.7 安装器尚未取得公开受信任的 Authenticode 签名，Windows 可能显示“未知发布者”；项目正在申请 SignPath Foundation 的开源免费代码签名，获批前不会把 Ed25519 更新目录签名冒充 Windows 发布者签名。正式对外分发还需补充：
+构建结果写入 `release/`。生产公钥和发布地址已配置。当前 Windows 0.10.8 安装器尚未取得公开受信任的 Authenticode 签名，Windows 可能显示“未知发布者”；项目正在申请 SignPath Foundation 的开源免费代码签名，获批前不会把 Ed25519 更新目录签名冒充 Windows 发布者签名。正式对外分发还需补充：
 
 1. Windows Authenticode 代码签名（优先申请 SignPath Foundation 开源免费签名）；
 2. Apple Developer ID 签名和 notarization；
@@ -91,13 +91,13 @@ npm run dist:mac
 | 源码、说明 | GitHub | Gitee（仓库建成后） |
 | Ed25519 schema-2 远程签名清单 | OSS `release-v2` | GitHub Release 附件 |
 | Windows 小型联网安装器 | OSS | GitHub Releases |
-| UI 壳、Node、Harness、pnpm 内容寻址模块 | GitHub Releases | Gitee/OSS 有真实公开制品后再加入 |
+| UI 壳、Node、Harness、pnpm 内容寻址模块 | Gitee Releases | GitHub Releases → OSS 应急兜底 |
 | 完整离线包 | 百度网盘 | 不占用 OSS 日常流量 |
 | npm 插件依赖 | npmmirror | npm 官方源 |
 
 默认配置会探测 [GitHub 原仓库](https://github.com/pingta-guangpingwang/deepseek-harness)、[Gitee 国内镜像](https://gitee.com/wanggp123/deepseek-harness)、OSS 签名清单和 npmmirror。大文件 URL 由签名清单提供，所以以后更换版本文件不需要重新编译旧启动器。
 
-当前 Windows x64 联网引导器约 0.70 MB；它不携带 Electron、Node 或 Harness。首次安装时 GitHub 下载约 82.2 MB UI 壳，第一次真正启动 Harness 时再下载约 35.4 MB Node 和 41.5 MB Harness；只有使用插件管理时才下载约 6.6 MB pnpm。旧版单文件 BAT 因会触发安全软件的脚本投递器启发式规则而停止分发。
+当前 Windows x64 联网引导器约 0.70 MB；它不携带 Electron、Node 或 Harness。首次安装时优先从 Gitee 下载约 82.2 MB UI 壳，第一次真正启动 Harness 时再下载约 35.4 MB Node 和 41.5 MB Harness；只有使用插件管理时才下载约 6.6 MB pnpm。Gitee 不可用时才依次切到 GitHub 和 OSS。旧版单文件 BAT 因会触发安全软件的脚本投递器启发式规则而停止分发。
 
 - 在线轻量版永久直链：`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/download/deepblue-deepseek-harness-launcher-win-x64-online.exe`
 - 完整离线版：由下载页提供百度网盘兜底，不再发布 OSS 永久大文件直链。
