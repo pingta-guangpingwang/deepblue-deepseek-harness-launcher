@@ -137,7 +137,8 @@ const payload = {
   unpackedSize,
   executable: '深蓝DeepSeekHarness启动器.exe',
   mirrors: [
-    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` }
+    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` },
+    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` }
   ],
   includedPackages: [...selected].sort()
 }

@@ -120,6 +120,40 @@ export function runtimeModulesFromBundle(value: unknown): RuntimeModuleRelease[]
   return structuredClone(value.modules)
 }
 
+/**
+ * The signed online catalog remains authoritative for versions and hashes.
+ * When the bundled shell describes the exact same artifact, its independently
+ * packaged mirrors can safely extend availability without changing bytes.
+ */
+export function mergeBundledRuntimeMirrors(
+  online: RuntimeModuleRelease[],
+  bundled: RuntimeModuleRelease[]
+): RuntimeModuleRelease[] {
+  return online.map((release) => {
+    const local = bundled.find((candidate) => candidate.id === release.id && candidate.version === release.version)
+    if (!local) return structuredClone(release)
+    return {
+      ...structuredClone(release),
+      artifacts: release.artifacts.map((artifact) => {
+        const localArtifact = local.artifacts.find((candidate) =>
+          candidate.platform === artifact.platform &&
+          candidate.arch === artifact.arch &&
+          candidate.format === artifact.format &&
+          candidate.sha256 === artifact.sha256 &&
+          candidate.size === artifact.size &&
+          candidate.unpackedSize === artifact.unpackedSize
+        )
+        if (!localArtifact) return structuredClone(artifact)
+        const mirrors = [...artifact.mirrors]
+        for (const mirror of localArtifact.mirrors) {
+          if (!mirrors.some((candidate) => candidate.id === mirror.id) && mirrors.length < 3) mirrors.push(structuredClone(mirror))
+        }
+        return { ...structuredClone(artifact), mirrors }
+      })
+    }
+  })
+}
+
 export function isNewerVersion(candidate: string, current: string): boolean {
   const parse = (value: string): { core: number[]; prerelease?: string } | undefined => {
     const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(value)

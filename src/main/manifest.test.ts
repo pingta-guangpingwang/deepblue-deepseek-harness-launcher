@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { isNewerVersion, runtimeModulesFromBundle, validateModelTemplates, validateRuntimeModules, verifyCatalogManifest } from './manifest'
+import { isNewerVersion, mergeBundledRuntimeMirrors, runtimeModulesFromBundle, validateModelTemplates, validateRuntimeModules, verifyCatalogManifest } from './manifest'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
 import type { RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload } from '../shared/types'
 
@@ -115,6 +115,15 @@ describe('catalog signature verification', () => {
     expect(isNewerVersion('0.10.5', '0.10.5')).toBe(false)
     expect(isNewerVersion('0.11.0-rc.1', '0.10.5')).toBe(true)
     expect(isNewerVersion('0.10.5-rc.2', '0.10.5')).toBe(false)
+  })
+
+  it('extends only byte-identical signed runtime artifacts with bundled mirrors', () => {
+    const ossMirror = { id: 'oss' as const, url: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/node.tar.gz' }
+    const runtimeArtifact = runtimeModule.artifacts[0]!
+    const bundled = [{ ...runtimeModule, artifacts: [{ ...runtimeArtifact, mirrors: [...runtimeArtifact.mirrors, ossMirror] }] }]
+    expect(mergeBundledRuntimeMirrors([runtimeModule], bundled)[0]?.artifacts[0]?.mirrors).toHaveLength(3)
+    const changed = [{ ...runtimeModule, artifacts: [{ ...runtimeArtifact, sha256: 'b'.repeat(64), mirrors: [...runtimeArtifact.mirrors, ossMirror] }] }]
+    expect(mergeBundledRuntimeMirrors([runtimeModule], changed)[0]?.artifacts[0]?.mirrors).toHaveLength(2)
   })
 
   it('accepts a signed live model directory and rejects unsafe or duplicate templates', () => {

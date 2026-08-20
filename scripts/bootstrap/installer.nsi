@@ -66,12 +66,13 @@ Section "安装启动器" SEC_MAIN
   ${Else}
     StrCpy $DownloadStatus "PENDING"
     DetailPrint "资源 1/1 · 启动器 UI 壳 ${SHELL_VERSION}"
-    DetailPrint "正在连接 GitHub Releases；下载失败可改用百度网盘完整包"
+    DetailPrint "正在检测 GitHub Releases；不可用时自动切换 OSS 应急镜像"
     !insertmacro DownloadMirror "${SHELL_URL_GITHUB}" "GitHub Releases"
+    !insertmacro DownloadMirror "${SHELL_URL_OSS}" "OSS 应急镜像"
   ${EndIf}
 
   ${If} $DownloadStatus != "OK"
-    MessageBox MB_ICONSTOP "UI 壳下载失败（$DownloadStatus）。请检查网络后重试，或使用百度网盘完整离线包。"
+    MessageBox MB_ICONSTOP "GitHub 与 OSS 两条 UI 壳线路均下载失败（$DownloadStatus）。请检查网络后重试，或使用百度网盘完整离线包。"
     Abort
   ${EndIf}
 

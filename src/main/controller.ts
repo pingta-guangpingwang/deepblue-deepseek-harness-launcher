@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { bundledModels, bundledPlugins, bundledVersions } from './catalog'
 import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
-import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, readBundledRuntimeModules } from './manifest'
+import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, mergeBundledRuntimeMirrors, readBundledRuntimeModules } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
 import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
@@ -81,6 +81,7 @@ export class LauncherController {
   private modelStore!: ModelStore
   private moduleStore!: RuntimeModuleStore
   private runtimeModules: RuntimeModuleRelease[] = []
+  private bundledRuntimeModules: RuntimeModuleRelease[] = []
   private onlinePreparationStarted = false
 
   constructor(private readonly window: BrowserWindow) {}
@@ -142,7 +143,8 @@ export class LauncherController {
       settings: this.config.settings,
       installation: await this.installationState()
     }
-    this.runtimeModules = await readBundledRuntimeModules()
+    this.bundledRuntimeModules = await readBundledRuntimeModules()
+    this.runtimeModules = structuredClone(this.bundledRuntimeModules)
     this.log('INFO', `深蓝DeepSeekHarness启动器 ${app.getVersion()} 已启动`)
     this.log('INFO', `数据目录：${launcherDataPaths().root}`)
     this.log('INFO', `发行模式：${this.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}`)
@@ -1353,7 +1355,7 @@ export class LauncherController {
       }
     }
     if (signedCatalog) {
-      this.runtimeModules = signedCatalog.runtimeModules || []
+      this.runtimeModules = mergeBundledRuntimeMirrors(signedCatalog.runtimeModules || [], this.bundledRuntimeModules)
       const matchingArtifact = signedCatalog.launcher?.artifacts.find((artifact) =>
         artifact.platform === process.platform &&
         artifact.arch === process.arch &&
