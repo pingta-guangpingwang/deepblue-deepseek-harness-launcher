@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { validateModelTemplates, validateRuntimeModules, verifyCatalogManifest } from './manifest'
+import { isNewerVersion, runtimeModulesFromBundle, validateModelTemplates, validateRuntimeModules, verifyCatalogManifest } from './manifest'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
 import type { RuntimeModuleRelease, SignedCatalogManifest, SignedCatalogPayload } from '../shared/types'
 
@@ -100,6 +100,23 @@ describe('catalog signature verification', () => {
     expect(verifyCatalogManifest(legacyManifest, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
   })
 
+  it('accepts only a validated launcher-bundled runtime fallback', () => {
+    expect(runtimeModulesFromBundle({ schemaVersion: 1, modules: [runtimeModule] })).toEqual([runtimeModule])
+    expect(runtimeModulesFromBundle({ schemaVersion: 2, modules: [runtimeModule] })).toEqual([])
+    expect(runtimeModulesFromBundle({
+      schemaVersion: 1,
+      modules: [{ ...runtimeModule, dependencies: ['node-runtime'] }]
+    })).toEqual([])
+  })
+
+  it('never offers an older signed launcher as an update', () => {
+    expect(isNewerVersion('0.10.6', '0.10.5')).toBe(true)
+    expect(isNewerVersion('0.10.4', '0.10.5')).toBe(false)
+    expect(isNewerVersion('0.10.5', '0.10.5')).toBe(false)
+    expect(isNewerVersion('0.11.0-rc.1', '0.10.5')).toBe(true)
+    expect(isNewerVersion('0.10.5-rc.2', '0.10.5')).toBe(false)
+  })
+
   it('accepts a signed live model directory and rejects unsafe or duplicate templates', () => {
     expect(validateModelTemplates(modelProviderTemplates)).toBe(true)
     expect(validateModelTemplates(modelProviderTemplates.map((template, index) => index === 0 ? { ...template, baseURL: 'http://attacker.example' } : template))).toBe(false)
@@ -126,9 +143,11 @@ describe('catalog signature verification', () => {
   it('keeps the modular catalog on an isolated v2 trust root and endpoint', () => {
     const manifestSource = readFileSync(path.resolve('src/main/manifest.ts'), 'utf8')
     const configSource = readFileSync(path.resolve('src/main/config.ts'), 'utf8')
+    const windowsBuilder = readFileSync(path.resolve('scripts/build-windows-variants.ps1'), 'utf8')
     expect(manifestSource).toContain("RUNTIME_CATALOG_KEY_ID = 'runtime-production-v2-1'")
     expect(manifestSource).toContain("'runtime-update-public-key.pem'")
     expect(configSource).toContain('/release-v2/launcher-manifest.json')
     expect(configSource).not.toContain('/release/launcher-manifest.json')
+    expect(windowsBuilder).toContain("runtime-modules.generated.json")
   })
 })

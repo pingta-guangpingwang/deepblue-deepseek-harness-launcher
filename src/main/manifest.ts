@@ -109,6 +109,35 @@ export function validateRuntimeModules(modules: unknown): modules is RuntimeModu
   return modules.every((module) => visit(module.id))
 }
 
+/**
+ * Reads the runtime graph that travelled inside the launcher shell. The shell
+ * archive is itself content-addressed by the signed bootstrap catalog, so this
+ * fallback remains trustworthy while keeping first install available when the
+ * remote catalog object is temporarily unavailable.
+ */
+export function runtimeModulesFromBundle(value: unknown): RuntimeModuleRelease[] {
+  if (!isRecord(value) || value.schemaVersion !== 1 || !validateRuntimeModules(value.modules)) return []
+  return structuredClone(value.modules)
+}
+
+export function isNewerVersion(candidate: string, current: string): boolean {
+  const parse = (value: string): { core: number[]; prerelease?: string } | undefined => {
+    const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(value)
+    if (!match) return undefined
+    return { core: match.slice(1, 4).map(Number), prerelease: match[4] }
+  }
+  const next = parse(candidate)
+  const active = parse(current)
+  if (!next || !active) return false
+  for (let index = 0; index < next.core.length; index += 1) {
+    if (next.core[index] !== active.core[index]) return next.core[index]! > active.core[index]!
+  }
+  if (!next.prerelease && active.prerelease) return true
+  if (next.prerelease && !active.prerelease) return false
+  if (!next.prerelease || !active.prerelease) return false
+  return next.prerelease.localeCompare(active.prerelease, undefined, { numeric: true }) > 0
+}
+
 function safeCatalogUrl(value: unknown, allowEmpty = false): boolean {
   if (allowEmpty && value === '') return true
   if (typeof value !== 'string' || value.length > 2_048) return false
@@ -191,6 +220,24 @@ async function readTrustedKey(): Promise<string | undefined> {
   return undefined
 }
 
+export async function readBundledRuntimeModules(): Promise<RuntimeModuleRelease[]> {
+  const candidates = [
+    ...(typeof process.resourcesPath === 'string'
+      ? [path.join(process.resourcesPath, 'resources', 'runtime-modules.generated.json')]
+      : []),
+    path.join(app.getAppPath(), 'resources', 'runtime-modules.generated.json'),
+    path.resolve('release', 'runtime-modules.generated.json')
+  ]
+  for (const candidate of candidates) {
+    try {
+      return runtimeModulesFromBundle(JSON.parse(await readFile(candidate, 'utf8')))
+    } catch {
+      // Continue to the next packaged/development location.
+    }
+  }
+  return []
+}
+
 export async function fetchSignedCatalog(sources: SourceConfig[]): Promise<SignedCatalogPayload | undefined> {
   const publicKey = await readTrustedKey()
   if (!publicKey) return undefined
@@ -198,7 +245,10 @@ export async function fetchSignedCatalog(sources: SourceConfig[]): Promise<Signe
     const url = manifestUrl(source)
     if (!url) continue
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(6_000), headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' } })
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(6_000),
+        headers: { 'User-Agent': 'DeepSeek-Harness-Launcher', 'Cache-Control': 'no-cache' }
+      })
       if (!response.ok) continue
       const manifest = await response.json() as SignedCatalogManifest
       if (verifyCatalogManifest(manifest, publicKey, RUNTIME_CATALOG_KEY_ID)) return manifest.payload

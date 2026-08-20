@@ -53,6 +53,9 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
   throw "Runtime module smoke failed (exit code $LASTEXITCODE)."
 }
+$packagedResources = Join-Path $sourceDirectory 'resources\resources'
+New-Item -ItemType Directory -Path $packagedResources -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $releaseDirectory 'runtime-modules.generated.json') -Destination (Join-Path $packagedResources 'runtime-modules.generated.json') -Force
 
 Write-Host 'Building the modular Electron UI shell...'
 & npm run shell:build

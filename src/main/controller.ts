@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { bundledModels, bundledPlugins, bundledVersions } from './catalog'
 import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
-import { fetchLatestNpmVersion, fetchSignedCatalog } from './manifest'
+import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, readBundledRuntimeModules } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
 import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
@@ -142,9 +142,11 @@ export class LauncherController {
       settings: this.config.settings,
       installation: await this.installationState()
     }
+    this.runtimeModules = await readBundledRuntimeModules()
     this.log('INFO', `深蓝DeepSeekHarness启动器 ${app.getVersion()} 已启动`)
     this.log('INFO', `数据目录：${launcherDataPaths().root}`)
     this.log('INFO', `发行模式：${this.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}`)
+    if (this.runtimeModules.length) this.log('INFO', `已加载内置运行目录（${this.runtimeModules.length} 个模块），在线目录不可用时仍可安装`)
     try {
       await this.modelStore.initialize()
       this.snapshot.modelHub = this.modelStore.state()
@@ -1359,7 +1361,7 @@ export class LauncherController {
       ) || signedCatalog.launcher?.artifacts.find((artifact) =>
         artifact.platform === process.platform && artifact.arch === process.arch && !artifact.distribution
       )
-      if (matchingArtifact && signedCatalog.launcher && signedCatalog.launcher.version !== app.getVersion()) {
+      if (matchingArtifact && signedCatalog.launcher && isNewerVersion(signedCatalog.launcher.version, app.getVersion())) {
         this.snapshot.launcherUpdate = {
           version: signedCatalog.launcher.version,
           notes: signedCatalog.launcher.notes,

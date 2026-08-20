@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.5',
+  launcherVersion: '0.10.6',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
@@ -34,7 +34,7 @@ export const mockSnapshot: LauncherSnapshot = {
     { id: 'environment', title: '验证整合包运行环境', detail: '4 项检查全部通过', status: 'completed', progress: 100, createdAt: new Date().toISOString() }
   ],
   logs: [
-    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.5 已启动' },
+    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.6 已启动' },
     { id: 2, time: '20:21:03', level: 'INFO', message: '内置 Node.js 24.16.0 可用' },
     { id: 3, time: '20:21:04', level: 'INFO', message: 'Harness 0.1.0-rc.6 完整性检查通过' },
     { id: 4, time: '20:21:05', level: 'INFO', message: '选择工作区后即可启动本地服务' }
