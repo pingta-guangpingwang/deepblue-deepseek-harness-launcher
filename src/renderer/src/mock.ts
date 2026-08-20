@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.9.5',
+  launcherVersion: '0.10.3',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
@@ -26,7 +26,7 @@ export const mockSnapshot: LauncherSnapshot = {
     { id: 'environment', title: '验证整合包运行环境', detail: '4 项检查全部通过', status: 'completed', progress: 100, createdAt: new Date().toISOString() }
   ],
   logs: [
-    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.9.5 已启动' },
+    { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.3 已启动' },
     { id: 2, time: '20:21:03', level: 'INFO', message: '内置 Node.js 24.16.0 可用' },
     { id: 3, time: '20:21:04', level: 'INFO', message: 'Harness 0.1.0-rc.6 完整性检查通过' },
     { id: 4, time: '20:21:05', level: 'INFO', message: '选择工作区后即可启动本地服务' }
@@ -129,6 +129,8 @@ export const mockSnapshot: LauncherSnapshot = {
   },
   settings: {
     workspace: 'D:\\DeepSeek\\workspace',
+    storageRoot: 'D:\\DeepSeek\\DeepBlueHarnessData',
+    storageSetupCompleted: false,
     port: 3080,
     autoOpen: true,
     theme: 'light',
@@ -144,5 +146,12 @@ export const mockSnapshot: LauncherSnapshot = {
       { id: 'runtime-v2', name: '运行时模块目录', baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json', enabled: true, kind: 'manifest' },
       { id: 'npmmirror', name: 'npmmirror', baseUrl: 'https://registry.npmmirror.com', enabled: true, kind: 'registry' }
     ]
+  },
+  installation: {
+    programRoot: 'C:\\Users\\Public\\Programs\\DeepBlueDeepSeekHarness',
+    storageRoot: 'D:\\DeepSeek\\DeepBlueHarnessData',
+    setupRequired: true,
+    desktopShortcutReady: false,
+    startMenuShortcutReady: false
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import {
   Activity,
   AppWindow,
@@ -1352,7 +1352,61 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (checked: b
   return <button type="button" role="switch" aria-checked={checked} className={classNames('toggle', checked && 'on')} onClick={() => onChange(!checked)}><span /></button>
 }
 
-function SettingsPage({ snapshot, onSave }: { snapshot: LauncherSnapshot; onSave: (settings: LauncherSettings) => void }): ReactNode {
+function StorageSetupDialog({ snapshot, busy, error, onConfirm, onChoose }: {
+  snapshot: LauncherSnapshot
+  busy: boolean
+  error: string
+  onConfirm: () => void
+  onChoose: () => void
+}): ReactNode {
+  const dialogRef = useRef<HTMLElement>(null)
+  const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    if (event.key !== 'Tab') return
+    const controls = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])]
+    if (!controls.length) return
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (!first || !last) return
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+  return <div className="storage-setup-backdrop" role="presentation">
+    <section ref={dialogRef} className="storage-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="storageSetupTitle" aria-describedby="storageSetupDescription" onKeyDown={keepFocusInside}>
+      <span className="storage-setup-icon"><HardDriveDownload size={30} /></span>
+      <div>
+        <h2 id="storageSetupTitle">先确认运行资源放在哪里</h2>
+        <p id="storageSetupDescription">启动器本身很小。Node.js、Harness、插件、皮肤和宠物会按需下载到下面的位置，换盘符也可以。</p>
+      </div>
+      <dl className="storage-setup-paths">
+        <div><dt>程序安装位置</dt><dd title={snapshot.installation.programRoot}>{snapshot.installation.programRoot}</dd></div>
+        <div><dt>运行资源位置</dt><dd title={snapshot.installation.storageRoot}>{snapshot.installation.storageRoot}</dd></div>
+      </dl>
+      <ul>
+        <li><CheckCircle2 size={16} />桌面与开始菜单会创建快捷方式</li>
+        <li><CheckCircle2 size={16} />以后可在“设置”中安全迁移，旧位置保留副本</li>
+      </ul>
+      {error && <p className="storage-setup-error" role="alert">{error}</p>}
+      <div className="storage-setup-actions">
+        <button className="quiet-button" disabled={busy} onClick={onChoose}><FolderCog size={17} />选择其他位置</button>
+        <button className="primary-button" autoFocus disabled={busy} onClick={onConfirm}>{busy ? <LoaderCircle className="spin" size={17} /> : <Check size={17} />}使用此位置并开始</button>
+      </div>
+    </section>
+  </div>
+}
+
+function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen, onCreateShortcuts }: {
+  snapshot: LauncherSnapshot
+  actionMessage: string
+  onSave: (settings: LauncherSettings) => void
+  onChooseStorage: () => void
+  onOpen: (path: string) => void
+  onCreateShortcuts: () => void
+}): ReactNode {
   const [draft, setDraft] = useState(snapshot.settings)
   useEffect(() => setDraft(snapshot.settings), [snapshot.settings])
   const updateSource = (index: number, patch: Partial<LauncherSettings['sources'][number]>): void => {
@@ -1360,6 +1414,26 @@ function SettingsPage({ snapshot, onSave }: { snapshot: LauncherSnapshot; onSave
   }
   return (
     <div className="settings-layout">
+      <Card className="source-settings installation-settings" title="程序与运行资源">
+        <div className="installation-row">
+          <span className="installation-symbol"><AppWindow size={19} /></span>
+          <span><strong>程序安装位置</strong><small>安装器中的程序文件；重新安装时可以重新选择</small></span>
+          <code title={snapshot.installation.programRoot}>{snapshot.installation.programRoot}</code>
+          <button className="quiet-button" onClick={() => onOpen(snapshot.installation.programRoot)}><Folder size={15} />打开</button>
+        </div>
+        <div className="installation-row">
+          <span className="installation-symbol"><HardDriveDownload size={19} /></span>
+          <span><strong>运行资源位置</strong><small>Node.js、Harness、插件、皮肤、宠物和本机配置</small></span>
+          <code title={snapshot.installation.storageRoot}>{snapshot.installation.storageRoot}</code>
+          <div className="installation-actions"><button className="quiet-button" onClick={() => onOpen(snapshot.installation.storageRoot)}><Folder size={15} />打开</button><button className="quiet-button" onClick={onChooseStorage}><FolderCog size={15} />迁移</button></div>
+        </div>
+        <div className="shortcut-summary">
+          <span className={classNames(snapshot.installation.desktopShortcutReady && 'ready')}>{snapshot.installation.desktopShortcutReady ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}桌面快捷方式</span>
+          <span className={classNames(snapshot.installation.startMenuShortcutReady && 'ready')}>{snapshot.installation.startMenuShortcutReady ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}开始菜单快捷方式</span>
+          <button className="quiet-button" onClick={onCreateShortcuts}><Wrench size={15} />修复快捷方式</button>
+        </div>
+        {actionMessage && <p className="installation-message" role="alert">{actionMessage}</p>}
+      </Card>
       <Card title="启动行为">
         <label className="field-label"><span>默认端口<small>Harness Web 服务监听的本地端口</small></span><input type="number" min={1024} max={65535} value={draft.port} onChange={(event) => setDraft({ ...draft, port: Number(event.target.value) })} /></label>
         <label className="field-label"><span>启动后自动打开<small>服务就绪后使用系统默认浏览器打开</small></span><Toggle checked={draft.autoOpen} onChange={(autoOpen) => setDraft({ ...draft, autoOpen })} /></label>
@@ -1398,6 +1472,7 @@ export default function App(): ReactNode {
   const [busy, setBusy] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [storageError, setStorageError] = useState('')
 
   useEffect(() => {
     if (!window.launcher) return
@@ -1444,6 +1519,27 @@ export default function App(): ReactNode {
     else setSnapshot((current) => ({ ...current, runStatus: 'stopped', serviceUrl: undefined }))
   }
   const chooseWorkspace = (): void => { if (window.launcher) void run('workspace', () => window.launcher!.chooseWorkspace()) }
+  const storageAction = async (name: string, action: () => Promise<LauncherSnapshot>, preview: () => LauncherSnapshot): Promise<void> => {
+    if (busy) return
+    setBusy(name)
+    setStorageError('')
+    try {
+      setSnapshot(window.launcher ? await action() : preview())
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy('')
+    }
+  }
+  const confirmStorageSetup = (): void => {
+    void storageAction('storage-confirm', () => window.launcher!.confirmStorageSetup(), () => ({ ...snapshot, settings: { ...snapshot.settings, storageSetupCompleted: true }, installation: { ...snapshot.installation, setupRequired: false, desktopShortcutReady: true, startMenuShortcutReady: true } }))
+  }
+  const chooseStorageRoot = (): void => {
+    void storageAction('storage-choose', () => window.launcher!.chooseStorageRoot(), () => ({ ...snapshot, settings: { ...snapshot.settings, storageSetupCompleted: true }, installation: { ...snapshot.installation, setupRequired: false } }))
+  }
+  const createShortcuts = (): void => {
+    void storageAction('shortcuts', () => window.launcher!.createShortcuts(), () => ({ ...snapshot, installation: { ...snapshot.installation, desktopShortcutReady: true, startMenuShortcutReady: true } }))
+  }
   const checkSources = (): void => {
     if (window.launcher) void run('sources', () => window.launcher!.checkSources())
     else setSnapshot((current) => ({ ...current, sources: current.sources.map((source) => source.enabled ? { ...source, status: 'available', latencyMs: source.latencyMs || 68 } : source) }))
@@ -1563,9 +1659,10 @@ export default function App(): ReactNode {
           {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
           {page === 'workspaces' && <WorkspacesPage snapshot={snapshot} onChoose={chooseWorkspace} onOpen={(path) => void window.launcher?.openPath(path)} />}
           {page === 'diagnostics' && <DiagnosticsPage snapshot={snapshot} busy={busy} onRefresh={refresh} onRepair={repair} onSources={checkSources} />}
-          {page === 'settings' && <SettingsPage snapshot={snapshot} onSave={saveSettings} />}
+          {page === 'settings' && <SettingsPage snapshot={snapshot} actionMessage={storageError} onSave={saveSettings} onChooseStorage={chooseStorageRoot} onOpen={(target) => void window.launcher?.openPath(target)} onCreateShortcuts={createShortcuts} />}
         </div>
       </main>
+      {snapshot.installation.setupRequired && <StorageSetupDialog snapshot={snapshot} busy={busy.startsWith('storage-')} error={storageError} onConfirm={confirmStorageSetup} onChoose={chooseStorageRoot} />}
     </div>
   )
 }

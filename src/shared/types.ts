@@ -360,6 +360,8 @@ export interface WorkspaceEntry {
 
 export interface LauncherSettings {
   workspace: string
+  storageRoot: string
+  storageSetupCompleted: boolean
   port: number
   autoOpen: boolean
   theme: 'light' | 'dark' | 'system'
@@ -495,6 +497,15 @@ export interface LauncherSnapshot {
   skins: SkinStoreState
   pets: PetStoreState
   settings: LauncherSettings
+  installation: LauncherInstallationState
+}
+
+export interface LauncherInstallationState {
+  programRoot: string
+  storageRoot: string
+  setupRequired: boolean
+  desktopShortcutReady: boolean
+  startMenuShortcutReady: boolean
 }
 
 export interface LauncherUpdateInfo {
@@ -553,6 +564,9 @@ export interface LauncherApi {
   rollbackHarness(version: string): Promise<LauncherSnapshot>
   repair(): Promise<LauncherSnapshot>
   chooseWorkspace(): Promise<LauncherSnapshot>
+  confirmStorageSetup(): Promise<LauncherSnapshot>
+  chooseStorageRoot(): Promise<LauncherSnapshot>
+  createShortcuts(): Promise<LauncherSnapshot>
   openPath(path: string): Promise<void>
   openExternal(url: string): Promise<void>
   saveSettings(patch: Partial<LauncherSettings>): Promise<LauncherSnapshot>

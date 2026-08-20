@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 
-describe('Windows one-click installer', () => {
+describe('Windows guided installer', () => {
   it('builds standard NSIS executables with a beginner-friendly install flow', async () => {
     const script = await readFile(new URL('./build-nsis-installer.ps1', import.meta.url), 'utf8')
     const variantScript = await readFile(new URL('./build-windows-variants.ps1', import.meta.url), 'utf8')
@@ -18,7 +18,8 @@ describe('Windows one-click installer', () => {
     expect(variantScript).toContain('npm run bootstrap:smoke')
     expect(variantScript).not.toContain('prune-online-package.mjs')
     expect(packageJson.build.nsis).toMatchObject({
-      oneClick: true,
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
       perMachine: false,
       allowElevation: false,
       runAfterFinish: true,

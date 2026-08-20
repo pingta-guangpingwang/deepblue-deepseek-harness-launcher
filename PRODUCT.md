@@ -20,12 +20,13 @@ Windows 10/11 64 位的新手用户，希望使用 DeepSeek Harness，但不熟�
 
 ## Operating Context
 
-用户下载 Windows 标准 NSIS 安装 EXE，双击后由安装程序显示进度、安装到当前用户目录、创建快捷方式并自动启动 Electron 桌面应用。发布程序不调用隐藏 PowerShell，也不绕过执行策略。用户在首页查看环境与源站状态、选择工作区并启动本地 Harness Web 服务；启动后浏览器打开 Harness 界面。模型调用需要用户自行配置 API 密钥，首页提供 DeepSeek 官网充值入口。
+用户下载 Windows 标准 NSIS 安装 EXE，双击后由安装程序显示进度并允许选择程序目录，创建桌面与开始菜单快捷方式后自动启动 Electron 桌面应用。首次启动先确认运行资源目录，再开始拉取 Node、Harness 和按需模块；之后可在设置中安全迁移资源目录或修复快捷方式。发布程序不调用隐藏 PowerShell，也不绕过执行策略。用户在首页查看环境与源站状态、选择工作区并启动本地 Harness Web 服务；启动后浏览器打开 Harness 界面。模型调用需要用户自行配置 API 密钥，首页提供 DeepSeek 官网充值入口。
 
 ## Capabilities and Constraints
 
 - 当前发布平台为 Windows 10/11 64 位。
-- Windows 整合包必须使用标准 NSIS 一键安装 EXE，不得通过 BAT 或 PowerShell 自释放二进制、隐藏执行或绕过执行策略。
+- Windows 整合包必须使用标准 NSIS 引导安装 EXE，并允许选择程序目录，不得通过 BAT 或 PowerShell 自释放二进制、隐藏执行或绕过执行策略。
+- 程序目录与运行资源目录必须分离。切换运行资源位置只复制启动器管理的数据，成功切换后保留旧目录，不得自动删除用户资料。
 - 在线轻量版首次准备 Harness 时需要联网；完整离线版不依赖联网启动。
 - 启动器不得把 API 密钥写入发布包、项目目录、普通配置文件或日志。用户主动保存的模型 Key 只用 Electron `safeStorage` 加密留在本机，启动 Harness 子进程时才解密为环境变量。
 - DeepSeek V4 Flash / Pro 是默认模型连接；其他平台或自定义接口只有用户点击添加并保存后才进入全局模型切换列表。

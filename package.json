@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -96,7 +96,8 @@
       ]
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "allowElevation": false,
       "runAfterFinish": true,

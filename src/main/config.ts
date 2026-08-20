@@ -49,10 +49,25 @@ export interface PersistedConfig {
   }
 }
 
+let configuredStorageRoot: string | undefined
+
+function normalizedStorageRoot(value: unknown, fallback: string): string {
+  if (typeof value !== 'string' || !value.trim() || value.length > 240 || !path.isAbsolute(value)) return fallback
+  const resolved = path.resolve(value)
+  return resolved === path.parse(resolved).root ? fallback : resolved
+}
+
+export function setLauncherStorageRoot(value: string): void {
+  configuredStorageRoot = normalizedStorageRoot(value, app.getPath('userData'))
+}
+
 function defaults(): PersistedConfig {
+  const defaultStorageRoot = app.getPath('userData')
   return {
     settings: {
       workspace: app.getPath('documents'),
+      storageRoot: defaultStorageRoot,
+      storageSetupCompleted: false,
       port: 3080,
       autoOpen: true,
       theme: 'light',
@@ -94,10 +109,16 @@ export async function readConfig(): Promise<PersistedConfig> {
   try {
     const parsed = JSON.parse(await readFile(configPath(), 'utf8')) as Partial<PersistedConfig>
     const { favoriteResourceIds: _legacyLocalFavorites, ...savedSettings } = (parsed.settings || {}) as Partial<LauncherSettings> & { favoriteResourceIds?: unknown }
+    const storageRoot = normalizedStorageRoot(savedSettings.storageRoot, fallback.settings.storageRoot)
+    const storageSetupCompleted = typeof savedSettings.storageSetupCompleted === 'boolean'
+      ? savedSettings.storageSetupCompleted
+      : Boolean(parsed.settings)
     return {
       settings: {
         ...fallback.settings,
         ...savedSettings,
+        storageRoot,
+        storageSetupCompleted,
         skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
         petCatalogUrl: FIXED_PET_CATALOG_URL,
         sources: fallback.settings.sources.map((defaultSource) => {
@@ -134,7 +155,7 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
 }
 
 export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; pets: string; petConfig: string } {
-  const root = app.getPath('userData')
+  const root = configuredStorageRoot || app.getPath('userData')
   return {
     root,
     runtime: path.join(root, 'runtime'),

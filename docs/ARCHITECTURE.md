@@ -6,7 +6,7 @@
 
 ## Windows 发布层
 
-Windows 发行文件是标准 NSIS 一键安装 EXE。安装程序显示进度，安装到当前用户目录，创建桌面与开始菜单快捷方式，并在完成后启动 Electron 应用；不使用 BAT 或隐藏 PowerShell 自释放载荷。Electron 任务界面继续提供 Harness 安装、更新、修复和启动进度。发布文件通过签名清单中的 SHA-256 校验，macOS 仍需原生应用包。
+Windows 发行文件是标准 NSIS 引导安装 EXE。安装程序显示进度并允许用户选择程序目录，创建桌面与开始菜单快捷方式，并在完成后启动 Electron 应用；不使用 BAT 或隐藏 PowerShell 自释放载荷。快捷方式缺失时，正式安装版可从设置页按当前可执行文件重建。Electron 任务界面继续提供 Harness 安装、更新、修复和启动进度。发布文件通过签名清单中的 SHA-256 校验，macOS 仍需原生应用包。
 
 Electron Builder 默认按普通依赖收集模块，但 Harness 的可组合插件还通过生产 peer dependencies 提供运行时能力。发布脚本根据 `package-lock.json` 把非开发 peer packages 同步到离线安装目录，再从同一目录裁剪出只保留 Node.js 与 pnpm 的在线版，避免离线安装后缺少 Cordis 插件。
 
@@ -24,8 +24,10 @@ Electron 桌面应用
    ├─ 源站检测与签名目录
    └─ 下载、SHA-256、版本切换与备份
 
-用户数据目录
-├─ launcher.json
+固定配置目录（Electron userData）
+└─ launcher.json              保存资源根位置，保证迁移后下次仍能定位
+
+用户选择的运行资源目录（默认 Electron userData）
 ├─ model-secrets.json         Electron safeStorage 密文，不含可读 Key
 ├─ harness-data/              DSH_HOME
 ├─ backups/                   更新前备份
@@ -64,13 +66,15 @@ Electron 完整离线版继续保留为百度网盘兜底。新的小型联网�
 
 ## 启动流程
 
-1. 主进程读取本机设置并定位内置或已更新的 Harness。
-2. 环境检查验证 Node、pnpm 和 `@deepseek-ai/dsh/lib/bin.js`。
-3. 用户选择工作区，端口默认为 `3080`。
-4. 启动器设置独立 `DSH_HOME`，从工作区执行 `node <dsh-bin> web --port <port>`。
-5. 主进程同时读取 stdout/stderr 并轮询本地 HTTP。
-6. 服务返回成功后状态切到“运行中”，根据设置打开系统浏览器。
-7. 停止时终止完整进程树，界面保留诊断日志。
+1. 主进程读取固定配置，恢复用户选择的运行资源根目录。
+2. 首次使用先确认资源目录；用户选择新位置时写入临时目录，复制受管资源并完成切换，旧位置作为安全副本保留。
+3. 资源位置确认后才开始在线运行模块准备，并定位内置或已更新的 Harness。
+4. 环境检查验证 Node、pnpm 和 `@deepseek-ai/dsh/lib/bin.js`。
+5. 用户选择工作区，端口默认为 `3080`。
+6. 启动器设置独立 `DSH_HOME`，从工作区执行 `node <dsh-bin> web --port <port>`。
+7. 主进程同时读取 stdout/stderr 并轮询本地 HTTP。
+8. 服务返回成功后状态切到“运行中”，根据设置打开系统浏览器。
+9. 停止时终止完整进程树，界面保留诊断日志。
 
 ## Harness 更新
 

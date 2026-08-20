@@ -1035,3 +1035,55 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
   .review-composer { grid-template-columns: 1fr; }
   .news-detail-sheet { width: calc(100vw - 20px); }
 }
+
+/* Installation and storage controls intentionally live at the end of the cascade. */
+.installation-settings { overflow: hidden; }
+.installation-row { min-height: 72px; display: grid; grid-template-columns: 38px minmax(190px,.7fr) minmax(220px,1.3fr) auto; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); }
+.installation-symbol { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: var(--blue); background: var(--blue-soft); }
+.installation-row strong, .installation-row small { display: block; }
+.installation-row strong { font-size: 12px; }
+.installation-row small { margin-top: 4px; color: var(--text-tertiary); font-size: 11px; line-height: 1.45; }
+.installation-row code { min-width: 0; padding: 8px 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 7px; color: var(--text-secondary); background: var(--surface-soft); font-family: var(--font-mono); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.installation-actions { display: flex; gap: 6px; }
+.shortcut-summary { min-height: 52px; display: flex; align-items: center; gap: 18px; }
+.shortcut-summary > span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-tertiary); font-size: 11px; }
+.shortcut-summary > span.ready { color: var(--mint); }
+.shortcut-summary > button { margin-left: auto; }
+.installation-message { margin: 0 0 12px; padding: 9px 11px; border-radius: 7px; color: var(--red); background: var(--red-soft); font-size: 12px; }
+
+.storage-setup-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(8,16,28,.72); backdrop-filter: blur(10px); -webkit-app-region: no-drag; }
+.storage-setup-dialog { width: min(600px,100%); padding: 28px; display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 18px; border: 1px solid color-mix(in srgb, var(--border) 80%, white); border-radius: 18px; color: var(--text); background: var(--surface); box-shadow: 0 28px 80px rgba(3,9,18,.35); }
+.storage-setup-icon { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 13px; color: #fff; background: var(--blue); }
+.storage-setup-dialog h2 { margin: 1px 0 6px; font-size: 22px; line-height: 1.25; }
+.storage-setup-dialog p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.65; }
+.storage-setup-paths, .storage-setup-dialog ul, .storage-setup-error, .storage-setup-actions { grid-column: 1 / -1; }
+.storage-setup-paths { margin: 2px 0 0; display: grid; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.storage-setup-paths > div { min-height: 58px; padding: 9px 12px; display: grid; grid-template-columns: 128px minmax(0,1fr); align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.storage-setup-paths > div:last-child { border: 0; }
+.storage-setup-paths dt { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.storage-setup-paths dd { margin: 0; overflow: hidden; color: var(--text); font-family: var(--font-mono); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.storage-setup-dialog ul { margin: 0; padding: 0; display: grid; gap: 8px; list-style: none; }
+.storage-setup-dialog li { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+.storage-setup-dialog li svg { flex: 0 0 auto; color: var(--mint); }
+.storage-setup-error { padding: 10px 12px; border-radius: 8px; color: var(--red) !important; background: var(--red-soft); }
+.storage-setup-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.storage-setup-actions button { min-height: 44px; padding-inline: 16px; }
+
+@media (max-width: 860px) {
+  .installation-row { grid-template-columns: 38px minmax(150px,.7fr) minmax(180px,1.3fr); padding: 10px 0; }
+  .installation-row > button, .installation-actions { grid-column: 2 / -1; }
+}
+
+@media (max-width: 540px) {
+  .installation-row { grid-template-columns: 38px minmax(0,1fr); }
+  .installation-row code { grid-column: 1 / -1; }
+  .installation-row > button, .installation-actions { grid-column: 1 / -1; }
+  .shortcut-summary { align-items: flex-start; flex-direction: column; gap: 10px; padding-top: 12px; }
+  .shortcut-summary > button { width: 100%; margin-left: 0; }
+  .storage-setup-backdrop { padding: 10px; }
+  .storage-setup-dialog { max-height: calc(100vh - 20px); padding: 20px; grid-template-columns: 42px minmax(0,1fr); gap: 13px; overflow-y: auto; border-radius: 13px; }
+  .storage-setup-icon { width: 42px; height: 42px; }
+  .storage-setup-dialog h2 { font-size: 18px; }
+  .storage-setup-paths > div { grid-template-columns: 1fr; gap: 4px; }
+  .storage-setup-actions { display: grid; grid-template-columns: 1fr; }
+}

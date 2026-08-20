@@ -1,12 +1,12 @@
 import { app, clipboard, dialog, shell, type BrowserWindow } from 'electron'
-import { appendFile, chmod, cp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { access, appendFile, chmod, cp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { createWriteStream } from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { bundledModels, bundledPlugins, bundledVersions } from './catalog'
-import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, writeConfig, type PersistedConfig } from './config'
+import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
 import { fetchLatestNpmVersion, fetchSignedCatalog } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore } from './runtime-modules'
@@ -19,6 +19,7 @@ import type {
   EnvironmentItem,
   HarnessVersion,
   LauncherSettings,
+  LauncherInstallationState,
   LauncherSnapshot,
   LauncherLibraryEntry,
   LauncherResourceItem,
@@ -103,11 +104,13 @@ export class LauncherController {
   private modelStore!: ModelStore
   private moduleStore!: RuntimeModuleStore
   private runtimeModules: RuntimeModuleRelease[] = []
+  private onlinePreparationStarted = false
 
   constructor(private readonly window: BrowserWindow) {}
 
   async initialize(): Promise<void> {
     this.config = await readConfig()
+    setLauncherStorageRoot(this.config.settings.storageRoot)
     this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
     // Rewrite the sanitized shape once so legacy device-local favorites cannot linger
     // in launcher.json and be mistaken for AI历史书 account data.
@@ -158,7 +161,8 @@ export class LauncherController {
         downloadedPetIds: [],
         items: []
       },
-      settings: this.config.settings
+      settings: this.config.settings,
+      installation: await this.installationState()
     }
     this.log('INFO', `深蓝DeepSeekHarness启动器 ${app.getVersion()} 已启动`)
     this.log('INFO', `数据目录：${launcherDataPaths().root}`)
@@ -176,7 +180,7 @@ export class LauncherController {
     if (this.snapshot.account.status === 'signed_in') await this.refreshFavorites()
     await Promise.all([this.refreshSkins(), this.refreshPets()])
     void this.refreshDiscovery()
-    void this.prepareOnlineRuntime()
+    if (this.config.settings.storageSetupCompleted) this.beginOnlinePreparation()
   }
 
   getSnapshot(): LauncherSnapshot {
@@ -575,16 +579,127 @@ export class LauncherController {
     return this.getSnapshot()
   }
 
+  async confirmStorageSetup(): Promise<LauncherSnapshot> {
+    this.config.settings.storageSetupCompleted = true
+    await writeConfig(this.config)
+    this.snapshot.settings = this.config.settings
+    this.snapshot.installation = await this.installationState()
+    try {
+      await this.createShortcuts(false)
+    } catch (error) {
+      this.log('WARN', `快捷方式暂未创建，可稍后在设置中修复：${error instanceof Error ? error.message : String(error)}`)
+    }
+    this.log('INFO', `运行资源将保存在：${launcherDataPaths().root}`)
+    this.emit()
+    this.beginOnlinePreparation()
+    return this.getSnapshot()
+  }
+
+  async chooseStorageRoot(): Promise<LauncherSnapshot> {
+    if (this.service || this.snapshot.runStatus === 'starting' || this.snapshot.runStatus === 'running') {
+      throw new Error('请先停止 Harness，再更改运行资源位置')
+    }
+    if (this.snapshot.tasks.some((task) => task.status === 'running')) {
+      throw new Error('请等待当前下载或安装任务完成，再更改运行资源位置')
+    }
+    const currentRoot = launcherDataPaths().root
+    const result = await dialog.showOpenDialog(this.window, {
+      title: '选择运行资源的上级文件夹',
+      defaultPath: path.dirname(currentRoot),
+      buttonLabel: '存放在这里',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    const parent = result.filePaths[0]
+    if (result.canceled || !parent) return this.getSnapshot()
+    const resolvedParent = path.resolve(parent)
+    if (resolvedParent === path.parse(resolvedParent).root) throw new Error('不要直接选择磁盘根目录，请选择或新建一个文件夹')
+    const targetRoot = path.join(resolvedParent, 'DeepBlueHarnessData')
+    if (path.resolve(targetRoot) === path.resolve(currentRoot)) return this.confirmStorageSetup()
+    const nestedRelative = path.relative(currentRoot, targetRoot)
+    if (nestedRelative && !nestedRelative.startsWith('..') && !path.isAbsolute(nestedRelative)) {
+      throw new Error('新位置不能放在当前运行资源目录内部，请选择其他磁盘或同级文件夹')
+    }
+
+    const existing = await readdir(targetRoot).catch(() => [] as string[])
+    if (existing.length) throw new Error('目标位置已有 DeepBlueHarnessData，请选择其他文件夹，避免覆盖现有资料')
+    if (!existing.length) await rm(targetRoot, { recursive: true, force: true })
+
+    const task = this.addTask(`storage-${Date.now()}`, '迁移运行资源', '准备安全副本；原位置不会自动删除')
+    const stagingRoot = `${targetRoot}.migrating-${Date.now()}`
+    const managedEntries = ['runtime', 'harness-data', 'backups', 'logs', 'skins', 'pets', 'model-secrets.json']
+    try {
+      await mkdir(stagingRoot, { recursive: true })
+      for (const [index, name] of managedEntries.entries()) {
+        const source = path.join(currentRoot, name)
+        if (await this.pathExists(source)) {
+          const destination = path.join(stagingRoot, name)
+          await cp(source, destination, { recursive: true, force: false, errorOnExist: true })
+          if (!await this.pathExists(destination)) throw new Error(`${name} 复制后校验失败`)
+        }
+        task.progress = Math.round((index + 1) / (managedEntries.length + 1) * 90)
+        task.detail = `正在迁移 ${name}`
+        this.emit()
+      }
+      await writeFile(path.join(stagingRoot, '.deepblue-storage.json'), `${JSON.stringify({ schemaVersion: 1, migratedAt: new Date().toISOString(), previousRoot: currentRoot }, null, 2)}\n`, 'utf8')
+      await rename(stagingRoot, targetRoot)
+      this.config.settings.storageRoot = targetRoot
+      this.config.settings.storageSetupCompleted = true
+      await writeConfig(this.config)
+      setLauncherStorageRoot(targetRoot)
+      this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
+      this.snapshot.settings = this.config.settings
+      this.snapshot.installation = await this.installationState()
+      task.progress = 100
+      task.status = 'completed'
+      task.detail = '迁移完成；原位置保留为安全副本'
+      this.log('INFO', `运行资源位置已切换：${targetRoot}`)
+      await this.refreshEnvironment()
+      this.beginOnlinePreparation()
+      return this.getSnapshot()
+    } catch (error) {
+      await rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined)
+      task.status = 'failed'
+      task.detail = error instanceof Error ? error.message : String(error)
+      this.log('ERROR', `迁移运行资源失败：${task.detail}`)
+      this.emit()
+      throw error
+    }
+  }
+
+  async createShortcuts(report = true): Promise<LauncherSnapshot> {
+    if (!app.isPackaged) {
+      if (report) throw new Error('快捷方式修复只在正式安装版中可用')
+      return this.getSnapshot()
+    }
+    const shortcuts = this.shortcutPaths()
+    await mkdir(path.dirname(shortcuts.startMenu), { recursive: true })
+    const options = {
+      target: process.execPath,
+      cwd: path.dirname(process.execPath),
+      icon: process.execPath,
+      iconIndex: 0,
+      description: '深蓝 DeepSeekHarness 启动器'
+    }
+    const desktopCreated = shell.writeShortcutLink(shortcuts.desktop, 'create', options)
+    const startMenuCreated = shell.writeShortcutLink(shortcuts.startMenu, 'create', options)
+    if (!desktopCreated || !startMenuCreated) throw new Error('快捷方式创建失败，请检查桌面和开始菜单目录权限')
+    this.snapshot.installation = await this.installationState()
+    this.log('INFO', '桌面与开始菜单快捷方式已就绪')
+    this.emit()
+    return this.getSnapshot()
+  }
+
   async saveSettings(patch: Partial<LauncherSettings>): Promise<LauncherSnapshot> {
+    const { storageRoot: _storageRoot, storageSetupCompleted: _storageSetupCompleted, ...safePatch } = patch
     this.config.settings = {
       ...this.config.settings,
-      ...patch,
+      ...safePatch,
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
       petCatalogUrl: FIXED_PET_CATALOG_URL
     }
     await writeConfig(this.config)
     this.snapshot.settings = this.config.settings
-    if (patch.sources) this.snapshot.sources = patch.sources.map((source) => this.initialSourceHealth(source))
+    if (safePatch.sources) this.snapshot.sources = safePatch.sources.map((source) => this.initialSourceHealth(source))
     this.log('INFO', '启动器设置已保存')
     this.emit()
     return this.getSnapshot()
@@ -1101,6 +1216,52 @@ export class LauncherController {
     if (await isExecutable(runtime.dsh)) return
     this.log('INFO', '在线轻量版首次运行，开始自动安装 Harness')
     await this.installHarness(this.config.activeVersion)
+  }
+
+  private beginOnlinePreparation(): void {
+    if (this.onlinePreparationStarted) return
+    this.onlinePreparationStarted = true
+    void this.prepareOnlineRuntime().catch((error) => {
+      this.log('ERROR', `在线运行环境准备失败：${error instanceof Error ? error.message : String(error)}`)
+      this.emit()
+    })
+  }
+
+  private async pathExists(target: string): Promise<boolean> {
+    try {
+      await access(target)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private shortcutPaths(): { desktop: string; startMenu: string } {
+    const fileName = '深蓝DeepSeekHarness启动器.lnk'
+    return {
+      desktop: path.join(app.getPath('desktop'), fileName),
+      startMenu: path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', '深蓝DeepSeekHarness启动器', fileName)
+    }
+  }
+
+  private shortcutReady(target: string): boolean {
+    if (process.platform !== 'win32') return false
+    try {
+      return path.resolve(shell.readShortcutLink(target).target) === path.resolve(process.execPath)
+    } catch {
+      return false
+    }
+  }
+
+  private async installationState(): Promise<LauncherInstallationState> {
+    const shortcuts = this.shortcutPaths()
+    return {
+      programRoot: path.dirname(process.execPath),
+      storageRoot: launcherDataPaths().root,
+      setupRequired: !this.config.settings.storageSetupCompleted,
+      desktopShortcutReady: this.shortcutReady(shortcuts.desktop),
+      startMenuShortcutReady: this.shortcutReady(shortcuts.startMenu)
+    }
   }
 
   private async syncOnlineCatalog(): Promise<void> {
