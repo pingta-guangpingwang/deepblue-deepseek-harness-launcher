@@ -57,9 +57,11 @@ describe('runtime module store', () => {
     const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-modules-'))
     roots.push(installationRoot)
     const item = await fixture('24.16.0', 'node-runtime-v1')
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response('rate limited', { status: 429 }))
-      .mockResolvedValueOnce(new Response(responseBody(item.archive), { status: 200, headers: { 'content-length': String(item.archive.byteLength) } }))
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200 })
+      if (String(url).includes('gitee.com')) return new Response('rate limited', { status: 429 })
+      return new Response(responseBody(item.archive), { status: 200, headers: { 'content-length': String(item.archive.byteLength) } })
+    })
     vi.stubGlobal('fetch', fetchMock)
     const store = new RuntimeModuleStore(installationRoot)
     const progress: string[] = []
@@ -69,11 +71,19 @@ describe('runtime module store', () => {
     expect(await readFile(path.join(installed.root, 'bin', 'runtime.txt'), 'utf8')).toBe('node-runtime-v1')
     expect(await readFile(path.join(installed.root, 'node_modules', '@scope', 'package', 'package.json'), 'utf8')).toContain('@scope/package')
     expect(await store.activeRoot('node-runtime')).toBe(installed.root)
-    expect(progress).toContain('verify:github')
+    expect(progress).toEqual(expect.arrayContaining([
+      'source-check:gitee',
+      'source-ready:gitee',
+      'source-check:github',
+      'source-ready:github',
+      'source-fallback:gitee',
+      'verify:github',
+      'activate:github'
+    ]))
 
     const reused = await store.install(item.module, [item.module], 'win32', 'x64')
     expect(reused.reused).toBe(true)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('keeps the previous immutable version available for atomic rollback', async () => {
@@ -81,9 +91,11 @@ describe('runtime module store', () => {
     roots.push(installationRoot)
     const first = await fixture('24.16.0', 'first')
     const second = await fixture('24.17.0', 'second')
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce(new Response(responseBody(first.archive), { status: 200 }))
-      .mockResolvedValueOnce(new Response(responseBody(second.archive), { status: 200 })))
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200 })
+      const archive = String(url).includes('24.17.0') ? second.archive : first.archive
+      return new Response(responseBody(archive), { status: 200 })
+    }))
     const store = new RuntimeModuleStore(installationRoot)
     await store.install(first.module, [first.module], 'win32', 'x64')
     const active = await store.install(second.module, [second.module], 'win32', 'x64')
@@ -93,13 +105,38 @@ describe('runtime module store', () => {
     expect(await store.activeRoot('node-runtime')).toBe(rolledBack)
   })
 
+  it('probes every signed channel and skips an unavailable mirror before downloading', async () => {
+    const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-channel-probe-'))
+    roots.push(installationRoot)
+    const item = await fixture('24.16.0', 'probe-before-download')
+    const calls: Array<{ url: string; method: string }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), method: String(init?.method || 'GET') })
+      if (init?.method === 'HEAD') {
+        return String(url).includes('gitee.com') ? new Response(null, { status: 404 }) : new Response(null, { status: 200 })
+      }
+      return new Response(responseBody(item.archive), { status: 200 })
+    }))
+    const progress: string[] = []
+    const store = new RuntimeModuleStore(installationRoot)
+    const result = await store.install(item.module, [item.module], 'win32', 'x64', (entry) => progress.push(`${entry.phase}:${entry.mirrorId || ''}`))
+    expect(result.mirrorId).toBe('github')
+    expect(calls.filter((call) => call.method === 'GET')).toEqual([
+      expect.objectContaining({ url: expect.stringContaining('github.com') })
+    ])
+    expect(progress).toContain('source-fallback:gitee')
+    expect(progress).toContain('download:github')
+  })
+
   it('rejects a downloaded artifact that does not match the signed digest', async () => {
     const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-reject-'))
     roots.push(installationRoot)
     const item = await fixture('24.16.0', 'trusted')
     const tampered = Buffer.from(item.archive)
     tampered[tampered.length - 1] = tampered[tampered.length - 1]! ^ 0xff
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(responseBody(tampered), { status: 200 }))))
+    vi.stubGlobal('fetch', vi.fn(async (_url: string | URL | Request, init?: RequestInit) => init?.method === 'HEAD'
+      ? new Response(null, { status: 200 })
+      : new Response(responseBody(tampered), { status: 200 })))
     const store = new RuntimeModuleStore(installationRoot)
     await expect(store.install(item.module, [item.module], 'win32', 'x64')).rejects.toThrow('SHA-256 校验失败')
     expect(await store.activeRoot('node-runtime')).toBeUndefined()

@@ -23,6 +23,7 @@ import type {
   LauncherLibraryEntry,
   LauncherResourceItem,
   LauncherTask,
+  LauncherTaskStep,
   LogLine,
   ModelProviderDraft,
   MultimodalTestRequest,
@@ -40,6 +41,55 @@ const PNPM_ALLOWED_BUILDS = [
   'node-pty',
   'protobufjs'
 ]
+
+const RUNTIME_MODULE_LABELS: Record<string, string> = {
+  'node-runtime': 'Node.js 运行环境',
+  'harness-core': 'DeepSeek Harness 核心',
+  'package-manager': 'pnpm 插件环境',
+  'terminal-native': '终端原生组件',
+  'launcher-ui': '启动器 UI 壳'
+}
+
+function runtimeModulePlan(target: RuntimeModuleRelease, catalog: RuntimeModuleRelease[], platform: string, arch: string): Array<{ release: RuntimeModuleRelease; bytes: number }> {
+  const plan: Array<{ release: RuntimeModuleRelease; bytes: number }> = []
+  const visited = new Set<string>()
+  const visit = (release: RuntimeModuleRelease): void => {
+    if (visited.has(release.id)) return
+    visited.add(release.id)
+    for (const dependencyId of release.dependencies) {
+      const dependency = catalog.find((candidate) => candidate.id === dependencyId)
+      if (dependency) visit(dependency)
+    }
+    const artifact = release.artifacts.find((candidate) => candidate.platform === platform && candidate.arch === arch)
+    if (artifact) plan.push({ release, bytes: artifact.size })
+  }
+  visit(target)
+  return plan
+}
+
+function moduleStepProgress(phase: LauncherTaskStep['phase'], receivedBytes: number, totalBytes: number): number {
+  if (phase === 'queued') return 0
+  if (phase === 'source-check') return 1
+  if (phase === 'source-ready' || phase === 'source-fallback') return 3
+  if (phase === 'download') return 5 + Math.round(Math.min(1, totalBytes > 0 ? receivedBytes / totalBytes : 0) * 75)
+  if (phase === 'verify') return 84
+  if (phase === 'extract') return 90
+  if (phase === 'probe') return 96
+  return 100
+}
+
+function moduleStepStatus(phase: LauncherTaskStep['phase']): LauncherTaskStep['status'] {
+  if (phase === 'queued') return 'queued'
+  if (phase === 'source-check' || phase === 'source-ready' || phase === 'source-fallback') return 'checking'
+  if (phase === 'download') return 'downloading'
+  if (phase === 'verify') return 'verifying'
+  if (phase === 'activate' || phase === 'completed') return 'completed'
+  return 'installing'
+}
+
+function runtimeSourceLabel(source?: string): string {
+  return source === 'github' ? 'GitHub' : source === 'gitee' ? 'Gitee' : source === 'oss' ? 'OSS 应急镜像' : '下载渠道'
+}
 
 export class LauncherController {
   private config!: PersistedConfig
@@ -287,17 +337,54 @@ export class LauncherController {
       if (this.config.settings.backupBeforeUpdate) await this.backupUserData()
       const modularRelease = this.runtimeModules.find((module) => module.id === 'harness-core' && module.version === version)
       if (modularRelease) {
+        const plan = runtimeModulePlan(modularRelease, this.runtimeModules, process.platform, process.arch)
+        task.steps = plan.map(({ release, bytes }) => ({
+          id: release.id,
+          label: RUNTIME_MODULE_LABELS[release.id] || release.id,
+          status: 'queued',
+          phase: 'queued',
+          progress: 0,
+          receivedBytes: 0,
+          totalBytes: bytes
+        }))
+        task.totalBytes = task.steps.reduce((sum, step) => sum + step.totalBytes, 0)
+        task.receivedBytes = 0
+        task.progress = 0
+        task.detail = `准备 ${task.steps.length} 个签名模块`
+        this.emit()
         const installed = await this.moduleStore.install(modularRelease, this.runtimeModules, process.platform, process.arch, (progress) => {
-          task.detail = progress.phase === 'download'
-            ? `从 ${progress.mirrorId || '镜像'} 下载 ${progress.moduleId}`
-            : `${progress.moduleId}：${progress.phase}`
-          task.progress = progress.totalBytes > 0
-            ? Math.min(96, Math.max(8, Math.round(progress.receivedBytes / progress.totalBytes * 88)))
-            : 8
+          const step = task.steps?.find((candidate) => candidate.id === progress.moduleId)
+          if (!step) return
+          const phase = progress.phase
+          step.phase = phase
+          step.status = moduleStepStatus(phase)
+          step.progress = Math.max(step.progress, moduleStepProgress(phase, progress.receivedBytes, progress.totalBytes))
+          step.receivedBytes = Math.max(step.receivedBytes, Math.min(progress.receivedBytes, progress.totalBytes))
+          if (progress.mirrorId === 'github' || progress.mirrorId === 'gitee' || progress.mirrorId === 'oss') step.source = progress.mirrorId
+          step.message = progress.message
+          if (phase === 'source-fallback' && progress.message) this.log('WARN', progress.message)
+          const totalWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes), 0) || 1
+          const completedWeight = task.steps?.reduce((sum, candidate) => sum + Math.max(1, candidate.totalBytes) * candidate.progress / 100, 0) || 0
+          task.receivedBytes = task.steps?.reduce((sum, candidate) => sum + Math.min(candidate.receivedBytes, candidate.totalBytes), 0) || 0
+          task.progress = Math.min(99, Math.round(completedWeight / totalWeight * 100))
+          task.detail = phase === 'source-check'
+            ? `正在检测 ${runtimeSourceLabel(progress.mirrorId)} · ${step.label}`
+            : phase === 'source-fallback'
+              ? `${runtimeSourceLabel(progress.mirrorId)} 不可用，自动切换 · ${step.label}`
+              : phase === 'download'
+                ? `从 ${runtimeSourceLabel(progress.mirrorId)} 下载 · ${step.label}`
+                : `${step.label} · ${phase === 'verify' ? '校验' : phase === 'extract' ? '解压' : phase === 'probe' ? '可运行性检测' : '启用'}`
           this.emit()
         })
         this.config.activeVersion = version
         await writeConfig(this.config)
+        for (const step of task.steps) {
+          step.status = 'completed'
+          step.phase = 'completed'
+          step.progress = 100
+          step.receivedBytes = step.totalBytes
+        }
+        task.receivedBytes = task.totalBytes
         task.progress = 100
         task.status = 'completed'
         task.detail = `模块安装完成：${installed.version}`
@@ -364,6 +451,11 @@ export class LauncherController {
     } catch (error) {
       task.status = 'failed'
       task.detail = error instanceof Error ? error.message : String(error)
+      const activeStep = task.steps?.find((step) => !['completed', 'queued'].includes(step.status))
+      if (activeStep) {
+        activeStep.status = 'failed'
+        activeStep.message = task.detail
+      }
       this.log('ERROR', `安装失败：${task.detail}`)
       this.emit()
     }

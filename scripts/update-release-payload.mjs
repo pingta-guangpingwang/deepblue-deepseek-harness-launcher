@@ -20,6 +20,8 @@ payload.runtimeModules = runtimeModules.modules
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '环境加载页新增 Node 与 Harness 分模块进度、真实下载字节和总加载进度，校验、解压与启用阶段不再混成一条进度',
+    '每个签名模块下载前检测 GitHub、Gitee 或 OSS 渠道；不可用或下载失败时自动切换到下一条真实可用渠道',
     '在线安装器缩小为不到 1 MB：先从 GitHub 获取界面壳，Node、Harness 与包管理器再按功能需要安装，OSS 只作应急兜底',
     '所有模块均校验固定字节数与 SHA-256，并通过 staging 原子切换；失败会保留或恢复上一版本',
     '完整离线包改由百度网盘兜底，不再让普通用户每次从 OSS 下载 150 MB 整包',

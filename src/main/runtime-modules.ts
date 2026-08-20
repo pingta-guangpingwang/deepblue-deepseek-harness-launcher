@@ -32,10 +32,12 @@ interface RuntimeModuleReceipt {
 
 export interface RuntimeModuleInstallProgress {
   moduleId: RuntimeModuleId
-  phase: 'download' | 'verify' | 'extract' | 'probe' | 'activate'
+  phase: 'source-check' | 'source-ready' | 'source-fallback' | 'download' | 'verify' | 'extract' | 'probe' | 'activate'
   receivedBytes: number
   totalBytes: number
   mirrorId?: string
+  latencyMs?: number
+  message?: string
 }
 
 export interface RuntimeModuleInstallResult {
@@ -130,11 +132,13 @@ async function responseFollowingRedirects(
   url: string,
   mirrorId: RuntimeModuleArtifact['mirrors'][number]['id'],
   offset: number,
-  signal: AbortSignal
+  signal: AbortSignal,
+  method: 'GET' | 'HEAD' = 'GET'
 ): Promise<Response> {
   let current = url
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
     const response = await fetch(current, {
+      method,
       redirect: 'manual',
       signal,
       headers: {
@@ -154,6 +158,60 @@ async function responseFollowingRedirects(
   throw new Error('模块镜像重定向次数过多')
 }
 
+interface MirrorProbe {
+  mirror: RuntimeModuleArtifact['mirrors'][number]
+  available: boolean
+  latencyMs?: number
+  message?: string
+}
+
+async function probeMirrors(
+  module: RuntimeModuleRelease,
+  artifact: RuntimeModuleArtifact,
+  onProgress?: (progress: RuntimeModuleInstallProgress) => void
+): Promise<MirrorProbe[]> {
+  const probes: MirrorProbe[] = []
+  for (const mirror of artifact.mirrors) {
+    onProgress?.({
+      moduleId: module.id,
+      phase: 'source-check',
+      receivedBytes: 0,
+      totalBytes: artifact.size,
+      mirrorId: mirror.id,
+      message: `正在检测 ${mirror.id}`
+    })
+    const startedAt = Date.now()
+    try {
+      const response = await responseFollowingRedirects(mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
+      const latencyMs = Date.now() - startedAt
+      const available = response.ok
+      const message = available ? `${mirror.id} 可用（${latencyMs}ms）` : `${mirror.id} 返回 HTTP ${response.status}`
+      probes.push({ mirror, available, latencyMs, message })
+      onProgress?.({
+        moduleId: module.id,
+        phase: available ? 'source-ready' : 'source-fallback',
+        receivedBytes: 0,
+        totalBytes: artifact.size,
+        mirrorId: mirror.id,
+        latencyMs,
+        message
+      })
+    } catch (error) {
+      const message = `${mirror.id} 不可用：${error instanceof Error ? error.message : String(error)}`
+      probes.push({ mirror, available: false, message })
+      onProgress?.({
+        moduleId: module.id,
+        phase: 'source-fallback',
+        receivedBytes: 0,
+        totalBytes: artifact.size,
+        mirrorId: mirror.id,
+        message
+      })
+    }
+  }
+  return probes.sort((left, right) => Number(right.available) - Number(left.available))
+}
+
 async function downloadArtifact(
   root: string,
   module: RuntimeModuleRelease,
@@ -169,7 +227,8 @@ async function downloadArtifact(
   }
   const partialFile = `${finalFile}.part`
   let lastFailure = '没有可用的模块镜像'
-  for (const mirror of artifact.mirrors) {
+  const probes = await probeMirrors(module, artifact, onProgress)
+  for (const { mirror } of probes) {
     try {
       let offset = 0
       try {
@@ -223,6 +282,14 @@ async function downloadArtifact(
       return { file: finalFile, mirrorId: mirror.id }
     } catch (error) {
       lastFailure = `${mirror.id}: ${error instanceof Error ? error.message : String(error)}`
+      onProgress?.({
+        moduleId: module.id,
+        phase: 'source-fallback',
+        receivedBytes: 0,
+        totalBytes: artifact.size,
+        mirrorId: mirror.id,
+        message: `${lastFailure}，自动尝试下一渠道`
+      })
     }
   }
   throw new Error(lastFailure)
@@ -326,6 +393,7 @@ export class RuntimeModuleStore {
         onProgress?.({ moduleId: target.id, phase: 'probe', receivedBytes: artifact.size, totalBytes: artifact.size })
         await runProbe(target, finalRoot)
         await this.activate(target.id, target.version)
+        onProgress?.({ moduleId: target.id, phase: 'activate', receivedBytes: artifact.size, totalBytes: artifact.size })
         return { moduleId: target.id, version: target.version, root: finalRoot, reused: true }
       }
       const downloaded = await downloadArtifact(this.root, target, artifact, onProgress)

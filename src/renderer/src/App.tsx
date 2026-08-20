@@ -237,14 +237,47 @@ function SourceRows({ sources }: { sources: SourceHealth[] }): ReactNode {
   )
 }
 
+function compactBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB'
+  return `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 1 : 2)} MB`
+}
+
+function modulePhaseLabel(phase: NonNullable<LauncherSnapshot['tasks'][number]['steps']>[number]['phase']): string {
+  return phase === 'queued' ? '等待'
+    : phase === 'source-check' ? '检测渠道'
+      : phase === 'source-ready' ? '渠道可用'
+        : phase === 'source-fallback' ? '切换渠道'
+          : phase === 'download' ? '下载'
+            : phase === 'verify' ? '校验'
+              : phase === 'extract' ? '解压'
+                : phase === 'probe' ? '运行检测'
+                  : phase === 'activate' ? '启用'
+                    : '完成'
+}
+
+function moduleSourceLabel(source?: string): string {
+  return source === 'github' ? 'GitHub' : source === 'gitee' ? 'Gitee' : source === 'oss' ? 'OSS' : ''
+}
+
 function Tasks({ snapshot }: { snapshot: LauncherSnapshot }): ReactNode {
   if (!snapshot.tasks.length) return <EmptyState icon={<FileClock />} title="还没有任务" text="安装、更新和修复进度会显示在这里。" />
   return (
     <div className="task-list">
       {snapshot.tasks.slice(0, 4).map((task) => (
-        <div className="task-item" key={task.id}>
+        <div className={classNames('task-item', !!task.steps?.length && 'task-item-detailed')} key={task.id}>
           <span className={classNames('task-symbol', task.status)}>{task.status === 'running' ? <LoaderCircle className="spin" size={18} /> : task.status === 'failed' ? <CircleAlert size={18} /> : <Check size={18} />}</span>
-          <div className="task-copy"><div><strong>{task.title}</strong><span>{task.detail}</span></div><div className="progress-track"><span style={{ width: `${task.progress}%` }} /></div></div>
+          <div className="task-copy">
+            <div><strong>{task.title}</strong><span>{task.detail}</span></div>
+            <div className="progress-track" role="progressbar" aria-label={`${task.title} 总进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={task.progress}><span style={{ width: `${task.progress}%` }} /></div>
+            {!!task.totalBytes && <div className="task-total"><span>总加载进度</span><strong>{compactBytes(task.receivedBytes || 0)} / {compactBytes(task.totalBytes)}</strong></div>}
+            {!!task.steps?.length && <div className="task-step-list" aria-label="模块加载明细">
+              {task.steps.map((step) => <div className={classNames('task-step', `is-${step.status}`)} key={step.id}>
+                <div className="task-step-heading"><strong>{step.label}</strong><span>{moduleSourceLabel(step.source)}{step.source ? ' · ' : ''}{modulePhaseLabel(step.phase)}</span><b>{step.progress}%</b></div>
+                <div className="task-step-track" role="progressbar" aria-label={`${step.label}进度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={step.progress}><span style={{ width: `${step.progress}%` }} /></div>
+                <small>{compactBytes(step.receivedBytes)} / {compactBytes(step.totalBytes)}{step.message ? ` · ${step.message}` : ''}</small>
+              </div>)}
+            </div>}
+          </div>
           <strong className="task-percent">{task.progress}%</strong>
         </div>
       ))}
@@ -396,7 +429,7 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
 
       <div className="version-side-column">
         <Card title="下载源" action={<button className="icon-button" onClick={onSources}><RefreshCw size={15} /></button>}>
-          <p className="card-intro">自动按可用性与延迟选择，不会因单一站点不可达而卡住。</p>
+          <p className="card-intro">下载前逐个探测；默认优先 GitHub，失败后自动切换到签名清单中的下一条可用渠道。</p>
           <div className="source-priority">
             {snapshot.sources.map((source, index) => (
               <div key={source.id}><span>{index + 1}</span><strong>{source.name}</strong><StatusDot status={source.status} /><small>{source.latencyMs ? `${source.latencyMs}ms` : source.status === 'unconfigured' ? '待配置' : '—'}</small></div>
@@ -405,7 +438,7 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
         </Card>
         <Card title="更新保护">
           <div className="protection-item"><ShieldCheck /><div><strong>更新前自动备份</strong><p>备份 Harness 用户数据和 Profile 配置。</p></div><span className="toggle on" /></div>
-          <div className="protection-item"><CheckCircle2 /><div><strong>完整性校验</strong><p>远程清单接入后校验 SHA-256。</p></div><span className="toggle on" /></div>
+          <div className="protection-item"><CheckCircle2 /><div><strong>完整性校验</strong><p>签名目录与模块包均校验 SHA-256。</p></div><span className="toggle on" /></div>
           <div className="protection-item"><RotateCcw /><div><strong>并行版本目录</strong><p>新版本验证失败时可切回旧版本。</p></div><span className="toggle on" /></div>
         </Card>
       </div>

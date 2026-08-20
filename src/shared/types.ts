@@ -37,7 +37,22 @@ export interface LauncherTask {
   status: TaskStatus
   progress: number
   speed?: string
+  receivedBytes?: number
+  totalBytes?: number
+  steps?: LauncherTaskStep[]
   createdAt: string
+}
+
+export interface LauncherTaskStep {
+  id: string
+  label: string
+  status: 'queued' | 'checking' | 'downloading' | 'verifying' | 'installing' | 'completed' | 'failed'
+  phase: 'queued' | 'source-check' | 'source-ready' | 'source-fallback' | 'download' | 'verify' | 'extract' | 'probe' | 'activate' | 'completed'
+  progress: number
+  receivedBytes: number
+  totalBytes: number
+  source?: 'github' | 'gitee' | 'oss'
+  message?: string
 }
 
 export interface LogLine {

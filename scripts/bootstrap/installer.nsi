@@ -65,6 +65,8 @@ Section "安装启动器" SEC_MAIN
     StrCpy $DownloadStatus "OK"
   ${Else}
     StrCpy $DownloadStatus "PENDING"
+    DetailPrint "资源 1/1 · 启动器 UI 壳 ${SHELL_VERSION}"
+    DetailPrint "正在检测下载渠道；失败时会自动切换"
     !insertmacro DownloadMirror "${SHELL_URL_GITHUB}" "GitHub Releases"
     !insertmacro DownloadMirror "${SHELL_URL_OSS}" "OSS 应急镜像"
   ${EndIf}
