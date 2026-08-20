@@ -94,6 +94,7 @@ import type {
   SkinStyle,
   SourceHealth
 } from '../../shared/types'
+import { coreRuntimeReady, unavailableSourceCount } from '../../shared/environment-health'
 import { mockSnapshot } from './mock'
 import deepseekLogo from './assets/deepseek-logo.svg'
 
@@ -310,7 +311,7 @@ function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSo
   onWorkspace: () => void
   onSources: () => void
 }): ReactNode {
-  const ready = snapshot.environment.every((item) => item.status === 'ready')
+  const ready = coreRuntimeReady(snapshot.environment)
   const running = snapshot.runStatus === 'running'
   const transitioning = snapshot.runStatus === 'starting' || snapshot.runStatus === 'stopping'
   return (
@@ -1335,7 +1336,7 @@ function WorkspacesPage({ snapshot, onChoose, onOpen }: { snapshot: LauncherSnap
 }
 
 function DiagnosticsPage({ snapshot, busy, onRefresh, onRepair, onSources }: { snapshot: LauncherSnapshot; busy: string; onRefresh: () => void; onRepair: () => void; onSources: () => void }): ReactNode {
-  const failures = snapshot.environment.filter((item) => item.status === 'missing').length + snapshot.sources.filter((item) => item.status === 'unavailable').length
+  const failures = snapshot.environment.filter((item) => ['node', 'harness'].includes(item.id) && item.status === 'missing').length + unavailableSourceCount(snapshot.sources)
   return (
     <div className="diagnostics-layout">
       <Card className="diagnostic-banner">

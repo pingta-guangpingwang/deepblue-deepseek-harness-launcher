@@ -6,7 +6,7 @@
 
 安全与信任：[代码签名政策](docs/CODE_SIGNING_POLICY.md) · [隐私说明](PRIVACY.md) · [安全问题报告](SECURITY.md)
 
-> 当前状态：Windows x64 0.10.6 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、63 款免费签名皮肤和 56 个可互动宠物均已验证。
+> 当前状态：Windows x64 0.10.7 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、63 款免费签名皮肤和 56 个可互动宠物均已验证。
 
 > 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.0-rc.6、pnpm 11.22.0 与 Harness Web。UI 壳同时携带经过同一严格校验的运行模块目录副本；运行目录、UI 壳与三个运行模块均使用 GitHub 主线路和 OSS 应急线路，GitHub 失败时自动切换，平时不消耗 OSS 大文件流量。
 
@@ -74,7 +74,7 @@ npm run dist:win
 npm run dist:mac
 ```
 
-构建结果写入 `release/`。生产公钥和发布地址已配置。当前 Windows 0.10.6 安装器尚未取得公开受信任的 Authenticode 签名，Windows 可能显示“未知发布者”；项目正在申请 SignPath Foundation 的开源免费代码签名，获批前不会把 Ed25519 更新目录签名冒充 Windows 发布者签名。正式对外分发还需补充：
+构建结果写入 `release/`。生产公钥和发布地址已配置。当前 Windows 0.10.7 安装器尚未取得公开受信任的 Authenticode 签名，Windows 可能显示“未知发布者”；项目正在申请 SignPath Foundation 的开源免费代码签名，获批前不会把 Ed25519 更新目录签名冒充 Windows 发布者签名。正式对外分发还需补充：
 
 1. Windows Authenticode 代码签名（优先申请 SignPath Foundation 开源免费签名）；
 2. Apple Developer ID 签名和 notarization；

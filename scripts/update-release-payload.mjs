@@ -22,6 +22,7 @@ payload.modelTemplates = modelProviderTemplates
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '修复 Node 与 Harness 已完整安装后，按需插件包管理器仍被误判为核心缺失，导致“快速修复”错误停在 20%；安装并发结束后会重新核验真实运行环境',
     '修复签名目录对象临时不可读时首次安装报“未提供插件包管理器”；UI 壳现内置严格校验过的运行模块目录并继续从内容寻址的 GitHub 制品安装',
     '修复 0.10.4 在线壳遗漏主进程运行依赖导致启动时报 ERR_MODULE_NOT_FOUND；0.10.5 会按构建产物自动发现并打齐依赖闭包',
     '首次启动先确认运行资源位置，再开始拉取 Node、Harness 与按需模块；程序安装位置和大型运行资源可以分别放在不同磁盘',

@@ -16,6 +16,7 @@ import { PetStore } from './pets'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
+import { coreRuntimeMissing } from '../shared/environment-health'
 import type {
   EnvironmentItem,
   HarnessVersion,
@@ -178,6 +179,7 @@ export class LauncherController {
     const dshVersion = await readPackageVersion(dshPackage)
     const nodeReady = await isExecutable(runtime.node)
     const pnpmReady = await isExecutable(runtime.pnpm)
+    const packageManagerRelease = this.runtimeModules.find((module) => module.id === 'package-manager')
     this.snapshot.environment = [
       {
         id: 'node',
@@ -196,9 +198,13 @@ export class LauncherController {
       {
         id: 'pnpm',
         label: '插件包管理器',
-        version: pnpmReady ? '11.22.0' : undefined,
-        status: pnpmReady ? 'ready' : 'missing',
-        detail: pnpmReady ? '用于安装和更新 Harness 插件' : 'pnpm 运行文件缺失'
+        version: pnpmReady ? '11.22.0' : packageManagerRelease?.version,
+        status: pnpmReady || packageManagerRelease ? 'ready' : 'warning',
+        detail: pnpmReady
+          ? '用于安装和更新 Harness 插件'
+          : packageManagerRelease
+            ? '签名模块已就绪；首次安装插件时自动获取，不阻塞 Harness 启动'
+            : '签名目录暂未提供该按需组件；不影响 Harness 核心启动'
       },
       {
         id: 'network',
@@ -355,10 +361,11 @@ export class LauncherController {
         }
         task.receivedBytes = task.totalBytes
         task.progress = 100
-        task.status = 'completed'
         task.detail = `模块安装完成：${installed.version}`
         this.log('INFO', `Harness ${version} 已从签名模块包安装`)
         await this.refreshEnvironment()
+        task.status = 'completed'
+        this.emit()
         return this.getSnapshot()
       }
       const paths = launcherDataPaths()
@@ -413,10 +420,11 @@ export class LauncherController {
       this.config.activeVersion = version
       await writeConfig(this.config)
       task.progress = 100
-      task.status = 'completed'
       task.detail = '安装完成并已切换为当前版本'
       this.log('INFO', `Harness ${version} 安装完成`)
       await this.refreshEnvironment()
+      task.status = 'completed'
+      this.emit()
     } catch (error) {
       task.status = 'failed'
       task.detail = error instanceof Error ? error.message : String(error)
@@ -606,13 +614,17 @@ export class LauncherController {
     const task = this.addTask(`repair-${Date.now()}`, '快速修复运行环境', '重新核对内置组件')
     this.emit()
     await this.refreshEnvironment()
-    const missing = this.snapshot.environment.some((item) => item.status === 'missing')
+    const missing = coreRuntimeMissing(this.snapshot.environment)
     if (missing) {
       task.detail = '检测到核心缺失，正在重新安装'
       task.progress = 20
       this.emit()
       await this.installHarness(this.config.activeVersion)
-      const repaired = !this.snapshot.environment.some((item) => item.status === 'missing')
+      // A concurrent first-run install marks its task completed only after its own
+      // environment refresh. Refresh once more here so repair never evaluates a
+      // stale pre-install snapshot.
+      await this.refreshEnvironment()
+      const repaired = !coreRuntimeMissing(this.snapshot.environment)
       task.status = repaired ? 'completed' : 'failed'
       task.progress = repaired ? 100 : task.progress
       task.detail = repaired ? '运行环境已恢复' : '自动修复未能恢复全部组件'
