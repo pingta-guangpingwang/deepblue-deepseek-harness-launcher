@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { mirrorCandidates } from './asset-mirrors'
+import { downloadTimeoutMs, mirrorCandidates } from './asset-mirrors'
 import type { ExternalSkinCatalogPayload } from '../shared/types'
 
 const PAYLOAD_PATH = path.resolve('skin-store', 'external-catalog.payload.json')
@@ -31,6 +31,33 @@ describe('mirrorCandidates', () => {
   it('rejects non-HTTPS and malformed addresses', () => {
     expect(mirrorCandidates('http://raw.githubusercontent.com/a/b/main/c.png')).toEqual([])
     expect(mirrorCandidates('not a url')).toEqual([])
+  })
+})
+
+describe('downloadTimeoutMs', () => {
+  it('gives a small asset the floor budget', () => {
+    expect(downloadTimeoutMs(40 * 1024)).toBe(60_000 + 500)
+    expect(downloadTimeoutMs(0)).toBe(60_000)
+  })
+
+  it('leaves real headroom for the largest catalog image, which the old flat 90s budget did not', () => {
+    const budget = downloadTimeoutMs(16.5 * 1024 * 1024)
+    expect(budget).toBeGreaterThan(90_000)
+    // 16.5 MB needs ~86 s at the slowest measured mirror throughput.
+    expect(budget).toBeGreaterThan(210_000)
+  })
+
+  it('keeps an 80 MiB video inside a bounded budget', () => {
+    const budget = downloadTimeoutMs(80 * 1024 * 1024)
+    expect(budget).toBe(900_000)
+  })
+
+  it('scales monotonically with size', () => {
+    const sizes = [1, 1024, 1024 * 1024, 10 * 1024 * 1024, 25 * 1024 * 1024]
+    const budgets = sizes.map(downloadTimeoutMs)
+    for (let index = 1; index < budgets.length; index += 1) {
+      expect(budgets[index]).toBeGreaterThanOrEqual(budgets[index - 1]!)
+    }
   })
 })
 

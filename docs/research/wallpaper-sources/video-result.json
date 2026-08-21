@@ -1,0 +1,2192 @@
+[
+  {
+    "full": "Taiizor/Sucrose",
+    "stars": 1478,
+    "description": "Sucrose is a versatile wallpaper engine that brings life to your desktop with a wide range of interactive wallpapers.",
+    "license": "GPL-3.0",
+    "repoSizeKb": 1332700,
+    "pushedAt": "2026-08-12T19:44:42Z",
+    "branch": "develop",
+    "videoCount": 1,
+    "videoBytes": 353978,
+    "withinLimitCount": 1,
+    "mp4Count": 0,
+    "webmCount": 1,
+    "truncated": false,
+    "picks": []
+  },
+  {
+    "full": "markusfisch/ShaderEditor",
+    "stars": 1086,
+    "description": "Android app to create GLSL shaders and use them as live wallpaper",
+    "license": "MIT",
+    "repoSizeKb": 84237,
+    "pushedAt": "2026-08-11T19:49:44Z",
+    "branch": "master",
+    "videoCount": 23,
+    "videoBytes": 76359627,
+    "withinLimitCount": 23,
+    "mp4Count": 0,
+    "webmCount": 23,
+    "truncated": false,
+    "picks": []
+  },
+  {
+    "full": "GiantappMan/livewallpaper",
+    "stars": 1039,
+    "description": "An easy-to-use wallpaper app for Windows 10/11, supporting dynamic and static wallpapers, with a built-in community. | 巨应壁纸 | 动态壁纸 | live wallpaper",
+    "license": "GPL-2.0",
+    "repoSizeKb": 659252,
+    "pushedAt": "2026-08-07T14:35:25Z",
+    "branch": "v3.x",
+    "videoCount": 2,
+    "videoBytes": 10073518,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "src/giantapp-wallpaper-client/WallpaperCore.Test/TestWallpapers/audio.mp4",
+        "url": "https://raw.githubusercontent.com/GiantappMan/livewallpaper/v3.x/src/giantapp-wallpaper-client/WallpaperCore.Test/TestWallpapers/audio.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 60.84,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 6696188
+      },
+      {
+        "path": "src/giantapp-wallpaper-client/WallpaperCore.Test/TestWallpapers/video.mp4",
+        "url": "https://raw.githubusercontent.com/GiantappMan/livewallpaper/v3.x/src/giantapp-wallpaper-client/WallpaperCore.Test/TestWallpapers/video.mp4",
+        "width": 1280,
+        "height": 536,
+        "durationSec": 14.3,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 3377330
+      }
+    ]
+  },
+  {
+    "full": "underpig1/octos",
+    "stars": 775,
+    "description": "Create and share web-based interactive, animated wallpapers on Windows :rocket: Available on the Microsoft Store",
+    "license": "MIT",
+    "repoSizeKb": 381936,
+    "pushedAt": "2025-09-06T01:32:58Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 23874349,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/img/octos-preview.mp4",
+        "url": "https://raw.githubusercontent.com/underpig1/octos/master/docs/img/octos-preview.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 29.86,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 23874349
+      }
+    ]
+  },
+  {
+    "full": "terroo/wallset",
+    "stars": 399,
+    "description": "A wallpaper manager that makes it possible to put videos as wallpaper",
+    "license": "GPL-3.0",
+    "repoSizeKb": 17189,
+    "pushedAt": "2023-10-20T13:27:56Z",
+    "branch": "master",
+    "videoCount": 5,
+    "videoBytes": 16414981,
+    "withinLimitCount": 5,
+    "mp4Count": 5,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "examples/videos/abstract-city.mp4",
+        "url": "https://raw.githubusercontent.com/terroo/wallset/master/examples/videos/abstract-city.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 13.91,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 4083160
+      },
+      {
+        "path": "examples/videos/alien-city.mp4",
+        "url": "https://raw.githubusercontent.com/terroo/wallset/master/examples/videos/alien-city.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 14.12,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 4217080
+      },
+      {
+        "path": "examples/videos/bee-hive.mp4",
+        "url": "https://raw.githubusercontent.com/terroo/wallset/master/examples/videos/bee-hive.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 11.99,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 4538449
+      },
+      {
+        "path": "examples/videos/car-on-the-streets.mp4",
+        "url": "https://raw.githubusercontent.com/terroo/wallset/master/examples/videos/car-on-the-streets.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 20.31,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 2074080
+      }
+    ]
+  },
+  {
+    "full": "jeremiaa/magic-frame",
+    "stars": 368,
+    "description": "Self-hosted home display — part photo frame, part family board, part Home Assistant dashboard. Drag-&-drop, live sync, Immich wallpapers. No cloud.",
+    "license": "NOASSERTION",
+    "repoSizeKb": 100400,
+    "pushedAt": "2026-08-16T20:07:47Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 2925282,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "public/demo/magic-frame-preview.mp4",
+        "url": "https://raw.githubusercontent.com/jeremiaa/magic-frame/main/public/demo/magic-frame-preview.mp4",
+        "width": 960,
+        "height": 724,
+        "durationSec": 65.54,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 2925282
+      }
+    ]
+  },
+  {
+    "full": "dependon/fantascene-dynamic-wallpaper",
+    "stars": 280,
+    "description": "Managed animated wallpaper based on X11 under Linux(Dynamic Wallpapers for Linux)",
+    "license": "GPL-3.0",
+    "repoSizeKb": 85859,
+    "pushedAt": "2026-08-03T06:03:56Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 6530751,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "src/install/normal.mp4",
+        "url": "https://raw.githubusercontent.com/dependon/fantascene-dynamic-wallpaper/master/src/install/normal.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 8.09,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 6530751
+      }
+    ]
+  },
+  {
+    "full": "0bCdian/Waypaper-Engine",
+    "stars": 271,
+    "description": "A wallpaper setter with playlist functionality!",
+    "license": "GPL-3.0",
+    "repoSizeKb": 83238,
+    "pushedAt": "2026-08-09T18:53:56Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 47244131,
+    "withinLimitCount": 2,
+    "mp4Count": 0,
+    "webmCount": 2,
+    "truncated": false,
+    "picks": []
+  },
+  {
+    "full": "DingMouRen/VideoWallpaper",
+    "stars": 254,
+    "description": "一句代码设置android手机桌面视频壁纸",
+    "license": "NONE",
+    "repoSizeKb": 43687,
+    "pushedAt": "2021-03-03T15:38:03Z",
+    "branch": "master",
+    "videoCount": 2,
+    "videoBytes": 18080627,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "app/src/main/assets/video1.mp4",
+        "url": "https://raw.githubusercontent.com/DingMouRen/VideoWallpaper/master/app/src/main/assets/video1.mp4",
+        "width": 608,
+        "height": 1080,
+        "durationSec": 32.15,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 5317557
+      },
+      {
+        "path": "app/src/main/assets/video2.mp4",
+        "url": "https://raw.githubusercontent.com/DingMouRen/VideoWallpaper/master/app/src/main/assets/video2.mp4",
+        "width": 810,
+        "height": 1440,
+        "durationSec": 67.61,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 12763070
+      }
+    ]
+  },
+  {
+    "full": "kelteseth/ScreenPlay",
+    "stars": 250,
+    "description": "See https://gitlab.com/kelteseth/screenplay - Modern, Cross Plattform, Live Wallpaper & Widgets ! Free on Steam : https://store.steampowered.com/app/672870/ScreenPlay/",
+    "license": "AGPL-3.0",
+    "repoSizeKb": 216106,
+    "pushedAt": "2026-08-19T16:17:10Z",
+    "branch": "master",
+    "videoCount": 2,
+    "videoBytes": 60889821,
+    "withinLimitCount": 2,
+    "mp4Count": 1,
+    "webmCount": 1,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Content/wallpaper_video_nebula_h264/mantissa.xyz_loop_072.mp4",
+        "url": "https://raw.githubusercontent.com/kelteseth/ScreenPlay/master/Content/wallpaper_video_nebula_h264/mantissa.xyz_loop_072.mp4",
+        "width": 2048,
+        "height": 1152,
+        "durationSec": 15,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 45503596
+      }
+    ]
+  },
+  {
+    "full": "CAPlayground/CAPlayground",
+    "stars": 244,
+    "description": "Create beautiful animated wallpapers for iOS and iPadOS on any desktop computer.",
+    "license": "NOASSERTION",
+    "repoSizeKb": 38697,
+    "pushedAt": "2026-07-10T02:44:15Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 7805218,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "apps/web/public/featured.mp4",
+        "url": "https://raw.githubusercontent.com/CAPlayground/CAPlayground/main/apps/web/public/featured.mp4",
+        "width": 1080,
+        "height": 1440,
+        "durationSec": 10.2,
+        "hasAudio": true,
+        "brand": "qt",
+        "bytes": 6474447
+      },
+      {
+        "path": "apps/web/public/wallpaper-demo-old.mp4",
+        "url": "https://raw.githubusercontent.com/CAPlayground/CAPlayground/main/apps/web/public/wallpaper-demo-old.mp4",
+        "width": 1080,
+        "height": 1326,
+        "durationSec": 3.2,
+        "hasAudio": true,
+        "brand": "qt",
+        "bytes": 1330771
+      }
+    ]
+  },
+  {
+    "full": "nicefaa6waa/genshin-sddm-theme",
+    "stars": 158,
+    "description": "Animated Genshin Log in screen theme for SDMM",
+    "license": "GPL-3.0",
+    "repoSizeKb": 78393,
+    "pushedAt": "2025-12-24T13:32:48Z",
+    "branch": "main",
+    "videoCount": 4,
+    "videoBytes": 2777429,
+    "withinLimitCount": 4,
+    "mp4Count": 1,
+    "webmCount": 3,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "backgrounds/loading.mp4",
+        "url": "https://raw.githubusercontent.com/nicefaa6waa/genshin-sddm-theme/main/backgrounds/loading.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 9.83,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 498092
+      }
+    ]
+  },
+  {
+    "full": "GiantappMan/LiveWallpaperEngine",
+    "stars": 143,
+    "description": "Windows 10 Dynamic Wallpaper Engine API without UI. Support video, HTML, EXE, IMG wallpaper. | 巨应动态壁纸引擎",
+    "license": "GPL-3.0",
+    "repoSizeKb": 337363,
+    "pushedAt": "2021-04-07T13:32:02Z",
+    "branch": "master",
+    "videoCount": 3,
+    "videoBytes": 13450848,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/audio.mp4",
+        "url": "https://raw.githubusercontent.com/GiantappMan/LiveWallpaperEngine/master/LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/audio.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 60.84,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 6696188
+      },
+      {
+        "path": "LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/game/video.mp4",
+        "url": "https://raw.githubusercontent.com/GiantappMan/LiveWallpaperEngine/master/LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/game/video.mp4",
+        "width": 1280,
+        "height": 536,
+        "durationSec": 14.3,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 3377330
+      },
+      {
+        "path": "LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/video.mp4",
+        "url": "https://raw.githubusercontent.com/GiantappMan/LiveWallpaperEngine/master/LiveWallpaperEngine.Samples.NetCore.Test/WallpaperSamples/video.mp4",
+        "width": 1280,
+        "height": 536,
+        "durationSec": 14.3,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 3377330
+      }
+    ]
+  },
+  {
+    "full": "L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles",
+    "stars": 141,
+    "description": "Minimal & dynamic Hyprland setup. ATTENTION: Please read the README file to avoid errors and learn how to change wallpapers etc.!",
+    "license": "NONE",
+    "repoSizeKb": 135841,
+    "pushedAt": "2026-06-26T12:13:36Z",
+    "branch": "main",
+    "videoCount": 5,
+    "videoBytes": 77393959,
+    "withinLimitCount": 5,
+    "mp4Count": 5,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": ".config/Live Wallpapers/akira.mp4",
+        "url": "https://raw.githubusercontent.com/L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles/main/.config/Live%20Wallpapers/akira.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 28.37,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 24102403
+      },
+      {
+        "path": ".config/Live Wallpapers/Ayanami Rei.mp4",
+        "url": "https://raw.githubusercontent.com/L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles/main/.config/Live%20Wallpapers/Ayanami%20Rei.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 13.67,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 10270881
+      },
+      {
+        "path": ".config/Live Wallpapers/sailor girl.mp4",
+        "url": "https://raw.githubusercontent.com/L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles/main/.config/Live%20Wallpapers/sailor%20girl.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 17.5,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 12982384
+      },
+      {
+        "path": "win10bootanimation.mp4",
+        "url": "https://raw.githubusercontent.com/L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles/main/win10bootanimation.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 16.05,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 23340761
+      }
+    ]
+  },
+  {
+    "full": "TouSC/Video2LivePhoto",
+    "stars": 129,
+    "description": "Support iOS17 & Wallpaper: a Tool with Example of how to convert a video into a LivePhoto",
+    "license": "NONE",
+    "repoSizeKb": 2959,
+    "pushedAt": "2024-06-20T06:17:32Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 3004359,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Video2LivePhoto/origin.mp4",
+        "url": "https://raw.githubusercontent.com/TouSC/Video2LivePhoto/main/Video2LivePhoto/origin.mp4",
+        "width": 512,
+        "height": 1088,
+        "durationSec": 4.04,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 3004359
+      }
+    ]
+  },
+  {
+    "full": "maocide/UndeadWallpaper",
+    "stars": 128,
+    "description": "Turn any video on your phone into a seamless live wallpaper. 100% Free & FOSS. No bullshit",
+    "license": "GPL-3.0",
+    "repoSizeKb": 9469,
+    "pushedAt": "2026-08-10T08:09:41Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 1808797,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "app/src/main/res/raw/zombillie_default.mp4",
+        "url": "https://raw.githubusercontent.com/maocide/UndeadWallpaper/master/app/src/main/res/raw/zombillie_default.mp4",
+        "width": 736,
+        "height": 1024,
+        "durationSec": 14.94,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 1808797
+      }
+    ]
+  },
+  {
+    "full": "laobamac/MirageWallpaper",
+    "stars": 126,
+    "description": "The most perfect live wallpaper engine for macOS, supporting web/video/scene wallpaper",
+    "license": "GPL-3.0",
+    "repoSizeKb": 119365,
+    "pushedAt": "2026-08-20T15:20:41Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 55034317,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Mirage/Mirage Wallpaper/Resources/WallpaperNotFound.mp4",
+        "url": "https://raw.githubusercontent.com/laobamac/MirageWallpaper/main/Mirage/Mirage%20Wallpaper/Resources/WallpaperNotFound.mp4",
+        "width": 3639,
+        "height": 2048,
+        "durationSec": 30,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 55034317
+      }
+    ]
+  },
+  {
+    "full": "programmersd21/wallr",
+    "stars": 124,
+    "description": "gpu accelerated animated wallpaper engine for wayland",
+    "license": "MIT",
+    "repoSizeKb": 256831,
+    "pushedAt": "2026-08-20T11:34:38Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 138292545,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/demo.mp4",
+        "url": "https://raw.githubusercontent.com/programmersd21/wallr/main/assets/demo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 43,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 32001138
+      },
+      {
+        "path": "assets/video.mp4",
+        "url": "https://raw.githubusercontent.com/programmersd21/wallr/main/assets/video.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 43.79,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 30975846
+      },
+      {
+        "path": "samples/extra.mp4",
+        "url": "https://raw.githubusercontent.com/programmersd21/wallr/main/samples/extra.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 0,
+        "hasAudio": false,
+        "brand": "iso5",
+        "bytes": 75315561
+      }
+    ]
+  },
+  {
+    "full": "AlynxZhou/alynx-live-wallpaper",
+    "stars": 110,
+    "description": "An android app that allows you choose a video as wallpaper.",
+    "license": "Apache-2.0",
+    "repoSizeKb": 84371,
+    "pushedAt": "2023-07-03T23:59:12Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 606949,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "app/src/main/assets/wallpapers/fire-rain/fire-rain-720x720.mp4",
+        "url": "https://raw.githubusercontent.com/AlynxZhou/alynx-live-wallpaper/master/app/src/main/assets/wallpapers/fire-rain/fire-rain-720x720.mp4",
+        "width": 720,
+        "height": 720,
+        "durationSec": 12,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 606949
+      }
+    ]
+  },
+  {
+    "full": "houmahani/codrops-depth-gallery",
+    "stars": 98,
+    "description": "A Three.js depth gallery where images shape their own environment, mood-driven GLSL backgrounds, parallax motion, and velocity-reactive effects.",
+    "license": "MIT",
+    "repoSizeKb": 468049,
+    "pushedAt": "2026-03-09T13:35:39Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 28733266,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "resources/demo.mp4",
+        "url": "https://raw.githubusercontent.com/houmahani/codrops-depth-gallery/main/resources/demo.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 5.77,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 10197591
+      },
+      {
+        "path": "resources/reel.mp4",
+        "url": "https://raw.githubusercontent.com/houmahani/codrops-depth-gallery/main/resources/reel.mp4",
+        "width": 2160,
+        "height": 3840,
+        "durationSec": 5.77,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 8472606
+      },
+      {
+        "path": "resources/stage.mp4",
+        "url": "https://raw.githubusercontent.com/houmahani/codrops-depth-gallery/main/resources/stage.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 5.77,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 10063069
+      }
+    ]
+  },
+  {
+    "full": "swiftuiux/swiftui-loop-videoPlayer",
+    "stars": 98,
+    "description": "swift video player, subtitles, looping, video in background, vector effect, macos, tvos, hint, stream, tip, tooltip, sdk, PiP, video mask, loop bg, cornerradius, Full screen, fit Swiftui, video from url streaming, remote video, playback, metal shader, filter, tvos, corner radius, Metal Shaders, example, uikit 비디오 플레이어 视频播放器 ビデオプレーヤー",
+    "license": "MIT",
+    "repoSizeKb": 1623,
+    "pushedAt": "2026-06-08T12:53:38Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 1209241,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Tests/swiftui-loop-videoplayerTests/Resources/swipe.mp4",
+        "url": "https://raw.githubusercontent.com/swiftuiux/swiftui-loop-videoPlayer/main/Tests/swiftui-loop-videoplayerTests/Resources/swipe.mp4",
+        "width": 600,
+        "height": 476,
+        "durationSec": 5.87,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 1209241
+      }
+    ]
+  },
+  {
+    "full": "willnode/autobloom",
+    "stars": 76,
+    "description": "Make Windows 11 Bloom Wallpaper Animated when signing in.",
+    "license": "NONE",
+    "repoSizeKb": 12635,
+    "pushedAt": "2026-04-30T16:21:28Z",
+    "branch": "master",
+    "videoCount": 2,
+    "videoBytes": 2035099,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "media/dark/bloom.mp4",
+        "url": "https://raw.githubusercontent.com/willnode/autobloom/master/media/dark/bloom.mp4",
+        "width": 1620,
+        "height": 1080,
+        "durationSec": 4.98,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 969953
+      },
+      {
+        "path": "media/light/bloom.mp4",
+        "url": "https://raw.githubusercontent.com/willnode/autobloom/master/media/light/bloom.mp4",
+        "width": 1923,
+        "height": 1080,
+        "durationSec": 5.08,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 1065146
+      }
+    ]
+  },
+  {
+    "full": "inyourwalls/Blossom",
+    "stars": 75,
+    "description": "Live wallpapers [TrollStore, without jailbreak, iOS 17.0]",
+    "license": "AGPL-3.0",
+    "repoSizeKb": 44784,
+    "pushedAt": "2025-03-23T16:32:32Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 25064601,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "supports/Assets.xcassets/setup.dataset/setup.MOV",
+        "url": "https://raw.githubusercontent.com/inyourwalls/Blossom/main/supports/Assets.xcassets/setup.dataset/setup.MOV",
+        "width": 888,
+        "height": 1920,
+        "durationSec": 24.91,
+        "hasAudio": true,
+        "brand": "qt",
+        "bytes": 25064601
+      }
+    ]
+  },
+  {
+    "full": "lucasasselli/zero",
+    "stars": 68,
+    "description": "Zero is an Android live wallpaper app that displays beautiful 3D parallax photos and artworks on your home screen.",
+    "license": "GPL-3.0",
+    "repoSizeKb": 149703,
+    "pushedAt": "2022-02-24T15:34:53Z",
+    "branch": "master",
+    "videoCount": 19,
+    "videoBytes": 27000571,
+    "withinLimitCount": 19,
+    "mp4Count": 19,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "wallpapers/00000.mp4",
+        "url": "https://raw.githubusercontent.com/lucasasselli/zero/master/wallpapers/00000.mp4",
+        "width": 500,
+        "height": 500,
+        "durationSec": 5,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 1230735
+      },
+      {
+        "path": "wallpapers/00001.mp4",
+        "url": "https://raw.githubusercontent.com/lucasasselli/zero/master/wallpapers/00001.mp4",
+        "width": 500,
+        "height": 500,
+        "durationSec": 5,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 1219022
+      },
+      {
+        "path": "wallpapers/00003.mp4",
+        "url": "https://raw.githubusercontent.com/lucasasselli/zero/master/wallpapers/00003.mp4",
+        "width": 500,
+        "height": 500,
+        "durationSec": 5,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 1098442
+      },
+      {
+        "path": "wallpapers/00005.mp4",
+        "url": "https://raw.githubusercontent.com/lucasasselli/zero/master/wallpapers/00005.mp4",
+        "width": 500,
+        "height": 500,
+        "durationSec": 5,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 3654932
+      }
+    ]
+  },
+  {
+    "full": "IlyaKotomin/Godot-SuperWallpaper-Template",
+    "stars": 68,
+    "description": "Godot 4 template for building immersive, animated Super Wallpapers with Hyprland & Hyprlock integration.",
+    "license": "MIT",
+    "repoSizeKb": 8289,
+    "pushedAt": "2025-07-09T22:49:36Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 9377652,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/preview.mp4",
+        "url": "https://raw.githubusercontent.com/IlyaKotomin/Godot-SuperWallpaper-Template/master/assets/preview.mp4",
+        "width": 2560,
+        "height": 1440,
+        "durationSec": 29.11,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 9377652
+      }
+    ]
+  },
+  {
+    "full": "JoshuaThadi/Wall-E-Desk",
+    "stars": 60,
+    "description": "A curated collection of aesthetic desktop and mobile wallpapers, Asthetic wallpapers, animated GIFs for banners, and clean web design layout inspirations.",
+    "license": "MIT",
+    "repoSizeKb": 2816769,
+    "pushedAt": "2026-08-18T16:12:22Z",
+    "branch": "main",
+    "videoCount": 26,
+    "videoBytes": 1107206190,
+    "withinLimitCount": 23,
+    "mp4Count": 26,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Live Wallpapers/Anime night Room.mp4",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/Anime%20night%20Room.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 38.53,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 8312669
+      },
+      {
+        "path": "Live Wallpapers/beach waves.mp4",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/beach%20waves.mp4",
+        "width": 2560,
+        "height": 1440,
+        "durationSec": 33.05,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 56038183
+      },
+      {
+        "path": "Live Wallpapers/black hole interstellar.mp4",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/black%20hole%20interstellar.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 16.9,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 34439137
+      },
+      {
+        "path": "Live Wallpapers/Chillhop - White Oak.mp4",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/Chillhop%20-%20White%20Oak.mp4",
+        "width": 2880,
+        "height": 1620,
+        "durationSec": 5.38,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 11284737
+      }
+    ]
+  },
+  {
+    "full": "Unayung/wallpaper-engine-mac",
+    "stars": 54,
+    "description": "Patched Open Wallpaper Engine for macOS — adds scene wallpaper rendering and web wallpaper fixes",
+    "license": "GPL-3.0",
+    "repoSizeKb": 117531,
+    "pushedAt": "2026-03-31T05:50:27Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 55034317,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Open Wallpaper Engine/Resources/WallpaperNotFound.mp4",
+        "url": "https://raw.githubusercontent.com/Unayung/wallpaper-engine-mac/main/Open%20Wallpaper%20Engine/Resources/WallpaperNotFound.mp4",
+        "width": 3639,
+        "height": 2048,
+        "durationSec": 30,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 55034317
+      }
+    ]
+  },
+  {
+    "full": "fatihkan/wallnetic",
+    "stars": 52,
+    "description": "Cinematic live wallpapers for macOS — turn any video you own into a living 4K desktop. Dynamic Island, per-Space & multi-monitor wallpapers, photo slideshows, effects, Liquid Glass UI. SwiftUI + Metal, sandboxed, no tracking.",
+    "license": "MIT",
+    "repoSizeKb": 100816,
+    "pushedAt": "2026-08-15T13:52:57Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 11807153,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/assets/demo-video.mp4",
+        "url": "https://raw.githubusercontent.com/fatihkan/wallnetic/main/docs/assets/demo-video.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 20.6,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 11807153
+      }
+    ]
+  },
+  {
+    "full": "mantoufan/yzhanBG",
+    "stars": 48,
+    "description": "Use multiple videos, images, and weather as background, with mute, hide, text, and cherry blossom, rain, snow, firefly, and butterfly animations. 用多个视频、图片、天气作背景，支持静音、隐藏内容、文字，以及樱花、雨、雪、萤火虫和蝴蝶动画",
+    "license": "MIT",
+    "repoSizeKb": 1955,
+    "pushedAt": "2023-05-12T13:35:45Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 1738376,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/bg/1.mp4",
+        "url": "https://raw.githubusercontent.com/mantoufan/yzhanBG/main/docs/bg/1.mp4",
+        "width": 1244,
+        "height": 700,
+        "durationSec": 9.03,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 865904
+      },
+      {
+        "path": "docs/bg/3.mp4",
+        "url": "https://raw.githubusercontent.com/mantoufan/yzhanBG/main/docs/bg/3.mp4",
+        "width": 640,
+        "height": 360,
+        "durationSec": 15.07,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 872472
+      }
+    ]
+  },
+  {
+    "full": "Mjoyufull/Kaleidux",
+    "stars": 37,
+    "description": "Kaleidux is a high-performance, dynamic wallpaper daemon for Linux, supporting both Wayland (via Layer-Shell) and X11. It transforms your desktop with smooth, hardware-accelerated transitions between images and videos.",
+    "license": "AGPL-3.0",
+    "repoSizeKb": 3592,
+    "pushedAt": "2026-07-28T07:00:56Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 1134881,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "1872997812146979197_by_asunan6618.mp4",
+        "url": "https://raw.githubusercontent.com/Mjoyufull/Kaleidux/main/1872997812146979197_by_asunan6618.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 5.03,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 1134881
+      }
+    ]
+  },
+  {
+    "full": "razaghimahdi/RainingLightsAnimation",
+    "stars": 36,
+    "description": "RainingLights is a library designed to bring beautiful, dynamic loading animations to your Android apps using Jetpack Compose.",
+    "license": "Apache-2.0",
+    "repoSizeKb": 4727,
+    "pushedAt": "2023-05-26T07:57:20Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 253145,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "screenshots/doc_2023-03-25_16-54-31.mp4",
+        "url": "https://raw.githubusercontent.com/razaghimahdi/RainingLightsAnimation/master/screenshots/doc_2023-03-25_16-54-31.mp4",
+        "width": 394,
+        "height": 854,
+        "durationSec": 6.51,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 253145
+      }
+    ]
+  },
+  {
+    "full": "Theldus/anipaper",
+    "stars": 34,
+    "description": "📽 A simple X11+SDL2 animated wallpaper setter and video player",
+    "license": "MIT",
+    "repoSizeKb": 5658,
+    "pushedAt": "2022-11-07T19:31:17Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 5488598,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "bench/lake1440p_60.mp4",
+        "url": "https://raw.githubusercontent.com/Theldus/anipaper/master/bench/lake1440p_60.mp4",
+        "width": 2560,
+        "height": 1440,
+        "durationSec": 16.45,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 5488598
+      }
+    ]
+  },
+  {
+    "full": "slastra/hyprglaze",
+    "stars": 32,
+    "description": "Wayland shader wallpaper daemon for Hyprland with modular effects, color schemes, and AI desktop buddy",
+    "license": "MIT",
+    "repoSizeKb": 47791,
+    "pushedAt": "2026-08-07T06:05:40Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 9981397,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "demo.mp4",
+        "url": "https://raw.githubusercontent.com/slastra/hyprglaze/master/demo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 45.1,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 9981397
+      }
+    ]
+  },
+  {
+    "full": "Jack02134x/hyprlock-mp4-guide",
+    "stars": 30,
+    "description": "A workaround that brings animated MP4 wallpapers to Hyprlock using mpvpaper overlays on Hyprland.",
+    "license": "NONE",
+    "repoSizeKb": 1377,
+    "pushedAt": "2025-12-17T13:07:53Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 1130120,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "breathe.mp4",
+        "url": "https://raw.githubusercontent.com/Jack02134x/hyprlock-mp4-guide/main/breathe.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 4.38,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 1130120
+      }
+    ]
+  },
+  {
+    "full": "zeroruka/video-wallpaper-scripts",
+    "stars": 28,
+    "description": "Some scripts to use video wallpapers on linux",
+    "license": "MIT",
+    "repoSizeKb": 212067,
+    "pushedAt": "2022-12-25T17:20:16Z",
+    "branch": "main",
+    "videoCount": 5,
+    "videoBytes": 58314734,
+    "withinLimitCount": 5,
+    "mp4Count": 5,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "examples/1.mp4",
+        "url": "https://raw.githubusercontent.com/zeroruka/video-wallpaper-scripts/main/examples/1.mp4",
+        "width": 2560,
+        "height": 1440,
+        "durationSec": 6.68,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 4870203
+      },
+      {
+        "path": "examples/2.mp4",
+        "url": "https://raw.githubusercontent.com/zeroruka/video-wallpaper-scripts/main/examples/2.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 160,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 30269373
+      },
+      {
+        "path": "examples/3.mp4",
+        "url": "https://raw.githubusercontent.com/zeroruka/video-wallpaper-scripts/main/examples/3.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 6.83,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 2664834
+      },
+      {
+        "path": "examples/4.mp4",
+        "url": "https://raw.githubusercontent.com/zeroruka/video-wallpaper-scripts/main/examples/4.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 2,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 428518
+      }
+    ]
+  },
+  {
+    "full": "DibbayajyotiRoy/Fresco",
+    "stars": 28,
+    "description": "Live wallpapers for Linux — video, GIF, image & slideshow wallpapers with hardware-accelerated playback. Free Wallpaper Engine alternative for X11 + Wayland (COSMIC, Hyprland, Sway, KDE Plasma 6).",
+    "license": "GPL-3.0",
+    "repoSizeKb": 10055,
+    "pushedAt": "2026-08-21T09:27:07Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 706198,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "landing/public/demo-wallpaper.mp4",
+        "url": "https://raw.githubusercontent.com/DibbayajyotiRoy/Fresco/main/landing/public/demo-wallpaper.mp4",
+        "width": 720,
+        "height": 540,
+        "durationSec": 14.33,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 706198
+      }
+    ]
+  },
+  {
+    "full": "muhammadahmad665/live-wallpaper",
+    "stars": 26,
+    "description": "Create stunning Live Wallpapers from your videos! This iOS app converts regular videos into Apple Live Photos that work as interactive Lock Screen wallpapers. Features video trimming, optimization, and direct Photos integration.",
+    "license": "MIT",
+    "repoSizeKb": 21393,
+    "pushedAt": "2026-07-16T22:08:26Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 397484,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "live Wallpaper/sample.mp4",
+        "url": "https://raw.githubusercontent.com/muhammadahmad665/live-wallpaper/main/live%20Wallpaper/sample.mp4",
+        "width": 720,
+        "height": 1280,
+        "durationSec": 10.08,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 397484
+      }
+    ]
+  },
+  {
+    "full": "Thamkench/uav-speedlab",
+    "stars": 26,
+    "description": "UAV vehicle speed estimation under oblique views using YOLOv11, BoT-SORT and homography-based background motion compensation.",
+    "license": "NONE",
+    "repoSizeKb": 1250229,
+    "pushedAt": "2025-12-26T05:29:08Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 15878039,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "data/output/demo_M0703.mp4",
+        "url": "https://raw.githubusercontent.com/Thamkench/uav-speedlab/main/data/output/demo_M0703.mp4",
+        "width": 1024,
+        "height": 540,
+        "durationSec": 22.77,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 6308804
+      },
+      {
+        "path": "data/output/demo_M1003.mp4",
+        "url": "https://raw.githubusercontent.com/Thamkench/uav-speedlab/main/data/output/demo_M1003.mp4",
+        "width": 1024,
+        "height": 540,
+        "durationSec": 44.87,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 5836779
+      },
+      {
+        "path": "data/output/demo_M1303.mp4",
+        "url": "https://raw.githubusercontent.com/Thamkench/uav-speedlab/main/data/output/demo_M1303.mp4",
+        "width": 1024,
+        "height": 540,
+        "durationSec": 14.83,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 3732456
+      }
+    ]
+  },
+  {
+    "full": "fia0/enkei",
+    "stars": 25,
+    "description": "A wayland wallpaper tool with support for GNOME dynamic wallpapers",
+    "license": "GPL-3.0",
+    "repoSizeKb": 27008,
+    "pushedAt": "2022-03-09T18:31:56Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 5474487,
+    "withinLimitCount": 1,
+    "mp4Count": 0,
+    "webmCount": 1,
+    "truncated": false,
+    "picks": []
+  },
+  {
+    "full": "tsukiforge/ZeroMix",
+    "stars": 25,
+    "description": "ZeroMix New Generations",
+    "license": "MIT",
+    "repoSizeKb": 1115351,
+    "pushedAt": "2026-08-15T07:44:40Z",
+    "branch": "ProyekTil",
+    "videoCount": 12,
+    "videoBytes": 166489649,
+    "withinLimitCount": 12,
+    "mp4Count": 12,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Assets/Data/Video/Vs (1).mp4",
+        "url": "https://raw.githubusercontent.com/tsukiforge/ZeroMix/ProyekTil/Assets/Data/Video/Vs%20(1).mp4",
+        "width": 2048,
+        "height": 1080,
+        "durationSec": 10.01,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 3905920
+      },
+      {
+        "path": "Assets/Data/Video/Vs (2).mp4",
+        "url": "https://raw.githubusercontent.com/tsukiforge/ZeroMix/ProyekTil/Assets/Data/Video/Vs%20(2).mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 21,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 67542280
+      },
+      {
+        "path": "Assets/Data/Video/Vs (3).mp4",
+        "url": "https://raw.githubusercontent.com/tsukiforge/ZeroMix/ProyekTil/Assets/Data/Video/Vs%20(3).mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 4.02,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 8650734
+      },
+      {
+        "path": "Assets/Data/Video/Vs (5).mp4",
+        "url": "https://raw.githubusercontent.com/tsukiforge/ZeroMix/ProyekTil/Assets/Data/Video/Vs%20(5).mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 14.21,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 1597710
+      }
+    ]
+  },
+  {
+    "full": "acodega/wallpappr",
+    "stars": 23,
+    "description": "An easy to deploy dynamic wallpaper picker for Self Service",
+    "license": "MIT",
+    "repoSizeKb": 795,
+    "pushedAt": "2025-03-19T19:18:30Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 793011,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "wallpappr-demo.mp4",
+        "url": "https://raw.githubusercontent.com/acodega/wallpappr/main/wallpappr-demo.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 13.27,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 793011
+      }
+    ]
+  },
+  {
+    "full": "Morteza-Asadi-Shalmaiy/Motion-Detection",
+    "stars": 22,
+    "description": "Real-time motion detection with OpenCV using running-average background subtraction — CLI tool with tests, plus the original Colab notebook",
+    "license": "MIT",
+    "repoSizeKb": 13435,
+    "pushedAt": "2026-08-05T16:59:41Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 8487973,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/result-test-video.mp4",
+        "url": "https://raw.githubusercontent.com/Morteza-Asadi-Shalmaiy/Motion-Detection/main/assets/result-test-video.mp4",
+        "width": 500,
+        "height": 280,
+        "durationSec": 61,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 2081825
+      },
+      {
+        "path": "assets/test-video.mp4",
+        "url": "https://raw.githubusercontent.com/Morteza-Asadi-Shalmaiy/Motion-Detection/main/assets/test-video.mp4",
+        "width": 768,
+        "height": 432,
+        "durationSec": 61.03,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 6406148
+      }
+    ]
+  },
+  {
+    "full": "saurabhanimesh/Complete-Professional-Company-Website",
+    "stars": 21,
+    "description": "This is a dynamic website for business purposes. The users can check out the services while interacting with very blissful and beautiful interface. The users can click on the call button from anywhere on the website and directly they would be transferred to the call app where the number is already entered which makes it very much easier for the users to call the company. Then there’s the concept of Time square New York used in this website because Time square correctly signifies the loads and beauty of sign boards at the same time simultaneously. The first page of the website contains a video of Time square and on the other pages the High quality pictures of Time square has been used. The users can read the details of the previous projects of the company and can also read about the services and products that the company is offering to their customers. The users can also demand request on this website after which the company will call them and hence will proceed the deal. This website contains a slide bar in the services and projects menu by which users can smoothly check the services and projects. The website’s been designed fully for every platforms available currently. It is responsive in very possible way and manner which makes this website robust. For the front end part of this websites – HTML, CSS and JAVA SCRIPT has been used and for the backend part NODE.JS has been used. In backend of my website the modules of Express (for serving purpose) has been used. The backend server and data base of Google’s Firebase has been used and all the server part of the work and data base works has been done through there. Firebase Cloud function has been used to serve the website dynamically and this hosting can been done only if we are willing to be a paid user for Firebase. In this website creation no template, bootstrap or any other already coded mechanism has been used. This website has been coded from the scratch and everything in this website is completely manually coded from the scratch .This website is all created with HTML for structuring, CSS for Designing and for additional dynamic functions Java Script has been used. The data base used in it is of Google’s Firebase. Firebase is the best platform for forming a Backend for mobile applications and web application currently across the world. So, every retrieval and fetching of data has been done through Firebase data base and all dynamic data insertion has also been done through that. The hosting of the website has been done also by the firebase server. Media query has been used for making the website responsive for every platform available and every minute details has been taken care off in it. For the background a professional high quality picture has been taken from pexels.com.  For the Review Looping part of the website, looping, Time interval function and data retrieval from the Firebase database.   For the animation part on scrolling, AOS (Animation on Scroll) has been used.   Images and every photos are used in these website with the help of Firebase Storage Functionality, From there only we are fetching the images (of books and blogs) and showing it in here.  A pre loader has been used before the starting of website to let the images get loaded properly so that the users do not faces any difficulties  For social handling visit purposes, href has been used and for sharing purpose of blog this website has been used - https://sharingbuttons.io/ .  The shop section of the website has been coded in a way where the users has to put their information and then that data will be stored in the data base , and from there the company can get connected with that person.  For the side bar slider glider package has been used.  The clicking appearance of a details box where the information of the products or projects has been created by create Element method of Java script and in that element creation and data fetching is happening at the same time. When we click on the product or project back then we used remove child method of java script to make it normal.",
+    "license": "NONE",
+    "repoSizeKb": 19143,
+    "pushedAt": "2023-01-10T05:21:47Z",
+    "branch": "master",
+    "videoCount": 2,
+    "videoBytes": 7496276,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "functions/servefile/mainvideo.mp4",
+        "url": "https://raw.githubusercontent.com/saurabhanimesh/Complete-Professional-Company-Website/master/functions/servefile/mainvideo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 5.03,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 3748138
+      },
+      {
+        "path": "public/mainvideo.mp4",
+        "url": "https://raw.githubusercontent.com/saurabhanimesh/Complete-Professional-Company-Website/master/public/mainvideo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 5.03,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 3748138
+      }
+    ]
+  },
+  {
+    "full": "bourbonicfisky/sonoma-wallpaper-downloader",
+    "stars": 20,
+    "description": "This is a simple Tauri application designed to download the current video wallpaper in macOS Sonoma.",
+    "license": "NONE",
+    "repoSizeKb": 17011,
+    "pushedAt": "2026-03-11T21:03:05Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 13755085,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "public/permissions.mov",
+        "url": "https://raw.githubusercontent.com/bourbonicfisky/sonoma-wallpaper-downloader/main/public/permissions.mov",
+        "width": 730,
+        "height": 540,
+        "durationSec": 6.03,
+        "hasAudio": false,
+        "brand": "qt",
+        "bytes": 726205
+      },
+      {
+        "path": "website/dist/img/loopyclip-HD1080p.mov",
+        "url": "https://raw.githubusercontent.com/bourbonicfisky/sonoma-wallpaper-downloader/main/website/dist/img/loopyclip-HD1080p.mov",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 9.2,
+        "hasAudio": false,
+        "brand": "qt",
+        "bytes": 6514440
+      },
+      {
+        "path": "website/img/loopyclip-HD1080p.mov",
+        "url": "https://raw.githubusercontent.com/bourbonicfisky/sonoma-wallpaper-downloader/main/website/img/loopyclip-HD1080p.mov",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 9.2,
+        "hasAudio": false,
+        "brand": "qt",
+        "bytes": 6514440
+      }
+    ]
+  },
+  {
+    "full": "Cuberto/transparentize-video-demo",
+    "stars": 20,
+    "description": "This is a simple but neat technique to remove the background from a black and white video and color it using the mix-blend-mode property using pure CSS. This technique allows you to emulate various looped and dynamic spheres and shapes without using WebGL with a pre-prepared video.",
+    "license": "NONE",
+    "repoSizeKb": 4888,
+    "pushedAt": "2022-03-05T15:12:18Z",
+    "branch": "master",
+    "videoCount": 1,
+    "videoBytes": 4934816,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "src/static/video/main.mp4",
+        "url": "https://raw.githubusercontent.com/Cuberto/transparentize-video-demo/master/src/static/video/main.mp4",
+        "width": 1024,
+        "height": 1024,
+        "durationSec": 6.7,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 4934816
+      }
+    ]
+  },
+  {
+    "full": "swiftuiux/swiftui-video-player-example",
+    "stars": 19,
+    "description": "SwiftUI video player swift Example for ios add video in the background, loop, app, subtitles, filter, avplayer, pip, srt, vtt, seekbar Video from url SwiftUI swift player, metal shader, metal example swift 비디오 플레이어 视频播放器 ビデオプレーヤー",
+    "license": "NONE",
+    "repoSizeKb": 235090,
+    "pushedAt": "2026-01-20T10:13:49Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 8298435,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "swiftui-loop-videoplayer-example/Resources/apple_logo.mp4",
+        "url": "https://raw.githubusercontent.com/swiftuiux/swiftui-video-player-example/main/swiftui-loop-videoplayer-example/Resources/apple_logo.mp4",
+        "width": 652,
+        "height": 720,
+        "durationSec": 10.98,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 7089194
+      },
+      {
+        "path": "swiftui-loop-videoplayer-example/Resources/swipe.mp4",
+        "url": "https://raw.githubusercontent.com/swiftuiux/swiftui-video-player-example/main/swiftui-loop-videoplayer-example/Resources/swipe.mp4",
+        "width": 600,
+        "height": 476,
+        "durationSec": 5.87,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 1209241
+      }
+    ]
+  },
+  {
+    "full": "GengGode/DynamicWallpaper",
+    "stars": 18,
+    "description": "动态壁纸软件 Win10平台 VS2017 C# WinForm",
+    "license": "NONE",
+    "repoSizeKb": 84969,
+    "pushedAt": "2020-12-16T06:17:05Z",
+    "branch": "master",
+    "videoCount": 3,
+    "videoBytes": 125606974,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "000.mp4",
+        "url": "https://raw.githubusercontent.com/GengGode/DynamicWallpaper/master/000.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 30.04,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 38822288
+      },
+      {
+        "path": "001.mp4",
+        "url": "https://raw.githubusercontent.com/GengGode/DynamicWallpaper/master/001.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 92.09,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 47962398
+      },
+      {
+        "path": "10DirectX12SDK测试/Resources/000.mp4",
+        "url": "https://raw.githubusercontent.com/GengGode/DynamicWallpaper/master/10DirectX12SDK%E6%B5%8B%E8%AF%95/Resources/000.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 30.04,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 38822288
+      }
+    ]
+  },
+  {
+    "full": "RitvikDayal/featherwall",
+    "stars": 17,
+    "description": "A featherweight live-wallpaper engine for Windows 10/11. Video and image wallpapers, a designed clock widget, one process, no browser engine.",
+    "license": "MIT",
+    "repoSizeKb": 15903,
+    "pushedAt": "2026-08-20T14:21:36Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 2534316,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/media/featherwall-demo.mp4",
+        "url": "https://raw.githubusercontent.com/RitvikDayal/featherwall/main/docs/media/featherwall-demo.mp4",
+        "width": 1440,
+        "height": 900,
+        "durationSec": 9,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 2534316
+      }
+    ]
+  },
+  {
+    "full": "shakeebshaan/packet-highway",
+    "stars": 13,
+    "description": "Your network traffic as rush hour - live packets rendered as 3D vehicles on a night highway, running behind your Windows desktop icons. Zero dependencies. Built with Claude Fable 5.",
+    "license": "MIT",
+    "repoSizeKb": 19191,
+    "pushedAt": "2026-06-24T16:33:52Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 5532237,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "media/demo.mp4",
+        "url": "https://raw.githubusercontent.com/shakeebshaan/packet-highway/main/media/demo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 30,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 5532237
+      }
+    ]
+  },
+  {
+    "full": "HankHuang0516/EClaw",
+    "stars": 12,
+    "description": "E-Claw - OpenClaw Channel for agent-to-agent communication",
+    "license": "MIT",
+    "repoSizeKb": 436447,
+    "pushedAt": "2026-07-31T13:56:26Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 4612817,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "backend/public/portal/assets/day144_3p0_ship.mp4",
+        "url": "https://raw.githubusercontent.com/HankHuang0516/EClaw/main/backend/public/portal/assets/day144_3p0_ship.mp4",
+        "width": 1080,
+        "height": 1920,
+        "durationSec": 58,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 2409850
+      },
+      {
+        "path": "backend/public/promo-videos/chat-avatar-size-2026-05-13.mp4",
+        "url": "https://raw.githubusercontent.com/HankHuang0516/EClaw/main/backend/public/promo-videos/chat-avatar-size-2026-05-13.mp4",
+        "width": 1280,
+        "height": 720,
+        "durationSec": 80,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 2202967
+      }
+    ]
+  },
+  {
+    "full": "JeffreyChen-SteamProjects/FrontEngine",
+    "stars": 9,
+    "description": "FrontEngine software  that can use-define front end or only use like screen saver",
+    "license": "MIT",
+    "repoSizeKb": 93642,
+    "pushedAt": "2026-08-02T19:49:36Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 2288693,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "exe/daisy bell.mp4",
+        "url": "https://raw.githubusercontent.com/JeffreyChen-SteamProjects/FrontEngine/main/exe/daisy%20bell.mp4",
+        "width": 960,
+        "height": 720,
+        "durationSec": 38.52,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 2288693
+      }
+    ]
+  },
+  {
+    "full": "Victory-SergD/SergD_LoFiTyan",
+    "stars": 8,
+    "description": "🎧 Free & open-source desktop app for focus & cozy vibes — real lo-fi internet radio, animated live wallpapers & ambient sounds (rain · thunder · forest · campfire). macOS · Windows · Linux. Built with Tauri.",
+    "license": "MIT",
+    "repoSizeKb": 93177,
+    "pushedAt": "2026-06-19T06:01:09Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 2504995,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "public/assets/default-bg/lofi-girl-autumn.mp4",
+        "url": "https://raw.githubusercontent.com/Victory-SergD/SergD_LoFiTyan/main/public/assets/default-bg/lofi-girl-autumn.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 21.2,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 2504995
+      }
+    ]
+  },
+  {
+    "full": "sricharankrishnan/awesome-jquery-html5-background-video-plugin",
+    "stars": 7,
+    "description": "Jquery based plugin to help render and play continuous looping HTML5 Video in the background of an element. Responsive build.",
+    "license": "MIT",
+    "repoSizeKb": 31969,
+    "pushedAt": "2022-10-06T09:29:51Z",
+    "branch": "master",
+    "videoCount": 4,
+    "videoBytes": 22862046,
+    "withinLimitCount": 4,
+    "mp4Count": 2,
+    "webmCount": 2,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/videos/jumbotron-bg-1a-video.mp4",
+        "url": "https://raw.githubusercontent.com/sricharankrishnan/awesome-jquery-html5-background-video-plugin/master/assets/videos/jumbotron-bg-1a-video.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 10.84,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 7794662
+      },
+      {
+        "path": "assets/videos/jumbotron-bg-2-video.mp4",
+        "url": "https://raw.githubusercontent.com/sricharankrishnan/awesome-jquery-html5-background-video-plugin/master/assets/videos/jumbotron-bg-2-video.mp4",
+        "width": 1080,
+        "height": 2048,
+        "durationSec": 14.96,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 4472242
+      }
+    ]
+  },
+  {
+    "full": "mmnj40/wallpaper-enyeet",
+    "stars": 7,
+    "description": "An example of unity being used as a live-wallpaper.",
+    "license": "MIT",
+    "repoSizeKb": 40628,
+    "pushedAt": "2024-05-25T15:45:50Z",
+    "branch": "main",
+    "videoCount": 2,
+    "videoBytes": 38534015,
+    "withinLimitCount": 2,
+    "mp4Count": 2,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "Assets/_Resource/Video/black_hole.mp4",
+        "url": "https://raw.githubusercontent.com/mmnj40/wallpaper-enyeet/main/Assets/_Resource/Video/black_hole.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 11.27,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 10502903
+      },
+      {
+        "path": "Assets/_Resource/Video/gon_rage.mp4",
+        "url": "https://raw.githubusercontent.com/mmnj40/wallpaper-enyeet/main/Assets/_Resource/Video/gon_rage.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 20.25,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 28031112
+      }
+    ]
+  },
+  {
+    "full": "dkydivyansh/Librewall",
+    "stars": 6,
+    "description": "The open-source, high-performance alternative to proprietary wallpaper engines.",
+    "license": "GPL-3.0",
+    "repoSizeKb": 283847,
+    "pushedAt": "2026-08-16T01:17:07Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 34381359,
+    "withinLimitCount": 3,
+    "mp4Count": 1,
+    "webmCount": 2,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "src/wallpapers/29/video.mp4",
+        "url": "https://raw.githubusercontent.com/dkydivyansh/Librewall/main/src/wallpapers/29/video.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 20.07,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 25662499
+      }
+    ]
+  },
+  {
+    "full": "SniperRavan/Wallpapers",
+    "stars": 5,
+    "description": "aesthetic wallpapers i use daily — lock screen | desktop | slideshow 🎴",
+    "license": "NONE",
+    "repoSizeKb": 195023,
+    "pushedAt": "2026-06-29T17:49:54Z",
+    "branch": "main",
+    "videoCount": 6,
+    "videoBytes": 170713285,
+    "withinLimitCount": 6,
+    "mp4Count": 6,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "My-laptop-wallpaper/crazy-anime-girl-moewalls-com.mp4",
+        "url": "https://raw.githubusercontent.com/SniperRavan/Wallpapers/main/My-laptop-wallpaper/crazy-anime-girl-moewalls-com.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 27.88,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 72004110
+      },
+      {
+        "path": "My-laptop-wallpaper/guts-black-swordsman-berserker-moewalls-com.mp4",
+        "url": "https://raw.githubusercontent.com/SniperRavan/Wallpapers/main/My-laptop-wallpaper/guts-black-swordsman-berserker-moewalls-com.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 25.15,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 33362006
+      },
+      {
+        "path": "My-laptop-wallpaper/lonely-spongebob-in-krusty-krab-moewalls-com.mp4",
+        "url": "https://raw.githubusercontent.com/SniperRavan/Wallpapers/main/My-laptop-wallpaper/lonely-spongebob-in-krusty-krab-moewalls-com.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 15.05,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 22629843
+      },
+      {
+        "path": "My-laptop-wallpaper/rengoku-death-kimetsu-no-yaiba-moewalls.com.mp4",
+        "url": "https://raw.githubusercontent.com/SniperRavan/Wallpapers/main/My-laptop-wallpaper/rengoku-death-kimetsu-no-yaiba-moewalls.com.mp4",
+        "width": 2560,
+        "height": 1440,
+        "durationSec": 20.52,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 33715912
+      }
+    ]
+  },
+  {
+    "full": "JayexDesigns/custom-particles-wallpaper",
+    "stars": 4,
+    "description": "A JavaScript canvas animation of particles",
+    "license": "NONE",
+    "repoSizeKb": 38394,
+    "pushedAt": "2024-07-21T23:32:07Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 5939553,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/particles.mp4",
+        "url": "https://raw.githubusercontent.com/JayexDesigns/custom-particles-wallpaper/main/assets/particles.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 10.92,
+        "hasAudio": true,
+        "brand": "mp42",
+        "bytes": 5939553
+      }
+    ]
+  },
+  {
+    "full": "Inside4ndroid/DeskEngine",
+    "stars": 2,
+    "description": "A desktop customisation tool including video wallpapers and desktop widgets.",
+    "license": "GPL-3.0",
+    "repoSizeKb": 195300,
+    "pushedAt": "2026-05-16T16:02:03Z",
+    "branch": "main",
+    "videoCount": 3,
+    "videoBytes": 113199362,
+    "withinLimitCount": 3,
+    "mp4Count": 3,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "public/Wallpapers/Aroura.mp4",
+        "url": "https://raw.githubusercontent.com/Inside4ndroid/DeskEngine/main/public/Wallpapers/Aroura.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 13.78,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 22795500
+      },
+      {
+        "path": "public/Wallpapers/Coder.mp4",
+        "url": "https://raw.githubusercontent.com/Inside4ndroid/DeskEngine/main/public/Wallpapers/Coder.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 20.03,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 19333862
+      },
+      {
+        "path": "public/Wallpapers/Particles.mp4",
+        "url": "https://raw.githubusercontent.com/Inside4ndroid/DeskEngine/main/public/Wallpapers/Particles.mp4",
+        "width": 3840,
+        "height": 2160,
+        "durationSec": 30,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 71070000
+      }
+    ]
+  },
+  {
+    "full": "MISTERNEGATIVE21/omywall",
+    "stars": 1,
+    "description": "Ultra-Lightweight Hardware-Accelerated Video, Web 3D & Desktop Wallpaper Engine for Linux Wayland with NVIDIA/CUDA Acceleration",
+    "license": "NONE",
+    "repoSizeKb": 559122,
+    "pushedAt": "2026-08-18T04:03:21Z",
+    "branch": "master",
+    "videoCount": 8,
+    "videoBytes": 62445344,
+    "withinLimitCount": 8,
+    "mp4Count": 5,
+    "webmCount": 3,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/wallpapers/bunny.mp4",
+        "url": "https://raw.githubusercontent.com/MISTERNEGATIVE21/omywall/master/assets/wallpapers/bunny.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 60,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 43819848
+      },
+      {
+        "path": "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/kinect.mp4",
+        "url": "https://raw.githubusercontent.com/MISTERNEGATIVE21/omywall/master/assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/kinect.mp4",
+        "width": 474,
+        "height": 490,
+        "durationSec": 34.41,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 4098067
+      },
+      {
+        "path": "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/MaryOculus.mp4",
+        "url": "https://raw.githubusercontent.com/MISTERNEGATIVE21/omywall/master/assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/MaryOculus.mp4",
+        "width": 2048,
+        "height": 1024,
+        "durationSec": 4.96,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 523471
+      },
+      {
+        "path": "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/pano.mp4",
+        "url": "https://raw.githubusercontent.com/MISTERNEGATIVE21/omywall/master/assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/pano.mp4",
+        "width": 2160,
+        "height": 1080,
+        "durationSec": 7.52,
+        "hasAudio": false,
+        "brand": "mp42",
+        "bytes": 962456
+      }
+    ]
+  },
+  {
+    "full": "molamola-xtq/TQwallpaper",
+    "stars": 1,
+    "description": "macOS menu-bar app that plays any local video as a looping desktop wallpaper, with power-aware pause and freeze-frame to static. Swift + AppKit, bring-your-own content.",
+    "license": "MIT",
+    "repoSizeKb": 3764,
+    "pushedAt": "2026-08-16T15:59:06Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 414194,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/demo/demo.mp4",
+        "url": "https://raw.githubusercontent.com/molamola-xtq/TQwallpaper/main/docs/demo/demo.mp4",
+        "width": 640,
+        "height": 360,
+        "durationSec": 6,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 414194
+      }
+    ]
+  },
+  {
+    "full": "Bowarc/lumin",
+    "stars": 1,
+    "description": "Animated wallpaper manager in rust ",
+    "license": "NONE",
+    "repoSizeKb": 19844,
+    "pushedAt": "2024-05-30T15:21:06Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 7652478,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "assets/demo.mp4",
+        "url": "https://raw.githubusercontent.com/Bowarc/lumin/main/assets/demo.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 25.13,
+        "hasAudio": true,
+        "brand": "isom",
+        "bytes": 7652478
+      }
+    ]
+  },
+  {
+    "full": "legeeknumero1/wpe-setup",
+    "stars": 1,
+    "description": "Wallpaper Engine wallpapers on Linux in one command — with prerequisite checks, automatic backup and a rollback that actually restores.",
+    "license": "MIT",
+    "repoSizeKb": 15923,
+    "pushedAt": "2026-08-11T13:06:12Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 3581992,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "docs/demo.mp4",
+        "url": "https://raw.githubusercontent.com/legeeknumero1/wpe-setup/main/docs/demo.mp4",
+        "width": 1440,
+        "height": 810,
+        "durationSec": 15.7,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 3581992
+      }
+    ]
+  },
+  {
+    "full": "Ismail-Rhoulam/live-wallpaper",
+    "stars": 0,
+    "description": "A lightweight full-screen HTML video page you can host and use as a Plash (macOS) wallpaper background.",
+    "license": "MIT",
+    "repoSizeKb": 114533,
+    "pushedAt": "2026-02-02T09:08:57Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 7210828,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": []
+  },
+  {
+    "full": "MerceMay/VelaWall",
+    "stars": 0,
+    "description": "Open-source video and image live wallpaper for Android",
+    "license": "GPL-3.0",
+    "repoSizeKb": 10239,
+    "pushedAt": "2026-07-26T15:58:49Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 581592,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "app/src/main/res/raw/velawall_default.mp4",
+        "url": "https://raw.githubusercontent.com/MerceMay/VelaWall/main/app/src/main/res/raw/velawall_default.mp4",
+        "width": 720,
+        "height": 1280,
+        "durationSec": 6,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 581592
+      }
+    ]
+  },
+  {
+    "full": "LjcYounger/WallpaperWindowEmbedder",
+    "stars": 0,
+    "description": "Turn any border window into a dynamic wallpaper on Windows.",
+    "license": "MIT",
+    "repoSizeKb": 542,
+    "pushedAt": "2026-02-06T03:52:42Z",
+    "branch": "main",
+    "videoCount": 1,
+    "videoBytes": 556798,
+    "withinLimitCount": 1,
+    "mp4Count": 1,
+    "webmCount": 0,
+    "truncated": false,
+    "picks": [
+      {
+        "path": "test.mp4",
+        "url": "https://raw.githubusercontent.com/LjcYounger/WallpaperWindowEmbedder/main/test.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationSec": 10,
+        "hasAudio": false,
+        "brand": "isom",
+        "bytes": 556798
+      }
+    ]
+  }
+]

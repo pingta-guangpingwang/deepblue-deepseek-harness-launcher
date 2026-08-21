@@ -1,0 +1,3360 @@
+[
+  {
+    "full": "HyDE-Project/hyde-gallery",
+    "stars": 290,
+    "description": "\\\\ Repository for supported HyDE themes.",
+    "license": "GPL-3.0",
+    "branch": "master",
+    "pushedAt": "2026-06-14T01:09:36Z",
+    "candidateFiles": 6,
+    "animatedFound": 6,
+    "landscapeCount": 6,
+    "picks": [
+      {
+        "path": "Breezy Autumn/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Breezy%20Autumn/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2171133,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Cosmic Blue/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Cosmic%20Blue/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2283555,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Moonlight/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Moonlight/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 3540525,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Nier/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Nier/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1200,
+        "bytes": 4112851,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Peace Of Mind/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Peace%20Of%20Mind/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2197929,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Timeless Dream/overview.gif",
+        "url": "https://raw.githubusercontent.com/HyDE-Project/hyde-gallery/master/Timeless%20Dream/overview.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 3152417,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      }
+    ]
+  },
+  {
+    "full": "fr0st-xyz/wallz",
+    "stars": 209,
+    "description": "⛅ \\\\ A collection of cool wallpapers for your desktop.",
+    "license": "GPL-3.0",
+    "branch": "main",
+    "pushedAt": "2026-05-19T21:27:28Z",
+    "candidateFiles": 10,
+    "animatedFound": 6,
+    "landscapeCount": 6,
+    "picks": [
+      {
+        "path": "Animated/01. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/01.%20Animated.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 4086807,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Animated/02. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/02.%20Animated.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 4008067,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Animated/03. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/03.%20Animated.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1765815,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Animated/04. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/04.%20Animated.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1150987,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Animated/05. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/05.%20Animated.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1178,
+        "bytes": 1075045,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Animated/06. Animated.gif",
+        "url": "https://raw.githubusercontent.com/fr0st-xyz/wallz/main/Animated/06.%20Animated.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 540,
+        "bytes": 355563,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "dharmx/walls",
+    "stars": 8570,
+    "description": "All of my wallpapers in one repo.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2024-03-06T05:28:21Z",
+    "candidateFiles": 23,
+    "animatedFound": 5,
+    "landscapeCount": 5,
+    "picks": [
+      {
+        "path": "animated/box.gif",
+        "url": "https://raw.githubusercontent.com/dharmx/walls/main/animated/box.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 683,
+        "bytes": 1912554,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "animated/city.gif",
+        "url": "https://raw.githubusercontent.com/dharmx/walls/main/animated/city.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2511864,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "animated/fireplace.gif",
+        "url": "https://raw.githubusercontent.com/dharmx/walls/main/animated/fireplace.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 670249,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "animated/moon.gif",
+        "url": "https://raw.githubusercontent.com/dharmx/walls/main/animated/moon.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2816684,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "animated/sailor-moon-window.gif",
+        "url": "https://raw.githubusercontent.com/dharmx/walls/main/animated/sailor-moon-window.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1777092,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "elapse-d/foo-Wallpaper-Feh-Gif",
+    "stars": 492,
+    "description": "just a loop who set wallpaper for display gif,  support transparency",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2022-07-06T06:25:38Z",
+    "candidateFiles": 11,
+    "animatedFound": 6,
+    "landscapeCount": 5,
+    "picks": [
+      {
+        "path": "desktop-animation2.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/desktop-animation2.gif",
+        "format": "gif",
+        "width": 1366,
+        "height": 768,
+        "bytes": 7589542,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "desktop-animation4.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/desktop-animation4.gif",
+        "format": "gif",
+        "width": 1366,
+        "height": 768,
+        "bytes": 1505801,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/beautycity.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/gif/beautycity.gif",
+        "format": "gif",
+        "width": 870,
+        "height": 388,
+        "bytes": 1862911,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/cityange.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/gif/cityange.gif",
+        "format": "gif",
+        "width": 1068,
+        "height": 600,
+        "bytes": 4310758,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/cityHaute.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/gif/cityHaute.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 720,
+        "bytes": 298925,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/corps.gif",
+        "url": "https://raw.githubusercontent.com/elapse-d/foo-Wallpaper-Feh-Gif/master/gif/corps.gif",
+        "format": "gif",
+        "width": 1200,
+        "height": 641,
+        "bytes": 369418,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "JoydeepMallick/Wallpapers",
+    "stars": 311,
+    "description": "人類に偉大な目的をもたらす壁紙",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-08-15T13:56:57Z",
+    "candidateFiles": 21,
+    "animatedFound": 6,
+    "landscapeCount": 5,
+    "picks": [
+      {
+        "path": "VideoWallpapers/box.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/box.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 683,
+        "bytes": 1912554,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "VideoWallpapers/city.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/city.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 2511864,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "VideoWallpapers/fireplace.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/fireplace.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 670249,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "VideoWallpapers/gas_station.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/gas_station.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1765815,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "VideoWallpapers/kirokaze-0.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/kirokaze-0.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 720,
+        "bytes": 1502895,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "VideoWallpapers/kirokaze-1.gif",
+        "url": "https://raw.githubusercontent.com/JoydeepMallick/Wallpapers/main/VideoWallpapers/kirokaze-1.gif",
+        "format": "gif",
+        "width": 960,
+        "height": 540,
+        "bytes": 312447,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "D3Ext/aesthetic-wallpapers",
+    "stars": 3453,
+    "description": "An awesome collection of aesthetic wallpapers ",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2025-06-17T12:47:43Z",
+    "candidateFiles": 15,
+    "animatedFound": 6,
+    "landscapeCount": 4,
+    "picks": [
+      {
+        "path": "images/chill.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/chill.gif",
+        "format": "gif",
+        "width": 960,
+        "height": 486,
+        "bytes": 198001,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/kirokaze_live.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/kirokaze_live.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 540,
+        "bytes": 20164525,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/nord_car_live.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/nord_car_live.gif",
+        "format": "gif",
+        "width": 1280,
+        "height": 540,
+        "bytes": 355563,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/retro_city.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/retro_city.gif",
+        "format": "gif",
+        "width": 2160,
+        "height": 1080,
+        "bytes": 1317810,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/retro_live.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/retro_live.gif",
+        "format": "gif",
+        "width": 498,
+        "height": 280,
+        "bytes": 10031193,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/retro2_live.gif",
+        "url": "https://raw.githubusercontent.com/D3Ext/aesthetic-wallpapers/main/images/retro2_live.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 370873,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "michaelScopic/Wallpapers",
+    "stars": 231,
+    "description": "All the wallpapers I've collected over the past few years. Not sure how all of you guys are finding this",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-07-13T19:48:47Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 2,
+    "picks": [
+      {
+        "path": "animated/alley.gif",
+        "url": "https://raw.githubusercontent.com/michaelScopic/Wallpapers/main/animated/alley.gif",
+        "format": "gif",
+        "width": 4000,
+        "height": 2000,
+        "bytes": 674803,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "animated/trees.gif",
+        "url": "https://raw.githubusercontent.com/michaelScopic/Wallpapers/main/animated/trees.gif",
+        "format": "gif",
+        "width": 1600,
+        "height": 900,
+        "bytes": 1164729,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      }
+    ]
+  },
+  {
+    "full": "cemenenkoff/norbit",
+    "stars": 3,
+    "description": "Create and explore 3D N-body simulations.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2024-07-31T02:11:26Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 2,
+    "picks": [
+      {
+        "path": "examples/our_solar_system/10_bodies/euler_0t0_10tf_500dt/3d_orbits.gif",
+        "url": "https://raw.githubusercontent.com/cemenenkoff/norbit/main/examples/our_solar_system/10_bodies/euler_0t0_10tf_500dt/3d_orbits.gif",
+        "format": "gif",
+        "width": 2000,
+        "height": 1200,
+        "bytes": 2979363,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/gifs/3d_orbits.gif",
+        "url": "https://raw.githubusercontent.com/cemenenkoff/norbit/main/images/gifs/3d_orbits.gif",
+        "format": "gif",
+        "width": 2000,
+        "height": 1200,
+        "bytes": 4166105,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "KroSheChKa/steam-summer-sale-wallpaper",
+    "stars": 1,
+    "description": "A live wallpaper with a pixel-style clock and date. Dedicated to Steam Summer Sale.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-04-26T05:53:27Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 2,
+    "picks": [
+      {
+        "path": "assets/background_100%.gif",
+        "url": "https://raw.githubusercontent.com/KroSheChKa/steam-summer-sale-wallpaper/main/assets/background_100%25.gif",
+        "format": "gif",
+        "width": 2356,
+        "height": 765,
+        "bytes": 1018406,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/background.gif",
+        "url": "https://raw.githubusercontent.com/KroSheChKa/steam-summer-sale-wallpaper/main/assets/background.gif",
+        "format": "gif",
+        "width": 4434,
+        "height": 1440,
+        "bytes": 2321056,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "preview.gif",
+        "url": "https://raw.githubusercontent.com/KroSheChKa/steam-summer-sale-wallpaper/main/preview.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 256,
+        "bytes": 488475,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "mylinuxforwork/wallpaper",
+    "stars": 775,
+    "description": "My personal collection of wallpapers. Works great on all desktop environments.",
+    "license": "GPL-2.0",
+    "branch": "main",
+    "pushedAt": "2026-08-10T11:29:39Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "street2.gif",
+        "url": "https://raw.githubusercontent.com/mylinuxforwork/wallpaper/main/street2.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1150987,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "FrenzyExists/wallpapers",
+    "stars": 773,
+    "description": "My personal Pick of wallpapers",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2022-12-02T19:06:39Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "Anime/lo-fi-sailor-moon.gif",
+        "url": "https://raw.githubusercontent.com/FrenzyExists/wallpapers/main/Anime/lo-fi-sailor-moon.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1778322,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "orangci/walls",
+    "stars": 417,
+    "description": "orangc's wallpaper repository.",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2025-11-12T08:49:28Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "retro2_live.gif",
+        "url": "https://raw.githubusercontent.com/orangci/walls/master/retro2_live.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 368325,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "dstein64/gifcast",
+    "stars": 244,
+    "description": "Converts an asciinema cast to an animated GIF.",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2026-02-17T17:33:34Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "example.gif",
+        "url": "https://raw.githubusercontent.com/dstein64/gifcast/master/example.gif",
+        "format": "gif",
+        "width": 1460,
+        "height": 836,
+        "bytes": 137971,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "programmersd21/wallr",
+    "stars": 125,
+    "description": "gpu accelerated animated wallpaper engine for wayland",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-08-20T11:34:38Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "samples/extra.gif",
+        "url": "https://raw.githubusercontent.com/programmersd21/wallr/main/samples/extra.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 1700655,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "JoshuaThadi/Wall-E-Desk",
+    "stars": 60,
+    "description": "A curated collection of aesthetic desktop and mobile wallpapers, Asthetic wallpapers, animated GIFs for banners, and clean web design layout inspirations.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-08-18T16:12:22Z",
+    "candidateFiles": 59,
+    "animatedFound": 6,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "Live Wallpapers/levi red.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/levi%20red.gif",
+        "format": "gif",
+        "width": 1936,
+        "height": 1080,
+        "bytes": 9644485,
+        "frames": 1,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Live Wallpapers/pokemon.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Live%20Wallpapers/pokemon.gif",
+        "format": "gif",
+        "width": 1000,
+        "height": 617,
+        "bytes": 9708035,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": true
+      },
+      {
+        "path": "Pixel-Art/balcony.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Pixel-Art/balcony.gif",
+        "format": "gif",
+        "width": 540,
+        "height": 302,
+        "bytes": 876578,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Pixel-Art/boat house nord.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Pixel-Art/boat%20house%20nord.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 300,
+        "bytes": 976861,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Pixel-Art/c++ donot.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Pixel-Art/c%2B%2B%20donot.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 350,
+        "bytes": 603763,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Pixel-Art/car rushhour.gif",
+        "url": "https://raw.githubusercontent.com/JoshuaThadi/Wall-E-Desk/main/Pixel-Art/car%20rushhour.gif",
+        "format": "gif",
+        "width": 960,
+        "height": 540,
+        "bytes": 581103,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "AP3008/Wallpaper-Archive",
+    "stars": 13,
+    "description": "Collection of aesthetic desktop and mobile wallpapers. Includes high quality wallpapers, animated GIFs, and interesting wallpapers for dynamic usage.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-03-08T03:37:33Z",
+    "candidateFiles": 6,
+    "animatedFound": 4,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "Desktop/fireplace.gif",
+        "url": "https://raw.githubusercontent.com/AP3008/Wallpaper-Archive/main/Desktop/fireplace.gif",
+        "format": "gif",
+        "width": 1920,
+        "height": 1080,
+        "bytes": 670249,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Desktop/GIF/06bedfb3ed400da352159a4e4807645d.gif",
+        "url": "https://raw.githubusercontent.com/AP3008/Wallpaper-Archive/main/Desktop/GIF/06bedfb3ed400da352159a4e4807645d.gif",
+        "format": "gif",
+        "width": 870,
+        "height": 388,
+        "bytes": 6207742,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Desktop/GIF/72bdbd20d38ab581aba4eac36a94ffae.gif",
+        "url": "https://raw.githubusercontent.com/AP3008/Wallpaper-Archive/main/Desktop/GIF/72bdbd20d38ab581aba4eac36a94ffae.gif",
+        "format": "gif",
+        "width": 489,
+        "height": 702,
+        "bytes": 753483,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Desktop/GIF/download.gif",
+        "url": "https://raw.githubusercontent.com/AP3008/Wallpaper-Archive/main/Desktop/GIF/download.gif",
+        "format": "gif",
+        "width": 492,
+        "height": 270,
+        "bytes": 1820245,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "wvovaw/gif-wallpaper",
+    "stars": 9,
+    "description": "Set gifs as wallpaper on OS Windows",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2021-04-27T19:12:12Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "assets/moomoo/thieves.gif",
+        "url": "https://raw.githubusercontent.com/wvovaw/gif-wallpaper/master/assets/moomoo/thieves.gif",
+        "format": "gif",
+        "width": 1200,
+        "height": 760,
+        "bytes": 154912,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "ullaskunder3/ullaskunder3",
+    "stars": 7,
+    "description": "A creative software engineer driven by curiosity, focused on building reliable, user-centric solutions with clean design and innovative technologies. Always learning and open to new collaborations.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-08-09T13:44:42Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 1,
+    "picks": [
+      {
+        "path": "Ullas.gif",
+        "url": "https://raw.githubusercontent.com/ullaskunder3/ullaskunder3/main/Ullas.gif",
+        "format": "gif",
+        "width": 1500,
+        "height": 500,
+        "bytes": 227723,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "saint-13/Linux_Dynamic_Wallpapers",
+    "stars": 1240,
+    "description": "Dynamic Wallpapers for Linux",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2024-03-17T18:57:08Z",
+    "candidateFiles": 108,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "Screenshots/Adwaita.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/Adwaita.gif",
+        "format": "gif",
+        "width": 819,
+        "height": 432,
+        "bytes": 1798032,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Screenshots/BigSurV2.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/BigSurV2.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 309225,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Screenshots/ChromeOSBlues.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/ChromeOSBlues.gif",
+        "format": "gif",
+        "width": 237,
+        "height": 237,
+        "bytes": 422639,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Screenshots/ChromeOSReds.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/ChromeOSReds.gif",
+        "format": "gif",
+        "width": 237,
+        "height": 237,
+        "bytes": 402326,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Screenshots/CorporationHall.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/CorporationHall.gif",
+        "format": "gif",
+        "width": 384,
+        "height": 213,
+        "bytes": 1402379,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Screenshots/Desert.gif",
+        "url": "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/main/Screenshots/Desert.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 150,
+        "bytes": 219142,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "kosinix/grafika",
+    "stars": 867,
+    "description": "An image processing library for PHP",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2023-10-09T07:24:33Z",
+    "candidateFiles": 8,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "doc-src/images/sample.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/doc-src/images/sample.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 256,
+        "bytes": 184453,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "doc-src/images/testResizeFitEnlarge.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/doc-src/images/testResizeFitEnlarge.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 307,
+        "bytes": 214254,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "docs/images/sample.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/docs/images/sample.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 256,
+        "bytes": 184453,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "docs/images/testResizeFitEnlarge.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/docs/images/testResizeFitEnlarge.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 307,
+        "bytes": 214254,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "tests/assert-gd/testResizeFitEnlarge.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/tests/assert-gd/testResizeFitEnlarge.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 307,
+        "bytes": 214254,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "tests/assert-imagick/testGrayscale.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafika/master/tests/assert-imagick/testGrayscale.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 256,
+        "bytes": 184387,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "SerStars/Nugget-Wallpapers",
+    "stars": 237,
+    "description": "The wallpaper collection for Nugget!",
+    "license": "GPL-3.0",
+    "branch": "main",
+    "pushedAt": "2026-08-16T22:57:47Z",
+    "candidateFiles": 103,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "previews/custom/gifs/AltStore.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/AltStore.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 693,
+        "bytes": 1067955,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "previews/custom/gifs/AppleLogo.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/AppleLogo.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 692,
+        "bytes": 306422,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "previews/custom/gifs/BlackGoku.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/BlackGoku.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 693,
+        "bytes": 5437232,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "previews/custom/gifs/BrokenScreen.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/BrokenScreen.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 692,
+        "bytes": 3363039,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "previews/custom/gifs/DamnByTrinityHades.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/DamnByTrinityHades.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 657,
+        "bytes": 1743926,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "previews/custom/gifs/Dragonball.gif",
+        "url": "https://raw.githubusercontent.com/SerStars/Nugget-Wallpapers/main/previews/custom/gifs/Dragonball.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 692,
+        "bytes": 7071020,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "nwtgck/gif-progress",
+    "stars": 203,
+    "description": "🎬 Attach progress bar to animated GIF",
+    "license": "MIT",
+    "branch": "develop",
+    "pushedAt": "2021-04-29T20:07:16Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "doc_assets/ray_tracing.gif",
+        "url": "https://raw.githubusercontent.com/nwtgck/gif-progress/develop/doc_assets/ray_tracing.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 281,
+        "bytes": 4510514,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "redwarp/gif-wallpaper",
+    "stars": 158,
+    "description": "Playing with Gifs, animatable and drawable",
+    "license": "Apache-2.0",
+    "branch": "main",
+    "pushedAt": "2024-04-24T21:00:54Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/samples/rocket.gif",
+        "url": "https://raw.githubusercontent.com/redwarp/gif-wallpaper/main/assets/samples/rocket.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 400,
+        "bytes": 333302,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "nhanb/com.nerdyweekly.animated",
+    "stars": 115,
+    "description": "Animated GIF wallpaper for KDE Plasma 5",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2017-02-25T05:07:52Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "contents/ui/animation.gif",
+        "url": "https://raw.githubusercontent.com/nhanb/com.nerdyweekly.animated/master/contents/ui/animation.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 288,
+        "bytes": 1220161,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "ianmartinez/AsciiStudio",
+    "stars": 93,
+    "description": "A cross-platform program that converts both still and animated images into ASCII art, in full color.",
+    "license": "LGPL-3.0",
+    "branch": "master",
+    "pushedAt": "2025-04-08T01:56:26Z",
+    "candidateFiles": 6,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "creations/butterfly.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/butterfly.gif",
+        "format": "gif",
+        "width": 483,
+        "height": 336,
+        "bytes": 270304,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "creations/Day night.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/Day%20night.gif",
+        "format": "gif",
+        "width": 483,
+        "height": 490,
+        "bytes": 1098746,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "creations/jellyfish.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/jellyfish.gif",
+        "format": "gif",
+        "width": 476,
+        "height": 322,
+        "bytes": 407995,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "creations/lightning.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/lightning.gif",
+        "format": "gif",
+        "width": 476,
+        "height": 476,
+        "bytes": 122748,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "creations/parakeet.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/parakeet.gif",
+        "format": "gif",
+        "width": 483,
+        "height": 490,
+        "bytes": 429203,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "creations/walle.gif",
+        "url": "https://raw.githubusercontent.com/ianmartinez/AsciiStudio/master/creations/walle.gif",
+        "format": "gif",
+        "width": 476,
+        "height": 322,
+        "bytes": 581926,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "koszeggy/KGySoft.Drawing",
+    "stars": 73,
+    "description": "KGy SOFT Drawing is a library for advanced image, icon and graphics handling.",
+    "license": "NOASSERTION",
+    "branch": "master",
+    "pushedAt": "2026-07-13T16:53:02Z",
+    "candidateFiles": 6,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "Help/Images/GifAnimationTrueColor.gif",
+        "url": "https://raw.githubusercontent.com/koszeggy/KGySoft.Drawing/master/Help/Images/GifAnimationTrueColor.gif",
+        "format": "gif",
+        "width": 255,
+        "height": 128,
+        "bytes": 130610,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Help/Images/LenaRgb565DitheredFS.gif",
+        "url": "https://raw.githubusercontent.com/koszeggy/KGySoft.Drawing/master/Help/Images/LenaRgb565DitheredFS.gif",
+        "format": "gif",
+        "width": 512,
+        "height": 512,
+        "bytes": 427359,
+        "frames": 2,
+        "looping": false,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Help/Images/LenaTrueColor.gif",
+        "url": "https://raw.githubusercontent.com/koszeggy/KGySoft.Drawing/master/Help/Images/LenaTrueColor.gif",
+        "format": "gif",
+        "width": 512,
+        "height": 512,
+        "bytes": 1090196,
+        "frames": 2,
+        "looping": false,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Amansingh-afk/milli",
+    "stars": 70,
+    "description": " Pixel-perfect animated ASCII art engine. Render images and GIFs to your terminal, or export as Go / Lua / JSON for embedding in TUIs and Neovim dashboards",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-07-16T18:43:53Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "demo.gif",
+        "url": "https://raw.githubusercontent.com/Amansingh-afk/milli/main/demo.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 588,
+        "bytes": 8988702,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "setanarut/halftonism",
+    "stars": 43,
+    "description": "Artistic halftone GIF animation",
+    "license": "GPL-3.0",
+    "branch": "main",
+    "pushedAt": "2026-03-08T01:28:10Z",
+    "candidateFiles": 4,
+    "animatedFound": 4,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/eyeswide.gif",
+        "url": "https://raw.githubusercontent.com/setanarut/halftonism/main/assets/eyeswide.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 500,
+        "bytes": 1338072,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/fastlem.gif",
+        "url": "https://raw.githubusercontent.com/setanarut/halftonism/main/assets/fastlem.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 600,
+        "bytes": 3094785,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/mandel.gif",
+        "url": "https://raw.githubusercontent.com/setanarut/halftonism/main/assets/mandel.gif",
+        "format": "gif",
+        "width": 300,
+        "height": 400,
+        "bytes": 1240351,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "example/example.gif",
+        "url": "https://raw.githubusercontent.com/setanarut/halftonism/main/example/example.gif",
+        "format": "gif",
+        "width": 750,
+        "height": 318,
+        "bytes": 1566252,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "vleue/vleue_kinetoscope",
+    "stars": 40,
+    "description": "Animated GIF / WebP player for Bevy",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-01-29T23:39:12Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "animated-gif.webp",
+        "url": "https://raw.githubusercontent.com/vleue/vleue_kinetoscope/main/animated-gif.webp",
+        "format": "webp",
+        "width": 355,
+        "height": 200,
+        "bytes": 1865462
+      },
+      {
+        "path": "assets/cube.gif",
+        "url": "https://raw.githubusercontent.com/vleue/vleue_kinetoscope/main/assets/cube.gif",
+        "format": "gif",
+        "width": 300,
+        "height": 225,
+        "bytes": 890847,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/cube.webp",
+        "url": "https://raw.githubusercontent.com/vleue/vleue_kinetoscope/main/assets/cube.webp",
+        "format": "webp",
+        "width": 300,
+        "height": 225,
+        "bytes": 380850
+      }
+    ]
+  },
+  {
+    "full": "tutsplus/Android-GIFWallpaper",
+    "stars": 32,
+    "description": "Create a Live Wallpaper on Andoird Using an Animated GIF",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2015-01-20T04:44:11Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "app/src/main/assets/girl.gif",
+        "url": "https://raw.githubusercontent.com/tutsplus/Android-GIFWallpaper/master/app/src/main/assets/girl.gif",
+        "format": "gif",
+        "width": 615,
+        "height": 378,
+        "bytes": 1169523,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "thelastoutpostworkshop/animated_gif_sdcard_spiffs",
+    "stars": 30,
+    "description": "Animated GIF stored in SD Card and played from SPIFFS on a Round Display (GC9A01) with the ESP32",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-08-16T15:56:51Z",
+    "candidateFiles": 8,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "images/GIF/hud_1.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hud_1.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 914956,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/GIF/hud_2.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hud_2.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 720790,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/GIF/hud_5.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hud_5.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 965585,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/GIF/hud_6.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hud_6.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 310036,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/GIF/hud_7.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hud_7.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 882873,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "images/GIF/hyperspace.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/animated_gif_sdcard_spiffs/main/images/GIF/hyperspace.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 244827,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "BradleyA/Linux-admin",
+    "stars": 30,
+    "description": "Shell scripts to automate download of GitHub traffic statistics, cluster administration, and create an animated GIF.",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2021-04-19T18:10:18Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "images/github-repository-animated-3.gif",
+        "url": "https://raw.githubusercontent.com/BradleyA/Linux-admin/master/images/github-repository-animated-3.gif",
+        "format": "gif",
+        "width": 562,
+        "height": 258,
+        "bytes": 182964,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "kairess/animated-wallpaper-sticker",
+    "stars": 26,
+    "description": "Animated wallpaper sticker using PyQt5 with Python. Put gif animations on your desktop.",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2021-02-27T07:19:50Z",
+    "candidateFiles": 9,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "gif/amongus/blue_green.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/blue_green.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 176054,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/amongus/magenta.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/magenta.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 480,
+        "bytes": 124245,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/amongus/mint.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/mint.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 455,
+        "bytes": 418444,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/amongus/orange.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/orange.gif",
+        "format": "gif",
+        "width": 446,
+        "height": 448,
+        "bytes": 152828,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/amongus/red_vent.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/red_vent.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 480,
+        "bytes": 159354,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gif/amongus/red.gif",
+        "url": "https://raw.githubusercontent.com/kairess/animated-wallpaper-sticker/master/gif/amongus/red.gif",
+        "format": "gif",
+        "width": 360,
+        "height": 480,
+        "bytes": 174920,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "remememe/Live-Wallpaper",
+    "stars": 26,
+    "description": "A plugin that lets you style your notes with wallpapers (videos, GIFs, and images) with custom effects.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-07-26T18:47:42Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "Assets/sc1.gif",
+        "url": "https://raw.githubusercontent.com/remememe/Live-Wallpaper/main/Assets/sc1.gif",
+        "format": "gif",
+        "width": 800,
+        "height": 450,
+        "bytes": 22442941,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "lusingander/lpx",
+    "stars": 25,
+    "description": "Terminal Animated GIF Viewer 📽️",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2026-04-29T03:11:45Z",
+    "candidateFiles": 6,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "img/demo.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/demo.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 400,
+        "bytes": 1739337,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/detail.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/detail.gif",
+        "format": "gif",
+        "width": 800,
+        "height": 400,
+        "bytes": 789488,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/earth.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/earth.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 400,
+        "bytes": 1001718,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/inline.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/inline.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 600,
+        "bytes": 522858,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/loop.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/loop.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 400,
+        "bytes": 727928,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/speed.gif",
+        "url": "https://raw.githubusercontent.com/lusingander/lpx/master/img/speed.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 400,
+        "bytes": 2438429,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "hongkiat/gif-onclick",
+    "stars": 21,
+    "description": "Run Animated GIF On-click",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2017-08-01T17:34:34Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "img/get-low.gif",
+        "url": "https://raw.githubusercontent.com/hongkiat/gif-onclick/master/img/get-low.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 300,
+        "bytes": 582546,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/mobile-wireframe.gif",
+        "url": "https://raw.githubusercontent.com/hongkiat/gif-onclick/master/img/mobile-wireframe.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 300,
+        "bytes": 1797013,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "img/twitter-button.gif",
+        "url": "https://raw.githubusercontent.com/hongkiat/gif-onclick/master/img/twitter-button.gif",
+        "format": "gif",
+        "width": 800,
+        "height": 600,
+        "bytes": 185483,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "fwcd/swift-gif",
+    "stars": 20,
+    "description": "Cross-platform GIF encoder and decoder for Swift",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2025-02-17T01:17:17Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "Tests/GIFTests/Resources/mandelbrot.gif",
+        "url": "https://raw.githubusercontent.com/fwcd/swift-gif/main/Tests/GIFTests/Resources/mandelbrot.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 500,
+        "bytes": 2951732,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "MoSalem149/online-exam-platform_DEBI-Project",
+    "stars": 20,
+    "description": "A modern, responsive online exam platform featuring sign-up/login functionality, timed exams, progress tracking, flagged questions, and result submission. Built with HTML, CSS, and JavaScript for an interactive and user-friendly experience.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2025-09-10T03:47:21Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/images/gif/time-out-img.gif",
+        "url": "https://raw.githubusercontent.com/MoSalem149/online-exam-platform_DEBI-Project/main/assets/images/gif/time-out-img.gif",
+        "format": "gif",
+        "width": 800,
+        "height": 600,
+        "bytes": 1274147,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "ysfzrn/react-native-gif-player",
+    "stars": 19,
+    "description": "React Native Gif View Component",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2025-08-13T00:56:29Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/recordAndroid.gif",
+        "url": "https://raw.githubusercontent.com/ysfzrn/react-native-gif-player/main/assets/recordAndroid.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 1233,
+        "bytes": 8743531,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/recordiOS.gif",
+        "url": "https://raw.githubusercontent.com/ysfzrn/react-native-gif-player/main/assets/recordiOS.gif",
+        "format": "gif",
+        "width": 295,
+        "height": 640,
+        "bytes": 6810969,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "alinke/PixelAnimate2",
+    "stars": 18,
+    "description": "The main program for PIXEL: LED ART which runs animated gifs",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2023-10-15T05:26:55Z",
+    "candidateFiles": 61,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0aascension32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0aascension32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 232824,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0anightmare32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0anightmare32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 391334,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0fighters_ready32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/debug/out/gif/gifsource/0fighters_ready32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 2113409,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0aascension32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0aascension32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 232824,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0apaulr32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0apaulr32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 1313279,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0fighters_ready32.gif",
+        "url": "https://raw.githubusercontent.com/alinke/PixelAnimate2/master/pixelPileDriver/build/intermediates/merged_assets/release/out/gif/gifsource/0fighters_ready32.gif",
+        "format": "gif",
+        "width": 32,
+        "height": 32,
+        "bytes": 2113409,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "heza-ru/Netstalgia",
+    "stars": 14,
+    "description": "A lovingly cursed 90s-style web app that loads like it’s stuck on dial-up. Complete with pixel art loading bars, pop-up ads, a guestbook, and that iconic dancing baby GIF. Welcome back to the weird, wild web.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2025-09-21T16:15:10Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "public/assets/dancing-baby.gif",
+        "url": "https://raw.githubusercontent.com/heza-ru/Netstalgia/main/public/assets/dancing-baby.gif",
+        "format": "gif",
+        "width": 692,
+        "height": 388,
+        "bytes": 3351813,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "public/assets/dialup.gif",
+        "url": "https://raw.githubusercontent.com/heza-ru/Netstalgia/main/public/assets/dialup.gif",
+        "format": "gif",
+        "width": 650,
+        "height": 248,
+        "bytes": 2868063,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "otiai10/giffy",
+    "stars": 13,
+    "description": "Create Animated GIF from PNGs, JPEGs and, of course, GIFs",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2021-05-01T02:08:16Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "example/animated.gif",
+        "url": "https://raw.githubusercontent.com/otiai10/giffy/main/example/animated.gif",
+        "format": "gif",
+        "width": 1951,
+        "height": 1533,
+        "bytes": 436918,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Zingzy/discord-bot-animator",
+    "stars": 13,
+    "description": "A script to add Animated Avatars and Banner Images to Discord Bots",
+    "license": "Apache-2.0",
+    "branch": "main",
+    "pushedAt": "2024-03-19T14:09:34Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/example.gif",
+        "url": "https://raw.githubusercontent.com/Zingzy/discord-bot-animator/main/assets/example.gif",
+        "format": "gif",
+        "width": 433,
+        "height": 593,
+        "bytes": 1124693,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "assets/pfp.gif",
+        "url": "https://raw.githubusercontent.com/Zingzy/discord-bot-animator/main/assets/pfp.gif",
+        "format": "gif",
+        "width": 498,
+        "height": 493,
+        "bytes": 10657445,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Ultraporing/AnimeCheerDesktopMascot",
+    "stars": 12,
+    "description": "Simple desktop mascot cheering you on. It plays the animated gif. Can be replaced. Based on this gif: https://imgur.com/kHiOUcE",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2017-11-03T21:52:23Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "AnimeCheerDesktopMascot/Resources/yay.gif",
+        "url": "https://raw.githubusercontent.com/Ultraporing/AnimeCheerDesktopMascot/master/AnimeCheerDesktopMascot/Resources/yay.gif",
+        "format": "gif",
+        "width": 765,
+        "height": 540,
+        "bytes": 1081581,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "fafalone/ucAniGifEx",
+    "stars": 9,
+    "description": "ucAniGifEx Animated Gif Control",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2025-11-25T01:28:41Z",
+    "candidateFiles": 4,
+    "animatedFound": 4,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "1.gif",
+        "url": "https://raw.githubusercontent.com/fafalone/ucAniGifEx/main/1.gif",
+        "format": "gif",
+        "width": 970,
+        "height": 875,
+        "bytes": 2138859,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "3.gif",
+        "url": "https://raw.githubusercontent.com/fafalone/ucAniGifEx/main/3.gif",
+        "format": "gif",
+        "width": 490,
+        "height": 476,
+        "bytes": 1999962,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "4.gif",
+        "url": "https://raw.githubusercontent.com/fafalone/ucAniGifEx/main/4.gif",
+        "format": "gif",
+        "width": 320,
+        "height": 240,
+        "bytes": 1665550,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "8.gif",
+        "url": "https://raw.githubusercontent.com/fafalone/ucAniGifEx/main/8.gif",
+        "format": "gif",
+        "width": 217,
+        "height": 217,
+        "bytes": 184565,
+        "frames": 2,
+        "looping": false,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "thelastoutpostworkshop/JC4827W543_AnimatedGIF",
+    "stars": 9,
+    "description": "Animated GIF for JC4827W543",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-08-16T15:55:13Z",
+    "candidateFiles": 13,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "SD Content/gif/AlienEyeClose-Up.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/AlienEyeClose-Up.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 5704430,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "SD Content/gif/AlienWarriorsGaze.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/AlienWarriorsGaze.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 4914344,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "SD Content/gif/EpicSpaceBattle.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/EpicSpaceBattle.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 4753392,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "SD Content/gif/EpicTempleDuel.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/EpicTempleDuel.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 6617024,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "SD Content/gif/FuturisticCommandCenter.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/FuturisticCommandCenter.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 8311695,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "SD Content/gif/IconicStarshipInterior.gif",
+        "url": "https://raw.githubusercontent.com/thelastoutpostworkshop/JC4827W543_AnimatedGIF/main/SD%20Content/gif/IconicStarshipInterior.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 270,
+        "bytes": 5217037,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "timonus/UIImageViewAnimatedGIF",
+    "stars": 8,
+    "description": "High-level wrapper around iOS 13's animated GIF playback APIs.",
+    "license": "BSD-3-Clause",
+    "branch": "main",
+    "pushedAt": "2024-04-25T02:59:03Z",
+    "candidateFiles": 4,
+    "animatedFound": 4,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "Test Project/UIImageViewAnimatedGIFTestBed/Animated Images/earth.gif",
+        "url": "https://raw.githubusercontent.com/timonus/UIImageViewAnimatedGIF/main/Test%20Project/UIImageViewAnimatedGIFTestBed/Animated%20Images/earth.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 400,
+        "bytes": 1001718,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Test Project/UIImageViewAnimatedGIFTestBed/Animated Images/elmo.gif",
+        "url": "https://raw.githubusercontent.com/timonus/UIImageViewAnimatedGIF/main/Test%20Project/UIImageViewAnimatedGIFTestBed/Animated%20Images/elmo.gif",
+        "format": "gif",
+        "width": 200,
+        "height": 114,
+        "bytes": 210418,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Test Project/UIImageViewAnimatedGIFTestBed/Animated Images/hack.gif",
+        "url": "https://raw.githubusercontent.com/timonus/UIImageViewAnimatedGIF/main/Test%20Project/UIImageViewAnimatedGIFTestBed/Animated%20Images/hack.gif",
+        "format": "gif",
+        "width": 498,
+        "height": 466,
+        "bytes": 6599229,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "Test Project/UIImageViewAnimatedGIFTestBed/Animated Images/meme.gif",
+        "url": "https://raw.githubusercontent.com/timonus/UIImageViewAnimatedGIF/main/Test%20Project/UIImageViewAnimatedGIFTestBed/Animated%20Images/meme.gif",
+        "format": "gif",
+        "width": 498,
+        "height": 498,
+        "bytes": 829632,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Victory-SergD/SergD_LoFiTyan",
+    "stars": 8,
+    "description": "🎧 Free & open-source desktop app for focus & cozy vibes — real lo-fi internet radio, animated live wallpapers & ambient sounds (rain · thunder · forest · campfire). macOS · Windows · Linux. Built with Tauri.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-06-19T06:01:09Z",
+    "candidateFiles": 11,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "screenshots/demo.gif",
+        "url": "https://raw.githubusercontent.com/Victory-SergD/SergD_LoFiTyan/main/screenshots/demo.gif",
+        "format": "gif",
+        "width": 640,
+        "height": 360,
+        "bytes": 1244878,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "amyreese/gifpaper",
+    "stars": 7,
+    "description": "Android live wallpaper using gifs",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2015-07-14T18:57:47Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "GifPaper/app/src/main/res/raw/whoa.gif",
+        "url": "https://raw.githubusercontent.com/amyreese/gifpaper/master/GifPaper/app/src/main/res/raw/whoa.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 700,
+        "bytes": 1022723,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "FaeWulf/discord-bot-animated-avatar-banner",
+    "stars": 7,
+    "description": "Simple script to change bot's avatar/banner into an animated one.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2024-03-18T23:50:43Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "banner.gif",
+        "url": "https://raw.githubusercontent.com/FaeWulf/discord-bot-animated-avatar-banner/main/banner.gif",
+        "format": "gif",
+        "width": 498,
+        "height": 280,
+        "bytes": 2546823,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "logo.gif",
+        "url": "https://raw.githubusercontent.com/FaeWulf/discord-bot-animated-avatar-banner/main/logo.gif",
+        "format": "gif",
+        "width": 450,
+        "height": 450,
+        "bytes": 6528195,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "screenshot/demo.gif",
+        "url": "https://raw.githubusercontent.com/FaeWulf/discord-bot-animated-avatar-banner/main/screenshot/demo.gif",
+        "format": "gif",
+        "width": 388,
+        "height": 414,
+        "bytes": 2420661,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "sweetbbak/pixxy",
+    "stars": 6,
+    "description": "a terminal based image effects engine, used for creating aesthetic images and wallpapers... glitch, quantize, kuwahara, image-to-ascii, dither, color mods, create gifs and wallpapers...",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2025-06-10T06:33:55Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/cowgirl-glitch.gif",
+        "url": "https://raw.githubusercontent.com/sweetbbak/pixxy/main/assets/cowgirl-glitch.gif",
+        "format": "gif",
+        "width": 633,
+        "height": 633,
+        "bytes": 418348,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Dbi-Eshuh/dsh-thinking-status-customizer",
+    "stars": 5,
+    "description": "Customize DSH Web thinking status with custom flowing text, animated GIF/APNG/WebP, or combined image-and-text modes.",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2026-08-15T12:05:31Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/animations/dance-reference-transparent.gif",
+        "url": "https://raw.githubusercontent.com/Dbi-Eshuh/dsh-thinking-status-customizer/master/assets/animations/dance-reference-transparent.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 320,
+        "bytes": 1036946,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "travisgk/sgf2anim",
+    "stars": 5,
+    "description": "A diagram renderer written in Python that can turn an .sgf file for the game of Go/Baduk/Weiqi into a diagram image that's either static or animated.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2024-12-27T02:58:09Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "_demo_res/demo_a_res/naoki-vs-seigen_output.gif",
+        "url": "https://raw.githubusercontent.com/travisgk/sgf2anim/main/_demo_res/demo_a_res/naoki-vs-seigen_output.gif",
+        "format": "gif",
+        "width": 992,
+        "height": 992,
+        "bytes": 386264,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_demo_res/demo_c_res/seigen-vs-naoki_frost.gif",
+        "url": "https://raw.githubusercontent.com/travisgk/sgf2anim/main/_demo_res/demo_c_res/seigen-vs-naoki_frost.gif",
+        "format": "gif",
+        "width": 992,
+        "height": 992,
+        "bytes": 275620,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_demo_res/demo_c_res/seigen-vs-naoki_main.gif",
+        "url": "https://raw.githubusercontent.com/travisgk/sgf2anim/main/_demo_res/demo_c_res/seigen-vs-naoki_main.gif",
+        "format": "gif",
+        "width": 992,
+        "height": 992,
+        "bytes": 277809,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "jesse-fox/draw-gif",
+    "stars": 5,
+    "description": "Using javascript canvas to draw delightful animated gifs!",
+    "license": "GPL-3.0",
+    "branch": "master",
+    "pushedAt": "2019-03-26T23:01:16Z",
+    "candidateFiles": 7,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "gifs/blackhole.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/blackhole.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 400,
+        "bytes": 1793500,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gifs/figure-eight.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/figure-eight.gif",
+        "format": "gif",
+        "width": 300,
+        "height": 300,
+        "bytes": 438326,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gifs/new-spinny-dots.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/new-spinny-dots.gif",
+        "format": "gif",
+        "width": 300,
+        "height": 100,
+        "bytes": 147807,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gifs/old-spinny-dots.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/old-spinny-dots.gif",
+        "format": "gif",
+        "width": 400,
+        "height": 100,
+        "bytes": 172382,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gifs/piston.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/piston.gif",
+        "format": "gif",
+        "width": 100,
+        "height": 300,
+        "bytes": 518590,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "gifs/purple-circle.gif",
+        "url": "https://raw.githubusercontent.com/jesse-fox/draw-gif/master/gifs/purple-circle.gif",
+        "format": "gif",
+        "width": 200,
+        "height": 200,
+        "bytes": 984226,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "SaschaWebDev/stream-deck-gif-splitter",
+    "stars": 4,
+    "description": "✨Bring your Stream Deck to life with stunning animated wallpapers - generated from any GIF and installed with a single click. Private by design, runs locally for your Elgato device.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-05-15T18:26:32Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "docs/stream-deck-gif-splitter-showcase.gif",
+        "url": "https://raw.githubusercontent.com/SaschaWebDev/stream-deck-gif-splitter/main/docs/stream-deck-gif-splitter-showcase.gif",
+        "format": "gif",
+        "width": 760,
+        "height": 800,
+        "bytes": 21947606,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "coolcornucopia/vp9-best-settings-for-converting-gif-animated-drawing-to-video",
+    "stars": 3,
+    "description": "Compare various vp9 encoding settings (ffmpeg/libvpx-vp9) for the conversion of gif animated drawings to video.",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2022-02-16T17:18:22Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "output/gifsicle_o3_colors_256.gif",
+        "url": "https://raw.githubusercontent.com/coolcornucopia/vp9-best-settings-for-converting-gif-animated-drawing-to-video/master/output/gifsicle_o3_colors_256.gif",
+        "format": "gif",
+        "width": 416,
+        "height": 273,
+        "bytes": 730476,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "vivaxy/is-animated-image",
+    "stars": 3,
+    "description": "🖼️Check if an image is animated.",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2023-04-10T11:20:58Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "__tests__/fixtures/animated-gif.gif",
+        "url": "https://raw.githubusercontent.com/vivaxy/is-animated-image/master/__tests__/fixtures/animated-gif.gif",
+        "format": "gif",
+        "width": 148,
+        "height": 148,
+        "bytes": 167537,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "PRAN20/VQ-GAN",
+    "stars": 3,
+    "description": "VQGAN and CLIP are actually two separate machine learning algorithms that can be used together to generate images based on a text prompt. VQGAN is a generative adversarial neural network that is good at generating images that look similar to others (but not from a prompt), and CLIP is another neural network that is able to determine how well a caption (or prompt) matches an image.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2022-03-15T19:36:18Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "zoom.gif",
+        "url": "https://raw.githubusercontent.com/PRAN20/VQ-GAN/main/zoom.gif",
+        "format": "gif",
+        "width": 512,
+        "height": 512,
+        "bytes": 24920138,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "MarkLaVenia/rockr",
+    "stars": 3,
+    "description": "Twitter best album polls",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2022-05-23T18:05:19Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "R/plots/album_poll_all_sum.gif",
+        "url": "https://raw.githubusercontent.com/MarkLaVenia/rockr/master/R/plots/album_poll_all_sum.gif",
+        "format": "gif",
+        "width": 1200,
+        "height": 1000,
+        "bytes": 2523483,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "R/plots/album_poll_final_percentage.gif",
+        "url": "https://raw.githubusercontent.com/MarkLaVenia/rockr/master/R/plots/album_poll_final_percentage.gif",
+        "format": "gif",
+        "width": 1200,
+        "height": 1000,
+        "bytes": 2665994,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "R/plots/album_poll_final_sum.gif",
+        "url": "https://raw.githubusercontent.com/MarkLaVenia/rockr/master/R/plots/album_poll_final_sum.gif",
+        "format": "gif",
+        "width": 1200,
+        "height": 1000,
+        "bytes": 1842382,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "lisamsung/agent-meme-forge",
+    "stars": 3,
+    "description": "Codex skill that turns one image or text concept into a WeChat-ready Chinese sticker pack people will actually send. Sendability-gated, 4-keypose → 16-frame, no model-drawn text.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-06-30T17:43:40Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "docs/assets/ai-mascot-jiazaizhong.gif",
+        "url": "https://raw.githubusercontent.com/lisamsung/agent-meme-forge/main/docs/assets/ai-mascot-jiazaizhong.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 223582,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "docs/assets/ai-mascot-shoudao-lixian.gif",
+        "url": "https://raw.githubusercontent.com/lisamsung/agent-meme-forge/main/docs/assets/ai-mascot-shoudao-lixian.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 270985,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "docs/assets/ai-mascot-wenxianshan.gif",
+        "url": "https://raw.githubusercontent.com/lisamsung/agent-meme-forge/main/docs/assets/ai-mascot-wenxianshan.gif",
+        "format": "gif",
+        "width": 240,
+        "height": 240,
+        "bytes": 258695,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "AdrianFilsell/morph",
+    "stars": 3,
+    "description": "C++ 2D image morph animation ( Delaunay triangulation ).",
+    "license": "NOASSERTION",
+    "branch": "master",
+    "pushedAt": "2025-02-13T15:29:02Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "presets/8bit.gif",
+        "url": "https://raw.githubusercontent.com/AdrianFilsell/morph/master/presets/8bit.gif",
+        "format": "gif",
+        "width": 640,
+        "height": 470,
+        "bytes": 21521548,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "presets/badfriends.gif",
+        "url": "https://raw.githubusercontent.com/AdrianFilsell/morph/master/presets/badfriends.gif",
+        "format": "gif",
+        "width": 333,
+        "height": 500,
+        "bytes": 22318687,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "presets/hulk.gif",
+        "url": "https://raw.githubusercontent.com/AdrianFilsell/morph/master/presets/hulk.gif",
+        "format": "gif",
+        "width": 348,
+        "height": 348,
+        "bytes": 16693016,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "spenserblack/termage",
+    "stars": 3,
+    "description": "My first real Golang project. Browse images in the terminal.",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2024-10-23T13:14:34Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "_resources/viewing_gif.gif",
+        "url": "https://raw.githubusercontent.com/spenserblack/termage/master/_resources/viewing_gif.gif",
+        "format": "gif",
+        "width": 580,
+        "height": 375,
+        "bytes": 224062,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "completejavascript/replace-gif-with-video",
+    "stars": 2,
+    "description": "Replace Animated GIF with Video",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2018-09-29T04:32:21Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "res/cat.gif",
+        "url": "https://raw.githubusercontent.com/completejavascript/replace-gif-with-video/master/res/cat.gif",
+        "format": "gif",
+        "width": 314,
+        "height": 400,
+        "bytes": 269876,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "ivanpreziosi/phpEmailTimer",
+    "stars": 2,
+    "description": "A small php library for generating dynamic email marketing countdowns. Forked and updated from https://github.com/goors/php-gif-countdown",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-07-03T06:59:54Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "example.gif",
+        "url": "https://raw.githubusercontent.com/ivanpreziosi/phpEmailTimer/main/example.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 146,
+        "bytes": 326758,
+        "frames": 2,
+        "looping": false,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Mirobelak/delivery-food-app-clone",
+    "stars": 2,
+    "description": "Fully responsive Food delivery app with maps, animations and SANITY backend. For state management is used Redux Toolkit. App built in React Native with Expo and TailwinCSS for styling.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2022-10-04T22:49:40Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "assets/order.gif",
+        "url": "https://raw.githubusercontent.com/Mirobelak/delivery-food-app-clone/main/assets/order.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 500,
+        "bytes": 966344,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "davecom/dissolve",
+    "stars": 2,
+    "description": "Make an animated GIF that dissolves from one image to another using Python's Pillow.",
+    "license": "Apache-2.0",
+    "branch": "master",
+    "pushedAt": "2020-12-25T15:22:47Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "result.gif",
+        "url": "https://raw.githubusercontent.com/davecom/dissolve/master/result.gif",
+        "format": "gif",
+        "width": 300,
+        "height": 300,
+        "bytes": 7131541,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "karem505/character-animation-skill",
+    "stars": 2,
+    "description": "Turn any character image into a looping animated sprite (moving SVG, WebP & GIF) with Google's Nano Banana 2 (gemini-3.1-flash-image) — a Claude Code skill.",
+    "license": "MIT",
+    "branch": "main",
+    "pushedAt": "2026-06-29T14:25:42Z",
+    "candidateFiles": 3,
+    "animatedFound": 3,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "examples/robot/robot-idle.gif",
+        "url": "https://raw.githubusercontent.com/karem505/character-animation-skill/main/examples/robot/robot-idle.gif",
+        "format": "gif",
+        "width": 284,
+        "height": 480,
+        "bytes": 1834469,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/robot/robot-wave.gif",
+        "url": "https://raw.githubusercontent.com/karem505/character-animation-skill/main/examples/robot/robot-wave.gif",
+        "format": "gif",
+        "width": 456,
+        "height": 560,
+        "bytes": 1340342,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/superhero-mascot/hero-mascot.gif",
+        "url": "https://raw.githubusercontent.com/karem505/character-animation-skill/main/examples/superhero-mascot/hero-mascot.gif",
+        "format": "gif",
+        "width": 480,
+        "height": 480,
+        "bytes": 2540455,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "Mulc1b3R/animated-gif-maker",
+    "stars": 1,
+    "description": "Create your own animated gif's  containing qr-codes-generated from url's- from various image file types , for use as icons and favicons...",
+    "license": "Apache-2.0",
+    "branch": "main",
+    "pushedAt": "2024-05-22T23:33:55Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "animated.gif",
+        "url": "https://raw.githubusercontent.com/Mulc1b3R/animated-gif-maker/main/animated.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 256,
+        "bytes": 211091,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "kosinix/grafikon",
+    "stars": 1,
+    "description": "A small image processing lib for PHP >= 5.2",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2017-06-25T15:01:13Z",
+    "candidateFiles": 4,
+    "animatedFound": 4,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "tests/assert-gd/testResizeFitEnlarge.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafikon/master/tests/assert-gd/testResizeFitEnlarge.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 307,
+        "bytes": 214254,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "tests/assert-imagick/testGrayscale.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafikon/master/tests/assert-imagick/testGrayscale.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 256,
+        "bytes": 184387,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "tests/assert-imagick/testResizeFitEnlarge.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafikon/master/tests/assert-imagick/testResizeFitEnlarge.gif",
+        "format": "gif",
+        "width": 600,
+        "height": 307,
+        "bytes": 243717,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "tests/in/sample.gif",
+        "url": "https://raw.githubusercontent.com/kosinix/grafikon/master/tests/in/sample.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 256,
+        "bytes": 184453,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "lucasepe/doodles",
+    "stars": 1,
+    "description": "Animated doodles crafted using the doodlekit package",
+    "license": "BSD-2-Clause",
+    "branch": "main",
+    "pushedAt": "2024-06-26T20:49:07Z",
+    "candidateFiles": 15,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "_doodles/clock-starfield.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/clock-starfield.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 401006,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_doodles/clock.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/clock.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 323322,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_doodles/connections-stars.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/connections-stars.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 201177,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_doodles/connections.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/connections.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 153988,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_doodles/dotscube.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/dotscube.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 374573,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "_doodles/glitters-xmastree.gif",
+        "url": "https://raw.githubusercontent.com/lucasepe/doodles/main/_doodles/glitters-xmastree.gif",
+        "format": "gif",
+        "width": 128,
+        "height": 128,
+        "bytes": 580079,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "JOYPAUL2001/Climate-Tracker",
+    "stars": 1,
+    "description": "Climate Tracker is an Android application developed to provide users with real-time climate data. The app is designed with a clean and intuitive user interface, ensuring a seamless experience for users interested in monitoring climate conditions.",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2024-03-28T15:24:57Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "app/src/main/res/raw/sunrise.gif",
+        "url": "https://raw.githubusercontent.com/JOYPAUL2001/Climate-Tracker/master/app/src/main/res/raw/sunrise.gif",
+        "format": "gif",
+        "width": 640,
+        "height": 640,
+        "bytes": 322302,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "gswelter/qlearn-simple-maze",
+    "stars": 1,
+    "description": "Solving a simple maze with Q-Learning",
+    "license": "MIT",
+    "branch": "master",
+    "pushedAt": "2018-06-17T12:50:42Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "play_game.gif",
+        "url": "https://raw.githubusercontent.com/gswelter/qlearn-simple-maze/master/play_game.gif",
+        "format": "gif",
+        "width": 507,
+        "height": 351,
+        "bytes": 269443,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "open-assets-hub/animated-country-flags",
+    "stars": 1,
+    "description": "Animated waving country flag GIFs — 271 countries, multiple styles and sizes. Free to use (MIT)",
+    "license": "NOASSERTION",
+    "branch": "main",
+    "pushedAt": "2026-07-24T23:13:26Z",
+    "candidateFiles": 835,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "packs/circle-wave/ad/ad-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/ad/ad-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 342675,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "packs/circle-wave/br/br-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/br/br-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 350271,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "packs/circle-wave/dm/dm-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/dm/dm-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 308982,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "packs/circle-wave/gg/gg-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/gg/gg-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 311157,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "packs/circle-wave/is/is-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/is/is-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 280168,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "packs/circle-wave/mc/mc-256.gif",
+        "url": "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/mc/mc-256.gif",
+        "format": "gif",
+        "width": 256,
+        "height": 192,
+        "bytes": 226746,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "omerfarukeker/map_n_weather",
+    "stars": 1,
+    "description": "Visualises randomly selected latitude and longitude points on earth with GoogleMaps and gives the temperature too",
+    "license": "NONE",
+    "branch": "master",
+    "pushedAt": "2019-04-13T12:15:00Z",
+    "candidateFiles": 1,
+    "animatedFound": 1,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "results/map_n_weather.gif",
+        "url": "https://raw.githubusercontent.com/omerfarukeker/map_n_weather/master/results/map_n_weather.gif",
+        "format": "gif",
+        "width": 700,
+        "height": 700,
+        "bytes": 2895419,
+        "frames": 2,
+        "looping": false,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "aishwaryaashok14/concept-to-gif-video",
+    "stars": 1,
+    "description": "Turn concepts into looping animated infographic GIFs with a data-driven HyperFrames engine.",
+    "license": "NONE",
+    "branch": "main",
+    "pushedAt": "2026-06-19T05:11:10Z",
+    "candidateFiles": 13,
+    "animatedFound": 6,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "examples/claude-code-for-pms/renders/claude-code-for-pms.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/claude-code-for-pms/renders/claude-code-for-pms.gif",
+        "format": "gif",
+        "width": 900,
+        "height": 900,
+        "bytes": 9494842,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/frontend-backend/renders/fb.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/frontend-backend/renders/fb.gif",
+        "format": "gif",
+        "width": 720,
+        "height": 720,
+        "bytes": 699746,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/harnessed-llm-agent/renders/harness.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/harnessed-llm-agent/renders/harness.gif",
+        "format": "gif",
+        "width": 720,
+        "height": 720,
+        "bytes": 2015477,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/linkedin-content-4ps/renders/out.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/linkedin-content-4ps/renders/out.gif",
+        "format": "gif",
+        "width": 900,
+        "height": 900,
+        "bytes": 1066181,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/linkedin-niche-funnel/renders/out.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/linkedin-niche-funnel/renders/out.gif",
+        "format": "gif",
+        "width": 900,
+        "height": 900,
+        "bytes": 1687824,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "examples/linkedin-stale-vs-saved/renders/out.gif",
+        "url": "https://raw.githubusercontent.com/aishwaryaashok14/concept-to-gif-video/main/examples/linkedin-stale-vs-saved/renders/out.gif",
+        "format": "gif",
+        "width": 900,
+        "height": 900,
+        "bytes": 298169,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  },
+  {
+    "full": "JGL/LenticularFun",
+    "stars": 1,
+    "description": "Some experimentation with lenticular generation in p5js",
+    "license": "GPL-3.0",
+    "branch": "master",
+    "pushedAt": "2020-09-23T16:21:46Z",
+    "candidateFiles": 2,
+    "animatedFound": 2,
+    "landscapeCount": 0,
+    "picks": [
+      {
+        "path": "docs/gifs/perfectBlueRedNoodleLoop.gif",
+        "url": "https://raw.githubusercontent.com/JGL/LenticularFun/master/docs/gifs/perfectBlueRedNoodleLoop.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 500,
+        "bytes": 3002228,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      },
+      {
+        "path": "docs/gifs/perfectGreenLoop.gif",
+        "url": "https://raw.githubusercontent.com/JGL/LenticularFun/master/docs/gifs/perfectGreenLoop.gif",
+        "format": "gif",
+        "width": 500,
+        "height": 500,
+        "bytes": 1887090,
+        "frames": 2,
+        "looping": true,
+        "frameCountTruncated": false
+      }
+    ]
+  }
+]

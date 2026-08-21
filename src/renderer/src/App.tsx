@@ -769,10 +769,11 @@ const externalLicenseTones: Record<ExternalLicenseStatus, string> = {
   undeclared: 'blue'
 }
 
-function ExternalSkinPanel({ snapshot, busy, onApply, onToggle }: {
+function ExternalSkinPanel({ snapshot, busy, onApply, onClear, onToggle }: {
   snapshot: LauncherSnapshot
   busy: string
   onApply: (skinId: string) => void
+  onClear: () => void
   onToggle: (enabled: boolean) => void
 }): ReactNode {
   const external = snapshot.skins.external
@@ -862,6 +863,7 @@ function ExternalSkinPanel({ snapshot, busy, onApply, onToggle }: {
       <div className="skin-pagination">
         <span>第 {currentPage} / {pageCount} 页 · 每页最多 20 个 · 目录生成于 {external.generatedAt.slice(0, 10) || '未知时间'}</span>
         <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
+        {snapshot.skins.activeSkinId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button>}
       </div>
     </>
   )
@@ -914,7 +916,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleEx
         </button>
       </div>
 
-      {tab === 'external' ? <ExternalSkinPanel snapshot={snapshot} busy={busy} onApply={onApply} onToggle={onToggleExternal} /> : <>
+      {tab === 'external' ? <ExternalSkinPanel snapshot={snapshot} busy={busy} onApply={onApply} onClear={onClear} onToggle={onToggleExternal} /> : <>
       <Card className="skin-toolbar">
         <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索皮肤、画风或场景" /></div>
         <div className="skin-filter-row" aria-label="媒体分类">

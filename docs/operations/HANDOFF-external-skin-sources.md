@@ -45,6 +45,8 @@
 
 同时补了一处加固：原先只靠 `Content-Length` 判断超限，而代理常用分块传输不带这个头，现在改为流式计数，超过声明大小立即中断。
 
+下载超时也一并修了，这原本是个会导致失败的缺陷。原先是固定 90 秒，而 `AbortSignal.timeout` 会不论进度地中断整个请求：按 jsDelivr 实测的 191 KB/s，16.5 MB 的 `rose-pine/generative/circle.png` 需要约 86 秒，已经贴着上限；25 MiB 图片和任何视频必然超时。现在 `downloadTimeoutMs` 按签名清单里钉死的体积计算预算（60 秒起，按 80 KB/s 的保守吞吐下限累加，上限 15 分钟）。
+
 ### 2. 外部来源展示（链接，不再分发）
 
 设计前提是：**素材字节始终由上游仓库提供，本项目不转存、不再分发。** 目录里只保存地址加校验值。
@@ -53,7 +55,7 @@
 
 结构上禁止再分发：`assertExternalCatalog` 强制素材 host 必须是 `raw.githubusercontent.com` 且路径属于声明的仓库，并有测试断言任何外部素材 URL 都不含 `gitee.com`。
 
-界面上是皮肤商店里的独立页签，**默认关闭**，首次进入显示确认面板，说明素材不属于本商店、部分上游没有 LICENSE、上游改动会导致失效。每张卡片带来源角标、许可证状态徽章、上游仓库链接和原样显示的权利说明。外部条目是独立类型 `ExternalSkinCatalogItem`，不复用官方 `SkinLicense`（那是 CC0/CC-BY 闭集）。
+界面上是皮肤商店里的独立页签，**默认关闭**，首次进入显示确认面板，说明素材不属于本商店、部分上游没有 LICENSE、上游改动会导致失效。每张卡片带来源角标、许可证状态徽章、上游仓库链接和原样显示的权利说明，页脚有「恢复 Harness 默认皮肤」入口（否则应用了外部皮肤后必须切回官方页签才能取消）。外部条目是独立类型 `ExternalSkinCatalogItem`，不复用官方 `SkinLicense`（那是 CC0/CC-BY 闭集）。
 
 外部预览图**不钉摘要**，用的是 `cdn.statically.io` 实时缩放。原因是自己生成并托管缩略图就等于复制。预览图只用于展示、不写进插件配置，与官方目录缩略图在渲染层同样不校验的现状一致。
 
@@ -88,11 +90,19 @@
 
 ## 三、验证状态
 
-已通过：
+### 换皮链路已实测打通
+
+外部来源的视频与 GIF **能够正常换皮**，这一点原先只有推理没有证据：既有的 `smoke-appearance-runtime-cache.mjs` 只检查 config 路由的 URL 版本号，从未真正请求 `/deepblue-skin/media`，也没验证过 Content-Type 与 Range。而 Content-Type 错误会让浏览器拒绝渲染壁纸，缺少 Range 支持会让视频无法拖动。
+
+新增的 `scripts/smoke-appearance-media-routes.mjs` 覆盖了这一段，已接入 `npm test`。它对 `image/gif`、`image/webp`、`video/mp4`、`image/png` 四种逐一断言：config 路由声明的 mediaKind 与内容版本参数、媒体路由的 Content-Type 与完整字节、`accept-ranges` 与 `nosniff` 头、HEAD 无响应体、`bytes=2-5` 返回 206 且 Content-Range 正确、越界 Range 返回 416，另外覆盖带 poster 的视频、无 poster 的动图返回 404、动态 WebP 宠物路由，以及媒体路由拒绝 POST。
+
+结论：插件服务端的 `mimeFor` 已正确处理 gif/mp4/webm，Range 与内容版本缓存均实现完整，**无需改动启动器功能**。
+
+### 命令
 
 ```
 npm run typecheck                  # 干净
-npm test                           # 78 passed | 1 skipped（含外观缓存 smoke 与代码签名就绪检查）
+npm test                           # 82 passed | 1 skipped（含两个外观 smoke 与代码签名就绪检查）
 npm run test:plugin                # install -> compose -> update -> remove 全流程
 npm run verify:external            # 结构校验：7 个来源 / 28 个素材
 npm run verify:external -- --live  # 2026-08-22 全部 28 项与上游摘要一致
@@ -166,23 +176,17 @@ https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/external-catalog.j
 ## 五、遗留事项
 
 - 官方 Gitee 商店没有镜像回退（无对应镜像服务）。若要享受回退，需把素材同时放一份到 GitHub，那是独立决定。
+- 皮肤下载没有进度反馈，任务只显示「正在校验本地缓存并按需下载原媒体」。超时预算改为按体积计算后，大素材在慢网络下可能静默等待数分钟。若后续引入视频类外部来源，建议补上按字节的进度上报（运行模块下载已有这套机制可参考）。
 - `verify:external` 未接入 RELEASE.md 第 3 节的质量检查清单，目前需手工执行；建议正式化时并入。
 - 共创投稿流程（CC0 模板、审核、签名、上架脚本）尚未开始，这是动态素材扩量的唯一可持续路径。
 - 本轮涉及外部素材权利判断，基于公开资料与项目自身约束，不构成法律意见。正式对外分发前建议就「外部来源展示」单独征询法律意见。
 
-## 六、调研原始数据的位置
+## 六、调研原始数据
 
-扫描产物在系统临时目录，**不在仓库内，会随清理丢失**。需要留存请及时归档：
+已归档进仓库：`docs/research/wallpaper-sources/`。六份扫描结果 JSON 加 `scans/` 下的七个扫描脚本，索引与三条主要结论见该目录的 [README](../research/wallpaper-sources/README.md)。
 
-```
-%TEMP%\wpresearch\
-  merged.json          26 个图片壁纸仓库的元数据与抽样
-  gallery.json          104 张缩略图画廊数据
-  video-result.json     65 个含视频仓库的探测结果（分辨率、时长、音轨）
-  gif-result.json       76 个含动画媒体仓库的探测结果（帧数、循环标记）
-  curate-result.json    52 个仓库的许可证与来源清白度判定
-  mirror-result.json    镜像实测原始数据
-  scan.mjs / scan2.mjs / scanvid.mjs / scangif.mjs / mirrorprobe.mjs / curate.mjs
-```
+后续增删 `scripts/external-skin-sources.json` 里的来源时先看 `curate-result.json`，它记着 52 个候选仓库的许可证分级与来源瑕疵标记；`mirror-result.json` 是 `asset-mirrors.ts` 渠道顺序和超时吞吐假设的依据。数据是 2026-08-21 的 API 快照，判断某个来源当前是否仍合适需要重跑对应脚本。
 
-另有两份可视化审计报告在 Cursor 画布目录（同样不在仓库内）：`wallpaper-repo-gallery.canvas.tsx`、`wallpaper-source-audit.canvas.tsx`。
+扫描脚本是一次性调研工具，不属于产品代码，未接入 `npm test`，都需要 `gh auth token` 提供凭据。
+
+另有两份可视化审计报告在 Cursor 画布目录（不在仓库内，随会话保存）：`wallpaper-repo-gallery.canvas.tsx` 是 26 个图片仓库的缩略图画廊，`wallpaper-source-audit.canvas.tsx` 是镜像实测与 52 个仓库的许可证审计矩阵。

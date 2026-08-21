@@ -6,7 +6,7 @@ import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { launcherDataPaths } from './config'
-import { mirrorCandidates } from './asset-mirrors'
+import { downloadTimeoutMs, mirrorCandidates } from './asset-mirrors'
 import { fetchTrustedStoreKey } from './store-trust'
 import type {
   PetAsset,
@@ -150,7 +150,7 @@ function cappedStream(source: Readable, limit: number): AsyncGenerator<Buffer> {
 async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string): Promise<void> {
   const response = await fetch(url, {
     redirect: 'follow',
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(downloadTimeoutMs(asset.size)),
     headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' }
   })
   if (!response.ok || response.body === null) throw new Error(`HTTP ${response.status}`)

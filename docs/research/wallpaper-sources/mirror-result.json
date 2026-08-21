@@ -1,0 +1,611 @@
+[
+  {
+    "id": "raw.githubusercontent",
+    "attempts": 8,
+    "successes": 4,
+    "successRate": 50,
+    "medianTtfbMs": 579,
+    "medianKbps": 120,
+    "honorsRange": true,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 929,
+        "totalMs": 2021,
+        "bytes": 227133,
+        "kbps": 110,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 194,
+        "totalMs": 1022,
+        "bytes": 227133,
+        "kbps": 217,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 572,
+        "totalMs": 5480,
+        "bytes": 524288,
+        "kbps": 93,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": false,
+        "error": "timeout 20000ms"
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": false,
+        "error": "timeout 20000ms"
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": false,
+        "error": "timeout 20000ms"
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": false,
+        "error": "timeout 20000ms"
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 585,
+        "totalMs": 3933,
+        "bytes": 524288,
+        "kbps": 130,
+        "contentType": "image/jpeg",
+        "ranged": true
+      }
+    ]
+  },
+  {
+    "id": "jsdelivr",
+    "attempts": 8,
+    "successes": 8,
+    "successRate": 100,
+    "medianTtfbMs": 818,
+    "medianKbps": 191,
+    "honorsRange": true,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1413,
+        "totalMs": 2216,
+        "bytes": 227133,
+        "kbps": 100,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 197,
+        "totalMs": 1211,
+        "bytes": 227133,
+        "kbps": 183,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 2202,
+        "totalMs": 3044,
+        "bytes": 524288,
+        "kbps": 168,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 223,
+        "totalMs": 877,
+        "bytes": 524288,
+        "kbps": 584,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 2101,
+        "totalMs": 2580,
+        "bytes": 524288,
+        "kbps": 198,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 212,
+        "totalMs": 653,
+        "bytes": 524288,
+        "kbps": 784,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 2568,
+        "totalMs": 3024,
+        "bytes": 524288,
+        "kbps": 169,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 213,
+        "totalMs": 604,
+        "bytes": 524288,
+        "kbps": 848,
+        "contentType": "image/jpeg",
+        "ranged": true
+      }
+    ]
+  },
+  {
+    "id": "statically",
+    "attempts": 8,
+    "successes": 8,
+    "successRate": 100,
+    "medianTtfbMs": 966,
+    "medianKbps": 357,
+    "honorsRange": true,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 2312,
+        "totalMs": 2817,
+        "bytes": 227133,
+        "kbps": 79,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 788,
+        "totalMs": 874,
+        "bytes": 227133,
+        "kbps": 254,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1143,
+        "totalMs": 1352,
+        "bytes": 524288,
+        "kbps": 379,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 787,
+        "totalMs": 866,
+        "bytes": 524288,
+        "kbps": 592,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1504,
+        "totalMs": 1562,
+        "bytes": 524288,
+        "kbps": 328,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 788,
+        "totalMs": 897,
+        "bytes": 524288,
+        "kbps": 571,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1437,
+        "totalMs": 1532,
+        "bytes": 524288,
+        "kbps": 334,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 788,
+        "totalMs": 848,
+        "bytes": 524288,
+        "kbps": 604,
+        "contentType": "image/jpeg",
+        "ranged": true
+      }
+    ]
+  },
+  {
+    "id": "gitmirror",
+    "attempts": 8,
+    "successes": 0,
+    "successRate": 0,
+    "honorsRange": false,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": false,
+        "error": "fetch failed"
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": false,
+        "error": "fetch failed"
+      }
+    ]
+  },
+  {
+    "id": "ghfast",
+    "attempts": 8,
+    "successes": 8,
+    "successRate": 100,
+    "medianTtfbMs": 714,
+    "medianKbps": 244,
+    "honorsRange": true,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1141,
+        "totalMs": 2253,
+        "bytes": 227133,
+        "kbps": 98,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 340,
+        "totalMs": 1185,
+        "bytes": 227133,
+        "kbps": 187,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 452,
+        "totalMs": 2103,
+        "bytes": 524288,
+        "kbps": 244,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 511,
+        "totalMs": 1712,
+        "bytes": 524288,
+        "kbps": 299,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 807,
+        "totalMs": 2095,
+        "bytes": 524288,
+        "kbps": 244,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 621,
+        "totalMs": 1691,
+        "bytes": 524288,
+        "kbps": 303,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 1117,
+        "totalMs": 2137,
+        "bytes": 524288,
+        "kbps": 240,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 837,
+        "totalMs": 1781,
+        "bytes": 524288,
+        "kbps": 288,
+        "contentType": "image/jpeg",
+        "ranged": true
+      }
+    ]
+  },
+  {
+    "id": "gh-proxy",
+    "attempts": 8,
+    "successes": 8,
+    "successRate": 100,
+    "medianTtfbMs": 414,
+    "medianKbps": 422,
+    "honorsRange": true,
+    "runs": [
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 786,
+        "totalMs": 1164,
+        "bytes": 227133,
+        "kbps": 190,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "D3Ext/aesthetic-wallpapers/images/anime-chick.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 200,
+        "totalMs": 443,
+        "bytes": 227133,
+        "kbps": 501,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 549,
+        "totalMs": 1384,
+        "bytes": 524288,
+        "kbps": 370,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "linuxdotexe/nordic-wallpapers/dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 290,
+        "totalMs": 1079,
+        "bytes": 524288,
+        "kbps": 474,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 788,
+        "totalMs": 1542,
+        "bytes": 524288,
+        "kbps": 332,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "SleepyCatHey/CozyPixels/Catppuccin/Animals%20%26%20Creatures/kaiju.png",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 314,
+        "totalMs": 1025,
+        "bytes": 524288,
+        "kbps": 499,
+        "contentType": "image/png",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 1,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 513,
+        "totalMs": 1833,
+        "bytes": 524288,
+        "kbps": 279,
+        "contentType": "image/jpeg",
+        "ranged": true
+      },
+      {
+        "sample": "rose-pine/wallpapers/anime/bocchi-studio.jpg",
+        "attempt": 2,
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 246,
+        "totalMs": 1016,
+        "bytes": 524288,
+        "kbps": 504,
+        "contentType": "image/jpeg",
+        "ranged": true
+      }
+    ]
+  },
+  {
+    "id": "gitee (现有皮肤商店)",
+    "attempts": 3,
+    "successes": 3,
+    "successRate": 100,
+    "medianTtfbMs": 251,
+    "medianKbps": 66,
+    "honorsRange": true,
+    "runs": [
+      {
+        "ok": true,
+        "status": 200,
+        "ttfbMs": 6227,
+        "totalMs": 6228,
+        "bytes": 16832,
+        "kbps": 3,
+        "contentType": "image/webp",
+        "ranged": false
+      },
+      {
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 251,
+        "totalMs": 251,
+        "bytes": 16832,
+        "kbps": 66,
+        "contentType": "image/webp",
+        "ranged": true
+      },
+      {
+        "ok": true,
+        "status": 206,
+        "ttfbMs": 183,
+        "totalMs": 183,
+        "bytes": 16832,
+        "kbps": 90,
+        "contentType": "image/webp",
+        "ranged": true
+      }
+    ]
+  }
+]

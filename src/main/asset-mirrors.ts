@@ -20,6 +20,23 @@ export interface MirrorCandidate {
   url: string
 }
 
+/** Slowest channel measured was 191 KB/s; assume well below that as the floor. */
+const ASSUMED_FLOOR_BYTES_PER_SECOND = 80 * 1024
+const MIN_DOWNLOAD_TIMEOUT_MS = 60_000
+const MAX_DOWNLOAD_TIMEOUT_MS = 900_000
+
+/**
+ * A fixed timeout cannot cover both a 40 KB thumbnail and an 80 MiB video: at
+ * the measured mirror throughput a 16.5 MB image already needs ~86 s, so the
+ * previous flat 90 s budget failed large assets outright. Scales with the
+ * declared size instead, which the signed catalog pins.
+ */
+export function downloadTimeoutMs(sizeBytes: number): number {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return MIN_DOWNLOAD_TIMEOUT_MS
+  const budget = MIN_DOWNLOAD_TIMEOUT_MS + Math.ceil((sizeBytes / ASSUMED_FLOOR_BYTES_PER_SECOND) * 1000)
+  return Math.min(MAX_DOWNLOAD_TIMEOUT_MS, budget)
+}
+
 interface GithubRawTarget {
   owner: string
   repo: string

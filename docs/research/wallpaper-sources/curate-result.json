@@ -1,0 +1,1103 @@
+[
+  {
+    "kind": "image",
+    "full": "dharmx/walls",
+    "stars": 8568,
+    "license": "NONE",
+    "assetCount": 1554,
+    "branch": "main",
+    "pushedAt": "2024-03-06",
+    "paths": [
+      "abstract/a_black_and_white_drawing_of_a_person_with_a_blindfold.png",
+      "aerial/a_swimming_pool_on_a_rocky_island.jpg",
+      "anime/a_cartoon_of_a_girl_playing_a_guitar.jpg",
+      "anime/a_cartoon_of_a_woman_sitting_at_a_table_on_a_deck.jpg",
+      "anime/a_group_of_cartoon_characters_01.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "作者声明不拥有版权",
+      "README 要求署名他人",
+      "README 提到第三方图源",
+      "抓取或下载自他处"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 21262
+  },
+  {
+    "kind": "image",
+    "full": "D3Ext/aesthetic-wallpapers",
+    "stars": 3450,
+    "license": "MIT",
+    "assetCount": 340,
+    "branch": "main",
+    "pushedAt": "2025-06-17",
+    "paths": [
+      "images/anime-chick.jpg",
+      "images/art-lake.png",
+      "images/beige_tree.png",
+      "images/bmw.jpg",
+      "images/cliff-edge.jpg"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 3984
+  },
+  {
+    "kind": "image",
+    "full": "orangci/walls-catppuccin-mocha",
+    "stars": 2650,
+    "license": "NONE",
+    "assetCount": 327,
+    "branch": "master",
+    "pushedAt": "2025-11-12",
+    "paths": [
+      "3d-model.jpg",
+      "berries-1.jpg",
+      "cabin-3.png",
+      "city-horizon.jpg",
+      "compass.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 37826
+  },
+  {
+    "kind": "image",
+    "full": "linuxdotexe/nordic-wallpapers",
+    "stars": 1846,
+    "license": "MIT",
+    "assetCount": 526,
+    "branch": "master",
+    "pushedAt": "2025-12-31",
+    "paths": [
+      "dynamic-wallpapers/Adwaita/ign_adwaita-day.jpg",
+      "dynamic-wallpapers/cyberpunk-01/ign_cyberpunk-01-4.jpg",
+      "dynamic-wallpapers/Hills/ign_Hills-1.png",
+      "dynamic-wallpapers/LakesideDeerComplete/ign_LakesideDeer-06.png",
+      "dynamic-wallpapers/LofiDino/ign_LofiDino-1.png"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 2676
+  },
+  {
+    "kind": "image",
+    "full": "SleepyCatHey/CozyPixels",
+    "stars": 1550,
+    "license": "MIT",
+    "assetCount": 882,
+    "branch": "main",
+    "pushedAt": "2026-03-03",
+    "paths": [
+      "Catppuccin/Abstract & Artistic/abstract-swirls.jpg",
+      "Catppuccin/Animals & Creatures/kaiju.png",
+      "Catppuccin/Characters & People/painting-standing.jpg",
+      "Catppuccin/Nature & Landscapes/blue-flowers.jpg",
+      "Catppuccin/Nature & Landscapes/nature-valley-1.jpg"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 5655
+  },
+  {
+    "kind": "image",
+    "full": "saint-13/Linux_Dynamic_Wallpapers",
+    "stars": 1240,
+    "license": "NONE",
+    "assetCount": 314,
+    "branch": "main",
+    "pushedAt": "2024-03-17",
+    "paths": [
+      "Dynamic_Wallpapers/Adwaita/adwaita-day.jpg",
+      "Dynamic_Wallpapers/CorporationHall/CorporationHall-1.jpg",
+      "Dynamic_Wallpapers/cyberpunk-01/cyberpunk-01-2.jpg",
+      "Dynamic_Wallpapers/Disco/Disco-2.jpg",
+      "Dynamic_Wallpapers/EOS-ViktorForgacs/EOS-ViktorForgacs02.png"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 24551
+  },
+  {
+    "kind": "image",
+    "full": "AngelJumbo/gruvbox-wallpapers",
+    "stars": 1200,
+    "license": "NONE",
+    "assetCount": 526,
+    "branch": "main",
+    "pushedAt": "2026-07-20",
+    "paths": [
+      "wallpapers/anime/108948084_p0.png",
+      "wallpapers/anime/Kita.png",
+      "wallpapers/anime/light/satellites.png",
+      "wallpapers/brands/awesome.png",
+      "wallpapers/brands/Manjaro.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 1528
+  },
+  {
+    "kind": "image",
+    "full": "JaKooLit/Wallpaper-Bank",
+    "stars": 869,
+    "license": "NONE",
+    "assetCount": 194,
+    "branch": "main",
+    "pushedAt": "2025-12-21",
+    "paths": [
+      "astralbed.png",
+      "wallpapers/Anime-Girl-Rain.png",
+      "wallpapers/Anime-Purple-eyes.png",
+      "wallpapers/Bonsai-Plant.png",
+      "wallpapers/Classroom.png"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "作者声明不拥有版权",
+      "README 要求署名他人",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 760
+  },
+  {
+    "kind": "image",
+    "full": "mylinuxforwork/wallpaper",
+    "stars": 775,
+    "license": "GPL-2.0",
+    "assetCount": 217,
+    "branch": "main",
+    "pushedAt": "2026-08-10",
+    "paths": [
+      "3d-tech.jpg",
+      "anime1.png",
+      "arch2.jpg",
+      "blackhole.jpg",
+      "city-from-above.jpg"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [],
+    "verdict": "copyleft-optin",
+    "readmeBytes": 786
+  },
+  {
+    "kind": "image",
+    "full": "FrenzyExists/wallpapers",
+    "stars": 773,
+    "license": "MIT",
+    "assetCount": 452,
+    "branch": "main",
+    "pushedAt": "2022-12-02",
+    "paths": [
+      "Anime/a-girl.jpg",
+      "Anime/depressed-girl.jpg",
+      "Anime/reach-for-the-stars-girl.jpg",
+      "Aquarium/chess_A_alt.png",
+      "Brown/DUNE-DESKTOP-WALLPAPER-4K.png"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 8222
+  },
+  {
+    "kind": "image",
+    "full": "vyrx-dev/Wallpapers",
+    "stars": 752,
+    "license": "NONE",
+    "assetCount": 475,
+    "branch": "master",
+    "pushedAt": "2026-07-17",
+    "paths": [
+      "calm/a_beach_with_trees_on_the_side.jpg",
+      "digital/a_house_in_the_snow.png",
+      "digital/x249vynj38aa1.webp",
+      "gruvbox/future_town.jpg",
+      "gruvbox/this-wallpaper-is-not-available.png"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "README 要求署名他人",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 56881
+  },
+  {
+    "kind": "image",
+    "full": "DenverCoder1/minimalistic-wallpaper-collection",
+    "stars": 648,
+    "license": "NOASSERTION",
+    "assetCount": 337,
+    "branch": "main",
+    "pushedAt": "2026-06-04",
+    "paths": [
+      "images/acoolrocket-dalle2-hokusai-non-prompt-landscape.png",
+      "images/alejagalesa-the-beach-neighborhood.jpg",
+      "images/alena-aenami-far-from-tomorrow.jpg",
+      "images/alena-aenami-you.jpg",
+      "images/arcipello-what-once-was.jpg"
+    ],
+    "licenseClass": "unclear",
+    "flags": [
+      "商业画师作品",
+      "作者声明不拥有版权",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 3395
+  },
+  {
+    "kind": "image",
+    "full": "elementary/wallpapers",
+    "stars": 535,
+    "license": "NOASSERTION",
+    "assetCount": 16,
+    "branch": "main",
+    "pushedAt": "2026-06-29",
+    "paths": [
+      "backgrounds/A Large Body of Water Surrounded By Mountains.jpg",
+      "backgrounds/Ashim DSilva.jpg",
+      "backgrounds/Canazei Granite Ridges.jpg",
+      "backgrounds/Martin Adams.jpg",
+      "backgrounds/Morskie Oko.jpg"
+    ],
+    "licenseClass": "unclear",
+    "flags": [],
+    "verdict": "exclude",
+    "readmeBytes": 545
+  },
+  {
+    "kind": "image",
+    "full": "rose-pine/wallpapers",
+    "stars": 504,
+    "license": "CC0-1.0",
+    "assetCount": 85,
+    "branch": "main",
+    "pushedAt": "2026-08-19",
+    "paths": [
+      "anime/bocchi-studio.jpg",
+      "anime/eating-cake.jpg",
+      "generative/circle.png",
+      "generative/shape.png",
+      "illustration/ascii.png"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 13790
+  },
+  {
+    "kind": "image",
+    "full": "roigoatzzz/Wallsync",
+    "stars": 473,
+    "license": "MIT",
+    "assetCount": 8,
+    "branch": "main",
+    "pushedAt": "2026-08-11",
+    "paths": [
+      "assets/cover.png",
+      "docs/animenight.jpg",
+      "docs/blackdots.jpg",
+      "docs/decoration.jpg",
+      "docs/dog.webp"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 21487
+  },
+  {
+    "kind": "image",
+    "full": "makccr/wallpapers",
+    "stars": 416,
+    "license": "NONE",
+    "assetCount": 374,
+    "branch": "master",
+    "pushedAt": "2026-05-10",
+    "paths": [
+      "wallpapers/abstract/acrylic-paint-1.jpg",
+      "wallpapers/abstract/pete-godfrey-F_B6TM8uT2s-unsplash.jpg",
+      "wallpapers/animals/cameron-venti-big-fish.jpg",
+      "wallpapers/animals/noaa-AQx2VH2731k-unsplash.jpg",
+      "wallpapers/animals/sebastian-hages-Jn67_91aoOg-unsplash.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "Unsplash 图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 2407
+  },
+  {
+    "kind": "image",
+    "full": "orangci/walls",
+    "stars": 416,
+    "license": "NONE",
+    "assetCount": 328,
+    "branch": "master",
+    "pushedAt": "2025-11-12",
+    "paths": [
+      "3d-model.jpg",
+      "berries-1.jpg",
+      "cabin-2.jpg",
+      "city-harbor.png",
+      "cold-alley.png"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 31992
+  },
+  {
+    "kind": "image",
+    "full": "whoisYoges/lwalpapers",
+    "stars": 338,
+    "license": "NONE",
+    "assetCount": 1383,
+    "branch": "PicturesOnly",
+    "pushedAt": "2026-05-11",
+    "paths": [
+      "wallpapers/b-001.jpg",
+      "wallpapers/b-057.jpg",
+      "wallpapers/b-1009.jpg",
+      "wallpapers/b-1058.jpg",
+      "wallpapers/b-1106.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 307
+  },
+  {
+    "kind": "image",
+    "full": "JoydeepMallick/Wallpapers",
+    "stars": 311,
+    "license": "NONE",
+    "assetCount": 2729,
+    "branch": "main",
+    "pushedAt": "2026-08-15",
+    "paths": [
+      "__original_drawn_by_zzzi_gn__c4c677bda1f9b7d579ccc1c1ba3f95ad.jpg",
+      "a_car_on_a_wet_road.jpg",
+      "a_pool_and_a_house.jpg",
+      "AI_AI_AI/MJ1243_Epic_cinematic_view_of_horizon_in_space_filled_with_star_76384719-12ed-406e-9f74-336456d8bda2.png",
+      "brown_switch.jpeg",
+      "DistroLure/slackware_1.png"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "同人图站命名",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 9563
+  },
+  {
+    "kind": "image",
+    "full": "HyDE-Project/hyde-gallery",
+    "stars": 291,
+    "license": "GPL-3.0",
+    "assetCount": 90,
+    "branch": "master",
+    "pushedAt": "2026-06-14",
+    "paths": [
+      "1-Bit/screenshot.png",
+      "Abyssal-Wave/Screens3hort.png",
+      "Amethyst-Aura/Preview.png",
+      "assets/ss1.png",
+      "BlueSky/250121-3.png"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [],
+    "verdict": "copyleft-optin",
+    "readmeBytes": 48090
+  },
+  {
+    "kind": "image",
+    "full": "kitsunebishi/Wallpapers",
+    "stars": 266,
+    "license": "NONE",
+    "assetCount": 390,
+    "branch": "main",
+    "pushedAt": "2025-06-07",
+    "paths": [
+      "images/00000.png",
+      "images/00013.png",
+      "images/00026.png",
+      "images/00039.png",
+      "images/00052.png",
+      "images/00065.png"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 193
+  },
+  {
+    "kind": "image",
+    "full": "dxnst/nord-backgrounds",
+    "stars": 258,
+    "license": "NONE",
+    "assetCount": 195,
+    "branch": "main",
+    "pushedAt": "2024-03-10",
+    "paths": [
+      "avogadr.io/1920x1080/acyclovir.png",
+      "avogadr.io/1920x1080/diclofenac.png",
+      "avogadr.io/1920x1080/melatonin.png",
+      "avogadr.io/1920x1080/testosterone.png",
+      "avogadr.io/1920x1080/xanax.png"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 999
+  },
+  {
+    "kind": "image",
+    "full": "diinki/wallpapers",
+    "stars": 244,
+    "license": "NONE",
+    "assetCount": 20,
+    "branch": "main",
+    "pushedAt": "2026-06-28",
+    "paths": [
+      "april2026/terminal_glossary_4k_pastel-green.png",
+      "april2026/terminal_glossary_4k_pastel-pink.png",
+      "april2026/terminal_glossary_4k_pastel-purple.png",
+      "april2026/terminal_glossary_4k_paw.png",
+      "june2026/carnation_collage.png"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 2368
+  },
+  {
+    "kind": "image",
+    "full": "michaelScopic/Wallpapers",
+    "stars": 231,
+    "license": "NONE",
+    "assetCount": 475,
+    "branch": "main",
+    "pushedAt": "2026-07-13",
+    "paths": [
+      "abstract/0163.jpg",
+      "abstract/unknown.png",
+      "anime/0297.jpg",
+      "anime/3.png",
+      "anime/Default_1girl_anime_art_by_Ilya_Kuvshinov.jpg",
+      "anime/gdngfgh.png"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 845
+  },
+  {
+    "kind": "image",
+    "full": "fr0st-xyz/wallz",
+    "stars": 208,
+    "license": "GPL-3.0",
+    "assetCount": 386,
+    "branch": "main",
+    "pushedAt": "2026-05-19",
+    "paths": [
+      "Abyssal Wave/01. Abyssal Wave.png",
+      "Catppuccin Latte/01. Catppuccin Latte.jpg",
+      "Catppuccin Latte/16. Catppuccin Latte.jpg",
+      "Catppuccin Mocha/11. Catppuccin Mocha.png",
+      "Catppuccin Mocha/26. Catppuccin Mocha.png"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [
+      "README 要求署名他人",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 21739
+  },
+  {
+    "kind": "image",
+    "full": "pop-os/wallpapers",
+    "stars": 193,
+    "license": "NONE",
+    "assetCount": 38,
+    "branch": "master",
+    "pushedAt": "2025-06-24",
+    "paths": [
+      "original/ahmadreza-sajadi-10140-edit.jpg",
+      "original/benjamin-voros-250200.jpg",
+      "original/ferdinand-stohr-149422.jpg",
+      "original/jad-limcaco-183877.jpg",
+      "original/jake-hills-36605.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 3104
+  },
+  {
+    "kind": "image",
+    "full": "dusklinux/images",
+    "stars": 185,
+    "license": "NONE",
+    "assetCount": 1507,
+    "branch": "main",
+    "pushedAt": "2026-03-15",
+    "paths": [
+      "dark/0001.jpg",
+      "dark/0051.jpg",
+      "dark/0101.jpg",
+      "dark/0151.jpg",
+      "dark/0201.jpg",
+      "dark/0252.jpg"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 260033
+  },
+  {
+    "kind": "image",
+    "full": "pollux78/linuxnext-wallpapers",
+    "stars": 153,
+    "license": "NONE",
+    "assetCount": 203,
+    "branch": "main",
+    "pushedAt": "2026-03-26",
+    "paths": [
+      "Abstract/bars.jpg",
+      "Abstract/wallhaven-6dv99x.png",
+      "Abstract/wallhaven-zywdlv.png",
+      "Games/20241222_134122.jpg",
+      "Games/9XV1dSy.jpeg",
+      "Games/ArcRaiders_ConceptArt_16_250930.png"
+    ],
+    "licenseClass": "none",
+    "flags": [
+      "wallhaven 转载",
+      "作者声明不拥有版权",
+      "README 要求署名他人",
+      "README 提到第三方图源"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 26785
+  },
+  {
+    "kind": "video",
+    "full": "kelteseth/ScreenPlay",
+    "stars": 250,
+    "license": "AGPL-3.0",
+    "assetCount": 2,
+    "branch": "master",
+    "pushedAt": "2026-08-19",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "2048x1152 15s audio=no",
+    "paths": [
+      "Content/wallpaper_video_nebula_h264/mantissa.xyz_loop_072.mp4"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [
+      "抓取或下载自他处"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 8421
+  },
+  {
+    "kind": "video",
+    "full": "L3yzs/By-LeyzS-Arch-Hyprland-Dotfiles",
+    "stars": 141,
+    "license": "NONE",
+    "assetCount": 5,
+    "branch": "main",
+    "pushedAt": "2026-06-26",
+    "usablePicks": 2,
+    "probedPicks": 4,
+    "bestShape": "3840x2160 28.37s audio=yes",
+    "paths": [
+      ".config/Live Wallpapers/akira.mp4",
+      ".config/Live Wallpapers/Ayanami Rei.mp4",
+      ".config/Live Wallpapers/sailor girl.mp4",
+      "win10bootanimation.mp4"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 2108
+  },
+  {
+    "kind": "video",
+    "full": "laobamac/MirageWallpaper",
+    "stars": 126,
+    "license": "GPL-3.0",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-08-20",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "3639x2048 30s audio=no",
+    "paths": [
+      "Mirage/Mirage Wallpaper/Resources/WallpaperNotFound.mp4"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [],
+    "verdict": "copyleft-optin",
+    "readmeBytes": 10075
+  },
+  {
+    "kind": "video",
+    "full": "programmersd21/wallr",
+    "stars": 124,
+    "license": "MIT",
+    "assetCount": 3,
+    "branch": "main",
+    "pushedAt": "2026-08-20",
+    "usablePicks": 2,
+    "probedPicks": 3,
+    "bestShape": "1920x1080 43s audio=yes",
+    "paths": [
+      "assets/demo.mp4",
+      "assets/video.mp4",
+      "samples/extra.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 7290
+  },
+  {
+    "kind": "video",
+    "full": "houmahani/codrops-depth-gallery",
+    "stars": 98,
+    "license": "MIT",
+    "assetCount": 3,
+    "branch": "main",
+    "pushedAt": "2026-03-09",
+    "usablePicks": 2,
+    "probedPicks": 3,
+    "bestShape": "3840x2160 5.77s audio=no",
+    "paths": [
+      "resources/demo.mp4",
+      "resources/reel.mp4",
+      "resources/stage.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 1389
+  },
+  {
+    "kind": "video",
+    "full": "willnode/autobloom",
+    "stars": 76,
+    "license": "NONE",
+    "assetCount": 2,
+    "branch": "master",
+    "pushedAt": "2026-04-30",
+    "usablePicks": 1,
+    "probedPicks": 2,
+    "bestShape": "1620x1080 4.98s audio=no",
+    "paths": [
+      "media/dark/bloom.mp4",
+      "media/light/bloom.mp4"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 1089
+  },
+  {
+    "kind": "video",
+    "full": "IlyaKotomin/Godot-SuperWallpaper-Template",
+    "stars": 68,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "master",
+    "pushedAt": "2025-07-09",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "2560x1440 29.11s audio=no",
+    "paths": [
+      "assets/preview.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 6243
+  },
+  {
+    "kind": "video",
+    "full": "JoshuaThadi/Wall-E-Desk",
+    "stars": 60,
+    "license": "MIT",
+    "assetCount": 26,
+    "branch": "main",
+    "pushedAt": "2026-08-18",
+    "usablePicks": 2,
+    "probedPicks": 4,
+    "bestShape": "1920x1080 38.53s audio=no",
+    "paths": [
+      "Live Wallpapers/Anime night Room.mp4",
+      "Live Wallpapers/beach waves.mp4",
+      "Live Wallpapers/black hole interstellar.mp4",
+      "Live Wallpapers/Chillhop - White Oak.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 22700
+  },
+  {
+    "kind": "video",
+    "full": "Unayung/wallpaper-engine-mac",
+    "stars": 54,
+    "license": "GPL-3.0",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-03-31",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "3639x2048 30s audio=no",
+    "paths": [
+      "Open Wallpaper Engine/Resources/WallpaperNotFound.mp4"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [
+      "抓取或下载自他处"
+    ],
+    "verdict": "exclude",
+    "readmeBytes": 8875
+  },
+  {
+    "kind": "video",
+    "full": "slastra/hyprglaze",
+    "stars": 32,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "master",
+    "pushedAt": "2026-08-07",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1920x1080 45.1s audio=no",
+    "paths": [
+      "demo.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 15640
+  },
+  {
+    "kind": "video",
+    "full": "Jack02134x/hyprlock-mp4-guide",
+    "stars": 30,
+    "license": "NONE",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2025-12-17",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1280x720 4.38s audio=no",
+    "paths": [
+      "breathe.mp4"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 738
+  },
+  {
+    "kind": "video",
+    "full": "zeroruka/video-wallpaper-scripts",
+    "stars": 28,
+    "license": "MIT",
+    "assetCount": 5,
+    "branch": "main",
+    "pushedAt": "2022-12-25",
+    "usablePicks": 1,
+    "probedPicks": 4,
+    "bestShape": "2560x1440 6.68s audio=no",
+    "paths": [
+      "examples/1.mp4",
+      "examples/2.mp4",
+      "examples/3.mp4",
+      "examples/4.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 7216
+  },
+  {
+    "kind": "video",
+    "full": "tsukiforge/ZeroMix",
+    "stars": 25,
+    "license": "MIT",
+    "assetCount": 12,
+    "branch": "ProyekTil",
+    "pushedAt": "2026-08-15",
+    "usablePicks": 2,
+    "probedPicks": 4,
+    "bestShape": "2048x1080 10.01s audio=yes",
+    "paths": [
+      "Assets/Data/Video/Vs (1).mp4",
+      "Assets/Data/Video/Vs (2).mp4",
+      "Assets/Data/Video/Vs (3).mp4",
+      "Assets/Data/Video/Vs (5).mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "抓取或下载自他处"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 10136
+  },
+  {
+    "kind": "video",
+    "full": "bourbonicfisky/sonoma-wallpaper-downloader",
+    "stars": 20,
+    "license": "NONE",
+    "assetCount": 3,
+    "branch": "main",
+    "pushedAt": "2026-03-11",
+    "usablePicks": 2,
+    "probedPicks": 3,
+    "bestShape": "730x540 6.03s audio=no",
+    "paths": [
+      "public/permissions.mov",
+      "website/dist/img/loopyclip-HD1080p.mov",
+      "website/img/loopyclip-HD1080p.mov"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 7689
+  },
+  {
+    "kind": "video",
+    "full": "RitvikDayal/featherwall",
+    "stars": 17,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-08-20",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1440x900 9s audio=no",
+    "paths": [
+      "docs/media/featherwall-demo.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [
+      "README 提到第三方图源"
+    ],
+    "verdict": "needs-review",
+    "readmeBytes": 16153
+  },
+  {
+    "kind": "video",
+    "full": "shakeebshaan/packet-highway",
+    "stars": 13,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-06-24",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1920x1080 30s audio=no",
+    "paths": [
+      "media/demo.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 7791
+  },
+  {
+    "kind": "video",
+    "full": "Victory-SergD/SergD_LoFiTyan",
+    "stars": 8,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-06-19",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1920x1080 21.2s audio=no",
+    "paths": [
+      "public/assets/default-bg/lofi-girl-autumn.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 10515
+  },
+  {
+    "kind": "video",
+    "full": "sricharankrishnan/awesome-jquery-html5-background-video-plugin",
+    "stars": 7,
+    "license": "MIT",
+    "assetCount": 4,
+    "branch": "master",
+    "pushedAt": "2022-10-06",
+    "usablePicks": 1,
+    "probedPicks": 2,
+    "bestShape": "1920x1080 10.84s audio=no",
+    "paths": [
+      "assets/videos/jumbotron-bg-1a-video.mp4",
+      "assets/videos/jumbotron-bg-2-video.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 8860
+  },
+  {
+    "kind": "video",
+    "full": "mmnj40/wallpaper-enyeet",
+    "stars": 7,
+    "license": "MIT",
+    "assetCount": 2,
+    "branch": "main",
+    "pushedAt": "2024-05-25",
+    "usablePicks": 1,
+    "probedPicks": 2,
+    "bestShape": "1920x1080 11.27s audio=no",
+    "paths": [
+      "Assets/_Resource/Video/black_hole.mp4",
+      "Assets/_Resource/Video/gon_rage.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 166
+  },
+  {
+    "kind": "video",
+    "full": "SniperRavan/Wallpapers",
+    "stars": 5,
+    "license": "NONE",
+    "assetCount": 6,
+    "branch": "main",
+    "pushedAt": "2026-06-29",
+    "usablePicks": 1,
+    "probedPicks": 4,
+    "bestShape": "3840x2160 27.88s audio=yes",
+    "paths": [
+      "My-laptop-wallpaper/crazy-anime-girl-moewalls-com.mp4",
+      "My-laptop-wallpaper/guts-black-swordsman-berserker-moewalls-com.mp4",
+      "My-laptop-wallpaper/lonely-spongebob-in-krusty-krab-moewalls-com.mp4",
+      "My-laptop-wallpaper/rengoku-death-kimetsu-no-yaiba-moewalls.com.mp4"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 8702
+  },
+  {
+    "kind": "video",
+    "full": "Inside4ndroid/DeskEngine",
+    "stars": 2,
+    "license": "GPL-3.0",
+    "assetCount": 3,
+    "branch": "main",
+    "pushedAt": "2026-05-16",
+    "usablePicks": 3,
+    "probedPicks": 3,
+    "bestShape": "3840x2160 13.78s audio=no",
+    "paths": [
+      "public/Wallpapers/Aroura.mp4",
+      "public/Wallpapers/Coder.mp4",
+      "public/Wallpapers/Particles.mp4"
+    ],
+    "licenseClass": "copyleft",
+    "flags": [],
+    "verdict": "copyleft-optin",
+    "readmeBytes": 4337
+  },
+  {
+    "kind": "video",
+    "full": "MISTERNEGATIVE21/omywall",
+    "stars": 1,
+    "license": "NONE",
+    "assetCount": 8,
+    "branch": "master",
+    "pushedAt": "2026-08-18",
+    "usablePicks": 3,
+    "probedPicks": 4,
+    "bestShape": "1920x1080 60s audio=no",
+    "paths": [
+      "assets/wallpapers/bunny.mp4",
+      "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/kinect.mp4",
+      "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/MaryOculus.mp4",
+      "assets/web_wallpapers/02-3d-procedural/three.js/examples/textures/pano.mp4"
+    ],
+    "licenseClass": "none",
+    "flags": [],
+    "verdict": "link-only",
+    "readmeBytes": 6657
+  },
+  {
+    "kind": "video",
+    "full": "legeeknumero1/wpe-setup",
+    "stars": 1,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-08-11",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1440x810 15.7s audio=no",
+    "paths": [
+      "docs/demo.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 16633
+  },
+  {
+    "kind": "video",
+    "full": "LjcYounger/WallpaperWindowEmbedder",
+    "stars": 0,
+    "license": "MIT",
+    "assetCount": 1,
+    "branch": "main",
+    "pushedAt": "2026-02-06",
+    "usablePicks": 1,
+    "probedPicks": 1,
+    "bestShape": "1920x1080 10s audio=no",
+    "paths": [
+      "test.mp4"
+    ],
+    "licenseClass": "redistributable",
+    "flags": [],
+    "verdict": "default-source",
+    "readmeBytes": 212
+  }
+]
