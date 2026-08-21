@@ -163,9 +163,9 @@ export const mockSnapshot: LauncherSnapshot = {
           presentation: { position: '50% 50%', overlay: 'rgba(2, 9, 20, 0.30)', blurPx: 0, surfaceOpacity: 0.74 }
         },
         {
-          id: 'ext-rose-pine-shape', name: 'Rosé Pine · generative shape', description: '程序生成的几何构图，低干扰。', mediaKind: 'image', styles: ['minimal'], tags: ['生成艺术', '极简'], contentRating: 'everyone',
-          thumbnailUrl: 'https://cdn.statically.io/gh/rose-pine/wallpapers/main/generative/shape.png?w=640&format=webp',
-          media: { url: 'https://raw.githubusercontent.com/rose-pine/wallpapers/main/generative/shape.png', sha256: '1111111111111111111111111111111111111111111111111111111111111111', size: 307200, mime: 'image/png' },
+          id: 'ext-rose-pine-circle', name: 'Rosé Pine · generative circle', description: '程序生成的几何构图，低干扰。', mediaKind: 'image', styles: ['minimal'], tags: ['生成艺术', '极简'], contentRating: 'everyone',
+          thumbnailUrl: 'https://cdn.statically.io/gh/rose-pine/wallpapers/main/generative/circle.png?w=640&h=360&format=webp',
+          media: { url: 'https://raw.githubusercontent.com/rose-pine/wallpapers/main/generative/circle.png', sha256: '7c37bd2d57986c16636a9b9872dd75e2b0e5ac1939d2b8c38e8d6c0feef41c53', size: 17299865, mime: 'image/png' },
           origin: {
             repo: 'rose-pine/wallpapers',
             repoUrl: 'https://github.com/rose-pine/wallpapers',

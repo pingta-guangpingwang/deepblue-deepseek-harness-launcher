@@ -35,7 +35,10 @@ const options = parseArguments(process.argv.slice(2))
 await mkdir(options.out, { recursive: true })
 
 const failures = []
-const browser = await chromium.launch()
+// Use the full bundled Chromium in its current headless mode. This keeps the
+// release QA command compatible with `playwright install chromium --no-shell`
+// and avoids downloading a second, duplicate headless-shell browser.
+const browser = await chromium.launch({ headless: true, channel: 'chromium' })
 const page = await browser.newPage({ viewport: { width: 1440, height: 980 } })
 const consoleErrors = []
 page.on('console', (message) => {
@@ -53,14 +56,35 @@ async function shot(name) {
 }
 
 async function clickText(text) {
-  const target = page.getByRole('button', { name: text, exact: false }).first()
-  await target.waitFor({ state: 'visible', timeout: 15_000 })
+  // Store tabs are semantic `role="tab"` elements backed by buttons, while
+  // actions retain the default button role. Match the native element so the
+  // helper can drive both consistently.
+  const targets = page.locator('button').filter({ hasText: text })
+  await targets.first().waitFor({ state: 'attached', timeout: 15_000 })
+  let target
+  for (let index = 0; index < await targets.count(); index += 1) {
+    const candidate = targets.nth(index)
+    if (await candidate.isVisible()) {
+      target = candidate
+      break
+    }
+  }
+  if (!target) throw new Error(`找不到可见按钮：${text}`)
   await target.click()
   await page.waitForTimeout(500)
 }
 
 try {
   await page.goto(options.url, { waitUntil: 'networkidle' })
+
+  // The web preview intentionally exercises first-run state. Complete the
+  // storage confirmation before navigating so the modal cannot mask the store.
+  if (await page.getByRole('dialog', { name: '先确认运行资源放在哪里' }).count()) {
+    await clickText('使用此位置并开始')
+  }
+  if (await page.locator('.runtime-update-backdrop').count()) {
+    await clickText('稍后更新')
+  }
 
   await clickText('皮肤商店')
   await page.waitForTimeout(600)
@@ -75,6 +99,10 @@ try {
 
   await clickText('我已了解，开启外部来源')
   await page.waitForTimeout(800)
+  await page.waitForFunction(() => {
+    const images = Array.from(document.querySelectorAll('.skin-card.external img'))
+    return images.length > 0 && images.every((image) => image.complete)
+  }, undefined, { timeout: 20_000 }).catch(() => undefined)
   const externalCards = await page.locator('.skin-card.external').count()
   check('上游仓库列表渲染', (await page.locator('.external-sources').count()) === 1)
   check('外部素材卡片渲染', externalCards > 0)
