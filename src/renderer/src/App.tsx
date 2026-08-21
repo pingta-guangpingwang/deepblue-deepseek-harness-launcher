@@ -98,6 +98,7 @@ import type {
 import { coreRuntimeReady, unavailableSourceCount } from '../../shared/environment-health'
 import { mockSnapshot } from './mock'
 import deepseekLogo from './assets/deepseek-logo.svg'
+import { onlinePageRefreshTarget } from './online-page-refresh'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }] },
@@ -1856,11 +1857,20 @@ export default function App(): ReactNode {
     else setSnapshot((current) => ({ ...current, settings: { ...current.settings, externalSkinsEnabled: enabled } }))
   }
 
+  const activatePage = (nextPage: PageId): void => {
+    setPage(nextPage)
+    setSidebarOpen(false)
+    const refreshTarget = onlinePageRefreshTarget(nextPage)
+    if (refreshTarget === 'discovery') refreshDiscovery()
+    else if (refreshTarget === 'skins') refreshSkins()
+    else if (refreshTarget === 'pets') refreshPets()
+  }
+
   return (
     <div className="app-shell">
       <aside className={classNames('sidebar', sidebarOpen && 'sidebar-open')}>
         <div className="brand"><BrandMark /><div><strong>DeepSeek</strong><span>深蓝 Harness 启动器</span></div></div>
-        <nav>{navigation.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => { setPage(item.id); setSidebarOpen(false) }}><Icon size={18} /><span>{item.label}</span>{page === item.id && <i />}</button> })}</div>)}</nav>
+        <nav>{navigation.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => activatePage(item.id)}><Icon size={18} /><span>{item.label}</span>{page === item.id && <i />}</button> })}</div>)}</nav>
         <div className="sidebar-account">
           {snapshot.account.status === 'signed_in'
             ? <><button className="sidebar-account-main" onClick={() => setPage('library')} title="打开账号同步的本机能力"><span className="account-avatar">{snapshot.account.user?.name.slice(0, 1)}</span><span><strong>{snapshot.account.user?.name}</strong><small>AI历史书账号 · 会话已加密记住</small></span></button><button className="sidebar-account-exit" aria-label="退出 AI历史书账号" onClick={accountLogout}><LogOut size={15} /></button></>
