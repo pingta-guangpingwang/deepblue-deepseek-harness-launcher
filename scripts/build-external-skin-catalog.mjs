@@ -132,13 +132,14 @@ function intrinsicSize(extension, header) {
 }
 
 /**
- * Derived from the full repository path, not the basename: collections often
- * reuse one filename across folders, and a basename slug silently collapses
- * them into a single id.
+ * Built from owner, repository and the full file path. The owner matters
+ * because `wallpapers` is a very common repository name, and the full path
+ * matters because collections reuse one filename across folders; dropping
+ * either makes distinct assets collapse onto one id.
  */
 function slugFor(repo, filePath) {
   const withoutExtension = filePath.slice(0, filePath.length - path.extname(filePath).length)
-  const slug = `${repo.split('/')[1]}-${withoutExtension}`
+  const slug = `${repo.replace('/', '-')}-${withoutExtension}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

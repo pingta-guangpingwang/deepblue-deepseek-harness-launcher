@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-21T15:50:55.563Z",
+  "generatedAt": "2026-08-21T16:53:00.025Z",
   "pageSize": 20,
   "sources": [
     {
@@ -62,7 +62,7 @@
   ],
   "items": [
     {
-      "id": "ext-wallpapers-anime-bocchi-studio",
+      "id": "ext-rose-pine-wallpapers-anime-bocchi-studio",
       "name": "Rosé Pine · bocchi-studio",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -99,7 +99,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-anime-ohga-wajima",
+      "id": "ext-rose-pine-wallpapers-anime-ohga-wajima",
       "name": "Rosé Pine · ohga-wajima",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -136,7 +136,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-generative-circle",
+      "id": "ext-rose-pine-wallpapers-generative-circle",
       "name": "Rosé Pine · circle",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -173,7 +173,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-illustration-arcade-offset",
+      "id": "ext-rose-pine-wallpapers-illustration-arcade-offset",
       "name": "Rosé Pine · arcade - offset",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -210,7 +210,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-illustration-big-shoulders",
+      "id": "ext-rose-pine-wallpapers-illustration-big-shoulders",
       "name": "Rosé Pine · big shoulders",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -247,7 +247,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-illustration-leafy",
+      "id": "ext-rose-pine-wallpapers-illustration-leafy",
       "name": "Rosé Pine · leafy",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -284,7 +284,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-green",
+      "id": "ext-diinki-wallpapers-april2026-terminal-glossary-4k-pastel-green",
       "name": "Terminal · terminal_glossary_4k_pastel-green",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -322,7 +322,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-pink",
+      "id": "ext-diinki-wallpapers-april2026-terminal-glossary-4k-pastel-pink",
       "name": "Terminal · terminal_glossary_4k_pastel-pink",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -360,7 +360,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-purple",
+      "id": "ext-diinki-wallpapers-april2026-terminal-glossary-4k-pastel-purple",
       "name": "Terminal · terminal_glossary_4k_pastel-purple",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -398,7 +398,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-april2026-terminal-glossary-4k-paw",
+      "id": "ext-diinki-wallpapers-april2026-terminal-glossary-4k-paw",
       "name": "Terminal · terminal_glossary_4k_paw",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -436,7 +436,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-june2026-carnation-collage",
+      "id": "ext-diinki-wallpapers-june2026-carnation-collage",
       "name": "Terminal · carnation_collage",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -474,7 +474,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-june2026-georges-riom-collage",
+      "id": "ext-diinki-wallpapers-june2026-georges-riom-collage",
       "name": "Terminal · georges_riom_collage",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -512,7 +512,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-allqk82",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-allqk82",
       "name": "Gruvbox · ALLqk82",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -549,7 +549,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-coding-2",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-coding-2",
       "name": "Gruvbox · coding-2",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -586,7 +586,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-elegant",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-elegant",
       "name": "Gruvbox · elegant",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -623,7 +623,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-freshcake-cornerwizard",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-freshcake-corner",
       "name": "Gruvbox · FreshCake_cornerWizard",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -660,7 +660,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-gruv-abstract-maze",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-gruv-abstract-ma",
       "name": "Gruvbox · gruv-abstract-maze",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -697,7 +697,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-gruv-limits",
+      "id": "ext-angeljumbo-gruvbox-wallpapers-wallpapers-minimalistic-gruv-limits",
       "name": "Gruvbox · gruv-limits",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -734,7 +734,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0001",
+      "id": "ext-dusklinux-images-dark-0001",
       "name": "Dusk · 0001",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -770,7 +770,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0061",
+      "id": "ext-dusklinux-images-dark-0061",
       "name": "Dusk · 0061",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -806,7 +806,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0122",
+      "id": "ext-dusklinux-images-dark-0122",
       "name": "Dusk · 0122",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -842,7 +842,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0183",
+      "id": "ext-dusklinux-images-dark-0183",
       "name": "Dusk · 0183",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -878,7 +878,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0245",
+      "id": "ext-dusklinux-images-dark-0245",
       "name": "Dusk · 0245",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -914,7 +914,7 @@
       }
     },
     {
-      "id": "ext-images-dark-0307",
+      "id": "ext-dusklinux-images-dark-0307",
       "name": "Dusk · 0307",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -950,7 +950,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-anime-lo-fi-sailor-moon",
+      "id": "ext-frenzyexists-wallpapers-anime-lo-fi-sailor-moon",
       "name": "Frenzy 动图 · lo-fi-sailor-moon",
       "description": "精选壁纸集里的循环动图，1920×1080。",
       "mediaKind": "animated-image",
@@ -987,7 +987,7 @@
       }
     },
     {
-      "id": "ext-wallpaper-street2",
+      "id": "ext-mylinuxforwork-wallpaper-street2",
       "name": "MLFW 动图 · street2",
       "description": "跨桌面环境通用壁纸集里的循环动图。",
       "mediaKind": "animated-image",
@@ -1024,7 +1024,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-animated-alley",
+      "id": "ext-michaelscopic-wallpapers-animated-alley",
       "name": "Scopic 动图 · alley",
       "description": "多年收集的壁纸集里的超宽循环动图。",
       "mediaKind": "animated-image",
@@ -1062,7 +1062,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-animated-trees",
+      "id": "ext-michaelscopic-wallpapers-animated-trees",
       "name": "Scopic 动图 · trees",
       "description": "多年收集的壁纸集里的超宽循环动图。",
       "mediaKind": "animated-image",
