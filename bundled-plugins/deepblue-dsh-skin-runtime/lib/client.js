@@ -11,14 +11,20 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       *:has(> [data-shell-overlay]) { isolation: isolate; }
       [data-shell-overlay] { z-index: -1 !important; overflow: hidden; }
       .deepblue-skin-wallpaper { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; background: #07111f; }
-      .deepblue-skin-wallpaper > img, .deepblue-skin-wallpaper > video { width: 100%; height: 100%; display: block; object-fit: cover; transform: scale(1.01); }
+      .deepblue-skin-wallpaper > img, .deepblue-skin-wallpaper > video, .deepblue-skin-wallpaper > canvas { width: 100%; height: 100%; display: block; object-fit: cover; transform: scale(1.01); }
       .deepblue-skin-wallpaper[data-media-kind='animated-image'] > img { animation: deepblue-skin-drift 18s ease-in-out infinite alternate; }
+      .deepblue-skin-wallpaper > canvas { position: absolute; inset: 0; display: none; }
+      .deepblue-skin-wallpaper[data-held='true'] > canvas { display: block; }
+      .deepblue-skin-wallpaper[data-held='true'] > img { display: none; }
       .deepblue-skin-wallpaper::after { content: ''; position: absolute; inset: 0; background: var(--deepblue-skin-overlay, rgba(2, 9, 20, .32)); }
       .deepblue-pet-host { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
       .deepblue-pet { position: absolute; width: min(var(--deepblue-pet-width), 22vw); min-width: 96px; max-width: 280px; padding: 0; border: 0; background: transparent; cursor: grab; pointer-events: auto; touch-action: none; filter: drop-shadow(0 12px 13px rgba(7, 17, 31, .2)); }
       .deepblue-pet:active { cursor: grabbing; }
       .deepblue-pet-visual { position: relative; display: block; width: 100%; transform-origin: 50% 85%; }
-      .deepblue-pet-visual > img { display: block; width: 100%; height: auto; max-height: 36vh; object-fit: contain; pointer-events: none; user-select: none; }
+      .deepblue-pet-visual > img, .deepblue-pet-visual > canvas { display: block; width: 100%; height: auto; max-height: 36vh; object-fit: contain; pointer-events: none; user-select: none; }
+      .deepblue-pet-visual > canvas { display: none; }
+      .deepblue-pet[data-held='true'] .deepblue-pet-visual > canvas { display: block; }
+      .deepblue-pet[data-held='true'] .deepblue-pet-visual > img { display: none; }
       .deepblue-pet[data-idle='float'] .deepblue-pet-visual { animation: deepblue-pet-float 4.8s ease-in-out infinite; }
       .deepblue-pet[data-idle='bounce'] .deepblue-pet-visual { animation: deepblue-pet-bounce 3.6s ease-in-out infinite; }
       .deepblue-pet[data-reaction='hop'] .deepblue-pet-visual { animation: deepblue-pet-hop .55s cubic-bezier(.2,.8,.2,1); }
@@ -41,6 +47,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       @keyframes deepblue-pet-sparks { from { opacity: 1; transform: translateY(8px) scale(.6); } to { opacity: 0; transform: translateY(-28px) scale(1.1); } }
       @media (max-width: 640px) { .deepblue-pet { width: min(var(--deepblue-pet-width), 31vw); max-width: 148px; } .deepblue-pet-bubble { max-width: 150px; font-size: 12px; } }
       @media (prefers-reduced-motion: reduce) { .deepblue-skin-wallpaper > video { display: none; } .deepblue-skin-wallpaper > img, .deepblue-pet-visual, .deepblue-pet-sparks::before, .deepblue-pet-sparks::after { animation: none !important; } .deepblue-skin-wallpaper[data-has-poster='false'] { background: #07111f; } }
+      /* Decoder-driven GIF and WebP frames ignore the rule above, so the held canvas replaces them. */
     `
     document.head.appendChild(tag)
   }
@@ -54,8 +61,36 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     }
   }
 
+  const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
+
+  /**
+   * Animated GIF and WebP frames are driven by the decoder, not by CSS, so the
+   * reduced-motion rule and the hidden-tab pause that cover <video> do nothing
+   * for them. Reports when such media must be held on a single frame.
+   */
+  function useAnimationHold(active) {
+    const [held, setHeld] = React.useState(false)
+    React.useEffect(() => {
+      if (!active) return undefined
+      const motion = window.matchMedia(REDUCED_MOTION_QUERY)
+      const update = () => setHeld(motion.matches || document.hidden)
+      update()
+      motion.addEventListener('change', update)
+      document.addEventListener('visibilitychange', update)
+      return () => {
+        motion.removeEventListener('change', update)
+        document.removeEventListener('visibilitychange', update)
+      }
+    }, [active])
+    return active && held
+  }
+
   function Wallpaper({ config }) {
     const videoRef = React.useRef(null)
+    const imageRef = React.useRef(null)
+    const canvasRef = React.useRef(null)
+    const animated = config.mediaKind === 'animated-image'
+    const held = useAnimationHold(animated)
     React.useEffect(() => {
       const video = videoRef.current
       if (!video) return undefined
@@ -63,12 +98,35 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       document.addEventListener('visibilitychange', onVisibility)
       return () => document.removeEventListener('visibilitychange', onVisibility)
     }, [])
+    // Media is served from the loopback route, same origin as the web server,
+    // so drawing it to a canvas does not taint the surface.
+    React.useEffect(() => {
+      if (!held) return
+      const image = imageRef.current
+      const canvas = canvasRef.current
+      if (!image || !canvas || !image.naturalWidth || !image.naturalHeight) return
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const context = canvas.getContext('2d')
+      if (context) context.drawImage(image, 0, 0)
+    }, [held, config.mediaUrl])
     const mediaStyle = { objectPosition: config.presentation.position, filter: config.presentation.blurPx > 0 ? `blur(${config.presentation.blurPx}px)` : undefined }
     const rootStyle = { '--deepblue-skin-overlay': config.presentation.overlay }
-    const media = config.mediaKind === 'video'
-      ? React.createElement('video', { ref: videoRef, src: config.mediaUrl, poster: config.posterUrl, autoPlay: true, muted: true, loop: true, playsInline: true, preload: 'metadata', style: mediaStyle })
-      : React.createElement('img', { src: config.mediaUrl, alt: '', draggable: false, style: mediaStyle })
-    return React.createElement('div', { className: 'deepblue-skin-wallpaper', 'data-media-kind': config.mediaKind, 'data-has-poster': String(Boolean(config.posterUrl)), style: rootStyle }, media)
+    if (config.mediaKind === 'video') {
+      const video = React.createElement('video', { ref: videoRef, src: config.mediaUrl, poster: config.posterUrl, autoPlay: true, muted: true, loop: true, playsInline: true, preload: 'metadata', style: mediaStyle })
+      return React.createElement('div', { className: 'deepblue-skin-wallpaper', 'data-media-kind': config.mediaKind, 'data-has-poster': String(Boolean(config.posterUrl)), style: rootStyle }, video)
+    }
+    const image = React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false, style: mediaStyle })
+    const children = animated
+      ? [image, React.createElement('canvas', { key: 'still', ref: canvasRef, 'aria-hidden': 'true', style: mediaStyle })]
+      : [image]
+    return React.createElement('div', {
+      className: 'deepblue-skin-wallpaper',
+      'data-media-kind': config.mediaKind,
+      'data-has-poster': String(Boolean(config.posterUrl)),
+      'data-held': String(held),
+      style: rootStyle
+    }, children)
   }
 
   function initialPetPosition(config) {
@@ -88,6 +146,20 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     const [reaction, setReaction] = React.useState('')
     const positionRef = React.useRef(position)
     const drag = React.useRef(null)
+    const imageRef = React.useRef(null)
+    const canvasRef = React.useRef(null)
+    const animated = config.mediaKind === 'animated'
+    const held = useAnimationHold(animated)
+    React.useEffect(() => {
+      if (!held) return
+      const image = imageRef.current
+      const canvas = canvasRef.current
+      if (!image || !canvas || !image.naturalWidth || !image.naturalHeight) return
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const context = canvas.getContext('2d')
+      if (context) context.drawImage(image, 0, 0)
+    }, [held, config.mediaUrl])
     const bubbleTimer = React.useRef(null)
     const reactionTimer = React.useRef(null)
     const clamp = React.useCallback(point => ({ x: Math.max(6, Math.min(window.innerWidth - 90, point.x)), y: Math.max(6, Math.min(window.innerHeight - 90, point.y)) }), [])
@@ -142,11 +214,12 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     }
     const style = { left: position.x, top: position.y, '--deepblue-pet-width': `${config.behavior.widthPx}px` }
     return ReactDOM.createPortal(React.createElement('div', { className: 'deepblue-pet-host' },
-      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'aria-label': '网页宠物，可拖动位置，点击互动，双击表达喜欢', onDoubleClick: () => { setReaction('heart'); if (reactionTimer.current) clearTimeout(reactionTimer.current); reactionTimer.current = setTimeout(() => setReaction(''), 700) }, onPointerDown, onPointerMove, onPointerUp },
+      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'aria-label': '网页宠物，可拖动位置，点击互动，双击表达喜欢', onDoubleClick: () => { setReaction('heart'); if (reactionTimer.current) clearTimeout(reactionTimer.current); reactionTimer.current = setTimeout(() => setReaction(''), 700) }, onPointerDown, onPointerMove, onPointerUp },
         React.createElement('span', { className: 'deepblue-pet-visual' },
           bubble ? React.createElement('span', { className: 'deepblue-pet-bubble', role: 'status' }, bubble) : null,
           React.createElement('span', { className: 'deepblue-pet-sparks' }),
-          React.createElement('img', { src: config.mediaUrl, alt: '', draggable: false })
+          React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false }),
+          animated ? React.createElement('canvas', { ref: canvasRef, 'aria-hidden': 'true' }) : null
         )
       )
     ), document.body)

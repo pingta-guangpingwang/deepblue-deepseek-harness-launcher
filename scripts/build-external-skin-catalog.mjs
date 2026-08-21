@@ -25,6 +25,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCES_FILE = path.join(ROOT, 'scripts', 'external-skin-sources.json')
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_VIDEO_BYTES = 80 * 1024 * 1024
+const MIN_WALLPAPER_WIDTH = 1024
+const MIN_WALLPAPER_RATIO = 1.4
 
 const MIME_BY_EXTENSION = {
   '.png': 'image/png',
@@ -37,10 +39,13 @@ const MIME_BY_EXTENSION = {
 }
 
 function parseArguments(argv) {
-  const options = { limit: 8, out: path.join(ROOT, 'skin-store', 'external-catalog.payload.json') }
+  const options = { limit: 8, reuse: false, out: path.join(ROOT, 'skin-store', 'external-catalog.payload.json') }
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === '--limit') options.limit = Number(argv[index + 1])
     if (argv[index] === '--out') options.out = path.resolve(ROOT, argv[index + 1])
+    // Local iteration only. Reusing a digest cannot detect that upstream
+    // replaced the file, which would ship a pin that fails for every user.
+    if (argv[index] === '--reuse') options.reuse = true
   }
   if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 20) {
     throw new Error('--limit 必须是 1 到 20 之间的整数，目录固定每页 20 项')
@@ -94,22 +99,51 @@ async function digestAsset(url, limit) {
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   const hash = createHash('sha256')
   let size = 0
+  let header
   for await (const chunk of response.body) {
+    if (!header) header = Buffer.from(chunk.subarray(0, 64))
     size += chunk.length
     if (size > limit) throw new Error(`素材超过 ${Math.round(limit / 1024 / 1024)} MiB 上限`)
     hash.update(chunk)
   }
   if (!size) throw new Error('素材为空')
-  return { sha256: hash.digest('hex'), size }
+  return { sha256: hash.digest('hex'), size, header }
 }
 
+/**
+ * Reads intrinsic dimensions from the leading bytes so the catalog can reject
+ * portrait or low-resolution media that would look wrong as a wallpaper.
+ */
+function intrinsicSize(extension, header) {
+  if (!header) return undefined
+  if (extension === '.gif' && header.length >= 10) {
+    const signature = header.toString('latin1', 0, 6)
+    if (signature !== 'GIF87a' && signature !== 'GIF89a') return undefined
+    return { width: header.readUInt16LE(6), height: header.readUInt16LE(8) }
+  }
+  if (extension === '.png' && header.length >= 24 && header.readUInt32BE(0) === 0x89504e47) {
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) }
+  }
+  if (extension === '.webp' && header.length >= 30 && header.toString('latin1', 0, 4) === 'RIFF') {
+    if (header.toString('latin1', 12, 16) !== 'VP8X') return undefined
+    return { width: (header.readUIntLE(24, 3) & 0xffffff) + 1, height: (header.readUIntLE(27, 3) & 0xffffff) + 1 }
+  }
+  return undefined
+}
+
+/**
+ * Derived from the full repository path, not the basename: collections often
+ * reuse one filename across folders, and a basename slug silently collapses
+ * them into a single id.
+ */
 function slugFor(repo, filePath) {
-  const base = `${repo.split('/')[1]}-${path.basename(filePath, path.extname(filePath))}`
-  const slug = base
+  const withoutExtension = filePath.slice(0, filePath.length - path.extname(filePath).length)
+  const slug = `${repo.split('/')[1]}-${withoutExtension}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 70)
+    .replace(/-+$/, '')
   return `ext-${slug || 'item'}`
 }
 
@@ -123,13 +157,26 @@ const options = parseArguments(process.argv.slice(2))
 const token = githubToken()
 const declared = JSON.parse(await readFile(SOURCES_FILE, 'utf8'))
 
+const cachedDigests = new Map()
+if (options.reuse) {
+  try {
+    const previous = JSON.parse(await readFile(options.out, 'utf8'))
+    for (const item of previous.items || []) cachedDigests.set(item.media.url, item.media)
+    process.stderr.write(`复用上一次目录中的 ${cachedDigests.size} 个摘要（--reuse 仅用于本地迭代）\n`)
+  } catch {
+    // No previous catalog to reuse.
+  }
+}
+
 const sources = []
 const items = []
 const usedIds = new Set()
+const skippedSources = []
 
 for (const source of declared.sources) {
   if (!source.notice?.trim()) throw new Error(`来源 ${source.repo} 缺少 notice，必须向用户说明权利状况`)
   process.stderr.write(`\n${source.repo}  ${source.licenseName}  ${source.licenseStatus}\n`)
+  try {
   const meta = await api(`/repos/${source.repo}`, token)
   const branch = source.branch || meta.default_branch
   const tree = await api(`/repos/${source.repo}/git/trees/${branch}?recursive=1`, token)
@@ -147,15 +194,28 @@ for (const source of declared.sources) {
     if (!mime) continue
     const limit = mime.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
     const url = rawUrl(source.repo, branch, candidate.path)
+    const cached = cachedDigests.get(url)
     let digest
-    try {
-      digest = await digestAsset(url, limit)
-    } catch (error) {
-      process.stderr.write(`  skip ${candidate.path} :: ${error.message}\n`)
+    if (cached) {
+      digest = { sha256: cached.sha256, size: cached.size, header: undefined }
+    } else {
+      try {
+        digest = await digestAsset(url, limit)
+      } catch (error) {
+        process.stderr.write(`  skip ${candidate.path} :: ${error.message}\n`)
+        continue
+      }
+    }
+    const intrinsic = intrinsicSize(extension, digest.header)
+    if (intrinsic && (intrinsic.width < MIN_WALLPAPER_WIDTH || intrinsic.width / intrinsic.height < MIN_WALLPAPER_RATIO)) {
+      process.stderr.write(`  skip ${candidate.path} :: ${intrinsic.width}x${intrinsic.height} 不适合作横向壁纸\n`)
       continue
     }
     const id = slugFor(source.repo, candidate.path)
-    if (usedIds.has(id)) continue
+    if (usedIds.has(id)) {
+      process.stderr.write(`  skip ${candidate.path} :: 目录 ID 冲突 ${id}\n`)
+      continue
+    }
     usedIds.add(id)
     items.push({
       id,
@@ -178,10 +238,11 @@ for (const source of declared.sources) {
       presentation: source.presentation
     })
     added += 1
-    process.stderr.write(`  ok   ${candidate.path}  ${(digest.size / 1024 / 1024).toFixed(2)} MB  ${digest.sha256.slice(0, 12)}…\n`)
+    process.stderr.write(`  ${cached ? 'reuse' : 'ok   '} ${candidate.path}  ${(digest.size / 1024 / 1024).toFixed(2)} MB  ${digest.sha256.slice(0, 12)}…\n`)
   }
   if (!added) {
     process.stderr.write('  没有取到可用素材，跳过该来源\n')
+    skippedSources.push(`${source.repo}（无可用素材）`)
     continue
   }
   sources.push({
@@ -192,6 +253,11 @@ for (const source of declared.sources) {
     licenseStatus: source.licenseStatus,
     itemCount: added
   })
+  } catch (error) {
+    // One unreachable or renamed repository must not discard the whole catalog.
+    process.stderr.write(`  来源读取失败，已跳过：${error.message}\n`)
+    skippedSources.push(`${source.repo}（${error.message}）`)
+  }
 }
 
 if (!sources.length) throw new Error('没有任何来源产出素材，不写出空目录')
@@ -205,5 +271,7 @@ const payload = {
 }
 
 await writeFile(options.out, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-process.stderr.write(`\n写出 ${path.relative(ROOT, options.out)}：${sources.length} 个来源，${items.length} 个素材\n`)
+const animated = items.filter((item) => item.mediaKind === 'animated-image').length
+process.stderr.write(`\n写出 ${path.relative(ROOT, options.out)}：${sources.length} 个来源，${items.length} 个素材（其中 ${animated} 个循环动图）\n`)
+if (skippedSources.length) process.stderr.write(`跳过 ${skippedSources.length} 个来源：${skippedSources.join('、')}\n`)
 process.stderr.write('下一步用 scripts/sign-store-catalogs.mjs 同款流程签名为 external-catalog.json\n')

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-21T14:25:43.176Z",
+  "generatedAt": "2026-08-21T15:50:55.563Z",
   "pageSize": 20,
   "sources": [
     {
@@ -34,11 +34,35 @@
       "licenseName": "未声明",
       "licenseStatus": "undeclared",
       "itemCount": 6
+    },
+    {
+      "repo": "FrenzyExists/wallpapers",
+      "repoUrl": "https://github.com/FrenzyExists/wallpapers",
+      "author": "FrenzyExists",
+      "licenseName": "MIT",
+      "licenseStatus": "redistributable",
+      "itemCount": 1
+    },
+    {
+      "repo": "mylinuxforwork/wallpaper",
+      "repoUrl": "https://github.com/mylinuxforwork/wallpaper",
+      "author": "mylinuxforwork",
+      "licenseName": "GPL-2.0",
+      "licenseStatus": "copyleft",
+      "itemCount": 1
+    },
+    {
+      "repo": "michaelScopic/Wallpapers",
+      "repoUrl": "https://github.com/michaelScopic/Wallpapers",
+      "author": "michaelScopic",
+      "licenseName": "未声明",
+      "licenseStatus": "undeclared",
+      "itemCount": 2
     }
   ],
   "items": [
     {
-      "id": "ext-wallpapers-bocchi-studio",
+      "id": "ext-wallpapers-anime-bocchi-studio",
       "name": "Rosé Pine · bocchi-studio",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -75,7 +99,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-ohga-wajima",
+      "id": "ext-wallpapers-anime-ohga-wajima",
       "name": "Rosé Pine · ohga-wajima",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -112,7 +136,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-circle",
+      "id": "ext-wallpapers-generative-circle",
       "name": "Rosé Pine · circle",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -149,7 +173,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-arcade-offset",
+      "id": "ext-wallpapers-illustration-arcade-offset",
       "name": "Rosé Pine · arcade - offset",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -186,7 +210,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-big-shoulders",
+      "id": "ext-wallpapers-illustration-big-shoulders",
       "name": "Rosé Pine · big shoulders",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -223,7 +247,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-leafy",
+      "id": "ext-wallpapers-illustration-leafy",
       "name": "Rosé Pine · leafy",
       "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
       "mediaKind": "image",
@@ -260,7 +284,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-terminal-glossary-4k-pastel-green",
+      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-green",
       "name": "Terminal · terminal_glossary_4k_pastel-green",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -298,7 +322,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-terminal-glossary-4k-pastel-pink",
+      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-pink",
       "name": "Terminal · terminal_glossary_4k_pastel-pink",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -336,7 +360,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-terminal-glossary-4k-pastel-purple",
+      "id": "ext-wallpapers-april2026-terminal-glossary-4k-pastel-purple",
       "name": "Terminal · terminal_glossary_4k_pastel-purple",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -374,7 +398,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-terminal-glossary-4k-paw",
+      "id": "ext-wallpapers-april2026-terminal-glossary-4k-paw",
       "name": "Terminal · terminal_glossary_4k_paw",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -412,7 +436,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-carnation-collage",
+      "id": "ext-wallpapers-june2026-carnation-collage",
       "name": "Terminal · carnation_collage",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -450,7 +474,7 @@
       }
     },
     {
-      "id": "ext-wallpapers-georges-riom-collage",
+      "id": "ext-wallpapers-june2026-georges-riom-collage",
       "name": "Terminal · georges_riom_collage",
       "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
       "mediaKind": "image",
@@ -488,7 +512,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-allqk82",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-allqk82",
       "name": "Gruvbox · ALLqk82",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -525,7 +549,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-coding-2",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-coding-2",
       "name": "Gruvbox · coding-2",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -562,7 +586,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-elegant",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-elegant",
       "name": "Gruvbox · elegant",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -599,7 +623,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-freshcake-cornerwizard",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-freshcake-cornerwizard",
       "name": "Gruvbox · FreshCake_cornerWizard",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -636,7 +660,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-gruv-abstract-maze",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-gruv-abstract-maze",
       "name": "Gruvbox · gruv-abstract-maze",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -673,7 +697,7 @@
       }
     },
     {
-      "id": "ext-gruvbox-wallpapers-gruv-limits",
+      "id": "ext-gruvbox-wallpapers-wallpapers-minimalistic-gruv-limits",
       "name": "Gruvbox · gruv-limits",
       "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
       "mediaKind": "image",
@@ -710,7 +734,7 @@
       }
     },
     {
-      "id": "ext-images-0001",
+      "id": "ext-images-dark-0001",
       "name": "Dusk · 0001",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -746,7 +770,7 @@
       }
     },
     {
-      "id": "ext-images-0061",
+      "id": "ext-images-dark-0061",
       "name": "Dusk · 0061",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -782,7 +806,7 @@
       }
     },
     {
-      "id": "ext-images-0122",
+      "id": "ext-images-dark-0122",
       "name": "Dusk · 0122",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -818,7 +842,7 @@
       }
     },
     {
-      "id": "ext-images-0183",
+      "id": "ext-images-dark-0183",
       "name": "Dusk · 0183",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -854,7 +878,7 @@
       }
     },
     {
-      "id": "ext-images-0245",
+      "id": "ext-images-dark-0245",
       "name": "Dusk · 0245",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -890,7 +914,7 @@
       }
     },
     {
-      "id": "ext-images-0307",
+      "id": "ext-images-dark-0307",
       "name": "Dusk · 0307",
       "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
       "mediaKind": "image",
@@ -921,6 +945,156 @@
       "presentation": {
         "position": "50% 50%",
         "overlay": "rgba(2, 6, 14, 0.32)",
+        "blurPx": 0,
+        "surfaceOpacity": 0.74
+      }
+    },
+    {
+      "id": "ext-wallpapers-anime-lo-fi-sailor-moon",
+      "name": "Frenzy 动图 · lo-fi-sailor-moon",
+      "description": "精选壁纸集里的循环动图，1920×1080。",
+      "mediaKind": "animated-image",
+      "styles": [
+        "anime",
+        "minimal"
+      ],
+      "tags": [
+        "动图",
+        "循环",
+        "1080P"
+      ],
+      "contentRating": "everyone",
+      "thumbnailUrl": "https://cdn.statically.io/gh/FrenzyExists/wallpapers/main/Anime/lo-fi-sailor-moon.gif?w=640&h=360&format=webp",
+      "media": {
+        "url": "https://raw.githubusercontent.com/FrenzyExists/wallpapers/main/Anime/lo-fi-sailor-moon.gif",
+        "sha256": "d1c948ede5a4a32fc421042f865aad9decb5c265e3b7cbd9c2bb4ec9657595da",
+        "size": 1778322,
+        "mime": "image/gif"
+      },
+      "origin": {
+        "repo": "FrenzyExists/wallpapers",
+        "repoUrl": "https://github.com/FrenzyExists/wallpapers",
+        "author": "FrenzyExists",
+        "licenseName": "MIT",
+        "licenseStatus": "redistributable",
+        "notice": "上游以 MIT 授权。需注意作者自述为 personal pick，即精选收集，MIT 是否覆盖每一张素材仍需个案判断；启动器只做链接展示。"
+      },
+      "presentation": {
+        "position": "50% 50%",
+        "overlay": "rgba(2, 9, 20, 0.32)",
+        "blurPx": 0,
+        "surfaceOpacity": 0.74
+      }
+    },
+    {
+      "id": "ext-wallpaper-street2",
+      "name": "MLFW 动图 · street2",
+      "description": "跨桌面环境通用壁纸集里的循环动图。",
+      "mediaKind": "animated-image",
+      "styles": [
+        "cyber",
+        "minimal"
+      ],
+      "tags": [
+        "动图",
+        "循环",
+        "GPL"
+      ],
+      "contentRating": "everyone",
+      "thumbnailUrl": "https://cdn.statically.io/gh/mylinuxforwork/wallpaper/main/street2.gif?w=640&h=360&format=webp",
+      "media": {
+        "url": "https://raw.githubusercontent.com/mylinuxforwork/wallpaper/main/street2.gif",
+        "sha256": "11cc5a0036e41cdd98837e3d0a58a95da47677acc511c6f149090bb0d15a244d",
+        "size": 1150987,
+        "mime": "image/gif"
+      },
+      "origin": {
+        "repo": "mylinuxforwork/wallpaper",
+        "repoUrl": "https://github.com/mylinuxforwork/wallpaper",
+        "author": "mylinuxforwork",
+        "licenseName": "GPL-2.0",
+        "licenseStatus": "copyleft",
+        "notice": "上游以 GPL-2.0 授权，允许再分发但带传染条款。启动器只做链接展示，不转存、不再分发。"
+      },
+      "presentation": {
+        "position": "50% 50%",
+        "overlay": "rgba(4, 9, 18, 0.32)",
+        "blurPx": 0,
+        "surfaceOpacity": 0.74
+      }
+    },
+    {
+      "id": "ext-wallpapers-animated-alley",
+      "name": "Scopic 动图 · alley",
+      "description": "多年收集的壁纸集里的超宽循环动图。",
+      "mediaKind": "animated-image",
+      "styles": [
+        "realistic",
+        "anime"
+      ],
+      "tags": [
+        "动图",
+        "循环",
+        "超宽",
+        "未声明许可证"
+      ],
+      "contentRating": "everyone",
+      "thumbnailUrl": "https://cdn.statically.io/gh/michaelScopic/Wallpapers/main/animated/alley.gif?w=640&h=360&format=webp",
+      "media": {
+        "url": "https://raw.githubusercontent.com/michaelScopic/Wallpapers/main/animated/alley.gif",
+        "sha256": "ecd5dace2ffe9433c20173a84095ade9a22ed28f177dd541d61d842b29d743db",
+        "size": 674803,
+        "mime": "image/gif"
+      },
+      "origin": {
+        "repo": "michaelScopic/Wallpapers",
+        "repoUrl": "https://github.com/michaelScopic/Wallpapers",
+        "author": "michaelScopic",
+        "licenseName": "未声明",
+        "licenseStatus": "undeclared",
+        "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利。启动器只做链接展示，不转存、不再分发。"
+      },
+      "presentation": {
+        "position": "50% 50%",
+        "overlay": "rgba(2, 7, 16, 0.32)",
+        "blurPx": 0,
+        "surfaceOpacity": 0.74
+      }
+    },
+    {
+      "id": "ext-wallpapers-animated-trees",
+      "name": "Scopic 动图 · trees",
+      "description": "多年收集的壁纸集里的超宽循环动图。",
+      "mediaKind": "animated-image",
+      "styles": [
+        "realistic",
+        "anime"
+      ],
+      "tags": [
+        "动图",
+        "循环",
+        "超宽",
+        "未声明许可证"
+      ],
+      "contentRating": "everyone",
+      "thumbnailUrl": "https://cdn.statically.io/gh/michaelScopic/Wallpapers/main/animated/trees.gif?w=640&h=360&format=webp",
+      "media": {
+        "url": "https://raw.githubusercontent.com/michaelScopic/Wallpapers/main/animated/trees.gif",
+        "sha256": "bb6de724ae7c49f36412cf1da2a2f2a090c7565b3412a6be6f646ec284d7e516",
+        "size": 1164729,
+        "mime": "image/gif"
+      },
+      "origin": {
+        "repo": "michaelScopic/Wallpapers",
+        "repoUrl": "https://github.com/michaelScopic/Wallpapers",
+        "author": "michaelScopic",
+        "licenseName": "未声明",
+        "licenseStatus": "undeclared",
+        "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利。启动器只做链接展示，不转存、不再分发。"
+      },
+      "presentation": {
+        "position": "50% 50%",
+        "overlay": "rgba(2, 7, 16, 0.32)",
         "blurPx": 0,
         "surfaceOpacity": 0.74
       }

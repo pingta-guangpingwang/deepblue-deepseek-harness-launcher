@@ -5,6 +5,7 @@
     "notice 会原样显示给用户，必须准确描述权利状况，不得美化。",
     "收录标准见 docs/qa 的来源审计记录：排除了作者自述不拥有版权、README 要求署名他人、文件名含 wallhaven / Unsplash / Pixiv 作品编号 / 第三方游戏 IP 的仓库。",
     "内容合规同样是排除理由：dxnst/nord-backgrounds 的分子渲染图按管制药物命名，不适合面向新手用户的产品，已撤下。",
+    "素材性质也是排除理由：HyDE-Project/hyde-gallery 的 6 个 1920×1080 GIF 实为各主题的桌面演示录屏（均命名为 overview.gif），不是壁纸，已撤下。GIF 扫描里绝大多数命中都属于这一类库与工具的 README 演示动图。",
     "改动本文件后需重新运行 build-external-skin-catalog.mjs 并重新签名，因为每个素材的 SHA-256 是钉死的。"
   ],
   "sources": [
@@ -62,6 +63,48 @@
       "tags": ["暗色", "未声明许可证"],
       "include": "dark/.*\\.jpg$",
       "presentation": { "position": "50% 50%", "overlay": "rgba(2, 6, 14, 0.32)", "blurPx": 0, "surfaceOpacity": 0.74 }
+    },
+    {
+      "repo": "FrenzyExists/wallpapers",
+      "branch": "main",
+      "author": "FrenzyExists",
+      "licenseName": "MIT",
+      "licenseStatus": "redistributable",
+      "notice": "上游以 MIT 授权。需注意作者自述为 personal pick，即精选收集，MIT 是否覆盖每一张素材仍需个案判断；启动器只做链接展示。",
+      "namePrefix": "Frenzy 动图",
+      "description": "精选壁纸集里的循环动图，1920×1080。",
+      "styles": ["anime", "minimal"],
+      "tags": ["动图", "循环", "1080P"],
+      "include": "\\.gif$",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(2, 9, 20, 0.32)", "blurPx": 0, "surfaceOpacity": 0.74 }
+    },
+    {
+      "repo": "mylinuxforwork/wallpaper",
+      "branch": "main",
+      "author": "mylinuxforwork",
+      "licenseName": "GPL-2.0",
+      "licenseStatus": "copyleft",
+      "notice": "上游以 GPL-2.0 授权，允许再分发但带传染条款。启动器只做链接展示，不转存、不再分发。",
+      "namePrefix": "MLFW 动图",
+      "description": "跨桌面环境通用壁纸集里的循环动图。",
+      "styles": ["cyber", "minimal"],
+      "tags": ["动图", "循环", "GPL"],
+      "include": "\\.gif$",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(4, 9, 18, 0.32)", "blurPx": 0, "surfaceOpacity": 0.74 }
+    },
+    {
+      "repo": "michaelScopic/Wallpapers",
+      "branch": "main",
+      "author": "michaelScopic",
+      "licenseName": "未声明",
+      "licenseStatus": "undeclared",
+      "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利。启动器只做链接展示，不转存、不再分发。",
+      "namePrefix": "Scopic 动图",
+      "description": "多年收集的壁纸集里的超宽循环动图。",
+      "styles": ["realistic", "anime"],
+      "tags": ["动图", "循环", "超宽", "未声明许可证"],
+      "include": "\\.gif$",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(2, 7, 16, 0.32)", "blurPx": 0, "surfaceOpacity": 0.74 }
     }
   ]
 }
