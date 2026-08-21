@@ -36,6 +36,7 @@ const defaultSources: SourceConfig[] = [
 
 export const FIXED_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/catalog.json'
 export const FIXED_PET_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/catalog.json'
+export const FIXED_EXTERNAL_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/external-catalog.json'
 
 export interface PersistedConfig {
   settings: LauncherSettings
@@ -77,6 +78,8 @@ function defaults(): PersistedConfig {
       installMode: 'package',
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
       petCatalogUrl: FIXED_PET_CATALOG_URL,
+      externalSkinCatalogUrl: FIXED_EXTERNAL_SKIN_CATALOG_URL,
+      externalSkinsEnabled: false,
       sources: defaultSources
     },
     activeVersion: '0.1.0-rc.8',
@@ -121,6 +124,8 @@ export async function readConfig(): Promise<PersistedConfig> {
         storageSetupCompleted,
         skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
         petCatalogUrl: FIXED_PET_CATALOG_URL,
+        externalSkinCatalogUrl: FIXED_EXTERNAL_SKIN_CATALOG_URL,
+        externalSkinsEnabled: savedSettings.externalSkinsEnabled === true,
         sources: fallback.settings.sources.map((defaultSource) => {
           const saved = parsed.settings?.sources?.find((source) => source.id === defaultSource.id)
           if (!saved) return defaultSource

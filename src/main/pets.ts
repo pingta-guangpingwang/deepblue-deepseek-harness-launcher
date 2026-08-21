@@ -6,6 +6,7 @@ import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { launcherDataPaths } from './config'
+import { mirrorCandidates } from './asset-mirrors'
 import { fetchTrustedStoreKey } from './store-trust'
 import type {
   PetAsset,
@@ -134,32 +135,58 @@ async function verifyCachedAsset(target: string, asset: PetAsset): Promise<boole
   }
 }
 
+/** Rejects an over-long stream even when the channel omits Content-Length. */
+function cappedStream(source: Readable, limit: number): AsyncGenerator<Buffer> {
+  return (async function* () {
+    let seen = 0
+    for await (const chunk of source) {
+      seen += (chunk as Buffer).length
+      if (seen > limit) throw new Error('远程宠物资源超过清单声明大小')
+      yield chunk as Buffer
+    }
+  })()
+}
+
+async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string): Promise<void> {
+  const response = await fetch(url, {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(90_000),
+    headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' }
+  })
+  if (!response.ok || response.body === null) throw new Error(`HTTP ${response.status}`)
+  const contentLength = Number(response.headers.get('content-length') || 0)
+  if (contentLength > asset.size || contentLength > MAX_MEDIA_BYTES) throw new Error('远程宠物资源超过清单声明大小')
+  const responseType = response.headers.get('content-type')?.split(';', 1)[0]
+  if (responseType && responseType !== 'application/octet-stream' && responseType !== asset.mime) throw new Error('资源类型与清单不一致')
+  await unlink(temporary).catch(() => undefined)
+  try {
+    await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size), createWriteStream(temporary, { flags: 'wx' }))
+    if (!(await verifyCachedAsset(temporary, asset))) throw new Error('完整性校验失败')
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined)
+    throw error
+  }
+}
+
 async function downloadAsset(asset: PetAsset): Promise<string> {
   assertAsset(asset)
   const target = cachePath(asset)
   if (await verifyCachedAsset(target, asset)) return target
   await mkdir(path.dirname(target), { recursive: true })
   const temporary = `${target}.part`
-  await unlink(temporary).catch(() => undefined)
-  const response = await fetch(asset.url, {
-    redirect: 'follow',
-    signal: AbortSignal.timeout(90_000),
-    headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' }
-  })
-  if (!response.ok || response.body === null) throw new Error(`下载宠物失败：HTTP ${response.status}`)
-  const contentLength = Number(response.headers.get('content-length') || 0)
-  if (contentLength > asset.size || contentLength > MAX_MEDIA_BYTES) throw new Error('远程宠物资源超过清单声明大小')
-  const responseType = response.headers.get('content-type')?.split(';', 1)[0]
-  if (responseType && responseType !== 'application/octet-stream' && responseType !== asset.mime) throw new Error('远程宠物资源类型与清单不一致')
-  try {
-    await pipeline(Readable.fromWeb(response.body as never), createWriteStream(temporary, { flags: 'wx' }))
-    if (!(await verifyCachedAsset(temporary, asset))) throw new Error('宠物资源完整性校验失败')
-    await rename(temporary, target)
-  } catch (error) {
-    await unlink(temporary).catch(() => undefined)
-    throw error
+  const candidates = mirrorCandidates(asset.url, asset.size)
+  if (!candidates.length) throw new Error('宠物资源地址不可用')
+  let lastFailure = '未知错误'
+  for (const candidate of candidates) {
+    try {
+      await fetchAssetFrom(asset, candidate.url, temporary)
+      await rename(temporary, target)
+      return target
+    } catch (error) {
+      lastFailure = `${candidate.id}：${error instanceof Error ? error.message : String(error)}`
+    }
   }
-  return target
+  throw new Error(`下载宠物失败，已尝试 ${candidates.length} 个渠道，最后一次 ${lastFailure}`)
 }
 
 async function readBundledCatalog(): Promise<PetCatalogPayload | undefined> {

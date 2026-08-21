@@ -1,0 +1,67 @@
+{
+  "$comment": [
+    "外部来源清单。启动器只链接这些仓库的原始文件，不复制、不再分发。",
+    "licenseStatus 取值：redistributable 表示上游许可证允许再分发；copyleft 表示带传染条款；undeclared 表示上游没有 LICENSE 文件，默认保留所有权利，只能外链展示。",
+    "notice 会原样显示给用户，必须准确描述权利状况，不得美化。",
+    "收录标准见 docs/qa 的来源审计记录：排除了作者自述不拥有版权、README 要求署名他人、文件名含 wallhaven / Unsplash / Pixiv 作品编号 / 第三方游戏 IP 的仓库。",
+    "内容合规同样是排除理由：dxnst/nord-backgrounds 的分子渲染图按管制药物命名，不适合面向新手用户的产品，已撤下。",
+    "改动本文件后需重新运行 build-external-skin-catalog.mjs 并重新签名，因为每个素材的 SHA-256 是钉死的。"
+  ],
+  "sources": [
+    {
+      "repo": "rose-pine/wallpapers",
+      "branch": "main",
+      "author": "rose-pine contributors",
+      "licenseName": "CC0-1.0",
+      "licenseStatus": "redistributable",
+      "notice": "上游以 CC0-1.0 奉献至公共领域，可自由使用。本批唯一无权利争议的来源。",
+      "namePrefix": "Rosé Pine",
+      "description": "Rosé Pine 主题社区的原创投稿壁纸，配色柔和，适合长时间阅读。",
+      "styles": ["minimal", "nature"],
+      "tags": ["Rosé Pine", "社区原创", "CC0"],
+      "exclude": "(^|/)(readme|preview)",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(2, 9, 20, 0.28)", "blurPx": 0, "surfaceOpacity": 0.76 }
+    },
+    {
+      "repo": "diinki/wallpapers",
+      "branch": "main",
+      "author": "diinki",
+      "licenseName": "未声明",
+      "licenseStatus": "undeclared",
+      "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利，但作者自述为本人原创作品，是最适合去信征询正式授权的来源。启动器只做链接展示。",
+      "namePrefix": "Terminal",
+      "description": "作者原创的 4K 终端主题壁纸系列，大面积留白，适合叠加半透明界面。",
+      "styles": ["minimal", "pixel"],
+      "tags": ["原创", "终端", "4K", "未声明许可证"],
+      "presentation": { "position": "50% 50%", "overlay": "rgba(4, 10, 18, 0.26)", "blurPx": 0, "surfaceOpacity": 0.8 }
+    },
+    {
+      "repo": "AngelJumbo/gruvbox-wallpapers",
+      "branch": "main",
+      "author": "AngelJumbo",
+      "licenseName": "未声明",
+      "licenseStatus": "undeclared",
+      "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利。启动器只做链接展示，不转存、不再分发。",
+      "namePrefix": "Gruvbox",
+      "description": "Gruvbox 配色壁纸集，暖色低饱和，适合深色界面。",
+      "styles": ["minimal", "nature"],
+      "tags": ["Gruvbox", "暖色", "未声明许可证"],
+      "include": "wallpapers/(minimalistic|nature|pixel-art)/.*\\.(png|jpe?g)$",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(14, 10, 6, 0.30)", "blurPx": 0, "surfaceOpacity": 0.76 }
+    },
+    {
+      "repo": "dusklinux/images",
+      "branch": "main",
+      "author": "dusklinux",
+      "licenseName": "未声明",
+      "licenseStatus": "undeclared",
+      "notice": "上游仓库没有 LICENSE 文件，按默认规则保留所有权利。启动器只做链接展示，不转存、不再分发。",
+      "namePrefix": "Dusk",
+      "description": "预先按暗色筛选过的壁纸集，与深色工作台搭配自然。",
+      "styles": ["realistic", "minimal"],
+      "tags": ["暗色", "未声明许可证"],
+      "include": "dark/.*\\.jpg$",
+      "presentation": { "position": "50% 50%", "overlay": "rgba(2, 6, 14, 0.32)", "blurPx": 0, "surfaceOpacity": 0.74 }
+    }
+  ]
+}

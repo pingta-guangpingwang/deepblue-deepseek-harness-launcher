@@ -76,6 +76,7 @@ import {
 } from 'lucide-react'
 import type {
   EnvironmentItem,
+  ExternalLicenseStatus,
   LauncherSettings,
   LauncherSnapshot,
   LauncherGameItem,
@@ -756,13 +757,125 @@ const skinKindLabels: Record<SkinMediaKind, string> = {
   video: '视频壁纸'
 }
 
-function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
+const externalLicenseLabels: Record<ExternalLicenseStatus, string> = {
+  redistributable: '许可证允许再分发',
+  copyleft: 'GPL 传染条款',
+  undeclared: '未声明许可证'
+}
+
+const externalLicenseTones: Record<ExternalLicenseStatus, string> = {
+  redistributable: 'green',
+  copyleft: 'amber',
+  undeclared: 'blue'
+}
+
+function ExternalSkinPanel({ snapshot, busy, onApply, onToggle }: {
+  snapshot: LauncherSnapshot
+  busy: string
+  onApply: (skinId: string) => void
+  onToggle: (enabled: boolean) => void
+}): ReactNode {
+  const external = snapshot.skins.external
+  const [page, setPage] = useState(1)
+  const [repo, setRepo] = useState<string>('all')
+  const pageSize = 20
+  if (!snapshot.settings.externalSkinsEnabled) {
+    return (
+      <Card className="external-optin">
+        <div className="external-optin-head"><Globe2 size={18} /><h2>外部来源展示（默认关闭）</h2></div>
+        <p>
+          这里展示的壁纸<strong>不属于本商店</strong>，也不会被复制到我们的仓库。素材始终由 GitHub 上的原始仓库直接提供，启动器只保存地址和内容校验值。
+        </p>
+        <ul className="external-optin-list">
+          <li><ShieldCheck size={14} />每个素材的 SHA-256 都在目录里钉死，下载后严格校验，经由镜像加速也无法被篡改。</li>
+          <li><Info size={14} />其中相当一部分上游仓库<strong>没有 LICENSE 文件</strong>，按默认规则属于保留所有权利。启动器只做链接展示，是否使用由你判断。</li>
+          <li><CircleAlert size={14} />上游随时可能改动或删除文件，届时该项会提示失效，等待目录更新，这是正常现象。</li>
+        </ul>
+        <button className="primary-button" disabled={!!busy} onClick={() => onToggle(true)}><Globe2 size={15} />我已了解，开启外部来源</button>
+      </Card>
+    )
+  }
+  if (external.status === 'loading') return <Card><EmptyState icon={<LoaderCircle className="spin" />} title="正在同步外部来源目录" text="正在校验签名与来源清单。" /></Card>
+  if (external.status !== 'ready') {
+    return (
+      <Card>
+        <EmptyState icon={<CircleAlert />} title="外部来源目录不可用" text={external.message || '稍后重试，或在设置里关闭外部来源。'} />
+      </Card>
+    )
+  }
+  const filtered = repo === 'all' ? external.items : external.items.filter((item) => item.origin.repo === repo)
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const downloaded = new Set(snapshot.skins.downloadedSkinIds)
+  return (
+    <>
+      <div className="skin-notice">
+        <Info size={15} />
+        以下素材由上游 GitHub 仓库直接提供，启动器不转存、不再分发。应用前请留意每项的许可证状态。
+        <button className="text-button" onClick={() => onToggle(false)}>关闭外部来源</button>
+      </div>
+
+      <Card className="external-sources">
+        <h3>已收录的上游仓库 · {external.sources.length} 个</h3>
+        <div className="external-source-row">
+          <button className={repo === 'all' ? 'active' : ''} onClick={() => { setRepo('all'); setPage(1) }}>全部 {external.items.length}</button>
+          {external.sources.map((source) => (
+            <button key={source.repo} className={repo === source.repo ? 'active' : ''} onClick={() => { setRepo(source.repo); setPage(1) }}>
+              {source.repo.split('/')[1]} <em>{source.itemCount}</em>
+            </button>
+          ))}
+        </div>
+        {repo !== 'all' && external.sources.filter((source) => source.repo === repo).map((source) => (
+          <div key={source.repo} className="external-source-detail">
+            <span className={classNames('soft-badge', externalLicenseTones[source.licenseStatus])}>{externalLicenseLabels[source.licenseStatus]} · {source.licenseName}</span>
+            <span>作者 {source.author}</span>
+            <button className="text-button" onClick={() => void window.launcher?.openExternal(source.repoUrl)}><Github size={13} />{source.repo}</button>
+          </div>
+        ))}
+      </Card>
+
+      {items.length ? <div className="skin-grid">{items.map((skin) => {
+        const active = snapshot.skins.activeSkinId === skin.id
+        const cached = downloaded.has(skin.id)
+        return (
+          <article className={classNames('skin-card', 'external', active && 'active')} key={skin.id}>
+            <div className="skin-preview">
+              <img src={skin.thumbnailUrl} loading="lazy" alt={`${skin.name}预览`} />
+              <span className="skin-kind"><Images size={13} />{skinKindLabels[skin.mediaKind]}</span>
+              <span className="skin-external-tag"><Globe2 size={12} />外部来源</span>
+              {active && <span className="skin-active"><Check size={14} />当前使用</span>}
+            </div>
+            <div className="skin-card-body">
+              <div className="skin-title-row"><div><h2>{skin.name}</h2><p>{skin.description}</p></div></div>
+              <div className="external-origin">
+                <span className={classNames('soft-badge', externalLicenseTones[skin.origin.licenseStatus])}>{externalLicenseLabels[skin.origin.licenseStatus]}</span>
+                <button className="text-button" onClick={() => void window.launcher?.openExternal(skin.origin.repoUrl)}><Github size={13} />{skin.origin.repo}<ExternalLink size={11} /></button>
+              </div>
+              <p className="external-notice">{skin.origin.notice}</p>
+              <button className={active ? 'small-button' : 'primary-button'} disabled={!!busy || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={15} />已应用</> : cached ? <><Palette size={15} />立即应用</> : <><CloudDownload size={15} />从上游下载并应用 · {(skin.media.size / 1024 / 1024).toFixed(1)} MB</>}</button>
+            </div>
+          </article>
+        )
+      })}</div> : <Card><EmptyState icon={<Globe2 />} title="这个来源暂时没有可用素材" text="换一个上游仓库看看。" /></Card>}
+
+      <div className="skin-pagination">
+        <span>第 {currentPage} / {pageCount} 页 · 每页最多 20 个 · 目录生成于 {external.generatedAt.slice(0, 10) || '未知时间'}</span>
+        <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
+      </div>
+    </>
+  )
+}
+
+function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleExternal }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
   onApply: (skinId: string) => void
   onClear: () => void
+  onToggleExternal: (enabled: boolean) => void
 }): ReactNode {
+  const [tab, setTab] = useState<'official' | 'external'>('official')
   const [query, setQuery] = useState('')
   const [style, setStyle] = useState<SkinStyle | 'all'>('all')
   const [kind, setKind] = useState<SkinMediaKind | 'all'>('all')
@@ -792,6 +905,16 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
 
       {snapshot.skins.message && <div className="skin-notice"><Info size={15} />{snapshot.skins.message}</div>}
 
+      <div className="skin-tab-row" role="tablist">
+        <button role="tab" aria-selected={tab === 'official'} className={tab === 'official' ? 'active' : ''} onClick={() => setTab('official')}>
+          <ShieldCheck size={15} />官方目录 · {snapshot.skins.items.length}
+        </button>
+        <button role="tab" aria-selected={tab === 'external'} className={tab === 'external' ? 'active' : ''} onClick={() => setTab('external')}>
+          <Globe2 size={15} />外部来源{snapshot.settings.externalSkinsEnabled && snapshot.skins.external.status === 'ready' ? ` · ${snapshot.skins.external.items.length}` : ''}
+        </button>
+      </div>
+
+      {tab === 'external' ? <ExternalSkinPanel snapshot={snapshot} busy={busy} onApply={onApply} onToggle={onToggleExternal} /> : <>
       <Card className="skin-toolbar">
         <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索皮肤、画风或场景" /></div>
         <div className="skin-filter-row" aria-label="媒体分类">
@@ -828,6 +951,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
         <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
         {snapshot.skins.activeSkinId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button>}
       </div>
+      </>}
     </div>
   )
 }
@@ -1725,6 +1849,10 @@ export default function App(): ReactNode {
     if (window.launcher) void run('settings', () => window.launcher!.saveSettings(settings))
     else setSnapshot((current) => ({ ...current, settings, sources: settings.sources.map((source) => ({ ...source, status: source.enabled && source.baseUrl ? 'checking' : 'unconfigured' })) }))
   }
+  const toggleExternalSkins = (enabled: boolean): void => {
+    if (window.launcher) void run('skins-external', () => window.launcher!.saveSettings({ externalSkinsEnabled: enabled }))
+    else setSnapshot((current) => ({ ...current, settings: { ...current.settings, externalSkinsEnabled: enabled } }))
+  }
 
   return (
     <div className="app-shell">
@@ -1762,7 +1890,7 @@ export default function App(): ReactNode {
 
         <div className="page-scroll">
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
-          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onClear={clearSkin} />}
+          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onClear={clearSkin} onToggleExternal={toggleExternalSkins} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}

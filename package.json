@@ -19,6 +19,7 @@
     "test:version": "node scripts/smoke-version.mjs",
     "keys:generate": "node scripts/generate-signing-key.mjs",
     "catalog:prepare": "node scripts/update-release-payload.mjs",
+    "catalog:external": "node scripts/build-external-skin-catalog.mjs",
     "modules:build": "node scripts/sync-runtime-peers.mjs && node scripts/build-runtime-modules.mjs",
     "modules:smoke": "node scripts/run-runtime-module-smoke.mjs",
     "shell:build": "node scripts/build-launcher-shell.mjs",
