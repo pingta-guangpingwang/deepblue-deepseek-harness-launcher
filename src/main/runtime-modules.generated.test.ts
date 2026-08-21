@@ -78,7 +78,7 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     const dsh = path.join(harnessResult.root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
     const harnessVersion = await run(node, [dsh, '--version'])
     expect(harnessVersion.code, harnessVersion.output).toBe(0)
-    expect(harnessVersion.output).toContain('0.1.0-rc.6')
+    expect(harnessVersion.output).toContain('0.1.0-rc.8')
     const pnpm = path.join(packageManagerResult.root, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
     const pnpmVersion = await run(node, [pnpm, '--version'])
     expect(pnpmVersion.code, pnpmVersion.output).toBe(0)

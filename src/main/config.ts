@@ -79,7 +79,7 @@ function defaults(): PersistedConfig {
       petCatalogUrl: FIXED_PET_CATALOG_URL,
       sources: defaultSources
     },
-    activeVersion: '0.1.0-rc.6',
+    activeVersion: '0.1.0-rc.8',
     workspaces: [],
     resourceLibrary: [],
     modelRouting: {

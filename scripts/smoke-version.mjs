@@ -74,7 +74,7 @@ try {
   const installedDsh = path.join(versionRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
   const installedStatus = await boot(installedDsh, versionRoot, 4314)
   const rollbackStatus = await boot(bundledDsh, root, 4315)
-  console.log(`Version smoke passed: install ${installedPackage.version} (HTTP ${installedStatus}) -> rollback 0.1.0-rc.6 (HTTP ${rollbackStatus})`)
+  console.log(`Version smoke passed: install ${installedPackage.version} (HTTP ${installedStatus}) -> rollback 0.1.0-rc.8 (HTTP ${rollbackStatus})`)
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true })
 }

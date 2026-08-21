@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { modelProviderTemplates } from '../src/shared/model-provider-catalog.ts'
+import { bundledVersions } from '../src/main/catalog.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 const release = path.join(root, 'release')
@@ -19,9 +20,16 @@ payload.schemaVersion = 2
 payload.generatedAt = new Date().toISOString()
 payload.runtimeModules = runtimeModules.modules
 payload.modelTemplates = modelProviderTemplates
+payload.harness = bundledVersions.map((entry) => ({
+  ...entry,
+  installed: false,
+  active: false
+}))
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    'DeepSeek Harness 核心同步至官方 dsh-v0.1.0-rc.8，并重新生成、校验和发布独立核心模块包',
+    '继续保留 Node、Harness、包管理器与启动器界面壳的拆分更新；只下载发生变化的签名模块，不重新下载整套程序',
     '运行模块和 UI 壳的签名镜像固定改为 Gitee、GitHub、OSS 的顺序；国内用户先走 Gitee，只有前两条线路都不可用时才使用 OSS',
     '修复 Node 与 Harness 已完整安装后，按需插件包管理器仍被误判为核心缺失，导致“快速修复”错误停在 20%；安装并发结束后会重新核验真实运行环境',
     '修复签名目录对象临时不可读时首次安装报“未提供插件包管理器”；UI 壳现内置严格校验过的运行模块目录并继续从内容寻址的 GitHub 制品安装',

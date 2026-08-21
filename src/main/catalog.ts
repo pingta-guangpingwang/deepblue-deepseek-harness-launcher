@@ -2,14 +2,14 @@ import type { CatalogPlugin, HarnessVersion, ModelCatalogItem } from '../shared/
 
 export const bundledVersions: HarnessVersion[] = [
   {
-    version: '0.1.0-rc.6',
+    version: '0.1.0-rc.8',
     channel: 'stable',
     installed: true,
     active: true,
     rollbackReady: false,
     sizeMb: 75,
-    publishedAt: '2026-08-05',
-    notes: ['首个候选发行版', '提供 Web、Headless 与插件 Profile 工作流']
+    publishedAt: '2026-08-19',
+    notes: ['同步 DeepSeek 官方 dsh-v0.1.0-rc.8', '提供 Web、Headless 与插件 Profile 工作流']
   },
   {
     version: '0.1.0-rc.3',
