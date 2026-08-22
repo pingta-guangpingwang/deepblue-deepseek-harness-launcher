@@ -3,23 +3,23 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.10',
+  launcherVersion: '0.10.11',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
-  activeHarnessVersion: '0.1.0-rc.8',
-  latestHarnessVersion: '0.1.0-rc.8',
+  activeHarnessVersion: '0.1.1-rc.2',
+  latestHarnessVersion: '0.1.1-rc.2',
   runtimeUpdates: {
     status: 'available',
     message: '检测到 2 个独立模块可更新',
     items: [
-      { id: 'harness-core', label: 'DeepSeek Harness 核心', currentVersion: '0.1.0-rc.7', nextVersion: '0.1.0-rc.8', size: 48_600_000, required: true },
+      { id: 'harness-core', label: 'DeepSeek Harness 核心', currentVersion: '0.1.0-rc.8', nextVersion: '0.1.1-rc.2', size: 48_600_000, required: true },
       { id: 'package-manager', label: 'pnpm 插件环境', currentVersion: '11.22.0', nextVersion: '11.23.0', size: 6_900_000, required: true }
     ]
   },
   environment: [
     { id: 'node', label: '内置 Node.js', version: '24.16.0', status: 'ready', detail: '独立运行时可用，不修改系统环境' },
-    { id: 'harness', label: 'Harness 核心', version: '0.1.0-rc.8', status: 'ready', detail: '整合包内置版本' },
+    { id: 'harness', label: 'Harness 核心', version: '0.1.1-rc.2', status: 'ready', detail: '整合包内置版本' },
     { id: 'pnpm', label: '插件包管理器', version: '11.22.0', status: 'ready', detail: '用于安装和更新 Harness 插件' },
     { id: 'network', label: '更新网络', status: 'ready', detail: '至少一个在线源可用' }
   ],
@@ -36,17 +36,18 @@ export const mockSnapshot: LauncherSnapshot = {
   logs: [
     { id: 1, time: '20:21:03', level: 'INFO', message: '深蓝DeepSeekHarness启动器 0.10.6 已启动' },
     { id: 2, time: '20:21:03', level: 'INFO', message: '内置 Node.js 24.16.0 可用' },
-    { id: 3, time: '20:21:04', level: 'INFO', message: 'Harness 0.1.0-rc.8 完整性检查通过' },
+    { id: 3, time: '20:21:04', level: 'INFO', message: 'Harness 0.1.1-rc.2 完整性检查通过' },
     { id: 4, time: '20:21:05', level: 'INFO', message: '选择工作区后即可启动本地服务' }
   ],
   versions: [
-    { version: '0.1.0-rc.8', channel: 'stable', installed: true, active: true, rollbackReady: false, sizeMb: 75, publishedAt: '2026-08-19', notes: ['同步 DeepSeek 官方 dsh-v0.1.0-rc.8', '提供 Web、Headless 与插件 Profile 工作流'] },
+    { version: '0.1.1-rc.2', channel: 'stable', installed: true, active: true, rollbackReady: false, sizeMb: 75, publishedAt: '2026-08-22', notes: ['同步 DeepSeek 官方 dsh-v0.1.1-rc.2', '支持 DeepSeek 官方视觉模型图片输入'] },
     { version: '0.1.0-rc.3', channel: 'preview', installed: true, active: false, rollbackReady: true, sizeMb: 73, publishedAt: '2026-07-28', notes: ['历史候选版本'] }
   ],
   plugins: [],
   models: [
     { id: 'deepseek-v4-flash', provider: 'DeepSeek', model: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', description: '面向高频对话、工具调用与代码任务的快速模型。模型调用需要用户自己的 API Key。', context: '以官方当前配置为准', capabilities: ['对话', '工具调用', '代码'], status: 'available', configured: false, docsUrl: 'https://api-docs.deepseek.com/' },
     { id: 'deepseek-v4-pro', provider: 'DeepSeek', model: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', description: '适合复杂推理、规划和需要更充分分析的任务。', context: '以官方当前配置为准', capabilities: ['推理', '规划', '代码'], status: 'available', configured: false, docsUrl: 'https://api-docs.deepseek.com/' },
+    { id: 'deepseek-v4-flash-vision-exp', provider: 'DeepSeek', model: 'deepseek-v4-flash-vision-exp', displayName: 'DeepSeek V4 Flash Vision Exp', description: 'DeepSeek 官方视觉实验模型，支持图片理解与文字提取。', context: '以官方当前配置为准', capabilities: ['图片理解', 'OCR', '工具调用'], status: 'preview', configured: false, docsUrl: 'https://api-docs.deepseek.com/zh-cn/guides/vision' },
     { id: 'custom', provider: '兼容接口', model: 'custom', displayName: '自定义 OpenAI 兼容模型', description: '通过 Harness 的模型设置连接兼容服务，不由启动器保存密钥。', context: '由服务商决定', capabilities: ['可配置'], status: 'available', configured: false }
   ],
   modelHub: {
@@ -56,7 +57,11 @@ export const mockSnapshot: LauncherSnapshot = {
     providers: [{
       id: 'deepseek-official', name: 'DeepSeek 官方', api: 'deepseek', baseURL: 'https://api.deepseek.com', apiKeyEnv: 'DEEPSEEK_API_KEY',
       configured: true, secureStorage: true, custom: false, updatedAt: new Date().toISOString(), docsUrl: 'https://api-docs.deepseek.com/', billingUrl: 'https://platform.deepseek.com/usage',
-      models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' }, { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }]
+      models: [
+        { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', inputModalities: ['text'] },
+        { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', inputModalities: ['text'] },
+        { id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek V4 Flash Vision Exp', inputModalities: ['text', 'image'], imagePixelBudget: 640_000, imageMaxBytes: 1_048_576, imageDetail: 'auto' }
+      ]
     }],
     usage: {
       'deepseek-official:deepseek-v4-flash': { inputTokens: 148240, outputTokens: 42780, cacheReadTokens: 96200, cacheWriteTokens: 8100, requests: 46, updatedAt: new Date().toISOString(), source: 'harness-session-log' }

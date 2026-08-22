@@ -82,7 +82,7 @@ function defaults(): PersistedConfig {
       externalSkinsEnabled: false,
       sources: defaultSources
     },
-    activeVersion: '0.1.0-rc.8',
+    activeVersion: '0.1.1-rc.2',
     workspaces: [],
     resourceLibrary: [],
     modelRouting: {
@@ -93,8 +93,17 @@ function defaults(): PersistedConfig {
         api: 'deepseek',
         baseURL: 'https://api.deepseek.com',
         models: [
-          { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-          { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+          { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', inputModalities: ['text'] },
+          { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', inputModalities: ['text'] },
+          {
+            id: 'deepseek-v4-flash-vision-exp',
+            name: 'DeepSeek V4 Flash Vision Exp',
+            description: '支持图片理解、OCR、界面检查和图表分析。',
+            inputModalities: ['text', 'image'],
+            imagePixelBudget: 640_000,
+            imageMaxBytes: 1_048_576,
+            imageDetail: 'auto'
+          }
         ],
         docsUrl: 'https://api-docs.deepseek.com/',
         custom: false

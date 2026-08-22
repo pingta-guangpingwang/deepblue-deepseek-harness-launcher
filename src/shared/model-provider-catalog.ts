@@ -1,15 +1,25 @@
 import type { ModelProviderTemplate } from './types'
 
-const UPDATED_AT = '2026-08-18'
+const UPDATED_AT = '2026-08-22'
 
 export const modelProviderTemplates: ModelProviderTemplate[] = [
   {
-    id: 'deepseek-official', name: 'DeepSeek 官方', description: '官方 V4 模型，Flash 适合日常工程，Pro 适合复杂规划与高难度代码任务。', region: 'china',
+    id: 'deepseek-official', name: 'DeepSeek 官方', description: '官方 V4 模型目录，包含日常工程、复杂推理和支持图片输入的视觉实验模型。', region: 'china',
     api: 'deepseek', baseURL: 'https://api.deepseek.com', apiKeyEnv: 'DEEPSEEK_API_KEY',
     docsUrl: 'https://api-docs.deepseek.com/zh-cn/guides/reasoning_model', billingUrl: 'https://platform.deepseek.com/usage', custom: false, featured: true, catalogUpdatedAt: UPDATED_AT,
     suggestedModels: [
-      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', description: '速度与成本均衡，适合默认工程模型。', recommended: true },
-      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '复杂推理、规划与高难度代码任务。' }
+      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', description: '速度与成本均衡，适合默认工程模型。', recommended: true, inputModalities: ['text'] },
+      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '复杂推理、规划与高难度代码任务。', inputModalities: ['text'] },
+      {
+        id: 'deepseek-v4-flash-vision-exp',
+        name: 'DeepSeek V4 Flash Vision Exp',
+        description: 'DeepSeek 官方视觉实验模型，支持图片理解、文字提取、界面检查与图表分析。',
+        recommended: true,
+        inputModalities: ['text', 'image'],
+        imagePixelBudget: 640_000,
+        imageMaxBytes: 1_048_576,
+        imageDetail: 'auto'
+      }
     ]
   },
   {

@@ -28,6 +28,10 @@ describe('multimodal protocol adapters', () => {
     const compatible = buildMultimodalApiCall({ api: 'openai-completions', baseURL: 'https://example.com/v1/' }, 'vision-test', '读图', image, 'secret')
     expect(compatible.url).toBe('https://example.com/v1/chat/completions')
     expect(JSON.stringify(compatible.body)).toContain('image_url')
+    expect(compatible.body).not.toHaveProperty('thinking')
+
+    const deepseek = buildMultimodalApiCall({ id: 'deepseek-official', api: 'deepseek', baseURL: 'https://api.deepseek.com' }, 'deepseek-v4-flash-vision-exp', '读图', image, 'secret')
+    expect(deepseek.body).toMatchObject({ thinking: { type: 'disabled' } })
   })
 
   it('parses text and real token fields from supported response shapes', () => {

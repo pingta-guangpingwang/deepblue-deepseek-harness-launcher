@@ -129,6 +129,12 @@ describe('catalog signature verification', () => {
   it('accepts a signed live model directory and rejects unsafe or duplicate templates', () => {
     expect(validateModelTemplates(modelProviderTemplates)).toBe(true)
     expect(validateModelTemplates(modelProviderTemplates.map((template, index) => index === 0 ? { ...template, baseURL: 'http://attacker.example' } : template))).toBe(false)
+    expect(validateModelTemplates(modelProviderTemplates.map((template, index) => index === 0 ? {
+      ...template,
+      suggestedModels: template.suggestedModels.map((model, modelIndex) => modelIndex === 0
+        ? { ...model, inputModalities: ['text', 'camera'] }
+        : model)
+    } : template))).toBe(false)
     expect(validateModelTemplates([...modelProviderTemplates, modelProviderTemplates[0]])).toBe(false)
     const { publicKey, privateKey } = generateKeyPairSync('ed25519')
     const modularPayload: SignedCatalogPayload = { ...payload, schemaVersion: 2, runtimeModules: [runtimeModule], modelTemplates: modelProviderTemplates }

@@ -107,7 +107,7 @@ export class LauncherController {
       distributionMode: this.distributionMode,
       runStatus: 'stopped',
       activeHarnessVersion: this.config.activeVersion,
-      latestHarnessVersion: '0.1.0-rc.8',
+      latestHarnessVersion: '0.1.1-rc.2',
       runtimeUpdates: { status: 'idle', items: [] },
       environment: this.checkingEnvironment(),
       sources,
@@ -1496,7 +1496,7 @@ export class LauncherController {
   private async discoverVersions(activeVersion: string): Promise<HarnessVersion[]> {
     const paths = launcherDataPaths()
     const installed = new Set<string>()
-    if (await hasBundledHarness()) installed.add('0.1.0-rc.8')
+    if (await hasBundledHarness()) installed.add('0.1.1-rc.2')
     const modularVersions = await this.moduleStore.versions('harness-core')
     modularVersions.installed.forEach((version) => installed.add(version))
     try {

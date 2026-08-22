@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { modelProviderTemplates, normalizeModelProviderDraft } from './model-store'
+import { mergeSignedModelTemplates, modelProviderTemplates, normalizeModelProviderDraft } from './model-store'
 
 describe('model provider templates', () => {
   it('ships a broad domestic API directory without duplicating identities or secrets', () => {
@@ -33,12 +33,22 @@ describe('model provider templates', () => {
 
   it('ships a dated selectable model catalog for every known provider', () => {
     for (const template of modelProviderTemplates) {
-      expect(template.catalogUpdatedAt).toBe('2026-08-18')
+      expect(template.catalogUpdatedAt).toBe('2026-08-22')
       if (template.custom) continue
       expect(template.suggestedModels.length).toBeGreaterThan(0)
       expect(template.suggestedModels.some((model) => model.recommended)).toBe(true)
       expect(new Set(template.suggestedModels.map((model) => model.id)).size).toBe(template.suggestedModels.length)
     }
+  })
+
+  it('advertises the official DeepSeek vision model with the same image limits as Harness', () => {
+    const deepseek = modelProviderTemplates.find((template) => template.id === 'deepseek-official')
+    expect(deepseek?.suggestedModels.find((model) => model.id === 'deepseek-v4-flash-vision-exp')).toMatchObject({
+      inputModalities: ['text', 'image'],
+      imagePixelBudget: 640_000,
+      imageMaxBytes: 1_048_576,
+      imageDetail: 'auto'
+    })
   })
 
   it('locks known providers to official connection and model values', () => {
@@ -63,6 +73,21 @@ describe('model provider templates', () => {
       models: [{ id: 'deepseek-v4-mini', name: 'ignored' }]
     }, liveTemplates)
     expect(normalized.models).toEqual([{ id: 'deepseek-v4-mini', name: 'DeepSeek V4 Mini' }])
+  })
+
+  it('does not let an older signed directory hide newer bundled model capabilities', () => {
+    const staleDeepSeek = {
+      ...modelProviderTemplates.find((template) => template.id === 'deepseek-official')!,
+      catalogUpdatedAt: '2026-08-18',
+      suggestedModels: [
+        { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+        { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+      ]
+    }
+    const merged = mergeSignedModelTemplates([staleDeepSeek])
+    const deepseek = merged.find((template) => template.id === 'deepseek-official')
+    expect(deepseek?.catalogUpdatedAt).toBe('2026-08-22')
+    expect(deepseek?.suggestedModels.find((model) => model.id === 'deepseek-v4-flash-vision-exp')?.inputModalities).toEqual(['text', 'image'])
   })
 
   it('opens resource cards on one click and keeps manual model entry custom-only', () => {

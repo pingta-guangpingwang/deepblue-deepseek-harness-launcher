@@ -99,6 +99,17 @@ export interface ModelCatalogItem {
   docsUrl?: string
 }
 
+export interface ModelDefinition {
+  id: string
+  name: string
+  description?: string
+  recommended?: boolean
+  inputModalities?: Array<'text' | 'image'>
+  imagePixelBudget?: number
+  imageMaxBytes?: number
+  imageDetail?: 'auto' | 'low'
+}
+
 export interface ModelProviderTemplate {
   id: string
   name: string
@@ -112,7 +123,7 @@ export interface ModelProviderTemplate {
   custom: boolean
   featured: boolean
   catalogUpdatedAt: string
-  suggestedModels: Array<{ id: string; name: string; description?: string; recommended?: boolean }>
+  suggestedModels: ModelDefinition[]
 }
 
 export interface ModelProviderConnection {
@@ -124,7 +135,7 @@ export interface ModelProviderConnection {
   configured: boolean
   secureStorage: boolean
   custom: boolean
-  models: Array<{ id: string; name: string }>
+  models: ModelDefinition[]
   updatedAt: string
   docsUrl?: string
   billingUrl?: string
@@ -190,7 +201,7 @@ export interface ModelProviderDraft {
   api: ModelProviderTemplate['api']
   baseURL: string
   apiKey?: string
-  models: Array<{ id: string; name: string }>
+  models: ModelDefinition[]
   docsUrl?: string
   billingUrl?: string
   custom?: boolean

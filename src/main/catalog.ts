@@ -2,14 +2,14 @@ import type { CatalogPlugin, HarnessVersion, ModelCatalogItem } from '../shared/
 
 export const bundledVersions: HarnessVersion[] = [
   {
-    version: '0.1.0-rc.8',
+    version: '0.1.1-rc.2',
     channel: 'stable',
     installed: true,
     active: true,
     rollbackReady: false,
     sizeMb: 75,
-    publishedAt: '2026-08-19',
-    notes: ['同步 DeepSeek 官方 dsh-v0.1.0-rc.8', '提供 Web、Headless 与插件 Profile 工作流']
+    publishedAt: '2026-08-22',
+    notes: ['同步 DeepSeek 官方 dsh-v0.1.1-rc.2', '新增 DeepSeek V4 Flash Vision Exp 图片输入与 Files API 管线']
   },
   {
     version: '0.1.0-rc.3',
@@ -51,6 +51,18 @@ export const bundledModels: ModelCatalogItem[] = [
     status: 'available',
     configured: false,
     docsUrl: 'https://api-docs.deepseek.com/'
+  },
+  {
+    id: 'deepseek-v4-flash-vision-exp',
+    provider: 'DeepSeek',
+    model: 'deepseek-v4-flash-vision-exp',
+    displayName: 'DeepSeek V4 Flash Vision Exp',
+    description: 'DeepSeek 官方视觉实验模型，支持图片理解、文字提取、界面检查与图表分析。',
+    context: '以官方当前配置为准',
+    capabilities: ['对话', '图片理解', 'OCR', '工具调用'],
+    status: 'preview',
+    configured: false,
+    docsUrl: 'https://api-docs.deepseek.com/zh-cn/guides/vision'
   },
   {
     id: 'custom-openai-compatible',

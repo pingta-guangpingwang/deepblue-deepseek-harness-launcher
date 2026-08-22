@@ -63,7 +63,7 @@ export function normalizeMultimodalImage(image: MultimodalTestRequest['image']):
 }
 
 export function buildMultimodalApiCall(
-  provider: Pick<ModelProviderConnection, 'api' | 'baseURL'>,
+  provider: Pick<ModelProviderConnection, 'api' | 'baseURL'> & Partial<Pick<ModelProviderConnection, 'id'>>,
   model: string,
   prompt: string,
   image: NormalizedImage,
@@ -126,6 +126,7 @@ export function buildMultimodalApiCall(
     body: {
       model,
       max_tokens: 600,
+      ...(provider.api === 'deepseek' || provider.id === 'deepseek-official' ? { thinking: { type: 'disabled' } } : {}),
       messages: [{
         role: 'user',
         content: [

@@ -1,5 +1,5 @@
 import { parse, parseDocument } from 'yaml'
-import type { ModelProviderDraft } from '../shared/types'
+import type { ModelDefinition, ModelProviderDraft } from '../shared/types'
 
 const CATALOG_PROVIDERS = new Set(['openai', 'anthropic', 'google'])
 const MODEL_APIS = new Set<ModelProviderDraft['api']>([
@@ -41,7 +41,7 @@ function validBaseURL(value: string): boolean {
   }
 }
 
-function modelList(value: unknown, fallback: HarnessProviderProfile | undefined): Array<{ id: string; name: string }> {
+function modelList(value: unknown, fallback: HarnessProviderProfile | undefined): ModelDefinition[] {
   if (!Array.isArray(value)) return fallback?.models.map((item) => ({ ...item })) || []
   const seen = new Set<string>()
   return value.flatMap((entry) => {
@@ -50,8 +50,28 @@ function modelList(value: unknown, fallback: HarnessProviderProfile | undefined)
     if (!validModelId(id) || seen.has(id)) return []
     seen.add(id)
     const name = typeof entry.name === 'string' && entry.name.trim() ? entry.name.trim().slice(0, 100) : id
-    return [{ id, name }]
+    const model: ModelDefinition = { id, name }
+    if (typeof entry.description === 'string' && entry.description.trim()) model.description = entry.description.trim().slice(0, 300)
+    if (typeof entry.recommended === 'boolean') model.recommended = entry.recommended
+    if (Array.isArray(entry.inputModalities)
+      && entry.inputModalities.length > 0
+      && entry.inputModalities.every((item) => item === 'text' || item === 'image')) {
+      model.inputModalities = [...new Set(entry.inputModalities)] as ModelDefinition['inputModalities']
+    }
+    if (Number.isSafeInteger(entry.imagePixelBudget) && Number(entry.imagePixelBudget) > 0) model.imagePixelBudget = Number(entry.imagePixelBudget)
+    if (Number.isSafeInteger(entry.imageMaxBytes) && Number(entry.imageMaxBytes) > 0) model.imageMaxBytes = Number(entry.imageMaxBytes)
+    if (entry.imageDetail === 'auto' || entry.imageDetail === 'low') model.imageDetail = entry.imageDetail
+    return [model]
   }).slice(0, 50)
+}
+
+function includeOfficialModels(models: ModelDefinition[], official: ModelDefinition[]): ModelDefinition[] {
+  const byId = new Map(models.map((model) => [model.id, model]))
+  const officialIds = new Set(official.map((model) => model.id))
+  return [
+    ...official.map((model) => ({ ...byId.get(model.id), ...model })),
+    ...models.filter((model) => !officialIds.has(model.id))
+  ].slice(0, 50)
 }
 
 function profileFromSection(
@@ -100,7 +120,12 @@ export function parseHarnessModelSettings(
   if (deepseekFallback) {
     const section = isRecord(root['llm-deepseek']) ? root['llm-deepseek'] : {}
     const deepseek = profileFromSection('deepseek-official', section, deepseekFallback)
-    if (deepseek) providers.push({ ...deepseek, api: 'deepseek', custom: false })
+    if (deepseek) providers.push({
+      ...deepseek,
+      api: 'deepseek',
+      custom: false,
+      models: includeOfficialModels(deepseek.models, deepseekFallback.models)
+    })
   }
   const pi = isRecord(root['llm-pi-ai']) ? root['llm-pi-ai'] : undefined
   const rawProviders = isRecord(pi?.providers) ? pi.providers : {}
@@ -151,6 +176,7 @@ export function mergeHarnessModelSettings(
       // remain exclusively in the encrypted launcher store/environment.
       document.setIn(['llm-deepseek', 'baseURL'], provider.baseURL)
       document.setIn(['llm-deepseek', 'apiKeyEnv'], provider.apiKeyEnv)
+      document.setIn(['llm-deepseek', 'models'], provider.models)
       continue
     }
     const profile: Record<string, unknown> = {

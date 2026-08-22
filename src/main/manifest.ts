@@ -205,7 +205,15 @@ export function validateModelTemplates(value: unknown): value is ModelProviderTe
     if (template.suggestedModels.some((model) => (
       !isRecord(model) || !MODEL_ID.test(model.id) || typeof model.name !== 'string' || model.name.length < 1 || model.name.length > 100 ||
       (model.description !== undefined && (typeof model.description !== 'string' || model.description.length > 300)) ||
-      (model.recommended !== undefined && typeof model.recommended !== 'boolean')
+      (model.recommended !== undefined && typeof model.recommended !== 'boolean') ||
+      (model.inputModalities !== undefined && (
+        !Array.isArray(model.inputModalities) || model.inputModalities.length < 1 || model.inputModalities.length > 2 ||
+        model.inputModalities.some((modality) => modality !== 'text' && modality !== 'image') ||
+        new Set(model.inputModalities).size !== model.inputModalities.length
+      )) ||
+      (model.imagePixelBudget !== undefined && (!Number.isSafeInteger(model.imagePixelBudget) || model.imagePixelBudget < 1 || model.imagePixelBudget > 100_000_000)) ||
+      (model.imageMaxBytes !== undefined && (!Number.isSafeInteger(model.imageMaxBytes) || model.imageMaxBytes < 1 || model.imageMaxBytes > 100_000_000)) ||
+      (model.imageDetail !== undefined && model.imageDetail !== 'auto' && model.imageDetail !== 'low')
     ))) return false
     if (new Set(template.suggestedModels.map((model) => model.id)).size !== template.suggestedModels.length) return false
     ids.add(template.id)

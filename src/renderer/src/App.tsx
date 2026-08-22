@@ -1072,7 +1072,13 @@ function MultimodalTestLab({ snapshot, onTest }: {
   onTest: (request: MultimodalTestRequest) => Promise<MultimodalTestResult>
 }): ReactNode {
   const options = useMemo(() => snapshot.modelHub.providers.flatMap((provider) => provider.configured
-    ? provider.models.map((model) => ({ value: `${provider.id}::${model.id}`, provider: provider.id, model: model.id, label: `${provider.name} · ${model.name}` }))
+    ? provider.models.map((model) => ({
+      value: `${provider.id}::${model.id}`,
+      provider: provider.id,
+      model: model.id,
+      vision: model.inputModalities?.includes('image') === true,
+      label: `${provider.name} · ${model.name}${model.inputModalities?.includes('image') ? ' · 视觉' : ''}`
+    })).sort((left, right) => Number(right.vision) - Number(left.vision))
     : []), [snapshot.modelHub.providers])
   const defaultValue = options.some((item) => item.provider === snapshot.modelHub.active.provider && item.model === snapshot.modelHub.active.model)
     ? `${snapshot.modelHub.active.provider}::${snapshot.modelHub.active.model}`
@@ -1154,7 +1160,7 @@ function MultimodalTestLab({ snapshot, onTest }: {
       </div>
 
       <div className="multimodal-prompt-column">
-        <div className="prompt-heading"><div><h2>告诉模型要检查什么</h2><p>用同一张图切换模型，可直接比较识别质量、速度和实际 Token。</p></div><Sparkles size={20} /></div>
+        <div className="prompt-heading"><div><h2>告诉模型要检查什么</h2><p>标有“视觉”的模型已由官方目录确认支持图片；其他模型仍可单次实测兼容性。</p></div><Sparkles size={20} /></div>
         <div className="prompt-presets" aria-label="测试任务模板">{multimodalPrompts.map((item) => <button type="button" className={prompt === item.value ? 'active' : ''} key={item.label} onClick={() => { setPrompt(item.value); setResult(undefined) }}>{item.label}</button>)}</div>
         <label className="test-prompt"><span>测试问题</span><textarea value={prompt} maxLength={4000} rows={5} onChange={(event) => { setPrompt(event.target.value); setResult(undefined) }} /></label>
         {localError && <div className="test-inline-error" role="alert"><CircleAlert size={16} />{localError}</div>}

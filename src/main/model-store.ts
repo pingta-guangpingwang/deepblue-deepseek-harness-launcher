@@ -63,7 +63,7 @@ export function normalizeModelProviderDraft(
     const selectedIds = new Set(draft.models.map((model) => model.id.trim()))
     const models = template.suggestedModels
       .filter((model) => selectedIds.has(model.id))
-      .map(({ id: modelId, name }) => ({ id: modelId, name }))
+      .map((model) => ({ ...model }))
     if (!models.length) throw new Error('请至少选择一个官方模型')
     return {
       id: template.id,
@@ -99,6 +99,27 @@ export function normalizeModelProviderDraft(
   }
 }
 
+export function mergeSignedModelTemplates(templates: ModelProviderTemplate[]): ModelProviderTemplate[] {
+  const signedById = new Map(templates.map((template) => [template.id, template]))
+  const merged = modelProviderTemplates.map((bundled) => {
+    const signed = signedById.get(bundled.id)
+    if (!signed) return structuredClone(bundled)
+    signedById.delete(bundled.id)
+    if (signed.catalogUpdatedAt >= bundled.catalogUpdatedAt) return structuredClone(signed)
+
+    const bundledIds = new Set(bundled.suggestedModels.map((model) => model.id))
+    return {
+      ...signed,
+      ...bundled,
+      suggestedModels: [
+        ...bundled.suggestedModels.map((model) => ({ ...model })),
+        ...signed.suggestedModels.filter((model) => !bundledIds.has(model.id)).map((model) => ({ ...model }))
+      ]
+    }
+  })
+  return [...merged, ...[...signedById.values()].map((template) => structuredClone(template))]
+}
+
 export class ModelStore {
   private templates: ModelProviderTemplate[] = structuredClone(modelProviderTemplates)
   private secrets: SecretDocument = { version: 1, values: {} }
@@ -119,7 +140,10 @@ export class ModelStore {
       this.secrets = { version: 1, values: {} }
     }
     const settingsImported = await this.importHarnessSettings()
-    if (settingsImported) await this.writeHarnessSettings()
+    const modelsMigrated = this.includeOfficialDeepSeekModels()
+    if (settingsImported || modelsMigrated) {
+      await Promise.all([writeConfig(this.config), this.writeHarnessSettings()])
+    }
     await this.initializeHarnessCredentials()
     this.startWatchers()
     await this.refreshUsage()
@@ -161,7 +185,14 @@ export class ModelStore {
   }
 
   syncTemplates(templates: ModelProviderTemplate[]): ModelHubState {
-    this.templates = structuredClone(templates)
+    this.templates = mergeSignedModelTemplates(templates)
+    if (this.includeOfficialDeepSeekModels()) {
+      this.syncQueue = this.syncQueue.then(async () => {
+        await Promise.all([writeConfig(this.config), this.writeHarnessSettings()])
+      }).catch(() => {
+        this.onExternalChange?.(this.state('官方 DeepSeek 模型目录同步失败，请稍后重新检查更新'))
+      })
+    }
     return this.state('模型目录已从签名在线目录更新；已添加连接保持不变')
   }
 
@@ -291,6 +322,21 @@ export class ModelStore {
       ...provider,
       apiKeyEnv: providerEnvName(provider)
     }))
+  }
+
+  private includeOfficialDeepSeekModels(): boolean {
+    const provider = this.config.modelRouting.providers.find((item) => item.id === DEEPSEEK_PROVIDER)
+    const template = this.templates.find((item) => item.id === DEEPSEEK_PROVIDER)
+    if (!provider || !template) return false
+    const byId = new Map(provider.models.map((model) => [model.id, model]))
+    const officialIds = new Set(template.suggestedModels.map((model) => model.id))
+    const next = [
+      ...template.suggestedModels.map((model) => ({ ...byId.get(model.id), ...model })),
+      ...provider.models.filter((model) => !officialIds.has(model.id))
+    ].slice(0, 50)
+    if (JSON.stringify(next) === JSON.stringify(provider.models)) return false
+    provider.models = next
+    return true
   }
 
   /** Import provider profiles and the active route changed from Harness web. */
