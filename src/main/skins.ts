@@ -42,6 +42,33 @@ interface ActiveSkinConfig {
   license: { name: string; url: string; author: string; sourceUrl: string; attribution?: string }
 }
 
+interface FavoriteSkinFile {
+  schemaVersion: 1
+  skinIds: string[]
+}
+
+export function nextFavoriteSkinIds(current: string[], skinId: string): string[] {
+  const unique = [...new Set(current.filter(id => typeof id === 'string' && id.length <= 64))]
+  return unique.includes(skinId) ? unique.filter(id => id !== skinId) : [skinId, ...unique]
+}
+
+async function readFavoriteSkinIds(): Promise<string[]> {
+  try {
+    const parsed = JSON.parse(await readFile(launcherDataPaths().skinFavorites, 'utf8')) as Partial<FavoriteSkinFile>
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.skinIds)) return []
+    return [...new Set(parsed.skinIds.filter(id => typeof id === 'string' && /^[a-z0-9][a-z0-9-]{1,63}$/.test(id)))].slice(0, 500)
+  } catch {
+    return []
+  }
+}
+
+async function writeFavoriteSkinIds(skinIds: string[]): Promise<void> {
+  const target = launcherDataPaths().skinFavorites
+  await mkdir(path.dirname(target), { recursive: true })
+  await writeFile(`${target}.next`, `${JSON.stringify({ schemaVersion: 1, skinIds } satisfies FavoriteSkinFile, null, 2)}\n`, 'utf8')
+  await rename(`${target}.next`, target)
+}
+
 function publicKeyCandidates(): string[] {
   return [
     path.join(process.resourcesPath, 'resources', 'skin-catalog-public-key.pem'),
@@ -275,6 +302,12 @@ export class SkinStore {
     return this.snapshot('ready')
   }
 
+  async toggleFavorite(skinId: string): Promise<SkinStoreState> {
+    if (!this.payload.items.some(item => item.id === skinId)) throw new Error('所选皮肤不在当前 Gitee 签名目录中')
+    await writeFavoriteSkinIds(nextFavoriteSkinIds(await readFavoriteSkinIds(), skinId))
+    return this.snapshot('ready')
+  }
+
   async snapshot(status: SkinStoreState['status'] = 'ready'): Promise<SkinStoreState> {
     let activeSkinId: string | undefined
     try {
@@ -286,12 +319,15 @@ export class SkinStore {
     for (const item of this.payload.items) {
       if (await exists(cachePath(item.media))) downloadedSkinIds.push(item.id)
     }
+    const itemIds = new Set(this.payload.items.map(item => item.id))
+    const favoriteSkinIds = (await readFavoriteSkinIds()).filter(id => itemIds.has(id))
     return {
       status,
       source: this.source,
       generatedAt: this.payload.generatedAt,
       ...(activeSkinId ? { activeSkinId } : {}),
       downloadedSkinIds,
+      favoriteSkinIds,
       items: structuredClone(this.payload.items),
       ...(this.message ? { message: this.message } : {})
     }

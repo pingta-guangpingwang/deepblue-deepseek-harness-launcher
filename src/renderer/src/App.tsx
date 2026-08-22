@@ -798,28 +798,48 @@ const skinKindLabels: Record<SkinMediaKind, string> = {
   video: '视频壁纸'
 }
 
-function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
+function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, onClear }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
   onApply: (skinId: string) => void
+  onToggleFavorite: (skinId: string) => void
   onClear: () => void
 }): ReactNode {
+  const [view, setView] = useState<'all' | 'current' | 'favorites'>('all')
   const [query, setQuery] = useState('')
   const [style, setStyle] = useState<SkinStyle | 'all'>('all')
   const [kind, setKind] = useState<SkinMediaKind | 'all'>('all')
   const [page, setPage] = useState(1)
   const { viewportRef, pageSize } = useAdaptiveCatalogCapacity()
-  const filtered = snapshot.skins.items.filter((skin) => {
+  const favorites = new Set(snapshot.skins.favoriteSkinIds)
+  const downloaded = new Set(snapshot.skins.downloadedSkinIds)
+  const viewItems = snapshot.skins.items.filter((skin) => {
+    if (view === 'current') return skin.id === snapshot.skins.activeSkinId
+    if (view === 'favorites') return favorites.has(skin.id)
+    return true
+  })
+  const filtered = viewItems.filter((skin) => {
     const matchesQuery = `${skin.name} ${skin.description} ${skin.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (style === 'all' || skin.styles.includes(style)) && (kind === 'all' || skin.mediaKind === kind)
   })
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const downloaded = new Set(snapshot.skins.downloadedSkinIds)
   const chooseStyle = (next: SkinStyle | 'all'): void => { setStyle(next); setPage(1) }
   const chooseKind = (next: SkinMediaKind | 'all'): void => { setKind(next); setPage(1) }
+  const chooseView = (next: 'all' | 'current' | 'favorites'): void => {
+    setView(next)
+    setQuery('')
+    setStyle('all')
+    setKind('all')
+    setPage(1)
+  }
+  const emptyCopy = view === 'current'
+    ? { title: '还没有正在使用的皮肤', text: '从商店挑选一款，下载完成后会出现在这里。' }
+    : view === 'favorites'
+      ? { title: '还没有收藏皮肤', text: '在商店点击心形按钮，就能建立自己的皮肤库。' }
+      : { title: '没有匹配的皮肤', text: '换一个分类或清空搜索词。' }
   return (
     <div className="skin-store-layout catalog-store-layout">
       <Card className="skin-store-hero">
@@ -834,27 +854,36 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
       </Card>
 
       {snapshot.skins.message && <div className="skin-notice"><Info size={15} />{snapshot.skins.message}</div>}
-      <Card className="skin-toolbar">
-        <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索皮肤、画风或场景" /></div>
-        <div className="skin-filter-row" aria-label="媒体分类">
-          {(['all', 'image', 'animated-image', 'video'] as const).map((value) => <button key={value} className={kind === value ? 'active' : ''} onClick={() => chooseKind(value)}>{value === 'all' ? '全部媒体' : skinKindLabels[value]}</button>)}
+      <Card className="skin-toolbar skin-library-toolbar">
+        <div className="skin-library-tabs" role="tablist" aria-label="皮肤库视图">
+          <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'active' : ''} onClick={() => chooseView('all')}><Images size={15} /><span>全部商店</span><b>{snapshot.skins.items.length}</b></button>
+          <button role="tab" aria-selected={view === 'current'} className={view === 'current' ? 'active' : ''} onClick={() => chooseView('current')}><Palette size={15} /><span>正在使用</span><b>{snapshot.skins.activeSkinId ? 1 : 0}</b></button>
+          <button role="tab" aria-selected={view === 'favorites'} className={view === 'favorites' ? 'active' : ''} onClick={() => chooseView('favorites')}><Heart size={15} /><span>我的收藏</span><b>{snapshot.skins.favoriteSkinIds.length}</b></button>
         </div>
-        <div className="skin-filter-row" aria-label="画风分类">
-          {(['all', 'realistic', 'anime', 'cyber', 'pixel', 'nature', 'minimal'] as const).map((value) => <button key={value} className={style === value ? 'active' : ''} onClick={() => chooseStyle(value)}>{value === 'all' ? '全部画风' : skinStyleLabels[value]}</button>)}
-        </div>
+        {view !== 'current' && <>
+          <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder={view === 'favorites' ? '搜索收藏皮肤' : '搜索皮肤、画风或场景'} /></div>
+          <div className="skin-filter-row" aria-label="媒体分类">
+            {(['all', 'image', 'animated-image', 'video'] as const).map((value) => <button key={value} className={kind === value ? 'active' : ''} onClick={() => chooseKind(value)}>{value === 'all' ? '全部媒体' : skinKindLabels[value]}</button>)}
+          </div>
+          <div className="skin-filter-row" aria-label="画风分类">
+            {(['all', 'realistic', 'anime', 'cyber', 'pixel', 'nature', 'minimal'] as const).map((value) => <button key={value} className={style === value ? 'active' : ''} onClick={() => chooseStyle(value)}>{value === 'all' ? '全部画风' : skinStyleLabels[value]}</button>)}
+          </div>
+        </>}
       </Card>
 
       <div ref={viewportRef} className="catalog-grid-viewport">
-      {items.length ? <div className="skin-grid">{items.map((skin) => {
+      {items.length ? <div className={classNames('skin-grid', view !== 'all' && 'skin-library-grid')}>{items.map((skin) => {
         const active = snapshot.skins.activeSkinId === skin.id
         const cached = downloaded.has(skin.id)
+        const favorite = favorites.has(skin.id)
         return (
           <article className={classNames('skin-card', active && 'active')} key={skin.id}>
             <div className="skin-preview">
               <img src={skin.thumbnail.url} loading="lazy" alt={`${skin.name}皮肤预览`} />
               <span className="skin-kind"><Images size={13} />{skinKindLabels[skin.mediaKind]}</span>
-              {skin.featured && <span className="skin-featured"><Sparkles size={13} />精选</span>}
+              {skin.featured && <span className="skin-featured"><Sparkles size={13} />本期推荐</span>}
               {active && <span className="skin-active"><Check size={14} />当前使用</span>}
+              <button className={classNames('skin-favorite-button', favorite && 'active')} aria-label={favorite ? `取消收藏${skin.name}` : `收藏${skin.name}`} title={favorite ? '取消收藏' : '收藏皮肤'} disabled={busy === `skin-favorite-${skin.id}`} onClick={() => onToggleFavorite(skin.id)}><Heart size={16} fill={favorite ? 'currentColor' : 'none'} /></button>
             </div>
             <div className="skin-card-body">
               <div className="skin-title-row"><div><h2>{skin.name}</h2><p>{skin.description}</p></div></div>
@@ -864,7 +893,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
             </div>
           </article>
         )
-      })}</div> : <Card><EmptyState icon={<Palette />} title="没有匹配的皮肤" text="换一个分类或清空搜索词。" /></Card>}
+      })}</div> : <Card className="skin-empty-card"><EmptyState icon={view === 'favorites' ? <Heart /> : <Palette />} title={emptyCopy.title} text={emptyCopy.text} />{view !== 'all' && <button className="primary-button skin-empty-action" onClick={() => chooseView('all')}>去商店挑选</button>}</Card>}
       </div>
 
       <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.skins.activeSkinId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button> : undefined} />
@@ -1759,6 +1788,10 @@ export default function App(): ReactNode {
   }
   const refreshSkins = (): void => { if (window.launcher) void run('skins', () => window.launcher!.refreshSkins()) }
   const applySkin = (skinId: string): void => { if (window.launcher) void run(`skin-${skinId}`, () => window.launcher!.applySkin(skinId)) }
+  const toggleSkinFavorite = (skinId: string): void => {
+    if (window.launcher) void run(`skin-favorite-${skinId}`, () => window.launcher!.toggleSkinFavorite(skinId))
+    else setSnapshot((current) => ({ ...current, skins: { ...current.skins, favoriteSkinIds: current.skins.favoriteSkinIds.includes(skinId) ? current.skins.favoriteSkinIds.filter(id => id !== skinId) : [skinId, ...current.skins.favoriteSkinIds] } }))
+  }
   const clearSkin = (): void => { if (window.launcher) void run('skin-clear', () => window.launcher!.clearSkin()) }
   const refreshPets = (): void => { if (window.launcher) void run('pets', () => window.launcher!.refreshPets()) }
   const applyPet = (petId: string): void => { if (window.launcher) void run(`pet-${petId}`, () => window.launcher!.applyPet(petId)) }
@@ -1814,7 +1847,7 @@ export default function App(): ReactNode {
 
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
-          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onClear={clearSkin} />}
+          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}

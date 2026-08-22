@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.12',
+  launcherVersion: '0.10.13',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
@@ -101,6 +101,7 @@ export const mockSnapshot: LauncherSnapshot = {
     generatedAt: '2026-08-15T14:30:00.000Z',
     activeSkinId: 'deep-ocean-whale',
     downloadedSkinIds: ['deep-ocean-whale'],
+    favoriteSkinIds: ['deep-ocean-whale', 'anime-star-observatory'],
     items: [
       {
         id: 'deep-ocean-whale', name: '深海鲸歌', description: '发光鲸鱼穿行于深海数据城，适合深色半透明界面。', mediaKind: 'image', styles: ['cyber', 'nature'], tags: ['深海', '鲸鱼', '蓝色', '宁静'], featured: true, contentRating: 'everyone',

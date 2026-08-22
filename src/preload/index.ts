@@ -41,6 +41,7 @@ const api: LauncherApi = {
   testMultimodal: (request) => ipcRenderer.invoke('launcher:test-multimodal', request),
   refreshSkins: () => ipcRenderer.invoke('launcher:refresh-skins'),
   applySkin: (skinId) => ipcRenderer.invoke('launcher:apply-skin', skinId),
+  toggleSkinFavorite: (skinId) => ipcRenderer.invoke('launcher:toggle-skin-favorite', skinId),
   clearSkin: () => ipcRenderer.invoke('launcher:clear-skin'),
   refreshPets: () => ipcRenderer.invoke('launcher:refresh-pets'),
   applyPet: (petId) => ipcRenderer.invoke('launcher:apply-pet', petId),

@@ -132,6 +132,7 @@ export class LauncherController {
         source: 'bundled',
         generatedAt: '',
         downloadedSkinIds: [],
+        favoriteSkinIds: [],
         items: []
       },
       pets: {
@@ -1117,6 +1118,15 @@ export class LauncherController {
       task.detail = error instanceof Error ? error.message : String(error)
       this.log('ERROR', `皮肤应用失败：${task.detail}`)
     }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot> {
+    this.snapshot.skins = await this.skinStore.toggleFavorite(skinId)
+    const favorite = this.snapshot.skins.favoriteSkinIds.includes(skinId)
+    const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
+    this.log('INFO', `${favorite ? '已收藏' : '已取消收藏'}皮肤${item ? `「${item.name}」` : ''}`)
     this.emit()
     return this.getSnapshot()
   }

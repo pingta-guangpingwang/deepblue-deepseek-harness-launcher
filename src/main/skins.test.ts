@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { verifySkinCatalog } from './skins'
+import { nextFavoriteSkinIds, verifySkinCatalog } from './skins'
 import type { SignedSkinCatalogManifest, SkinCatalogPayload } from '../shared/types'
 
 const payload: SkinCatalogPayload = {
@@ -27,5 +27,12 @@ describe('skin catalog signature verification', () => {
     const signature = sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64')
     expect(verifySkinCatalog({ keyId: 'test', algorithm: 'ed25519', payload: { ...payload, pageSize: 40 as 20 }, signature }, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
     expect(verifySkinCatalog({ keyId: 'test', algorithm: 'ed25519', payload: { ...payload, generatedAt: 'tampered' }, signature }, publicKey.export({ type: 'spki', format: 'pem' }).toString())).toBe(false)
+  })
+})
+
+describe('skin favorites', () => {
+  it('adds a favorite to the front and removes it on the next toggle', () => {
+    expect(nextFavoriteSkinIds(['skin-b', 'skin-b'], 'skin-a')).toEqual(['skin-a', 'skin-b'])
+    expect(nextFavoriteSkinIds(['skin-a', 'skin-b'], 'skin-a')).toEqual(['skin-b'])
   })
 })

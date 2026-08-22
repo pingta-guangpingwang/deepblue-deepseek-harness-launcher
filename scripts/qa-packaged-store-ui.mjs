@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { _electron as electron } from 'playwright'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -17,6 +17,10 @@ const launcherDataRoot = path.join(appDataRoot, 'deepseek-harness-launcher')
 await rm(outputRoot, { recursive: true, force: true })
 await mkdir(launcherDataRoot, { recursive: true })
 await mkdir(localAppDataRoot, { recursive: true })
+await mkdir(path.join(launcherDataRoot, 'skins'), { recursive: true })
+const bundledSkinCatalog = JSON.parse(await readFile(path.join(root, 'skin-store', 'catalog.payload.json'), 'utf8'))
+const seededSkinId = bundledSkinCatalog.items.find(item => item.id === 'sd2-aurora-library-motion')?.id || bundledSkinCatalog.items[0]?.id
+if (!seededSkinId) throw new Error('Bundled skin catalog is empty')
 await writeFile(path.join(launcherDataRoot, 'launcher.json'), JSON.stringify({
   settings: {
     storageRoot: launcherDataRoot,
@@ -24,6 +28,8 @@ await writeFile(path.join(launcherDataRoot, 'launcher.json'), JSON.stringify({
     theme: 'dark',
   },
 }, null, 2))
+await writeFile(path.join(launcherDataRoot, 'skins', 'favorites.json'), JSON.stringify({ schemaVersion: 1, skinIds: [seededSkinId] }, null, 2))
+await writeFile(path.join(launcherDataRoot, 'skins', 'active.json'), JSON.stringify({ schemaVersion: 1, skinId: seededSkinId }, null, 2))
 
 const failures = []
 function check(label, condition, detail = '') {
@@ -90,6 +96,36 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
   check(`${label} 鼠标滚轮不会把商店向下推走`, wheelResult.scrollY === 0 && wheelResult.active === '1', `scrollY=${wheelResult.scrollY}`)
 
   await page.screenshot({ path: path.join(outputRoot, `${label}-page-1.png`) })
+  if (label.includes('skins')) {
+    const skinState = await page.evaluate(async () => (await window.launcher.getSnapshot()).skins)
+    const stateDetail = `active=${skinState.activeSkinId || 'none'}, favorites=${skinState.favoriteSkinIds.join(',') || 'none'}, matchingActive=${skinState.items.some(item => item.id === skinState.activeSkinId)}`
+    const currentTab = page.getByRole('tab', { name: /正在使用/ })
+    const favoriteTab = page.getByRole('tab', { name: /我的收藏/ })
+    check(`${label} 提供当前使用和收藏视图`, await currentTab.count() === 1 && await favoriteTab.count() === 1)
+    await currentTab.click()
+    await page.waitForTimeout(250)
+    check(`${label} 当前使用视图同步真实皮肤`, await page.locator('.skin-card').count() === 1 && await page.locator('.skin-active').count() === 1, stateDetail)
+    await page.screenshot({ path: path.join(outputRoot, `${label}-current.png`) })
+    await favoriteTab.click()
+    await page.waitForTimeout(250)
+    check(`${label} 我的收藏视图读取持久化收藏`, await page.locator('.skin-card').count() === 1 && await page.getByRole('button', { name: /取消收藏/ }).count() === 1, stateDetail)
+    await page.screenshot({ path: path.join(outputRoot, `${label}-favorites.png`) })
+    await page.getByRole('tab', { name: /全部商店/ }).click()
+    await page.waitForTimeout(250)
+    if (label === 'wide-skins') {
+      const addFavorite = page.getByRole('button', { name: /^收藏/ }).first()
+      await addFavorite.click()
+      await page.waitForTimeout(250)
+      await favoriteTab.click()
+      await page.waitForTimeout(250)
+      check(`${label} 可从商店收藏并立即进入我的收藏`, await page.locator('.skin-card').count() === 2)
+      await page.getByRole('button', { name: /^取消收藏/ }).last().click()
+      await page.waitForTimeout(250)
+      check(`${label} 可取消收藏并恢复原收藏集`, await page.locator('.skin-card').count() === 1)
+      await page.getByRole('tab', { name: /全部商店/ }).click()
+      await page.waitForTimeout(250)
+    }
+  }
   const secondPage = page.locator('.catalog-page-buttons button').filter({ hasText: /^2$/ }).first()
   check(`${label} 提供第 2 页按钮`, await secondPage.count() === 1)
   if (await secondPage.count()) {
@@ -105,6 +141,7 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
 
 const app = await electron.launch({
   executablePath,
+  args: [`--user-data-dir=${launcherDataRoot}`],
   env: {
     ...process.env,
     APPDATA: appDataRoot,

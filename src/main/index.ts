@@ -81,6 +81,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:test-multimodal', (_event, request: MultimodalTestRequest) => controller?.testMultimodal(request))
   ipcMain.handle('launcher:refresh-skins', () => controller?.refreshSkins())
   ipcMain.handle('launcher:apply-skin', (_event, skinId: string) => controller?.applySkin(skinId))
+  ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
   ipcMain.handle('launcher:clear-skin', () => controller?.clearSkin())
   ipcMain.handle('launcher:refresh-pets', () => controller?.refreshPets())
   ipcMain.handle('launcher:apply-pet', (_event, petId: string) => controller?.applyPet(petId))

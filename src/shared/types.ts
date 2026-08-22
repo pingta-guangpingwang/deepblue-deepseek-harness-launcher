@@ -427,6 +427,7 @@ export interface SkinStoreState {
   generatedAt: string
   activeSkinId?: string
   downloadedSkinIds: string[]
+  favoriteSkinIds: string[]
   items: SkinCatalogItem[]
   message?: string
 }
@@ -621,6 +622,7 @@ export interface LauncherApi {
   testMultimodal(request: MultimodalTestRequest): Promise<MultimodalTestResult>
   refreshSkins(): Promise<LauncherSnapshot>
   applySkin(skinId: string): Promise<LauncherSnapshot>
+  toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot>
   clearSkin(): Promise<LauncherSnapshot>
   refreshPets(): Promise<LauncherSnapshot>
   applyPet(petId: string): Promise<LauncherSnapshot>

@@ -172,7 +172,7 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
   await rename(temporary, target)
 }
 
-export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; pets: string; petConfig: string } {
+export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string } {
   const root = configuredStorageRoot || app.getPath('userData')
   return {
     root,
@@ -182,6 +182,7 @@ export function launcherDataPaths(): { root: string; runtime: string; dshHome: s
     logs: path.join(root, 'logs'),
     skins: path.join(root, 'skins'),
     skinConfig: path.join(root, 'skins', 'active.json'),
+    skinFavorites: path.join(root, 'skins', 'favorites.json'),
     pets: path.join(root, 'pets'),
     petConfig: path.join(root, 'pets', 'active.json')
   }
