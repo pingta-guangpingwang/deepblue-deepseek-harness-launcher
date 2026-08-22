@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from 'react'
 import {
   Activity,
   AppWindow,
@@ -76,7 +76,6 @@ import {
 } from 'lucide-react'
 import type {
   EnvironmentItem,
-  ExternalLicenseStatus,
   LauncherSettings,
   LauncherSnapshot,
   LauncherGameItem,
@@ -98,6 +97,7 @@ import type {
 import { coreRuntimeReady, unavailableSourceCount } from '../../shared/environment-health'
 import { mockSnapshot } from './mock'
 import deepseekLogo from './assets/deepseek-logo.svg'
+import { catalogCapacity, catalogPageTokens } from './catalog-pagination'
 import { onlinePageRefreshTarget } from './online-page-refresh'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
@@ -139,7 +139,47 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
 }
 
 const SKIN_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins'
+const SKIN_VIDEO_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins-video'
 const PET_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets'
+
+function useAdaptiveCatalogCapacity(): { viewportRef: RefObject<HTMLDivElement | null>; pageSize: number } {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const [pageSize, setPageSize] = useState(8)
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const measure = (): void => {
+      const { width, height } = viewport.getBoundingClientRect()
+      setPageSize(catalogCapacity(width, height))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
+  return { viewportRef, pageSize }
+}
+
+function CatalogPagination({ currentPage, pageCount, pageSize, totalItems, onChange, action }: {
+  currentPage: number
+  pageCount: number
+  pageSize: number
+  totalItems: number
+  onChange: (page: number) => void
+  action?: ReactNode
+}): ReactNode {
+  return <nav className="catalog-pagination" aria-label="目录分页">
+    <span className="catalog-page-summary">共 {totalItems} 项 · 本页 {Math.min(pageSize, totalItems - (currentPage - 1) * pageSize)} 项</span>
+    <div className="catalog-page-buttons">
+      <button type="button" aria-label="上一页" disabled={currentPage <= 1} onClick={() => onChange(currentPage - 1)}><ChevronLeft size={14} /></button>
+      {catalogPageTokens(currentPage, pageCount).map((token) => typeof token === 'number'
+        ? <button type="button" key={token} aria-current={token === currentPage ? 'page' : undefined} className={token === currentPage ? 'active' : ''} onClick={() => onChange(token)}>{token}</button>
+        : <span key={token} aria-hidden="true">…</span>)}
+      <button type="button" aria-label="下一页" disabled={currentPage >= pageCount} onClick={() => onChange(currentPage + 1)}><ChevronRight size={14} /></button>
+    </div>
+    <div className="catalog-page-action">{action}</div>
+  </nav>
+}
 
 function classNames(...values: Array<string | false | undefined>): string {
   return values.filter(Boolean).join(' ')
@@ -198,7 +238,7 @@ function OpenSourceInvite({ name, url }: { name: string; url: string }): ReactNo
             void window.launcher.openExternal(url)
           }}
         >
-          {displayUrl}<ExternalLink aria-hidden="true" />
+          {name}<ExternalLink aria-hidden="true" />
         </a>
         <span>欢迎所有人提交原创素材、完善目录和文档，一起共创免费商店。</span>
       </div>
@@ -758,132 +798,18 @@ const skinKindLabels: Record<SkinMediaKind, string> = {
   video: '视频壁纸'
 }
 
-const externalLicenseLabels: Record<ExternalLicenseStatus, string> = {
-  redistributable: '许可证允许再分发',
-  copyleft: 'GPL 传染条款',
-  undeclared: '未声明许可证'
-}
-
-const externalLicenseTones: Record<ExternalLicenseStatus, string> = {
-  redistributable: 'green',
-  copyleft: 'amber',
-  undeclared: 'blue'
-}
-
-function ExternalSkinPanel({ snapshot, busy, onApply, onClear, onToggle }: {
-  snapshot: LauncherSnapshot
-  busy: string
-  onApply: (skinId: string) => void
-  onClear: () => void
-  onToggle: (enabled: boolean) => void
-}): ReactNode {
-  const external = snapshot.skins.external
-  const [page, setPage] = useState(1)
-  const [repo, setRepo] = useState<string>('all')
-  const pageSize = 20
-  if (!snapshot.settings.externalSkinsEnabled) {
-    return (
-      <Card className="external-optin">
-        <div className="external-optin-head"><Globe2 size={18} /><h2>外部来源展示（默认关闭）</h2></div>
-        <p>
-          这里展示的壁纸<strong>不属于本商店</strong>，也不会被复制到我们的仓库。素材始终由 GitHub 上的原始仓库直接提供，启动器只保存地址和内容校验值。
-        </p>
-        <ul className="external-optin-list">
-          <li><ShieldCheck size={14} />每个素材的 SHA-256 都在目录里钉死，下载后严格校验，经由镜像加速也无法被篡改。</li>
-          <li><Info size={14} />其中相当一部分上游仓库<strong>没有 LICENSE 文件</strong>，按默认规则属于保留所有权利。启动器只做链接展示，是否使用由你判断。</li>
-          <li><CircleAlert size={14} />上游随时可能改动或删除文件，届时该项会提示失效，等待目录更新，这是正常现象。</li>
-        </ul>
-        <button className="primary-button" disabled={!!busy} onClick={() => onToggle(true)}><Globe2 size={15} />我已了解，开启外部来源</button>
-      </Card>
-    )
-  }
-  if (external.status === 'loading') return <Card><EmptyState icon={<LoaderCircle className="spin" />} title="正在同步外部来源目录" text="正在校验签名与来源清单。" /></Card>
-  if (external.status !== 'ready') {
-    return (
-      <Card>
-        <EmptyState icon={<CircleAlert />} title="外部来源目录不可用" text={external.message || '稍后重试，或在设置里关闭外部来源。'} />
-      </Card>
-    )
-  }
-  const filtered = repo === 'all' ? external.items : external.items.filter((item) => item.origin.repo === repo)
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const currentPage = Math.min(page, pageCount)
-  const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const downloaded = new Set(snapshot.skins.downloadedSkinIds)
-  return (
-    <>
-      <div className="skin-notice">
-        <Info size={15} />
-        以下素材由上游 GitHub 仓库直接提供，启动器不转存、不再分发。应用前请留意每项的许可证状态。
-        <button className="text-button" onClick={() => onToggle(false)}>关闭外部来源</button>
-      </div>
-
-      <Card className="external-sources">
-        <h3>已收录的上游仓库 · {external.sources.length} 个</h3>
-        <div className="external-source-row">
-          <button className={repo === 'all' ? 'active' : ''} onClick={() => { setRepo('all'); setPage(1) }}>全部 {external.items.length}</button>
-          {external.sources.map((source) => (
-            <button key={source.repo} className={repo === source.repo ? 'active' : ''} onClick={() => { setRepo(source.repo); setPage(1) }}>
-              {source.repo.split('/')[1]} <em>{source.itemCount}</em>
-            </button>
-          ))}
-        </div>
-        {repo !== 'all' && external.sources.filter((source) => source.repo === repo).map((source) => (
-          <div key={source.repo} className="external-source-detail">
-            <span className={classNames('soft-badge', externalLicenseTones[source.licenseStatus])}>{externalLicenseLabels[source.licenseStatus]} · {source.licenseName}</span>
-            <span>作者 {source.author}</span>
-            <button className="text-button" onClick={() => void window.launcher?.openExternal(source.repoUrl)}><Github size={13} />{source.repo}</button>
-          </div>
-        ))}
-      </Card>
-
-      {items.length ? <div className="skin-grid">{items.map((skin) => {
-        const active = snapshot.skins.activeSkinId === skin.id
-        const cached = downloaded.has(skin.id)
-        return (
-          <article className={classNames('skin-card', 'external', active && 'active')} key={skin.id}>
-            <div className="skin-preview">
-              <img src={skin.thumbnailUrl} loading="lazy" alt={`${skin.name}预览`} />
-              <span className="skin-kind"><Images size={13} />{skinKindLabels[skin.mediaKind]}</span>
-              <span className="skin-external-tag"><Globe2 size={12} />外部来源</span>
-              {active && <span className="skin-active"><Check size={14} />当前使用</span>}
-            </div>
-            <div className="skin-card-body">
-              <div className="skin-title-row"><div><h2>{skin.name}</h2><p>{skin.description}</p></div></div>
-              <div className="external-origin">
-                <span className={classNames('soft-badge', externalLicenseTones[skin.origin.licenseStatus])}>{externalLicenseLabels[skin.origin.licenseStatus]}</span>
-                <button className="text-button" onClick={() => void window.launcher?.openExternal(skin.origin.repoUrl)}><Github size={13} />{skin.origin.repo}<ExternalLink size={11} /></button>
-              </div>
-              <p className="external-notice">{skin.origin.notice}</p>
-              <button className={active ? 'small-button' : 'primary-button'} disabled={!!busy || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={15} />已应用</> : cached ? <><Palette size={15} />立即应用</> : <><CloudDownload size={15} />从上游下载并应用 · {(skin.media.size / 1024 / 1024).toFixed(1)} MB</>}</button>
-            </div>
-          </article>
-        )
-      })}</div> : <Card><EmptyState icon={<Globe2 />} title="这个来源暂时没有可用素材" text="换一个上游仓库看看。" /></Card>}
-
-      <div className="skin-pagination">
-        <span>第 {currentPage} / {pageCount} 页 · 每页最多 20 个 · 目录生成于 {external.generatedAt.slice(0, 10) || '未知时间'}</span>
-        <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
-        {snapshot.skins.activeSkinId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button>}
-      </div>
-    </>
-  )
-}
-
-function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleExternal }: {
+function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
   onApply: (skinId: string) => void
   onClear: () => void
-  onToggleExternal: (enabled: boolean) => void
 }): ReactNode {
-  const [tab, setTab] = useState<'official' | 'external'>('official')
   const [query, setQuery] = useState('')
   const [style, setStyle] = useState<SkinStyle | 'all'>('all')
   const [kind, setKind] = useState<SkinMediaKind | 'all'>('all')
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const { viewportRef, pageSize } = useAdaptiveCatalogCapacity()
   const filtered = snapshot.skins.items.filter((skin) => {
     const matchesQuery = `${skin.name} ${skin.description} ${skin.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (style === 'all' || skin.styles.includes(style)) && (kind === 'all' || skin.mediaKind === kind)
@@ -895,29 +821,19 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleEx
   const chooseStyle = (next: SkinStyle | 'all'): void => { setStyle(next); setPage(1) }
   const chooseKind = (next: SkinMediaKind | 'all'): void => { setKind(next); setPage(1) }
   return (
-    <div className="skin-store-layout">
+    <div className="skin-store-layout catalog-store-layout">
       <Card className="skin-store-hero">
         <div className="skin-hero-icon"><Palette /></div>
-        <div><span>DEEPSEEKHARNESS SKIN STORE</span><h2>让工作台像你喜欢的世界</h2><p>目录按页加载缩略图；只有点击应用才下载原图或视频。每项都带作者、来源和许可证。</p><OpenSourceInvite name="皮肤商店" url={SKIN_STORE_REPOSITORY_URL} /></div>
+        <div><h2>让工作台像你喜欢的世界</h2><p>{snapshot.skins.items.length} 款资源统一从 Gitee 签名目录读取；高清图和 GIF 位于主仓，视频文件由视频分仓承载，只有点击应用才下载原媒体。</p><div className="store-repository-links"><OpenSourceInvite name="皮肤主仓" url={SKIN_STORE_REPOSITORY_URL} /><OpenSourceInvite name="视频分仓" url={SKIN_VIDEO_STORE_REPOSITORY_URL} /></div></div>
         <div className="skin-hero-actions">
           <span className={classNames('soft-badge', snapshot.skins.source === 'remote' ? 'green' : 'blue')}>{snapshot.skins.source === 'remote' ? 'Gitee 在线目录' : '内置离线目录'}</span>
           <button className="quiet-button" disabled={busy === 'skins'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'skins' ? 'spin' : ''} />同步目录</button>
-          <button className="quiet-button" onClick={() => void window.launcher?.openExternal(SKIN_STORE_REPOSITORY_URL)}><Github size={15} />去仓库参与共创</button>
+          <button className="quiet-button" onClick={() => void window.launcher?.openExternal(SKIN_STORE_REPOSITORY_URL)}><Github size={15} />打开皮肤主仓</button>
+          <button className="quiet-button" onClick={() => void window.launcher?.openExternal(SKIN_VIDEO_STORE_REPOSITORY_URL)}><ExternalLink size={15} />打开视频分仓</button>
         </div>
       </Card>
 
       {snapshot.skins.message && <div className="skin-notice"><Info size={15} />{snapshot.skins.message}</div>}
-
-      <div className="skin-tab-row" role="tablist">
-        <button role="tab" aria-selected={tab === 'official'} className={tab === 'official' ? 'active' : ''} onClick={() => setTab('official')}>
-          <ShieldCheck size={15} />官方目录 · {snapshot.skins.items.length}
-        </button>
-        <button role="tab" aria-selected={tab === 'external'} className={tab === 'external' ? 'active' : ''} onClick={() => setTab('external')}>
-          <Globe2 size={15} />外部来源{snapshot.settings.externalSkinsEnabled && snapshot.skins.external.status === 'ready' ? ` · ${snapshot.skins.external.items.length}` : ''}
-        </button>
-      </div>
-
-      {tab === 'external' ? <ExternalSkinPanel snapshot={snapshot} busy={busy} onApply={onApply} onClear={onClear} onToggle={onToggleExternal} /> : <>
       <Card className="skin-toolbar">
         <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索皮肤、画风或场景" /></div>
         <div className="skin-filter-row" aria-label="媒体分类">
@@ -928,6 +844,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleEx
         </div>
       </Card>
 
+      <div ref={viewportRef} className="catalog-grid-viewport">
       {items.length ? <div className="skin-grid">{items.map((skin) => {
         const active = snapshot.skins.activeSkinId === skin.id
         const cached = downloaded.has(skin.id)
@@ -948,13 +865,9 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onClear, onToggleEx
           </article>
         )
       })}</div> : <Card><EmptyState icon={<Palette />} title="没有匹配的皮肤" text="换一个分类或清空搜索词。" /></Card>}
-
-      <div className="skin-pagination">
-        <span>第 {currentPage} / {pageCount} 页 · 每页最多 20 个</span>
-        <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
-        {snapshot.skins.activeSkinId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button>}
       </div>
-      </>}
+
+      <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.skins.activeSkinId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button> : undefined} />
     </div>
   )
 }
@@ -990,7 +903,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, o
   const [species, setSpecies] = useState<PetSpecies | 'all'>('all')
   const [style, setStyle] = useState<PetStyle | 'all'>('all')
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const { viewportRef, pageSize } = useAdaptiveCatalogCapacity()
   const filtered = snapshot.pets.items.filter((pet) => {
     const matchesQuery = `${pet.name} ${pet.description} ${pet.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (species === 'all' || pet.species === species) && (style === 'all' || pet.styles.includes(style))
@@ -1002,10 +915,10 @@ function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, o
   const chooseSpecies = (next: PetSpecies | 'all'): void => { setSpecies(next); setPage(1) }
   const chooseStyle = (next: PetStyle | 'all'): void => { setStyle(next); setPage(1) }
   return (
-    <div className="pet-store-layout">
+    <div className="pet-store-layout catalog-store-layout">
       <Card className="pet-store-hero">
         <div className="pet-hero-icon"><PawPrint /></div>
-        <div><span>DEEPSEEKHARNESS PET STORE</span><h2>给工作台找一个小伙伴</h2><p>宠物可以点击互动、拖到喜欢的位置，并在下次打开时记住位置。原图只在应用时下载。</p><OpenSourceInvite name="宠物商店" url={PET_STORE_REPOSITORY_URL} /></div>
+        <div><h2>给工作台找一个小伙伴</h2><p>宠物可以点击互动、拖到喜欢的位置，并在下次打开时记住位置。卡片按窗口尺寸自动分页，原图只在应用时下载。</p><OpenSourceInvite name="宠物商店" url={PET_STORE_REPOSITORY_URL} /></div>
         <div className="pet-hero-actions">
           <span className={classNames('soft-badge', snapshot.pets.source === 'remote' ? 'green' : 'blue')}>{snapshot.pets.source === 'remote' ? 'Gitee 在线目录' : '内置离线目录'}</span>
           <button className="quiet-button" disabled={busy === 'pets'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'pets' ? 'spin' : ''} />同步目录</button>
@@ -1026,6 +939,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, o
         </div>
       </Card>
 
+      <div ref={viewportRef} className="catalog-grid-viewport">
       {items.length ? <div className="pet-grid">{items.map((pet) => {
         const active = snapshot.pets.activePetId === pet.id
         const cached = downloaded.has(pet.id)
@@ -1034,7 +948,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, o
           <article className={classNames('pet-card', active && 'active')} key={pet.id}>
             <div className="pet-preview">
               <span className="pet-stage" />
-              <img src={pet.previewDataUrl || (import.meta.env.DEV ? `/__pet-preview/${pet.thumbnail.url.split('/').at(-1)}` : pet.thumbnail.url)} loading="lazy" alt={`${pet.name}宠物预览`} />
+              <img src={pet.previewDataUrl || pet.thumbnail.url} loading="lazy" alt={`${pet.name}宠物预览`} />
               <span className="skin-kind"><PawPrint size={13} />{petSpeciesLabels[pet.species]}</span>
               {pet.featured && <span className="skin-featured"><Sparkles size={13} />精选</span>}
               {custom && <span className="pet-custom"><Upload size={13} />本机</span>}
@@ -1050,12 +964,9 @@ function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, o
           </article>
         )
       })}</div> : <Card><EmptyState icon={<PawPrint />} title="没有匹配的宠物" text="换一个分类、清空搜索词，或添加本地宠物。" /></Card>}
-
-      <div className="skin-pagination">
-        <span>第 {currentPage} / {pageCount} 页 · 每页最多 20 个</span>
-        <div><button className="small-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>上一页</button><button className="small-button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>下一页</button></div>
-        {snapshot.pets.activePetId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button>}
       </div>
+
+      <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.pets.activePetId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button> : undefined} />
     </div>
   )
 }
@@ -1669,10 +1580,10 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
         <div className="settings-actions"><span>设置存储在本机用户目录，不会提交到项目仓库。</span><button className="primary-button" onClick={() => onSave(draft)}><Check size={16} />保存设置</button></div>
       </Card>
       <Card className="source-settings" title="皮肤商店源">
-        <label className="field-label"><span>签名皮肤目录<small>默认使用 Gitee 公共仓库，无需登录；目录签名不通过时自动回退。</small></span><input value={draft.skinCatalogUrl} onChange={(event) => setDraft({ ...draft, skinCatalogUrl: event.target.value })} /></label>
+        <label className="field-label"><span>签名皮肤目录<small>固定使用 Gitee 主仓目录，并索引 skins 与 skins-video 两个仓库；签名不通过时回退内置目录。</small></span><input value={draft.skinCatalogUrl} readOnly aria-readonly="true" /></label>
       </Card>
       <Card className="source-settings" title="宠物商店源">
-        <label className="field-label"><span>签名宠物目录<small>只接受签名通过的图片目录；宠物媒体按需下载并校验完整性。</small></span><input value={draft.petCatalogUrl} onChange={(event) => setDraft({ ...draft, petCatalogUrl: event.target.value })} /></label>
+        <label className="field-label"><span>签名宠物目录<small>固定使用 Gitee 宠物仓，只接受签名通过的目录；宠物媒体按需下载并校验完整性。</small></span><input value={draft.petCatalogUrl} readOnly aria-readonly="true" /></label>
       </Card>
     </div>
   )
@@ -1858,11 +1769,6 @@ export default function App(): ReactNode {
     if (window.launcher) void run('settings', () => window.launcher!.saveSettings(settings))
     else setSnapshot((current) => ({ ...current, settings, sources: settings.sources.map((source) => ({ ...source, status: source.enabled && source.baseUrl ? 'checking' : 'unconfigured' })) }))
   }
-  const toggleExternalSkins = (enabled: boolean): void => {
-    if (window.launcher) void run('skins-external', () => window.launcher!.saveSettings({ externalSkinsEnabled: enabled }))
-    else setSnapshot((current) => ({ ...current, settings: { ...current.settings, externalSkinsEnabled: enabled } }))
-  }
-
   const activatePage = (nextPage: PageId): void => {
     setPage(nextPage)
     setSidebarOpen(false)
@@ -1906,9 +1812,9 @@ export default function App(): ReactNode {
           <WindowControls />
         </header>
 
-        <div className="page-scroll">
+        <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
-          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onClear={clearSkin} onToggleExternal={toggleExternalSkins} />}
+          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}

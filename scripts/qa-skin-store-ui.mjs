@@ -1,17 +1,10 @@
 #!/usr/bin/env node
 /**
- * Drives the renderer preview through the skin store, including the external
- * source opt-in flow, and captures acceptance screenshots.
+ * Verifies that skin and pet catalogs use adaptive numbered pages without
+ * introducing a second vertical scroll area.
  *
- * Start the preview first:
- *   npm run dev:web
- *
- * Then:
- *   node scripts/qa-skin-store-ui.mjs [--url http://127.0.0.1:4312/] [--out docs/qa/skin-store-external]
- *
- * Exits non-zero when a step fails, an element overflows its box, or the page
- * logs a console error, so it can gate a release the same way the other qa and
- * smoke scripts do.
+ * Start `npm run dev:web`, then run:
+ *   node scripts/qa-skin-store-ui.mjs [--url http://127.0.0.1:4312/] [--out docs/qa/catalog-pagination]
  */
 
 import { mkdir } from 'node:fs/promises'
@@ -20,137 +13,64 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-
-function parseArguments(argv) {
-  const options = { url: 'http://127.0.0.1:4312/', out: path.join(ROOT, 'docs', 'qa', 'skin-store-external') }
-  for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === '--url') options.url = argv[index + 1]
-    if (argv[index] === '--out') options.out = path.resolve(ROOT, argv[index + 1])
-  }
-  return options
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const options = { url: 'http://127.0.0.1:4312/', out: path.join(root, 'docs', 'qa', 'catalog-pagination') }
+for (let index = 2; index < process.argv.length; index += 1) {
+  if (process.argv[index] === '--url') options.url = process.argv[++index]
+  if (process.argv[index] === '--out') options.out = path.resolve(root, process.argv[++index])
 }
-
-const options = parseArguments(process.argv.slice(2))
 await mkdir(options.out, { recursive: true })
 
 const failures = []
-// Use the full bundled Chromium in its current headless mode. This keeps the
-// release QA command compatible with `playwright install chromium --no-shell`
-// and avoids downloading a second, duplicate headless-shell browser.
-const browser = await chromium.launch({ headless: true, channel: 'chromium' })
-const page = await browser.newPage({ viewport: { width: 1440, height: 980 } })
-const consoleErrors = []
-page.on('console', (message) => {
-  if (message.type() === 'error') consoleErrors.push(message.text())
-})
-page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`))
-
 function check(label, condition) {
   process.stderr.write(`${condition ? 'ok  ' : 'FAIL'} ${label}\n`)
   if (!condition) failures.push(label)
 }
 
-async function shot(name) {
-  await page.screenshot({ path: path.join(options.out, `${name}.png`) })
-}
-
-async function clickText(text) {
-  // Store tabs are semantic `role="tab"` elements backed by buttons, while
-  // actions retain the default button role. Match the native element so the
-  // helper can drive both consistently.
-  const targets = page.locator('button').filter({ hasText: text })
-  await targets.first().waitFor({ state: 'attached', timeout: 15_000 })
-  let target
-  for (let index = 0; index < await targets.count(); index += 1) {
-    const candidate = targets.nth(index)
-    if (await candidate.isVisible()) {
-      target = candidate
-      break
-    }
-  }
-  if (!target) throw new Error(`找不到可见按钮：${text}`)
-  await target.click()
-  await page.waitForTimeout(500)
-}
-
+const browser = await chromium.launch({ headless: true, channel: 'chromium' })
 try {
-  await page.goto(options.url, { waitUntil: 'networkidle' })
+  for (const viewport of [{ width: 1440, height: 980, label: 'wide' }, { width: 1100, height: 720, label: 'compact' }]) {
+    const page = await browser.newPage({ viewport })
+    const consoleErrors = []
+    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+    page.on('pageerror', error => consoleErrors.push(error.message))
+    await page.goto(options.url, { waitUntil: 'networkidle' })
+    if (await page.getByRole('dialog', { name: '先确认运行资源放在哪里' }).count()) await page.getByRole('button', { name: '使用此位置并开始' }).click()
+    if (await page.locator('.runtime-update-backdrop').count()) await page.getByRole('button', { name: '稍后更新' }).click()
 
-  // The web preview intentionally exercises first-run state. Complete the
-  // storage confirmation before navigating so the modal cannot mask the store.
-  if (await page.getByRole('dialog', { name: '先确认运行资源放在哪里' }).count()) {
-    await clickText('使用此位置并开始')
-  }
-  if (await page.locator('.runtime-update-backdrop').count()) {
-    await clickText('稍后更新')
-  }
+    for (const store of [{ button: '皮肤商店', grid: '.skin-card', label: 'skins' }, { button: '宠物商店', grid: '.pet-card', label: 'pets' }]) {
+      await page.getByRole('button', { name: store.button, exact: true }).click()
+      await page.waitForTimeout(400)
+      const metrics = await page.evaluate((selector) => {
+        const pageNode = document.querySelector('.page-scroll.catalog-fixed-page')
+        const viewportNode = document.querySelector('.catalog-grid-viewport')
+        const current = document.querySelector('.catalog-page-buttons button[aria-current="page"]')
+        return {
+          pageOverflow: pageNode ? pageNode.scrollHeight - pageNode.clientHeight : 999,
+          viewportOverflow: viewportNode ? viewportNode.scrollHeight - viewportNode.clientHeight : 999,
+          cards: document.querySelectorAll(selector).length,
+          current: current?.textContent?.trim()
+        }
+      }, store.grid)
+      check(`${viewport.label} ${store.label} 固定页面无纵向滚动`, metrics.pageOverflow <= 2 && metrics.viewportOverflow <= 2)
+      check(`${viewport.label} ${store.label} 显示自适应卡片`, metrics.cards > 0)
+      check(`${viewport.label} ${store.label} 数字分页从第 1 页开始`, metrics.current === '1')
 
-  await clickText('皮肤商店')
-  await page.waitForTimeout(600)
-  check('皮肤商店页签行渲染', (await page.locator('.skin-tab-row').count()) === 1)
-  check('官方目录工具栏渲染', (await page.locator('.skin-toolbar').count()) === 1)
-  await shot('01-official-tab')
-
-  await clickText('外部来源')
-  check('外部来源默认显示开启确认面板', (await page.locator('.external-optin').count()) === 1)
-  check('确认面板说明了未声明许可证的情况', (await page.locator('.external-optin-list').innerText()).includes('LICENSE'))
-  await shot('02-external-optin')
-
-  await clickText('我已了解，开启外部来源')
-  await page.waitForTimeout(800)
-  await page.waitForFunction(() => {
-    const images = Array.from(document.querySelectorAll('.skin-card.external img'))
-    return images.length > 0 && images.every((image) => image.complete)
-  }, undefined, { timeout: 20_000 }).catch(() => undefined)
-  const externalCards = await page.locator('.skin-card.external').count()
-  check('上游仓库列表渲染', (await page.locator('.external-sources').count()) === 1)
-  check('外部素材卡片渲染', externalCards > 0)
-  check('每张外部卡片都带来源标识', (await page.locator('.skin-external-tag').count()) === externalCards)
-  check('每张外部卡片都带权利说明', (await page.locator('.external-notice').count()) === externalCards)
-  await shot('03-external-enabled')
-
-  const filters = page.locator('.external-source-row button')
-  const filterCount = await filters.count()
-  check('来源筛选按钮包含全部与各仓库', filterCount > 1)
-  if (filterCount > 1) {
-    await filters.nth(1).click()
-    await page.waitForTimeout(500)
-    check('选中单个来源后显示许可证与作者明细', (await page.locator('.external-source-detail').count()) === 1)
-    await shot('04-external-source-filtered')
-  }
-
-  await clickText('官方目录')
-  await page.waitForTimeout(600)
-  check('切回官方目录后工具栏恢复', (await page.locator('.skin-toolbar').count()) === 1)
-  check('切回官方目录后不再显示外部卡片', (await page.locator('.skin-card.external').count()) === 0)
-  await shot('05-back-to-official')
-
-  const overflow = await page.evaluate(() => {
-    const bad = []
-    for (const node of document.querySelectorAll('.skin-card, .external-optin, .external-sources, .skin-tab-row, .skin-notice')) {
-      if (node.scrollWidth > node.clientWidth + 2) bad.push(`${node.className} ${node.scrollWidth}>${node.clientWidth}`)
+      const secondPage = page.locator('.catalog-page-buttons button').filter({ hasText: /^2$/ })
+      if (await secondPage.count()) {
+        await secondPage.first().evaluate(button => button.click())
+        await page.waitForTimeout(600)
+        check(`${viewport.label} ${store.label} 可切换到第 2 页`, await page.locator('.catalog-page-buttons button[aria-current="page"]').textContent() === '2')
+      }
+      await page.screenshot({ path: path.join(options.out, `${viewport.label}-${store.label}.png`) })
     }
-    return bad
-  })
-  check(`没有元素溢出容器${overflow.length ? `：${overflow.join(' | ')}` : ''}`, overflow.length === 0)
-
-  const brokenImages = await page.evaluate(() => Array.from(document.images)
-    .filter((image) => image.complete && image.naturalWidth === 0)
-    .map((image) => image.currentSrc || image.src))
-  if (brokenImages.length) {
-    process.stderr.write(`note 有 ${brokenImages.length} 张图未加载（外部预览走远端 CDN，离线环境属正常）：\n`)
-    for (const src of brokenImages) process.stderr.write(`     ${src}\n`)
+    check(`${viewport.label} 页面没有控制台错误${consoleErrors.length ? `：${consoleErrors.join(' | ')}` : ''}`, consoleErrors.length === 0)
+    await page.close()
   }
-
-  check(`页面没有控制台错误${consoleErrors.length ? `：${consoleErrors.join(' | ')}` : ''}`, consoleErrors.length === 0)
 } finally {
   await browser.close()
 }
 
-process.stderr.write(`\n截图写入 ${path.relative(ROOT, options.out)}\n`)
-if (failures.length) {
-  process.stderr.write(`\n${failures.length} 项检查未通过\n`)
-  process.exit(1)
-}
+process.stderr.write(`\n截图写入 ${path.relative(root, options.out)}\n`)
+if (failures.length) process.exit(1)
 process.stderr.write('全部检查通过\n')

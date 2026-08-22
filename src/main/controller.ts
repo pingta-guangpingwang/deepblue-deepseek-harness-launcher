@@ -6,7 +6,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { bundledModels, bundledPlugins, bundledVersions } from './catalog'
-import { FIXED_EXTERNAL_SKIN_CATALOG_URL, FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
+import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readConfig, setLauncherStorageRoot, writeConfig, type PersistedConfig } from './config'
 import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, mergeBundledRuntimeMirrors, readBundledRuntimeModules } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
@@ -132,8 +132,7 @@ export class LauncherController {
         source: 'bundled',
         generatedAt: '',
         downloadedSkinIds: [],
-        items: [],
-        external: { status: 'disabled', generatedAt: '', sources: [], items: [] }
+        items: []
       },
       pets: {
         status: 'loading',
@@ -774,27 +773,24 @@ export class LauncherController {
   }
 
   async saveSettings(patch: Partial<LauncherSettings>): Promise<LauncherSnapshot> {
-    const { storageRoot: _storageRoot, storageSetupCompleted: _storageSetupCompleted, ...safePatch } = patch
-    const externalToggled = safePatch.externalSkinsEnabled !== undefined
-      && safePatch.externalSkinsEnabled !== this.config.settings.externalSkinsEnabled
+    const {
+      storageRoot: _storageRoot,
+      storageSetupCompleted: _storageSetupCompleted,
+      skinCatalogUrl: _skinCatalogUrl,
+      petCatalogUrl: _petCatalogUrl,
+      ...safePatch
+    } = patch
     this.config.settings = {
       ...this.config.settings,
       ...safePatch,
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
-      petCatalogUrl: FIXED_PET_CATALOG_URL,
-      externalSkinCatalogUrl: FIXED_EXTERNAL_SKIN_CATALOG_URL
+      petCatalogUrl: FIXED_PET_CATALOG_URL
     }
     await writeConfig(this.config)
     this.snapshot.settings = this.config.settings
     if (safePatch.sources) this.snapshot.sources = safePatch.sources.map((source) => this.initialSourceHealth(source))
     this.log('INFO', '启动器设置已保存')
     this.emit()
-    if (externalToggled) {
-      this.log('INFO', this.config.settings.externalSkinsEnabled
-        ? '已开启外部来源展示，素材由上游仓库直接提供，启动器不转存'
-        : '已关闭外部来源展示')
-      await this.refreshSkins()
-    }
     return this.getSnapshot()
   }
 
@@ -1098,22 +1094,14 @@ export class LauncherController {
   async refreshSkins(): Promise<LauncherSnapshot> {
     this.snapshot.skins = { ...this.snapshot.skins, status: 'loading' }
     this.emit()
-    await this.skinStore.refreshExternal(this.config.settings.externalSkinCatalogUrl, this.config.settings.externalSkinsEnabled)
     this.snapshot.skins = await this.skinStore.refresh(this.config.settings.skinCatalogUrl)
     this.log(this.snapshot.skins.status === 'error' ? 'WARN' : 'INFO', this.snapshot.skins.message || `皮肤目录已加载：${this.snapshot.skins.items.length} 项`)
-    const external = this.snapshot.skins.external
-    if (external.status === 'ready') {
-      this.log('INFO', `外部来源已加载：${external.items.length} 项，来自 ${external.sources.length} 个上游仓库`)
-    } else if (external.message) {
-      this.log('WARN', external.message)
-    }
     this.emit()
     return this.getSnapshot()
   }
 
   async applySkin(skinId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
-      || this.snapshot.skins.external.items.find(entry => entry.id === skinId)
     if (!item) return this.getSnapshot()
     const task = this.addTask(`skin-${Date.now()}`, `应用皮肤「${item.name}」`, '正在校验本地缓存并按需下载原媒体')
     this.emit()

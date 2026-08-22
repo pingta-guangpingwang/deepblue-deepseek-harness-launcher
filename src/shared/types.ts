@@ -382,13 +382,11 @@ export interface LauncherSettings {
   installMode: 'package' | 'source'
   skinCatalogUrl: string
   petCatalogUrl: string
-  externalSkinCatalogUrl: string
-  externalSkinsEnabled: boolean
   sources: SourceConfig[]
 }
 
 export interface SkinLicense {
-  name: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-SA-4.0'
+  name: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-SA-4.0' | 'MIT' | 'GPL-2.0' | 'GPL-3.0' | 'UNDECLARED'
   url: string
   author: string
   sourceUrl: string
@@ -430,68 +428,6 @@ export interface SkinStoreState {
   activeSkinId?: string
   downloadedSkinIds: string[]
   items: SkinCatalogItem[]
-  external: ExternalSkinState
-  message?: string
-}
-
-/**
- * How much the upstream repository actually permits. `undeclared` means the
- * repository ships no LICENSE file, so the work stays all-rights-reserved and
- * the launcher may only link to it — never copy it into a first-party store.
- */
-export type ExternalLicenseStatus = 'redistributable' | 'copyleft' | 'undeclared'
-
-export interface SkinOrigin {
-  repo: string
-  repoUrl: string
-  author: string
-  licenseName: string
-  licenseStatus: ExternalLicenseStatus
-  /** Shown verbatim so the user sees the real rights situation before applying. */
-  notice: string
-}
-
-/**
- * An external item is deliberately not a `SkinCatalogItem`. Its bytes stay on
- * the upstream host, its preview is a display-only CDN transform rather than a
- * digest-pinned asset, and its rights information lives in `origin` instead of
- * the first-party `SkinLicense` set.
- */
-export interface ExternalSkinCatalogItem {
-  id: string
-  name: string
-  description: string
-  mediaKind: SkinMediaKind
-  styles: SkinStyle[]
-  tags: string[]
-  contentRating: 'everyone'
-  /** Preview only. Never written to the plugin config and never digest-checked. */
-  thumbnailUrl: string
-  media: SkinAsset
-  poster?: SkinAsset
-  origin: SkinOrigin
-  presentation: {
-    position: string
-    overlay: string
-    blurPx: number
-    surfaceOpacity: number
-  }
-}
-
-export interface ExternalSkinSource {
-  repo: string
-  repoUrl: string
-  author: string
-  licenseName: string
-  licenseStatus: ExternalLicenseStatus
-  itemCount: number
-}
-
-export interface ExternalSkinState {
-  status: 'disabled' | 'loading' | 'ready' | 'offline' | 'error'
-  generatedAt: string
-  sources: ExternalSkinSource[]
-  items: ExternalSkinCatalogItem[]
   message?: string
 }
 
@@ -724,26 +660,6 @@ export interface SignedSkinCatalogManifest {
   keyId: string
   algorithm: 'ed25519'
   payload: SkinCatalogPayload
-  signature: string
-}
-
-/**
- * The external catalog signs a vetted list of upstream sources plus pinned
- * per-asset digests. Bytes are always served by the upstream repository, so
- * this file never implies the publisher redistributes the work.
- */
-export interface ExternalSkinCatalogPayload {
-  schemaVersion: 1
-  generatedAt: string
-  pageSize: 20
-  sources: ExternalSkinSource[]
-  items: ExternalSkinCatalogItem[]
-}
-
-export interface SignedExternalSkinCatalogManifest {
-  keyId: string
-  algorithm: 'ed25519'
-  payload: ExternalSkinCatalogPayload
   signature: string
 }
 

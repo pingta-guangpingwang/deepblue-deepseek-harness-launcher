@@ -49,12 +49,13 @@
         "thumbnail": { "$ref": "#/$defs/asset" },
         "media": { "$ref": "#/$defs/asset" },
         "poster": { "$ref": "#/$defs/asset" },
+        "sourceKey": { "type": "string", "pattern": "^[A-Za-z0-9._-]{2,80}$" },
         "license": {
           "type": "object",
           "additionalProperties": false,
           "required": ["name", "url", "author", "sourceUrl"],
           "properties": {
-            "name": { "enum": ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0"] },
+            "name": { "enum": ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "GPL-2.0", "GPL-3.0", "UNDECLARED"] },
             "url": { "type": "string", "format": "uri" },
             "author": { "type": "string", "minLength": 1 },
             "sourceUrl": { "type": "string", "format": "uri" },

@@ -9,11 +9,6 @@ import { launcherDataPaths } from './config'
 import { downloadTimeoutMs, mirrorCandidates } from './asset-mirrors'
 import { fetchTrustedStoreKey } from './store-trust'
 import type {
-  ExternalSkinCatalogItem,
-  ExternalSkinCatalogPayload,
-  ExternalSkinSource,
-  ExternalSkinState,
-  SignedExternalSkinCatalogManifest,
   SignedSkinCatalogManifest,
   SkinAsset,
   SkinCatalogItem,
@@ -23,6 +18,10 @@ import type {
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_VIDEO_BYTES = 80 * 1024 * 1024
+const GITEE_SKIN_ASSET_PREFIXES = [
+  'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/',
+  'https://gitee.com/wanggp123/deepseek-harness-skins-video/raw/master/'
+] as const
 const ALLOWED_MIME = new Set<SkinAsset['mime']>([
   'image/png',
   'image/jpeg',
@@ -70,18 +69,10 @@ export function verifySkinCatalog(manifest: SignedSkinCatalogManifest, publicKey
   }
 }
 
-export function verifyExternalSkinCatalog(manifest: SignedExternalSkinCatalogManifest, publicKey: string): boolean {
-  if (manifest.algorithm !== 'ed25519' || manifest.payload.schemaVersion !== 1 || manifest.payload.pageSize !== 20) return false
-  try {
-    return verify(null, Buffer.from(JSON.stringify(manifest.payload)), publicKey, Buffer.from(manifest.signature, 'base64'))
-  } catch {
-    return false
-  }
-}
-
 function assertAsset(asset: SkinAsset): void {
   const url = new URL(asset.url)
   if (url.protocol !== 'https:') throw new Error('皮肤资源必须使用 HTTPS')
+  if (!GITEE_SKIN_ASSET_PREFIXES.some(prefix => asset.url.startsWith(prefix))) throw new Error('皮肤资源必须来自两个固定的 Gitee 皮肤仓库')
   if (!/^[a-f0-9]{64}$/i.test(asset.sha256)) throw new Error('皮肤资源 SHA-256 无效')
   if (!ALLOWED_MIME.has(asset.mime)) throw new Error(`不支持的皮肤资源类型：${asset.mime}`)
   const limit = asset.mime.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
@@ -112,51 +103,6 @@ function assertPresentation(id: string, presentation: SkinCatalogItem['presentat
   const overlay = presentation.overlay.match(/^rgba\((\d{1,3}), (\d{1,3}), (\d{1,3}), (0|1|0?\.\d+)\)$/)
   if (!overlay || overlay.slice(1, 4).some(value => Number(value) > 255) || Number(overlay[4]) > 1) {
     throw new Error(`皮肤 ${id} 的遮罩参数无效`)
-  }
-}
-
-const EXTERNAL_LICENSE_STATUS = new Set<ExternalSkinSource['licenseStatus']>(['redistributable', 'copyleft', 'undeclared'])
-const EXTERNAL_PREVIEW_HOSTS = new Set(['cdn.statically.io', 'cdn.jsdelivr.net', 'raw.githubusercontent.com'])
-
-/**
- * External assets must still be served by the upstream repository. Rejecting
- * any other host is what keeps this catalog a list of links rather than a
- * redistribution channel.
- */
-function assertUpstreamAsset(id: string, repo: string, asset: SkinAsset): void {
-  assertAsset(asset)
-  const url = new URL(asset.url)
-  if (url.hostname !== 'raw.githubusercontent.com') throw new Error(`外部皮肤 ${id} 的媒体必须由上游仓库提供`)
-  if (!url.pathname.startsWith(`/${repo}/`)) throw new Error(`外部皮肤 ${id} 的媒体不属于声明的上游仓库`)
-}
-
-function assertExternalCatalog(payload: ExternalSkinCatalogPayload): void {
-  if (payload.schemaVersion !== 1 || payload.pageSize !== 20 || !Array.isArray(payload.items) || !Array.isArray(payload.sources)) {
-    throw new Error('外部皮肤目录版本不兼容')
-  }
-  const repos = new Set<string>()
-  for (const source of payload.sources) {
-    if (!/^[\w.-]{1,39}\/[\w.-]{1,100}$/.test(source.repo) || repos.has(source.repo)) throw new Error(`外部来源无效或重复：${source.repo}`)
-    const repoUrl = new URL(source.repoUrl)
-    if (repoUrl.protocol !== 'https:' || repoUrl.hostname !== 'github.com') throw new Error(`外部来源地址无效：${source.repo}`)
-    if (!EXTERNAL_LICENSE_STATUS.has(source.licenseStatus)) throw new Error(`外部来源许可证状态无效：${source.repo}`)
-    repos.add(source.repo)
-  }
-  const ids = new Set<string>()
-  for (const item of payload.items) {
-    if (!/^[a-z0-9][a-z0-9-]{1,79}$/.test(item.id) || ids.has(item.id)) throw new Error(`外部皮肤 ID 无效或重复：${item.id}`)
-    ids.add(item.id)
-    if (item.contentRating !== 'everyone') throw new Error(`外部皮肤 ${item.id} 的内容分级不受支持`)
-    if (!repos.has(item.origin.repo)) throw new Error(`外部皮肤 ${item.id} 的来源未在来源列表中声明`)
-    if (!EXTERNAL_LICENSE_STATUS.has(item.origin.licenseStatus)) throw new Error(`外部皮肤 ${item.id} 的许可证状态无效`)
-    if (!item.origin.notice.trim()) throw new Error(`外部皮肤 ${item.id} 缺少权利说明`)
-    const preview = new URL(item.thumbnailUrl)
-    if (preview.protocol !== 'https:' || !EXTERNAL_PREVIEW_HOSTS.has(preview.hostname)) throw new Error(`外部皮肤 ${item.id} 的预览地址不受支持`)
-    assertUpstreamAsset(item.id, item.origin.repo, item.media)
-    if (item.poster) assertUpstreamAsset(item.id, item.origin.repo, item.poster)
-    if (item.mediaKind === 'video' && !item.media.mime.startsWith('video/')) throw new Error(`外部皮肤 ${item.id} 的媒体类型不匹配`)
-    if (item.mediaKind !== 'video' && !item.media.mime.startsWith('image/')) throw new Error(`外部皮肤 ${item.id} 的媒体类型不匹配`)
-    assertPresentation(item.id, item.presentation)
   }
 }
 
@@ -270,51 +216,10 @@ async function readBundledCatalog(): Promise<SkinCatalogPayload | undefined> {
   return undefined
 }
 
-function disabledExternalState(message?: string): ExternalSkinState {
-  return { status: 'disabled', generatedAt: '', sources: [], items: [], ...(message ? { message } : {}) }
-}
-
 export class SkinStore {
   private payload: SkinCatalogPayload = { schemaVersion: 1, generatedAt: '', pageSize: 20, items: [] }
   private source: SkinStoreState['source'] = 'bundled'
   private message: string | undefined
-  private external: ExternalSkinState = disabledExternalState()
-
-  /**
-   * Loads the vetted external source catalog. Failure never affects the
-   * first-party store, and the feature stays off until the user opts in.
-   */
-  async refreshExternal(url: string, enabled: boolean): Promise<ExternalSkinState> {
-    if (!enabled) {
-      this.external = disabledExternalState()
-      return this.external
-    }
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' } })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const manifest = await response.json() as SignedExternalSkinCatalogManifest
-      const remoteKey = await fetchTrustedStoreKey('skin', url, manifest.keyId).catch(() => undefined)
-      const bundledKey = await readPublicKey()
-      if (![remoteKey, bundledKey].some(key => key && verifyExternalSkinCatalog(manifest, key))) throw new Error('签名校验失败')
-      assertExternalCatalog(manifest.payload)
-      this.external = {
-        status: 'ready',
-        generatedAt: manifest.payload.generatedAt,
-        sources: manifest.payload.sources,
-        items: manifest.payload.items
-      }
-    } catch (error) {
-      this.external = {
-        status: 'error',
-        generatedAt: '',
-        sources: [],
-        items: [],
-        message: `外部来源目录不可用：${error instanceof Error ? error.message : String(error)}`
-      }
-    }
-    return this.external
-  }
-
   async refresh(url: string): Promise<SkinStoreState> {
     this.message = undefined
     try {
@@ -339,23 +244,14 @@ export class SkinStore {
 
   async apply(skinId: string): Promise<SkinStoreState> {
     const item = this.payload.items.find(entry => entry.id === skinId)
-    const externalItem = item ? undefined : this.external.items.find(entry => entry.id === skinId)
-    if (!item && !externalItem) throw new Error('所选皮肤不在当前签名目录中')
-    const chosen: { mediaKind: SkinCatalogItem['mediaKind']; media: SkinAsset; poster?: SkinAsset; presentation: SkinCatalogItem['presentation']; license: ActiveSkinConfig['license'] } = item
-      ? { mediaKind: item.mediaKind, media: item.media, poster: item.poster, presentation: item.presentation, license: item.license }
-      : {
-        mediaKind: externalItem!.mediaKind,
-        media: externalItem!.media,
-        poster: externalItem!.poster,
-        presentation: externalItem!.presentation,
-        license: {
-          name: externalItem!.origin.licenseName,
-          url: externalItem!.origin.repoUrl,
-          author: externalItem!.origin.author,
-          sourceUrl: externalItem!.origin.repoUrl,
-          attribution: externalItem!.origin.notice
-        }
-      }
+    if (!item) throw new Error('所选皮肤不在当前 Gitee 签名目录中')
+    const chosen: { mediaKind: SkinCatalogItem['mediaKind']; media: SkinAsset; poster?: SkinAsset; presentation: SkinCatalogItem['presentation']; license: ActiveSkinConfig['license'] } = {
+      mediaKind: item.mediaKind,
+      media: item.media,
+      poster: item.poster,
+      presentation: item.presentation,
+      license: item.license
+    }
     const mediaPath = await downloadAsset(chosen.media)
     const posterPath = chosen.poster ? await downloadAsset(chosen.poster) : undefined
     const config: ActiveSkinConfig = {
@@ -387,7 +283,7 @@ export class SkinStore {
       // No active skin is the normal initial state.
     }
     const downloadedSkinIds: string[] = []
-    for (const item of [...this.payload.items, ...this.external.items]) {
+    for (const item of this.payload.items) {
       if (await exists(cachePath(item.media))) downloadedSkinIds.push(item.id)
     }
     return {
@@ -397,7 +293,6 @@ export class SkinStore {
       ...(activeSkinId ? { activeSkinId } : {}),
       downloadedSkinIds,
       items: structuredClone(this.payload.items),
-      external: structuredClone(this.external),
       ...(this.message ? { message: this.message } : {})
     }
   }

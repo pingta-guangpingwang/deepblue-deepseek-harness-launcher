@@ -1,5 +1,5 @@
 import { createPrivateKey, sign } from 'node:crypto'
-import { access, readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const args = new Map()
@@ -30,26 +30,8 @@ async function signCatalog(folder, keyPath, keyId) {
   return { folder, ...result }
 }
 
-/**
- * The external source catalog is signed with the skin store key because the
- * launcher resolves it through the skin trust root. It is optional: a checkout
- * without a generated payload simply skips it.
- */
-async function signExternalCatalog(keyPath, keyId) {
-  const payloadPath = path.resolve('skin-store', 'external-catalog.payload.json')
-  try {
-    await access(payloadPath)
-  } catch {
-    return undefined
-  }
-  const result = await signPayload(payloadPath, path.resolve('skin-store', 'external-catalog.json'), keyPath, keyId)
-  return { folder: 'skin-store (external sources)', ...result }
-}
-
 const results = await Promise.all([
   signCatalog('skin-store', skinKeyPath, 'skin-production-20260817'),
   signCatalog('pet-store', petKeyPath, 'pet-production-20260817')
 ])
-const external = await signExternalCatalog(skinKeyPath, 'skin-production-20260817')
-if (external) results.push(external)
 console.log(JSON.stringify({ ok: true, catalogs: results }))

@@ -36,7 +36,6 @@ const defaultSources: SourceConfig[] = [
 
 export const FIXED_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/catalog.json'
 export const FIXED_PET_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/catalog.json'
-export const FIXED_EXTERNAL_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/external-catalog.json'
 
 export interface PersistedConfig {
   settings: LauncherSettings
@@ -78,8 +77,6 @@ function defaults(): PersistedConfig {
       installMode: 'package',
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
       petCatalogUrl: FIXED_PET_CATALOG_URL,
-      externalSkinCatalogUrl: FIXED_EXTERNAL_SKIN_CATALOG_URL,
-      externalSkinsEnabled: false,
       sources: defaultSources
     },
     activeVersion: '0.1.1-rc.2',
@@ -120,7 +117,16 @@ export async function readConfig(): Promise<PersistedConfig> {
   const fallback = defaults()
   try {
     const parsed = JSON.parse(await readFile(configPath(), 'utf8')) as Partial<PersistedConfig>
-    const { favoriteResourceIds: _legacyLocalFavorites, ...savedSettings } = (parsed.settings || {}) as Partial<LauncherSettings> & { favoriteResourceIds?: unknown }
+    const {
+      favoriteResourceIds: _legacyLocalFavorites,
+      externalSkinCatalogUrl: _legacyExternalSkinCatalogUrl,
+      externalSkinsEnabled: _legacyExternalSkinsEnabled,
+      ...savedSettings
+    } = (parsed.settings || {}) as Partial<LauncherSettings> & {
+      favoriteResourceIds?: unknown
+      externalSkinCatalogUrl?: unknown
+      externalSkinsEnabled?: unknown
+    }
     const storageRoot = normalizedStorageRoot(savedSettings.storageRoot, fallback.settings.storageRoot)
     const storageSetupCompleted = typeof savedSettings.storageSetupCompleted === 'boolean'
       ? savedSettings.storageSetupCompleted
@@ -133,8 +139,6 @@ export async function readConfig(): Promise<PersistedConfig> {
         storageSetupCompleted,
         skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
         petCatalogUrl: FIXED_PET_CATALOG_URL,
-        externalSkinCatalogUrl: FIXED_EXTERNAL_SKIN_CATALOG_URL,
-        externalSkinsEnabled: savedSettings.externalSkinsEnabled === true,
         sources: fallback.settings.sources.map((defaultSource) => {
           const saved = parsed.settings?.sources?.find((source) => source.id === defaultSource.id)
           if (!saved) return defaultSource

@@ -7,7 +7,7 @@
  * It never requests the media route, so GIF and video delivery was unverified:
  * a wrong Content-Type would make the browser refuse the wallpaper, and missing
  * Range support would break video seeking. Both are asserted here for the
- * animated-image and video kinds that external sources now contribute.
+ * animated-image and video kinds carried by the two official Gitee stores.
  */
 
 import assert from 'node:assert/strict'

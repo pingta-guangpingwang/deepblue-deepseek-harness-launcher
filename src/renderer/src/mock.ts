@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.11',
+  launcherVersion: '0.10.12',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
@@ -130,73 +130,7 @@ export const mockSnapshot: LauncherSnapshot = {
         license: { name: 'CC0-1.0', url: 'https://creativecommons.org/publicdomain/zero/1.0/', author: 'DeepSeekHarness Skin Store contributors', sourceUrl: 'https://gitee.com/wanggp123/deepseek-harness-skins' },
         presentation: { position: '72% 50%', overlay: 'rgba(2, 8, 18, 0.34)', blurPx: 1, surfaceOpacity: 0.74 }
       }
-    ],
-    external: {
-      status: 'ready',
-      generatedAt: '2026-08-21T09:00:00.000Z',
-      sources: [
-        {
-          repo: 'rose-pine/wallpapers',
-          repoUrl: 'https://github.com/rose-pine/wallpapers',
-          author: 'rose-pine contributors',
-          licenseName: 'CC0-1.0',
-          licenseStatus: 'redistributable',
-          itemCount: 2
-        },
-        {
-          repo: 'dxnst/nord-backgrounds',
-          repoUrl: 'https://github.com/dxnst/nord-backgrounds',
-          author: 'dxnst',
-          licenseName: '未声明',
-          licenseStatus: 'undeclared',
-          itemCount: 1
-        }
-      ],
-      items: [
-        {
-          id: 'ext-rose-pine-eating-cake', name: 'Rosé Pine · eating cake', description: '来自 rose-pine 主题社区的原创投稿壁纸。', mediaKind: 'image', styles: ['anime'], tags: ['rose-pine', '暖色'], contentRating: 'everyone',
-          thumbnailUrl: 'https://cdn.statically.io/gh/rose-pine/wallpapers/main/anime/eating-cake.jpg?w=640&format=webp',
-          media: { url: 'https://raw.githubusercontent.com/rose-pine/wallpapers/main/anime/eating-cake.jpg', sha256: '0000000000000000000000000000000000000000000000000000000000000000', size: 204800, mime: 'image/jpeg' },
-          origin: {
-            repo: 'rose-pine/wallpapers',
-            repoUrl: 'https://github.com/rose-pine/wallpapers',
-            author: 'rose-pine contributors',
-            licenseName: 'CC0-1.0',
-            licenseStatus: 'redistributable',
-            notice: '上游以 CC0-1.0 奉献至公共领域，可自由使用。'
-          },
-          presentation: { position: '50% 50%', overlay: 'rgba(2, 9, 20, 0.30)', blurPx: 0, surfaceOpacity: 0.74 }
-        },
-        {
-          id: 'ext-rose-pine-circle', name: 'Rosé Pine · generative circle', description: '程序生成的几何构图，低干扰。', mediaKind: 'image', styles: ['minimal'], tags: ['生成艺术', '极简'], contentRating: 'everyone',
-          thumbnailUrl: 'https://cdn.statically.io/gh/rose-pine/wallpapers/main/generative/circle.png?w=640&h=360&format=webp',
-          media: { url: 'https://raw.githubusercontent.com/rose-pine/wallpapers/main/generative/circle.png', sha256: '7c37bd2d57986c16636a9b9872dd75e2b0e5ac1939d2b8c38e8d6c0feef41c53', size: 17299865, mime: 'image/png' },
-          origin: {
-            repo: 'rose-pine/wallpapers',
-            repoUrl: 'https://github.com/rose-pine/wallpapers',
-            author: 'rose-pine contributors',
-            licenseName: 'CC0-1.0',
-            licenseStatus: 'redistributable',
-            notice: '上游以 CC0-1.0 奉献至公共领域，可自由使用。'
-          },
-          presentation: { position: '50% 50%', overlay: 'rgba(2, 9, 20, 0.24)', blurPx: 0, surfaceOpacity: 0.78 }
-        },
-        {
-          id: 'ext-nord-melatonin', name: 'Nord · melatonin', description: 'avogadr.io 程序生成的分子渲染，适合 Nord 配色。', mediaKind: 'image', styles: ['minimal'], tags: ['Nord', '分子', '生成'], contentRating: 'everyone',
-          thumbnailUrl: 'https://cdn.statically.io/gh/dxnst/nord-backgrounds/main/avogadr.io/1920x1080/melatonin.png?w=640&format=webp',
-          media: { url: 'https://raw.githubusercontent.com/dxnst/nord-backgrounds/main/avogadr.io/1920x1080/melatonin.png', sha256: '2222222222222222222222222222222222222222222222222222222222222222', size: 51200, mime: 'image/png' },
-          origin: {
-            repo: 'dxnst/nord-backgrounds',
-            repoUrl: 'https://github.com/dxnst/nord-backgrounds',
-            author: 'dxnst',
-            licenseName: '未声明',
-            licenseStatus: 'undeclared',
-            notice: '上游仓库没有 LICENSE 文件，默认保留所有权利。启动器只做链接展示，不转存、不再分发。'
-          },
-          presentation: { position: '50% 50%', overlay: 'rgba(3, 8, 16, 0.30)', blurPx: 0, surfaceOpacity: 0.78 }
-        }
-      ]
-    }
+    ]
   },
   pets: {
     status: 'ready',
@@ -219,8 +153,6 @@ export const mockSnapshot: LauncherSnapshot = {
     installMode: 'package',
     skinCatalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/catalog.json',
     petCatalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/catalog.json',
-    externalSkinCatalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/external-catalog.json',
-    externalSkinsEnabled: false,
     sources: [
       { id: 'github', name: 'GitHub', baseUrl: 'https://github.com/pingta-guangpingwang/deepseek-harness.git', enabled: true, kind: 'repository' },
       { id: 'gitee', name: 'Gitee', baseUrl: 'https://gitee.com/wanggp123/deepseek-harness.git', enabled: true, kind: 'repository' },
