@@ -369,10 +369,12 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 .skin-preview::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(4,12,25,.5), transparent 52%); pointer-events: none; }
 .skin-preview img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .3s ease; }
 .skin-card:hover .skin-preview img { transform: scale(1.025); }
-.skin-kind, .skin-featured, .skin-active { position: absolute; z-index: 1; top: 10px; min-height: 24px; padding: 0 8px; display: flex; align-items: center; gap: 5px; border-radius: 999px; color: #fff; background: rgba(7,18,35,.72); backdrop-filter: blur(8px); font-size: 9px; font-weight: 700; }
+.skin-kind, .skin-featured, .skin-active, .skin-desktop-active { position: absolute; z-index: 1; top: 10px; min-height: 24px; padding: 0 8px; display: flex; align-items: center; gap: 5px; border-radius: 999px; color: #fff; background: rgba(7,18,35,.72); backdrop-filter: blur(8px); font-size: 9px; font-weight: 700; }
 .skin-kind { left: 10px; }
 .skin-featured { top: 40px; left: 10px; color: #dce7ff; background: rgba(51,78,196,.8); }
 .skin-active { top: auto; right: 10px; bottom: 10px; color: #ddfff2; background: rgba(20,128,91,.86); }
+.skin-desktop-active { top: auto; left: 10px; bottom: 10px; color: #eaf7ff; background: rgba(13,95,150,.88); }
+.skin-active + .skin-desktop-active { bottom: 40px; }
 .skin-favorite-button { width: 30px; height: 30px; position: absolute; z-index: 2; top: 9px; right: 9px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.36); border-radius: 50%; color: #fff; background: rgba(7,18,35,.68); backdrop-filter: blur(8px); cursor: pointer; transition: transform .16s ease, color .16s ease, background .16s ease; }
 .skin-favorite-button:hover { transform: scale(1.06); color: #ffdce5; background: rgba(116,32,61,.8); }
 .skin-favorite-button.active { color: #fff; border-color: rgba(255,255,255,.62); background: #d94670; }
@@ -401,6 +403,7 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 .skin-card-actions .primary-button { color: #fff; }
 .desktop-wallpaper-button { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #8bc0e6; border-radius: 7px; color: #0d5f96; background: linear-gradient(180deg, #edf8ff, #e0f1fc); font: inherit; font-weight: 700; cursor: pointer; }
 .desktop-wallpaper-button:hover { border-color: #4b9ed4; background: #d9effd; }
+.desktop-wallpaper-button.stop { color: var(--red); border-color: color-mix(in srgb, var(--red) 42%, var(--border)); background: var(--red-soft); }
 .desktop-wallpaper-button:disabled { opacity: .55; cursor: not-allowed; }
 [data-theme='dark'] .desktop-wallpaper-button { color: #a8dfff; border-color: #315e7f; background: linear-gradient(180deg, #16334a, #122a3e); }
 .skin-preview-modal-backdrop { position: fixed; z-index: 150; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(5,12,24,.78); backdrop-filter: blur(12px); -webkit-app-region: no-drag; }

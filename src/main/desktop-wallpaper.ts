@@ -87,11 +87,7 @@ export function imageExtensionFromBytes(bytes: Buffer): '.png' | '.jpg' | '.webp
   return undefined
 }
 
-/**
- * Windows does not support video or animated desktop wallpaper without a
- * resident third-party process. Convert the selected image (or video poster)
- * to a stable PNG, then ask the built-in per-user desktop service to apply it.
- */
+/** Convert a static image to a stable PNG and apply it through Windows. */
 export async function applyWindowsDesktopWallpaper(sourcePath: string, targetDirectory: string): Promise<string> {
   if (process.platform !== 'win32') throw new Error('“设为电脑桌面”目前支持 Windows 10/11')
   await access(sourcePath)

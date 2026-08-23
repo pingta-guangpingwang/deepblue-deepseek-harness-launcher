@@ -426,6 +426,11 @@ export interface SkinStoreState {
   source: 'remote' | 'bundled'
   generatedAt: string
   activeSkinId?: string
+  desktopWallpaper?: {
+    skinId: string
+    mode: 'static' | 'dynamic'
+    running: boolean
+  }
   downloadedSkinIds: string[]
   favoriteSkinIds: string[]
   transfers: Record<string, SkinTransferState>
@@ -664,6 +669,7 @@ export interface LauncherApi {
   previewSkin(skinId: string): Promise<SkinPreviewResult>
   applySkin(skinId: string): Promise<LauncherSnapshot>
   applySkinToDesktop(skinId: string): Promise<LauncherSnapshot>
+  stopDynamicDesktop(): Promise<LauncherSnapshot>
   removeSkin(skinId: string): Promise<LauncherSnapshot>
   toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot>
   clearSkin(): Promise<LauncherSnapshot>

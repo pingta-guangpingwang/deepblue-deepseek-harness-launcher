@@ -13,6 +13,7 @@ import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime
 import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
 import { SkinStore, type SkinDownloadProgress } from './skins'
 import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-wallpaper'
+import { DynamicWallpaperManager } from './dynamic-wallpaper'
 import { PetStore } from './pets'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
@@ -85,6 +86,7 @@ export class LauncherController {
   private nextLogId = 1
   private distributionMode: 'online' | 'offline' = 'offline'
   private readonly skinStore = new SkinStore()
+  private dynamicWallpaper!: DynamicWallpaperManager
   private readonly petStore = new PetStore()
   private readonly accountService = new AccountService()
   private modelStore!: ModelStore
@@ -100,6 +102,11 @@ export class LauncherController {
   async initialize(): Promise<void> {
     this.config = await readConfig()
     setLauncherStorageRoot(this.config.settings.storageRoot)
+    this.dynamicWallpaper = new DynamicWallpaperManager(
+      path.join(launcherDataPaths().skins, 'desktop-state.json'),
+      path.join(launcherDataPaths().skins, 'desktop-host')
+    )
+    await this.dynamicWallpaper.initialize()
     this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
     // Rewrite the sanitized shape once so legacy device-local favorites cannot linger
     // in launcher.json and be mistaken for AI历史书 account data.
@@ -142,6 +149,7 @@ export class LauncherController {
         status: 'loading',
         source: 'bundled',
         generatedAt: '',
+        desktopWallpaper: this.dynamicWallpaper.state(),
         downloadedSkinIds: [],
         favoriteSkinIds: [],
         transfers: {},
@@ -181,6 +189,14 @@ export class LauncherController {
 
   getSnapshot(): LauncherSnapshot {
     return structuredClone(this.snapshot)
+  }
+
+  isDynamicDesktopActive(): boolean {
+    return this.dynamicWallpaper?.isRunning() === true
+  }
+
+  async dispose(): Promise<void> {
+    await this.dynamicWallpaper?.dispose()
   }
 
   async refreshEnvironment(): Promise<LauncherSnapshot> {
@@ -1219,6 +1235,7 @@ export class LauncherController {
     this.emit()
     try {
       const wasActive = this.snapshot.skins.activeSkinId === skinId
+      if (this.snapshot.skins.desktopWallpaper?.skinId === skinId) await this.dynamicWallpaper.clear()
       this.replaceSkinState(await this.skinStore.remove(skinId))
       this.finishSkinTransfer(skinId, 'remove', wasActive ? '已删除并恢复 Harness 默认皮肤' : '已从本机删除')
       this.log('INFO', `已删除皮肤「${item.name}」的本机资源`)
@@ -1246,19 +1263,32 @@ export class LauncherController {
     try {
       const downloaded = await this.skinStore.desktopAsset(skinId, progress => this.updateSkinTransfer(skinId, 'desktop', progress))
       this.replaceSkinState(downloaded.state)
-      const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath, downloaded.thumbnailPath)
-      await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths().skins, 'desktop'))
-      const message = source.sourceKind === 'poster'
-        ? '视频高清封面已设为电脑桌面'
-        : source.sourceKind === 'thumbnail'
-          ? '视频预览图已设为电脑桌面'
-          : '高清壁纸已设为电脑桌面'
+      let message: string
+      if (capability.mode === 'dynamic') {
+        if (downloaded.mediaKind === 'image') throw new Error('静态图片不能启动动态桌面')
+        await this.dynamicWallpaper.applyDynamic(skinId, downloaded.mediaPath, downloaded.mediaKind)
+        message = downloaded.mediaKind === 'video' ? '视频动态桌面已启动' : '动图动态桌面已启动'
+      } else {
+        const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath, downloaded.thumbnailPath)
+        await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths().skins, 'desktop'))
+        await this.dynamicWallpaper.recordStatic(skinId)
+        message = '高清壁纸已设为电脑桌面'
+      }
+      this.snapshot.skins.desktopWallpaper = this.dynamicWallpaper.state()
       this.finishSkinTransfer(skinId, 'desktop', message)
       this.log('INFO', `皮肤「${item.name}」${message}`)
     } catch (error) {
       this.failSkinTransfer(skinId, 'desktop', error)
       this.log('ERROR', `设置电脑桌面失败：${this.snapshot.skins.transfers[skinId]?.message || '未知错误'}`)
     }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async stopDynamicDesktop(): Promise<LauncherSnapshot> {
+    await this.dynamicWallpaper.stopDynamic()
+    this.snapshot.skins.desktopWallpaper = this.dynamicWallpaper.state()
+    this.log('INFO', '动态桌面已停止，已恢复下方的 Windows 静态壁纸')
     this.emit()
     return this.getSnapshot()
   }
@@ -1697,7 +1727,11 @@ export class LauncherController {
   }
 
   private replaceSkinState(next: SkinStoreState): void {
-    this.snapshot.skins = { ...next, transfers: this.snapshot.skins.transfers }
+    this.snapshot.skins = {
+      ...next,
+      desktopWallpaper: this.dynamicWallpaper.state(),
+      transfers: this.snapshot.skins.transfers
+    }
   }
 
   private skinTransferBusy(skinId: string): boolean {
@@ -1723,7 +1757,7 @@ export class LauncherController {
     const message = completedDownload && operation === 'apply'
       ? '资源已就绪，正在写入 Harness 外观配置'
       : completedDownload && operation === 'desktop'
-        ? '资源已就绪，正在刷新 Windows 桌面'
+        ? '资源已就绪，正在应用电脑桌面'
         : progress.message
     this.snapshot.skins.transfers[skinId] = {
       operation,

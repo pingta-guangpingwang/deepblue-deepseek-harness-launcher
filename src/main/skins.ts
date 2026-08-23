@@ -393,16 +393,19 @@ export class SkinStore {
     const item = this.item(skinId)
     const capability = desktopWallpaperCapability(item)
     if (!capability.supported) throw new Error(capability.reason)
-    if (item.mediaKind === 'video') {
+    if (capability.mode === 'dynamic') {
       const sourceAsset = capability.asset
-      const usingPoster = sourceAsset === item.poster
       const sourcePath = await downloadAsset(sourceAsset, onProgress)
-      onProgress?.({ status: 'completed', receivedBytes: sourceAsset.size, totalBytes: sourceAsset.size, message: usingPoster ? '视频高清封面已就绪' : '视频预览图已就绪' })
+      onProgress?.({
+        status: 'completed',
+        receivedBytes: sourceAsset.size,
+        totalBytes: sourceAsset.size,
+        message: item.mediaKind === 'video' ? '视频动态桌面资源已就绪' : '动图动态桌面资源已就绪'
+      })
       return {
         state: await this.snapshot('ready'),
         mediaKind: item.mediaKind,
-        mediaPath: cachePath(item.media),
-        ...(usingPoster ? { posterPath: sourcePath } : { thumbnailPath: sourcePath })
+        mediaPath: sourcePath
       }
     }
     const mediaPath = await downloadAsset(item.media, onProgress)

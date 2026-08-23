@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, net, protocol, shell, Tray } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { LauncherController } from './controller'
@@ -7,6 +7,8 @@ import type { LauncherSettings, ModelProviderDraft, MultimodalTestRequest } from
 
 let mainWindow: BrowserWindow | undefined
 let controller: LauncherController | undefined
+let tray: Tray | undefined
+let quitting = false
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deepblue-skin',
@@ -27,10 +29,54 @@ function registerSkinPreviewProtocol(): void {
   })
 }
 
-function createWindow(): BrowserWindow {
-  const icon = app.isPackaged
+function appIconPath(): string {
+  return app.isPackaged
     ? path.join(process.resourcesPath, 'resources/icon.png')
     : path.resolve('resources/icon.png')
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+function syncDynamicWallpaperTray(active: boolean): void {
+  if (!active) {
+    tray?.destroy()
+    tray = undefined
+    return
+  }
+  if (!tray) {
+    tray = new Tray(appIconPath())
+    tray.setToolTip('深蓝 DeepSeek Harness · 动态桌面运行中')
+    tray.on('double-click', showMainWindow)
+  }
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '打开启动器', click: showMainWindow },
+    {
+      label: '停止动态桌面',
+      click: () => {
+        void controller?.stopDynamicDesktop().then(() => {
+          syncDynamicWallpaperTray(false)
+          showMainWindow()
+        })
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        quitting = true
+        app.quit()
+      }
+    }
+  ]))
+}
+
+function createWindow(): BrowserWindow {
+  const icon = appIconPath()
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -50,6 +96,13 @@ function createWindow(): BrowserWindow {
     }
   })
   window.once('ready-to-show', () => window.show())
+  window.on('close', (event) => {
+    if (!quitting && controller?.isDynamicDesktopActive()) {
+      event.preventDefault()
+      window.hide()
+      syncDynamicWallpaperTray(true)
+    }
+  })
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
@@ -104,8 +157,21 @@ function registerIpc(): void {
   ipcMain.handle('launcher:download-skin', (_event, skinId: string) => controller?.downloadSkin(skinId))
   ipcMain.handle('launcher:preview-skin', (_event, skinId: string) => controller?.previewSkin(skinId))
   ipcMain.handle('launcher:apply-skin', (_event, skinId: string) => controller?.applySkin(skinId))
-  ipcMain.handle('launcher:apply-skin-to-desktop', (_event, skinId: string) => controller?.applySkinToDesktop(skinId))
-  ipcMain.handle('launcher:remove-skin', (_event, skinId: string) => controller?.removeSkin(skinId))
+  ipcMain.handle('launcher:apply-skin-to-desktop', async (_event, skinId: string) => {
+    const snapshot = await controller?.applySkinToDesktop(skinId)
+    syncDynamicWallpaperTray(controller?.isDynamicDesktopActive() === true)
+    return snapshot
+  })
+  ipcMain.handle('launcher:stop-dynamic-desktop', async () => {
+    const snapshot = await controller?.stopDynamicDesktop()
+    syncDynamicWallpaperTray(false)
+    return snapshot
+  })
+  ipcMain.handle('launcher:remove-skin', async (_event, skinId: string) => {
+    const snapshot = await controller?.removeSkin(skinId)
+    syncDynamicWallpaperTray(controller?.isDynamicDesktopActive() === true)
+    return snapshot
+  })
   ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
   ipcMain.handle('launcher:clear-skin', () => controller?.clearSkin())
   ipcMain.handle('launcher:refresh-pets', () => controller?.refreshPets())
@@ -117,7 +183,14 @@ function registerIpc(): void {
     if (!mainWindow) return
     if (action === 'minimize') mainWindow.minimize()
     if (action === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
-    if (action === 'close') mainWindow.close()
+    if (action === 'close') {
+      if (controller?.isDynamicDesktopActive()) {
+        mainWindow.hide()
+        syncDynamicWallpaperTray(true)
+      } else {
+        mainWindow.close()
+      }
+    }
   })
 }
 
@@ -140,6 +213,7 @@ if (!hasSingleInstanceLock) {
     mainWindow = createWindow()
     controller = new LauncherController(mainWindow)
     await controller.initialize()
+    syncDynamicWallpaperTray(controller.isDynamicDesktopActive())
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
     })
@@ -147,5 +221,10 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin' && !controller?.isDynamicDesktopActive()) app.quit()
+})
+
+app.on('before-quit', () => {
+  quitting = true
+  void controller?.dispose()
 })

@@ -78,6 +78,13 @@ function assertCompleted(label, skinId, snapshot, expectedMessage) {
   }
 }
 
+function assertDynamicRunning(label, skinId, snapshot) {
+  const state = snapshot.skins.desktopWallpaper
+  if (state?.skinId !== skinId || state.mode !== 'dynamic' || state.running !== true) {
+    throw new Error(`${label}没有进入动态桌面运行状态：${JSON.stringify(state)}`)
+  }
+}
+
 async function verifyAppliedFile(label, previousPath) {
   const appliedPath = readRegistryValue('Wallpaper')
   if (!appliedPath || appliedPath === previousPath) throw new Error(`${label}没有更新 Windows 桌面壁纸路径`)
@@ -114,19 +121,42 @@ try {
   const image = [...catalog.skins.items]
     .filter(item => item.mediaKind === 'image')
     .sort((left, right) => left.media.size - right.media.size)[0]
-  const videoWithoutPoster = catalog.skins.items.find(item => item.mediaKind === 'video' && !item.poster)
-  if (!image || !videoWithoutPoster) throw new Error('签名目录缺少测试所需的图片或无独立封面视频')
+  const animated = catalog.skins.items.find(item => item.id === 'gif-0012')
+    || [...catalog.skins.items].filter(item => item.mediaKind === 'animated-image').sort((left, right) => left.media.size - right.media.size)[0]
+  const video = catalog.skins.items.find(item => item.id === 'vid-0046')
+    || [...catalog.skins.items].filter(item => item.mediaKind === 'video').sort((left, right) => left.media.size - right.media.size)[0]
+  if (!image || !animated || animated.mediaKind !== 'animated-image' || !video || video.mediaKind !== 'video') {
+    throw new Error('签名目录缺少测试所需的静态图片、GIF 或视频')
+  }
 
   const imageResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), image.id)
   assertCompleted('图片壁纸', image.id, imageResult, '高清壁纸已设为电脑桌面')
   const imagePath = await verifyAppliedFile('图片壁纸', original.Wallpaper)
   const imageScreenshot = captureDesktop('desktop-image-applied.png', baselineScreenshot, 0.18)
 
-  const videoResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), videoWithoutPoster.id)
-  assertCompleted('无独立封面视频', videoWithoutPoster.id, videoResult, '视频预览图已设为电脑桌面')
-  await verifyAppliedFile('无独立封面视频', imagePath)
-  captureDesktop('desktop-video-fallback-applied.png', imageScreenshot, 0.18)
-  process.stderr.write(`ok  视频回退实测条目：${videoWithoutPoster.id} · ${videoWithoutPoster.name}\n`)
+  const animatedResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), animated.id)
+  assertCompleted('GIF 动态壁纸', animated.id, animatedResult, '动图动态桌面已启动')
+  assertDynamicRunning('GIF 动态壁纸', animated.id, animatedResult)
+  const gifFrameA = captureDesktop('desktop-gif-frame-a.png', imageScreenshot, 0.12)
+  await page.waitForTimeout(1_300)
+  captureDesktop('desktop-gif-frame-b.png', gifFrameA, 0.001)
+  process.stderr.write(`ok  GIF 原媒体动态播放：${animated.id} · ${animated.name}\n`)
+
+  const videoResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), video.id)
+  assertCompleted('视频动态壁纸', video.id, videoResult, '视频动态桌面已启动')
+  assertDynamicRunning('视频动态壁纸', video.id, videoResult)
+  await page.evaluate(() => window.launcher.windowAction('close'))
+  await page.waitForTimeout(900)
+  const videoFrameA = captureDesktop('desktop-video-frame-a.png', gifFrameA, 0.08)
+  await page.waitForTimeout(1_100)
+  captureDesktop('desktop-video-frame-b.png', videoFrameA, 0.001)
+  process.stderr.write(`ok  主窗口关闭后托盘继续播放视频：${video.id} · ${video.name}\n`)
+
+  const stopped = await page.evaluate(() => window.launcher.stopDynamicDesktop())
+  if (stopped.skins.desktopWallpaper) throw new Error(`停止动态桌面后状态未清除：${JSON.stringify(stopped.skins.desktopWallpaper)}`)
+  captureDesktop('desktop-dynamic-stopped.png', videoFrameA, 0.08)
+  if (readRegistryValue('Wallpaper') !== imagePath) throw new Error('动态桌面停止后没有保留底层 Windows 静态壁纸')
+  process.stderr.write('ok  停止动态桌面后已恢复底层 Windows 静态壁纸\n')
 } finally {
   if (app) await app.close().catch(() => undefined)
   for (const name of valueNames) writeRegistryValue(name, original[name])
@@ -135,4 +165,4 @@ try {
   process.stderr.write('ok  已恢复测试前的 Windows 桌面壁纸设置\n')
 }
 
-process.stderr.write('打包应用的图片壁纸与视频预览图桌面设置实测全部通过\n')
+process.stderr.write('打包应用的静态壁纸、GIF 动态桌面与视频动态桌面实测全部通过\n')
