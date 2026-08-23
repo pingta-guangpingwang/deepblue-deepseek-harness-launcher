@@ -125,7 +125,7 @@ async function validReceipt(root: string, module: RuntimeModuleRelease, artifact
 
 function redirectHostAllowed(mirrorId: RuntimeModuleArtifact['mirrors'][number]['id'], hostname: string): boolean {
   if (mirrorId === 'github') return ['github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com'].includes(hostname)
-  if (mirrorId === 'gitee') return hostname === 'gitee.com' || hostname.endsWith('.gitee.com')
+  if (mirrorId === 'gitee') return hostname === 'gitee.com' || hostname.endsWith('.gitee.com') || hostname === 'raw.giteeusercontent.com'
   return hostname === 'ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com'
 }
 

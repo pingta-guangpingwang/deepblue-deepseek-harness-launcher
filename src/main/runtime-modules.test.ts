@@ -164,6 +164,37 @@ describe('runtime module store', () => {
     expect(fetchMock.mock.calls.some(([_url, init]) => init?.method === 'HEAD')).toBe(false)
   })
 
+  it('accepts Gitee raw-file redirects only through its official content host', async () => {
+    const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-gitee-redirect-'))
+    roots.push(installationRoot)
+    const item = await fixture('24.16.0', 'gitee-official-cdn')
+    const gitee = item.module.artifacts[0]!.mirrors[0]!
+    gitee.parts = [{
+      url: `${gitee.url}.part001`,
+      sha256: createHash('sha256').update(item.archive).digest('hex'),
+      size: item.archive.byteLength
+    }]
+    gitee.url = gitee.parts[0]!.url
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).startsWith('https://gitee.com/')) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://raw.giteeusercontent.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/runtime-v0.10.13/node.tar.gz.part001?signature=test' }
+        })
+      }
+      return new Response(responseBody(item.archive), { status: 200, headers: { 'content-length': String(item.archive.byteLength) } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const store = new RuntimeModuleStore(installationRoot)
+    const installed = await store.install(item.module, [item.module], 'win32', 'x64')
+    expect(installed.mirrorId).toBe('gitee')
+    expect(await readFile(path.join(installed.root, 'bin', 'runtime.txt'), 'utf8')).toBe('gitee-official-cdn')
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).hostname)).toEqual([
+      'gitee.com',
+      'raw.giteeusercontent.com'
+    ])
+  })
+
   it('rejects a body read after sustained zero-byte progress', async () => {
     const stream = new ReadableStream<Uint8Array>({ start: () => undefined })
     const reader = stream.getReader()

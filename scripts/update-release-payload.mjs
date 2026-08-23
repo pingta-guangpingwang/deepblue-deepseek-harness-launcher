@@ -28,6 +28,7 @@ payload.harness = bundledVersions.map((entry) => ({
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '兼容 Gitee 原始文件服务的官方 raw.giteeusercontent.com 跳转，0.10.13 模块分片会真正走 Gitee 首选线路并继续执行逐片摘要校验',
     'Gitee 的 0.10.13 UI 壳与运行模块改为 5 MB 内容寻址分片；每片及整包均按签名目录校验，可在免费仓库限制下稳定匿名下载',
     '皮肤商店新增“全部商店、正在使用、我的收藏”三个视图；收藏保存在本机用户数据中，重启后仍可直接查看、切换或取消收藏',
     '皮肤卡片新增一键收藏入口，当前使用状态与 Harness 实际皮肤配置同步，恢复默认后会立即更新皮肤库状态',
