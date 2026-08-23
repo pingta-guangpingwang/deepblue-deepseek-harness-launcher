@@ -20,7 +20,9 @@ const localAppDataRoot = path.join(outputRoot, 'profile', 'localappdata')
 const launcherDataRoot = path.join(appDataRoot, 'deepseek-harness-launcher')
 const systemRoot = path.resolve(process.env.SystemRoot || 'C:\\Windows')
 const reg = path.join(systemRoot, 'System32', 'reg.exe')
-const rundll32 = path.join(systemRoot, 'System32', 'rundll32.exe')
+const powershell = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+const wallpaperHelper = path.join(root, 'scripts', 'set-desktop-wallpaper-qa.ps1')
+const captureHelper = path.join(root, 'scripts', 'capture-desktop-qa.ps1')
 const desktopKey = 'HKCU\\Control Panel\\Desktop'
 const valueNames = ['Wallpaper', 'WallpaperStyle', 'TileWallpaper']
 
@@ -46,8 +48,24 @@ function writeRegistryValue(name, value) {
   execFileSync(reg, ['add', desktopKey, '/v', name, '/t', 'REG_SZ', '/d', value, '/f'], { windowsHide: true, stdio: 'ignore' })
 }
 
-function refreshDesktop() {
-  execFileSync(rundll32, ['user32.dll,UpdatePerUserSystemParameters', '1', 'True'], { windowsHide: true, stdio: 'ignore' })
+function applyWallpaper(wallpaperPath) {
+  execFileSync(powershell, [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', wallpaperHelper, '-WallpaperPath', wallpaperPath
+  ], { windowsHide: true, stdio: 'pipe' })
+}
+
+function captureDesktop(filename, compareTo, minimumChangeRatio = 0) {
+  const outputPath = path.join(outputRoot, filename)
+  const args = [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', captureHelper, '-OutputPath', outputPath
+  ]
+  if (compareTo) args.push('-CompareTo', compareTo, '-MinimumChangeRatio', String(minimumChangeRatio))
+  const output = execFileSync(powershell, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const result = JSON.parse(output)
+  process.stderr.write(`ok  桌面截图：${result.path}${typeof result.changeRatio === 'number' ? `（可见变化 ${(result.changeRatio * 100).toFixed(1)}%）` : ''}\n`)
+  return result.path
 }
 
 function assertCompleted(label, skinId, snapshot, expectedMessage) {
@@ -81,6 +99,7 @@ await writeFile(path.join(launcherDataRoot, 'launcher.json'), JSON.stringify({
 }, null, 2))
 
 const original = Object.fromEntries(valueNames.map(name => [name, readRegistryValue(name)]))
+const baselineScreenshot = captureDesktop('desktop-before.png')
 let app
 try {
   app = await electron.launch({
@@ -101,15 +120,18 @@ try {
   const imageResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), image.id)
   assertCompleted('图片壁纸', image.id, imageResult, '高清壁纸已设为电脑桌面')
   const imagePath = await verifyAppliedFile('图片壁纸', original.Wallpaper)
+  const imageScreenshot = captureDesktop('desktop-image-applied.png', baselineScreenshot, 0.18)
 
   const videoResult = await page.evaluate(skinId => window.launcher.applySkinToDesktop(skinId), videoWithoutPoster.id)
   assertCompleted('无独立封面视频', videoWithoutPoster.id, videoResult, '视频预览图已设为电脑桌面')
   await verifyAppliedFile('无独立封面视频', imagePath)
+  captureDesktop('desktop-video-fallback-applied.png', imageScreenshot, 0.18)
   process.stderr.write(`ok  视频回退实测条目：${videoWithoutPoster.id} · ${videoWithoutPoster.name}\n`)
 } finally {
   if (app) await app.close().catch(() => undefined)
   for (const name of valueNames) writeRegistryValue(name, original[name])
-  refreshDesktop()
+  if (original.Wallpaper) applyWallpaper(original.Wallpaper)
+  captureDesktop('desktop-restored.png')
   process.stderr.write('ok  已恢复测试前的 Windows 桌面壁纸设置\n')
 }
 

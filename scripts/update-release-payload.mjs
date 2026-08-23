@@ -28,6 +28,7 @@ payload.harness = bundledVersions.map((entry) => ({
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '修复 Windows 图片壁纸“提示成功但桌面未变化”：改为直接调用 SystemParametersInfoW 系统接口，只有系统确认应用成功才返回成功；发布门禁会截图对比真实桌面，像素无明显变化即阻断发布',
     '皮肤商店只在资源存在可解码静态图时显示电脑桌面操作；不支持的格式不再出现误导按钮，主进程同时执行相同资格校验',
     '视频按钮明确改为“封面设为桌面”，动图改为“首帧设为桌面”，说明 Windows 内置桌面显示静态图，动态效果继续保留在 Harness 内',
     '修复视频壁纸因缺少独立高清封面而无法设为 Windows 桌面：优先使用高清封面，没有时自动回退到经签名校验的预览图，不再阻断设置',

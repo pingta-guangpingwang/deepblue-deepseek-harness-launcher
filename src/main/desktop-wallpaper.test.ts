@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import bundledCatalog from '../../skin-store/catalog.payload.json'
-import { desktopWallpaperSource, imageExtensionFromBytes } from './desktop-wallpaper'
+import { desktopWallpaperSource, imageExtensionFromBytes, setWindowsDesktopWallpaper } from './desktop-wallpaper'
 import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
 import type { SkinCatalogItem } from '../shared/types'
 
@@ -52,5 +52,15 @@ describe('desktop wallpaper source selection', () => {
   it('keeps a supported desktop action for all 680 bundled catalog entries', () => {
     expect(catalogItems).toHaveLength(680)
     expect(catalogItems.filter(item => !desktopWallpaperCapability(item).supported)).toEqual([])
+  })
+
+  it('calls the real Windows wallpaper API with persistence and broadcast flags', () => {
+    const calls: unknown[][] = []
+    setWindowsDesktopWallpaper('C:\\skins\\wallpaper.png', (...args) => {
+      calls.push(args)
+      return true
+    })
+    expect(calls).toEqual([[0x0014, 0, 'C:\\skins\\wallpaper.png', 0x0003]])
+    expect(() => setWindowsDesktopWallpaper('C:\\skins\\blocked.png', () => false)).toThrow('SystemParametersInfoW')
   })
 })

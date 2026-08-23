@@ -43,8 +43,12 @@ async function packageClosure(modulesRoot, roots) {
     const packageRoot = path.join(modulesRoot, ...name.split('/'))
     const manifest = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'))
     selected.add(name)
-    for (const dependency of Object.keys({ ...(manifest.dependencies || {}), ...(manifest.optionalDependencies || {}) })) {
+    for (const dependency of Object.keys(manifest.dependencies || {})) {
       if (!selected.has(dependency)) pending.push(dependency)
+    }
+    for (const dependency of Object.keys(manifest.optionalDependencies || {})) {
+      const optionalRoot = path.join(modulesRoot, ...dependency.split('/'))
+      if (!selected.has(dependency) && (await exists(path.join(optionalRoot, 'package.json')))) pending.push(dependency)
     }
   }
   return selected

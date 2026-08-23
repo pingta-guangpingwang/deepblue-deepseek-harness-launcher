@@ -3,9 +3,21 @@ import { execFile } from 'node:child_process'
 import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { load } from 'koffi'
 import type { SkinMediaKind } from '../shared/types'
 
 const execFileAsync = promisify(execFile)
+
+type SystemParametersInfoW = (action: number, parameter: number, value: string, flags: number) => boolean
+
+export function setWindowsDesktopWallpaper(targetPath: string, setter: SystemParametersInfoW): void {
+  const spiSetDesktopWallpaper = 0x0014
+  const spifUpdateIniFile = 0x0001
+  const spifSendChange = 0x0002
+  if (!setter(spiSetDesktopWallpaper, 0, targetPath, spifUpdateIniFile | spifSendChange)) {
+    throw new Error('Windows SystemParametersInfoW 未确认桌面壁纸生效')
+  }
+}
 
 export type DesktopWallpaperSourceKind = 'media' | 'poster' | 'thumbnail'
 
@@ -115,11 +127,17 @@ export async function applyWindowsDesktopWallpaper(sourcePath: string, targetDir
 
   const systemRoot = path.resolve(process.env.SystemRoot || 'C:\\Windows')
   const reg = path.join(systemRoot, 'System32', 'reg.exe')
-  const rundll32 = path.join(systemRoot, 'System32', 'rundll32.exe')
   const desktopKey = 'HKCU\\Control Panel\\Desktop'
-  await runWindowsTool(reg, ['add', desktopKey, '/v', 'Wallpaper', '/t', 'REG_SZ', '/d', targetPath, '/f'])
   await runWindowsTool(reg, ['add', desktopKey, '/v', 'WallpaperStyle', '/t', 'REG_SZ', '/d', '10', '/f'])
   await runWindowsTool(reg, ['add', desktopKey, '/v', 'TileWallpaper', '/t', 'REG_SZ', '/d', '0', '/f'])
-  await runWindowsTool(rundll32, ['user32.dll,UpdatePerUserSystemParameters', '1', 'True'])
+  const user32 = load('user32.dll')
+  try {
+    const setter = user32.func('bool __stdcall SystemParametersInfoW(uint32, uint32, str16, uint32)') as unknown as SystemParametersInfoW
+    setWindowsDesktopWallpaper(targetPath, setter)
+  } catch (error) {
+    throw new Error('Windows 未确认桌面壁纸已经生效，请检查系统个性化策略后重试', { cause: error })
+  } finally {
+    user32.unload()
+  }
   return targetPath
 }
