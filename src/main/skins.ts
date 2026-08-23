@@ -382,14 +382,31 @@ export class SkinStore {
     return this.snapshot('ready')
   }
 
-  async desktopAsset(skinId: string, onProgress?: SkinDownloadReporter): Promise<{ state: SkinStoreState; mediaKind: SkinCatalogItem['mediaKind']; mediaPath: string; posterPath?: string }> {
+  async desktopAsset(skinId: string, onProgress?: SkinDownloadReporter): Promise<{
+    state: SkinStoreState
+    mediaKind: SkinCatalogItem['mediaKind']
+    mediaPath: string
+    posterPath?: string
+    thumbnailPath?: string
+  }> {
     const item = this.item(skinId)
-    const downloaded = await this.downloadItem(item, onProgress)
+    if (item.mediaKind === 'video') {
+      const sourceAsset = item.poster || item.thumbnail
+      const sourcePath = await downloadAsset(sourceAsset, onProgress)
+      onProgress?.({ status: 'completed', receivedBytes: sourceAsset.size, totalBytes: sourceAsset.size, message: item.poster ? '视频高清封面已就绪' : '视频预览图已就绪' })
+      return {
+        state: await this.snapshot('ready'),
+        mediaKind: item.mediaKind,
+        mediaPath: cachePath(item.media),
+        ...(item.poster ? { posterPath: sourcePath } : { thumbnailPath: sourcePath })
+      }
+    }
+    const mediaPath = await downloadAsset(item.media, onProgress)
+    onProgress?.({ status: 'completed', receivedBytes: item.media.size, totalBytes: item.media.size, message: '高清壁纸已就绪' })
     return {
       state: await this.snapshot('ready'),
       mediaKind: item.mediaKind,
-      mediaPath: downloaded.mediaPath,
-      ...(downloaded.posterPath ? { posterPath: downloaded.posterPath } : {})
+      mediaPath
     }
   }
 

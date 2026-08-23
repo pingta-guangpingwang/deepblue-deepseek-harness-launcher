@@ -1232,14 +1232,19 @@ export class LauncherController {
   async applySkinToDesktop(skinId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
     if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
-    this.updateSkinTransfer(skinId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '准备电脑桌面壁纸' })
+    const desktopAssetSize = item.mediaKind === 'video' ? (item.poster || item.thumbnail).size : item.media.size
+    this.updateSkinTransfer(skinId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: desktopAssetSize, message: '准备电脑桌面壁纸' })
     this.emit()
     try {
       const downloaded = await this.skinStore.desktopAsset(skinId, progress => this.updateSkinTransfer(skinId, 'desktop', progress))
       this.replaceSkinState(downloaded.state)
-      const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath)
+      const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath, downloaded.thumbnailPath)
       await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths().skins, 'desktop'))
-      const message = source.usedPoster ? '视频高清封面已设为电脑桌面' : '高清壁纸已设为电脑桌面'
+      const message = source.sourceKind === 'poster'
+        ? '视频高清封面已设为电脑桌面'
+        : source.sourceKind === 'thumbnail'
+          ? '视频预览图已设为电脑桌面'
+          : '高清壁纸已设为电脑桌面'
       this.finishSkinTransfer(skinId, 'desktop', message)
       this.log('INFO', `皮肤「${item.name}」${message}`)
     } catch (error) {

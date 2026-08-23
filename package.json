@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.16",
+  "version": "0.10.17",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -28,6 +28,7 @@
     "release:smoke-public-fresh-install": "powershell.exe -NoProfile -File scripts/smoke-public-fresh-install.ps1",
     "release:verify-public-downloads": "node scripts/verify-public-downloads.mjs",
     "qa:packaged:stores": "node scripts/qa-packaged-store-ui.mjs",
+    "qa:desktop-wallpaper": "node scripts/qa-desktop-wallpaper.mjs",
     "qa:harness:skin-clarity": "node scripts/qa-harness-skin-clarity.mjs",
     "sign:manifest": "node scripts/sign-manifest.mjs",
     "sign:store-trust": "node scripts/sign-store-trust.mjs",
