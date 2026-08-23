@@ -16,6 +16,7 @@ import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-
 import { PetStore } from './pets'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
+import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
@@ -90,6 +91,8 @@ export class LauncherController {
   private runtimeModules: RuntimeModuleRelease[] = []
   private bundledRuntimeModules: RuntimeModuleRelease[] = []
   private onlinePreparationStarted = false
+  private startHarnessPromise?: Promise<LauncherSnapshot>
+  private readonly browserHandoff = new HarnessBrowserHandoff()
 
   constructor(private readonly window: BrowserWindow) {}
 
@@ -248,10 +251,22 @@ export class LauncherController {
   }
 
   async startHarness(): Promise<LauncherSnapshot> {
+    if (this.startHarnessPromise) return this.startHarnessPromise
+    const pending = this.startHarnessOnce()
+    this.startHarnessPromise = pending
+    try {
+      return await pending
+    } finally {
+      if (this.startHarnessPromise === pending) this.startHarnessPromise = undefined
+    }
+  }
+
+  private async startHarnessOnce(): Promise<LauncherSnapshot> {
     if (this.service && this.snapshot.runStatus !== 'error') {
       this.updateLaunchProgress('ready', 100, 'Harness 已在运行')
       return this.getSnapshot()
     }
+    const browserCycle = this.browserHandoff.begin()
     this.snapshot.runStatus = 'starting'
     this.snapshot.serviceUrl = undefined
     this.updateLaunchProgress('preparing', 6, '正在检查 Harness 运行环境')
@@ -278,12 +293,13 @@ export class LauncherController {
       await mkdir(this.config.settings.workspace, { recursive: true })
       this.updateLaunchProgress('preparing', 40, '正在加载皮肤、宠物与外观配置')
       await this.ensureSkinRuntime(runtime)
+      const noBrowserPatch = await prepareHarnessNoBrowserPatch(paths.dshHome)
       this.updateLaunchProgress('starting', 58, '正在同步模型配置与本机密钥')
       this.log('INFO', `正在启动 Harness，工作区：${this.config.settings.workspace}`)
       this.emit()
       const modelEnvironment = await this.modelStore.environment()
       this.updateLaunchProgress('starting', 70, '正在启动 Harness 本地服务')
-      const child = spawnNode(runtime, [runtime.dsh, 'web', '--port', String(this.config.settings.port), '--no-open'], {
+      const child = spawnNode(runtime, [runtime.dsh, 'web', '--patch', noBrowserPatch, '--port', String(this.config.settings.port), '--no-open'], {
         cwd: this.config.settings.workspace,
         dshHome: paths.dshHome,
         env: {
@@ -294,9 +310,10 @@ export class LauncherController {
       })
       this.service = child
       this.updateLaunchProgress('waiting', 76, `服务已启动，等待端口 ${this.config.settings.port} 就绪`)
-      child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO'))
-      child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
+      child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO', browserCycle))
+      child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN', browserCycle))
       child.on('error', (error) => {
+        if (this.service !== child) return
         this.snapshot.runStatus = 'error'
         this.updateLaunchProgress('failed', this.snapshot.launchProgress.progress, `启动失败：${error.message}`)
         this.log('ERROR', `启动失败：${error.message}`)
@@ -304,6 +321,7 @@ export class LauncherController {
         this.emit()
       })
       child.on('exit', (code, signal) => {
+        if (this.service !== child) return
         const expected = this.snapshot.runStatus === 'stopping'
         this.service = undefined
         this.snapshot.runStatus = expected || code === 0 ? 'stopped' : 'error'
@@ -314,7 +332,7 @@ export class LauncherController {
         this.log(expected ? 'INFO' : code === 0 ? 'INFO' : 'ERROR', `Harness 已退出（${signal || `code ${code ?? 'unknown'}`}）`)
         this.emit()
       })
-      void this.waitForServer()
+      void this.waitForServer(browserCycle)
       return this.getSnapshot()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -1653,14 +1671,14 @@ export class LauncherController {
     return directory
   }
 
-  private consumeProcessOutput(output: string, fallback: LogLine['level']): void {
+  private consumeProcessOutput(output: string, fallback: LogLine['level'], browserCycle?: number): void {
     for (const raw of output.split(/\r?\n/)) {
       const line = raw.trim()
       if (!line) continue
       const level = /\berror\b|\bfatal\b/i.test(line) ? 'ERROR' : /\bwarn/i.test(line) ? 'WARN' : fallback
       this.log(level, line)
       const url = line.match(/https?:\/\/(?:127\.0\.0\.1|localhost):\d+/i)?.[0]
-      if (url && this.snapshot.runStatus === 'starting') this.markRunning(url)
+      if (url && browserCycle !== undefined && this.snapshot.runStatus === 'starting') this.markRunning(url, browserCycle)
     }
     this.emit()
   }
@@ -1734,13 +1752,13 @@ export class LauncherController {
     this.emit()
   }
 
-  private async waitForServer(): Promise<void> {
+  private async waitForServer(browserCycle: number): Promise<void> {
     const url = `http://127.0.0.1:${this.config.settings.port}`
     for (let attempt = 0; attempt < 90 && this.snapshot.runStatus === 'starting'; attempt += 1) {
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(750) })
         if (response.ok) {
-          this.markRunning(url)
+          this.markRunning(url, browserCycle)
           return
         }
       } catch {
@@ -1757,14 +1775,15 @@ export class LauncherController {
     }
   }
 
-  private markRunning(url: string): void {
+  private markRunning(url: string, browserCycle: number): void {
     if (this.snapshot.runStatus === 'running') return
     this.snapshot.runStatus = 'running'
     this.snapshot.serviceUrl = url
     this.snapshot.launchProgress = { status: 'ready', progress: 100, message: 'Harness 已就绪，可以开始使用' }
     this.log('INFO', `Harness 已就绪：${url}`)
     this.emit()
-    if (this.config.settings.autoOpen) void shell.openExternal(url)
+    void this.browserHandoff.openOnce(browserCycle, url, this.config.settings.autoOpen, (target) => shell.openExternal(target))
+      .catch((error) => this.log('WARN', `自动打开 Harness 页面失败：${error instanceof Error ? error.message : String(error)}`))
   }
 
   private log(level: LogLine['level'], message: string): void {

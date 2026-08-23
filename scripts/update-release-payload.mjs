@@ -28,6 +28,7 @@ payload.harness = bundledVersions.map((entry) => ({
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '修复启动 Harness 时偶发打开两个浏览器页面：同一启动请求会被合并，Launcher 覆盖层强制关闭 Harness 内置浏览器交接，并以启动周期令牌保证系统浏览器最多自动打开一次',
     '修复公网全新安装首次创建 Web profile 时漏掉 Harness 默认 dsh-base 与 dsh-web-app，导致外观插件等待 webServer、Harness 启动退出的问题；0.10.15 已纳入无缓存全新安装发布门禁',
     '皮肤卡片新增“应用到 Harness”和“设为电脑桌面”双入口；静态图与动图自动转成稳定 PNG，视频壁纸使用高清封面，并通过 Windows 用户级桌面接口即时应用',
     'Harness 会话页头在 Session log 旁新增“清透壁纸 / 恢复蒙版”快捷切换；清透状态移除壁纸蒙版并把内容表面降至轻透明，选择会在本机持久保存',

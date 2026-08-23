@@ -94,7 +94,7 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     const environment: NodeJS.ProcessEnv = { ...process.env, DSH_HOME: dshHome }
     for (const key of Object.keys(environment)) if (key.toLowerCase() === 'path') delete environment[key]
     environment[pathKey] = process.env[pathKey] || process.env.PATH || ''
-    const web = spawn(node, [dsh, 'web', '--port', String(port)], {
+    const web = spawn(node, [dsh, 'web', '--port', String(port), '--no-open'], {
       cwd: workspace,
       env: environment,
       windowsHide: true,

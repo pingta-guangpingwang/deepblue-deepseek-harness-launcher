@@ -42,7 +42,7 @@ async function stop(child, env) {
 
 async function boot(dsh, appRoot, port) {
   const env = environment(appRoot)
-  const child = spawn(node, [dsh, 'web', '--port', String(port)], { cwd: temporaryRoot, env, windowsHide: true })
+  const child = spawn(node, [dsh, 'web', '--port', String(port), '--no-open'], { cwd: temporaryRoot, env, windowsHide: true })
   let output = ''
   child.stdout.on('data', (chunk) => { output += chunk.toString() })
   child.stderr.on('data', (chunk) => { output += chunk.toString() })

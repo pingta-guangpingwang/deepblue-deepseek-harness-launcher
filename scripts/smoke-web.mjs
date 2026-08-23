@@ -14,7 +14,7 @@ const env = { ...process.env, DSH_HOME: dshHome }
 for (const key of Object.keys(env)) if (key.toLowerCase() === 'path') delete env[key]
 env[process.platform === 'win32' ? 'Path' : 'PATH'] = process.env.Path || process.env.PATH || ''
 
-const child = spawn(node, [dsh, 'web', '--port', String(port)], { cwd: root, env, windowsHide: true })
+const child = spawn(node, [dsh, 'web', '--port', String(port), '--no-open'], { cwd: root, env, windowsHide: true })
 let output = ''
 child.stdout.on('data', (chunk) => { output += chunk.toString() })
 child.stderr.on('data', (chunk) => { output += chunk.toString() })
