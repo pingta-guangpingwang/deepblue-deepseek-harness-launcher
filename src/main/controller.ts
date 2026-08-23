@@ -12,7 +12,10 @@ import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVer
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
 import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
 import { SkinStore, type SkinDownloadProgress } from './skins'
+import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-wallpaper'
 import { PetStore } from './pets'
+import { readPnpmProfileEnvironment } from './pnpm-profile'
+import { prepareAppearanceProfile } from './appearance-profile'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
@@ -280,7 +283,7 @@ export class LauncherController {
       this.emit()
       const modelEnvironment = await this.modelStore.environment()
       this.updateLaunchProgress('starting', 70, '正在启动 Harness 本地服务')
-      const child = spawnNode(runtime, [runtime.dsh, 'web', '--port', String(this.config.settings.port)], {
+      const child = spawnNode(runtime, [runtime.dsh, 'web', '--port', String(this.config.settings.port), '--no-open'], {
         cwd: this.config.settings.workspace,
         dshHome: paths.dshHome,
         env: {
@@ -836,10 +839,11 @@ export class LauncherController {
     const verb = action === 'install' ? 'add' : action
     const args = [runtime.dsh, 'plugin', '--profile', 'web', verb]
     if (action !== 'update' || packageSpec) args.push(packageSpec)
+    const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
     const child = spawnNode(runtime, args, {
       cwd: this.config.settings.workspace,
       dshHome: paths.dshHome,
-      env: { npm_config_registry: this.registryUrl(), [pathKey]: commandPath }
+      env: { npm_config_registry: this.registryUrl(), ...profileEnvironment, [pathKey]: commandPath }
     })
     child.stdout.on('data', (chunk: Buffer) => {
       task.progress = Math.min(90, task.progress + 4)
@@ -1207,6 +1211,27 @@ export class LauncherController {
     return this.getSnapshot()
   }
 
+  async applySkinToDesktop(skinId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
+    if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
+    this.updateSkinTransfer(skinId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '准备电脑桌面壁纸' })
+    this.emit()
+    try {
+      const downloaded = await this.skinStore.desktopAsset(skinId, progress => this.updateSkinTransfer(skinId, 'desktop', progress))
+      this.replaceSkinState(downloaded.state)
+      const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath)
+      await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths().skins, 'desktop'))
+      const message = source.usedPoster ? '视频高清封面已设为电脑桌面' : '高清壁纸已设为电脑桌面'
+      this.finishSkinTransfer(skinId, 'desktop', message)
+      this.log('INFO', `皮肤「${item.name}」${message}`)
+    } catch (error) {
+      this.failSkinTransfer(skinId, 'desktop', error)
+      this.log('ERROR', `设置电脑桌面失败：${this.snapshot.skins.transfers[skinId]?.message || '未知错误'}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
   async toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot> {
     this.snapshot.skins = await this.skinStore.toggleFavorite(skinId)
     const favorite = this.snapshot.skins.favoriteSkinIds.includes(skinId)
@@ -1346,7 +1371,7 @@ export class LauncherController {
     const paths = launcherDataPaths()
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
-    const expectedVersion = '0.5.0'
+    const expectedVersion = '0.6.0'
     const installedManifest = path.join(paths.dshHome, 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json')
     try {
       const manifest = JSON.parse(await readFile(installedManifest, 'utf8')) as { version?: string }
@@ -1368,10 +1393,12 @@ export class LauncherController {
     const pathKey = process.platform === 'win32' ? 'Path' : 'PATH'
     const commandPath = `${shimDirectory}${path.delimiter}${path.join(runtimeWithPackageManager.appRoot, 'node_modules', '.bin')}${path.delimiter}${sanitizedProcessEnvironment()[pathKey] || ''}`
     this.log('INFO', '正在配置皮肤与宠物运行插件')
+    await prepareAppearanceProfile(paths.dshHome, archive)
+    const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
     const child = spawnNode(runtimeWithPackageManager, [runtimeWithPackageManager.dsh, 'plugin', '--profile', 'web', 'add', archive, '--offline'], {
       cwd: this.config.settings.workspace,
       dshHome: paths.dshHome,
-      env: { npm_config_registry: this.registryUrl(), [pathKey]: commandPath }
+      env: { npm_config_registry: this.registryUrl(), ...profileEnvironment, [pathKey]: commandPath }
     })
     child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO'))
     child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
@@ -1653,15 +1680,20 @@ export class LauncherController {
     const previousProgress = previousIsActive ? previous.progress : 0
     const ratio = progress.totalBytes > 0 ? progress.receivedBytes / progress.totalBytes : 0
     const completedDownload = progress.status === 'completed'
-    const status = completedDownload && operation === 'apply'
+    const appliesAfterDownload = operation === 'apply' || operation === 'desktop'
+    const status = completedDownload && appliesAfterDownload
       ? 'applying'
       : progress.status
     const percent = progress.status === 'verifying'
       ? Math.max(previousProgress, progress.receivedBytes > 0 ? 94 : 3)
       : completedDownload
-        ? operation === 'apply' ? 97 : 100
+        ? appliesAfterDownload ? 97 : 100
         : Math.max(previousProgress, 2, Math.min(92, Math.round(ratio * 92)))
-    const message = completedDownload && operation === 'apply' ? '资源已就绪，正在写入 Harness 外观配置' : progress.message
+    const message = completedDownload && operation === 'apply'
+      ? '资源已就绪，正在写入 Harness 外观配置'
+      : completedDownload && operation === 'desktop'
+        ? '资源已就绪，正在刷新 Windows 桌面'
+        : progress.message
     this.snapshot.skins.transfers[skinId] = {
       operation,
       status,

@@ -43,6 +43,7 @@ const api: LauncherApi = {
   downloadSkin: (skinId) => ipcRenderer.invoke('launcher:download-skin', skinId),
   previewSkin: (skinId) => ipcRenderer.invoke('launcher:preview-skin', skinId),
   applySkin: (skinId) => ipcRenderer.invoke('launcher:apply-skin', skinId),
+  applySkinToDesktop: (skinId) => ipcRenderer.invoke('launcher:apply-skin-to-desktop', skinId),
   removeSkin: (skinId) => ipcRenderer.invoke('launcher:remove-skin', skinId),
   toggleSkinFavorite: (skinId) => ipcRenderer.invoke('launcher:toggle-skin-favorite', skinId),
   clearSkin: () => ipcRenderer.invoke('launcher:clear-skin'),

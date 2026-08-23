@@ -46,6 +46,7 @@ import {
   MessageCircle,
   MessageSquareText,
   Minus,
+  Monitor,
   Moon,
   Package,
   PackageCheck,
@@ -804,13 +805,14 @@ const skinKindLabels: Record<SkinMediaKind, string> = {
   video: '视频壁纸'
 }
 
-function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onRemove, onToggleFavorite, onClear }: {
+function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onApplyDesktop, onRemove, onToggleFavorite, onClear }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
   onDownload: (skinId: string) => void
   onPreview: (skinId: string) => Promise<SkinPreview | undefined>
   onApply: (skinId: string) => void
+  onApplyDesktop: (skinId: string) => void
   onRemove: (skinId: string) => void
   onToggleFavorite: (skinId: string) => void
   onClear: () => void
@@ -918,7 +920,8 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
               <div className="skin-card-actions">
                 <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(skin.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
                 <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(skin.id) : onDownload(skin.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>
-                <button className={active ? 'small-button' : 'primary-button'} disabled={Boolean(transferring) || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={14} />已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><Palette size={14} />应用</>}</button>
+                <button className={active ? 'small-button' : 'primary-button'} disabled={Boolean(transferring) || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={14} />Harness 已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><Palette size={14} />应用到 Harness</>}</button>
+                <button className="desktop-wallpaper-button" disabled={Boolean(transferring)} onClick={() => onApplyDesktop(skin.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : <Monitor size={14} />}设为电脑桌面</button>
               </div>
             </div>
           </article>
@@ -933,7 +936,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
           <div className="skin-preview-stage">
             {preview.mediaKind === 'video' ? <video src={preview.mediaUrl} poster={preview.posterUrl} controls autoPlay muted loop /> : <img src={preview.mediaUrl} alt={`${preview.name}高清预览`} />}
           </div>
-          <footer><span><ShieldCheck size={14} />已从本机缓存读取，关闭弹窗后仍可离线预览</span><button className="primary-button" disabled={snapshot.skins.activeSkinId === preview.skinId} onClick={() => onApply(preview.skinId)}>{snapshot.skins.activeSkinId === preview.skinId ? <><Check size={15} />正在使用</> : <><Palette size={15} />应用这款皮肤</>}</button></footer>
+          <footer><span><ShieldCheck size={14} />已从本机缓存读取，关闭弹窗后仍可离线预览</span><div className="skin-preview-actions"><button className="small-button" onClick={() => onApplyDesktop(preview.skinId)}><Monitor size={15} />设为电脑桌面</button><button className="primary-button" disabled={snapshot.skins.activeSkinId === preview.skinId} onClick={() => onApply(preview.skinId)}>{snapshot.skins.activeSkinId === preview.skinId ? <><Check size={15} />Harness 正在使用</> : <><Palette size={15} />应用到 Harness</>}</button></div></footer>
         </section>
       </div>}
     </div>
@@ -1846,6 +1849,10 @@ export default function App(): ReactNode {
     if (window.launcher) void window.launcher.applySkin(skinId).then(setSnapshot)
     else setSnapshot((current) => ({ ...current, skins: { ...current.skins, activeSkinId: skinId, downloadedSkinIds: [...new Set([...current.skins.downloadedSkinIds, skinId])], transfers: { ...current.skins.transfers, [skinId]: { operation: 'apply', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '皮肤已保存，下次启动 Harness 自动生效' } } } }))
   }
+  const applySkinToDesktop = (skinId: string): void => {
+    if (window.launcher) void window.launcher.applySkinToDesktop(skinId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, skins: { ...current.skins, downloadedSkinIds: [...new Set([...current.skins.downloadedSkinIds, skinId])], transfers: { ...current.skins.transfers, [skinId]: { operation: 'desktop', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '高清壁纸已设为电脑桌面' } } } }))
+  }
   const removeSkin = (skinId: string): void => {
     if (window.launcher) void window.launcher.removeSkin(skinId).then(setSnapshot)
     else setSnapshot((current) => ({ ...current, skins: { ...current.skins, activeSkinId: current.skins.activeSkinId === skinId ? undefined : current.skins.activeSkinId, downloadedSkinIds: current.skins.downloadedSkinIds.filter(id => id !== skinId), transfers: { ...current.skins.transfers, [skinId]: { operation: 'remove', status: 'completed', progress: 100, receivedBytes: 0, totalBytes: 0, message: '已从本机删除' } } } }))
@@ -1909,7 +1916,7 @@ export default function App(): ReactNode {
 
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
-          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
+          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}

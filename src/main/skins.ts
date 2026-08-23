@@ -382,6 +382,17 @@ export class SkinStore {
     return this.snapshot('ready')
   }
 
+  async desktopAsset(skinId: string, onProgress?: SkinDownloadReporter): Promise<{ state: SkinStoreState; mediaKind: SkinCatalogItem['mediaKind']; mediaPath: string; posterPath?: string }> {
+    const item = this.item(skinId)
+    const downloaded = await this.downloadItem(item, onProgress)
+    return {
+      state: await this.snapshot('ready'),
+      mediaKind: item.mediaKind,
+      mediaPath: downloaded.mediaPath,
+      ...(downloaded.posterPath ? { posterPath: downloaded.posterPath } : {})
+    }
+  }
+
   async remove(skinId: string): Promise<SkinStoreState> {
     const item = this.item(skinId)
     let activeSkinId: string | undefined

@@ -3,6 +3,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
   const React = require('react')
   const ReactDOM = require('react-dom')
   const STYLE_ID = '@deepblue/dsh-skin-runtime/appearance.css'
+  const CLARITY_STORAGE_KEY = 'deepblue-skin-clarity'
   if (document.querySelector(`style[data-plugin-css="${STYLE_ID}"]`) === null) {
     const tag = document.createElement('style')
     tag.dataset.plugin = '@deepblue/dsh-skin-runtime'
@@ -16,7 +17,14 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       .deepblue-skin-wallpaper > canvas { position: absolute; inset: 0; display: none; }
       .deepblue-skin-wallpaper[data-held='true'] > canvas { display: block; }
       .deepblue-skin-wallpaper[data-held='true'] > img { display: none; }
-      .deepblue-skin-wallpaper::after { content: ''; position: absolute; inset: 0; background: var(--deepblue-skin-overlay, rgba(2, 9, 20, .32)); }
+      .deepblue-skin-wallpaper::after { content: ''; position: absolute; inset: 0; background: var(--deepblue-skin-overlay-current, var(--deepblue-skin-overlay, rgba(2, 9, 20, .32))); transition: background .18s ease; }
+      .deepblue-skin-clarity-toggle { height: 32px; min-width: 88px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--dsw-alias-border-normal, rgba(122,139,164,.3)); border-radius: 8px; color: var(--dsw-alias-fg-secondary, #526071); background: var(--dsw-alias-bg-layer-1, rgba(255,255,255,.72)); box-shadow: 0 1px 2px rgba(10,25,48,.06); font: 600 12px/1 system-ui, sans-serif; white-space: nowrap; cursor: pointer; transition: color .15s ease, border-color .15s ease, background .15s ease; }
+      .deepblue-skin-clarity-toggle:hover { color: var(--dsw-alias-fg-primary, #182438); border-color: #7897dd; background: var(--dsw-alias-bg-layer-2, rgba(255,255,255,.86)); }
+      .deepblue-skin-clarity-toggle[aria-pressed='true'] { color: #155f8e; border-color: rgba(53,145,197,.64); background: rgba(218,242,255,.86); }
+      .deepblue-skin-clarity-icon { width: 16px; height: 13px; position: relative; flex: 0 0 auto; overflow: hidden; border: 1.5px solid currentColor; border-radius: 3px; }
+      .deepblue-skin-clarity-icon::before { content: ''; width: 4px; height: 4px; position: absolute; top: 2px; right: 2px; border-radius: 50%; background: currentColor; }
+      .deepblue-skin-clarity-icon::after { content: ''; width: 10px; height: 10px; position: absolute; left: 1px; bottom: -6px; border: 1.5px solid currentColor; transform: rotate(45deg); }
+      .deepblue-skin-clarity-toggle[aria-pressed='false'] .deepblue-skin-clarity-icon { opacity: .68; box-shadow: inset 0 0 0 4px rgba(255,255,255,.3); }
       .deepblue-pet-host { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
       .deepblue-pet { position: absolute; width: min(var(--deepblue-pet-width), 22vw); min-width: 96px; max-width: 280px; padding: 0; border: 0; background: transparent; cursor: grab; pointer-events: auto; touch-action: none; filter: drop-shadow(0 12px 13px rgba(7, 17, 31, .2)); }
       .deepblue-pet:active { cursor: grabbing; }
@@ -62,6 +70,49 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
   }
 
   const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
+
+  function readSkinClarity() {
+    try { return localStorage.getItem(CLARITY_STORAGE_KEY) === 'clear' }
+    catch { return false }
+  }
+
+  function applySkinClarity(config, clear) {
+    const root = document.documentElement
+    const opacity = Math.min(.98, Math.max(.2, Number(config.presentation?.surfaceOpacity) || .72))
+    const baseOpacity = Math.max(.18, opacity - .42)
+    root.dataset.deepblueSkinClarity = clear ? 'clear' : 'overlay'
+    root.style.setProperty('--deepblue-skin-overlay-current', clear ? 'transparent' : (config.presentation?.overlay || 'rgba(2, 9, 20, .32)'))
+    root.style.setProperty('--deepblue-skin-bg-base-light', `rgba(248, 251, 255, ${clear ? .035 : baseOpacity})`)
+    root.style.setProperty('--deepblue-skin-bg-base-dark', `rgba(4, 12, 23, ${clear ? .06 : baseOpacity})`)
+    root.style.setProperty('--deepblue-skin-bg-layer-1-light', `rgba(252, 253, 255, ${clear ? .07 : opacity})`)
+    root.style.setProperty('--deepblue-skin-bg-layer-1-dark', `rgba(10, 22, 38, ${clear ? .1 : opacity})`)
+    root.style.setProperty('--deepblue-skin-bg-layer-2-light', `rgba(248, 251, 255, ${clear ? .12 : Math.min(.98, opacity + .08)})`)
+    root.style.setProperty('--deepblue-skin-bg-layer-2-dark', `rgba(13, 27, 46, ${clear ? .15 : Math.min(.98, opacity + .08)})`)
+    root.style.setProperty('--deepblue-skin-sidebar-light', `rgba(244, 248, 255, ${clear ? .09 : Math.min(.96, opacity + .04)})`)
+    root.style.setProperty('--deepblue-skin-sidebar-dark', `rgba(7, 18, 33, ${clear ? .12 : Math.min(.96, opacity + .04)})`)
+  }
+
+  function SkinClarityToggle({ config }) {
+    const [clear, setClear] = React.useState(readSkinClarity)
+    React.useEffect(() => { applySkinClarity(config, clear) }, [config.skinId, clear])
+    const toggle = () => {
+      setClear(current => {
+        const next = !current
+        try { localStorage.setItem(CLARITY_STORAGE_KEY, next ? 'clear' : 'overlay') } catch { /* Local storage can be unavailable in hardened browser profiles. */ }
+        applySkinClarity(config, next)
+        return next
+      })
+    }
+    const label = clear ? '恢复蒙版' : '清透壁纸'
+    return React.createElement('button', {
+      type: 'button',
+      className: 'deepblue-skin-clarity-toggle',
+      'aria-label': clear ? '恢复壁纸蒙版' : '去除壁纸蒙版，高清直显',
+      'aria-pressed': String(clear),
+      title: clear ? '当前为高清直显，点击恢复蒙版' : '去除白色蒙版，直接显示高清壁纸',
+      onClick: toggle
+    }, React.createElement('span', { className: 'deepblue-skin-clarity-icon', 'aria-hidden': 'true' }), React.createElement('span', null, label))
+  }
 
   /**
    * Animated GIF and WebP frames are driven by the decoder, not by CSS, so the
@@ -229,16 +280,16 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
   exports.apply = async function apply(ctx) {
     const [skin, pet] = await Promise.all([loadConfig('/deepblue-skin/config'), loadConfig('/deepblue-pet/config')])
     if (skin?.schemaVersion === 1 && ['image', 'animated-image', 'video'].includes(skin.mediaKind) && typeof skin.mediaUrl === 'string') {
-      const opacity = Math.min(.98, Math.max(.2, Number(skin.presentation?.surfaceOpacity) || .72))
-      const baseOpacity = Math.max(.18, opacity - .42)
+      applySkinClarity(skin, readSkinClarity())
       ctx.effect(() => ctx.theme.overrideTokens('@deepblue/dsh-skin-runtime', {
-        '--dsw-alias-bg-base': { light: `rgba(248, 251, 255, ${baseOpacity})`, dark: `rgba(4, 12, 23, ${baseOpacity})` },
-        '--dsw-alias-bg-layer-1': { light: `rgba(252, 253, 255, ${opacity})`, dark: `rgba(10, 22, 38, ${opacity})` },
-        '--dsw-alias-bg-layer-2': { light: `rgba(248, 251, 255, ${Math.min(.98, opacity + .08)})`, dark: `rgba(13, 27, 46, ${Math.min(.98, opacity + .08)})` },
+        '--dsw-alias-bg-base': { light: 'var(--deepblue-skin-bg-base-light)', dark: 'var(--deepblue-skin-bg-base-dark)' },
+        '--dsw-alias-bg-layer-1': { light: 'var(--deepblue-skin-bg-layer-1-light)', dark: 'var(--deepblue-skin-bg-layer-1-dark)' },
+        '--dsw-alias-bg-layer-2': { light: 'var(--deepblue-skin-bg-layer-2-light)', dark: 'var(--deepblue-skin-bg-layer-2-dark)' },
         '--dsw-alias-bg-overlay': { light: 'rgba(255, 255, 255, .94)', dark: 'rgba(12, 24, 40, .94)' },
-        '--dsw-specific-sidebar-fill': { light: `rgba(244, 248, 255, ${Math.min(.96, opacity + .04)})`, dark: `rgba(7, 18, 33, ${Math.min(.96, opacity + .04)})` }
+        '--dsw-specific-sidebar-fill': { light: 'var(--deepblue-skin-sidebar-light)', dark: 'var(--deepblue-skin-sidebar-dark)' }
       }), 'deepblue skin surface translucency')
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'deepblue-skin-wallpaper', order: -1000, inject: () => ({ config: skin }) }, Wallpaper))
+      ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: 'deepblue-skin-clarity-toggle', order: 90, inject: () => ({ config: skin }) }, SkinClarityToggle))
     }
     if (pet?.schemaVersion === 1 && ['static', 'animated'].includes(pet.mediaKind) && typeof pet.mediaUrl === 'string' && pet.behavior) {
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'deepblue-web-pet', order: 1000, inject: () => ({ config: pet }) }, Pet))

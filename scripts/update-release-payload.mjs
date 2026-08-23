@@ -28,6 +28,10 @@ payload.harness = bundledVersions.map((entry) => ({
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '皮肤卡片新增“应用到 Harness”和“设为电脑桌面”双入口；静态图与动图自动转成稳定 PNG，视频壁纸使用高清封面，并通过 Windows 用户级桌面接口即时应用',
+    'Harness 会话页头在 Session log 旁新增“清透壁纸 / 恢复蒙版”快捷切换；清透状态移除壁纸蒙版并把内容表面降至轻透明，选择会在本机持久保存',
+    '外观插件升级到 0.6.0，并修复旧 web profile 的 pnpm 缓存目录不一致与失效安装包路径，旧用户可自动完成插件热升级',
+    'Harness Web 统一由启动器控制是否打开浏览器，后台启动命令不再重复弹出默认浏览器窗口',
     '兼容 Gitee 原始文件服务的官方 raw.giteeusercontent.com 跳转，0.10.13 模块分片会真正走 Gitee 首选线路并继续执行逐片摘要校验',
     'Gitee 的 0.10.13 UI 壳与运行模块改为 5 MB 内容寻址分片；每片及整包均按签名目录校验，可在免费仓库限制下稳定匿名下载',
     '皮肤商店新增“全部商店、正在使用、我的收藏”三个视图；收藏保存在本机用户数据中，重启后仍可直接查看、切换或取消收藏',

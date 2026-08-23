@@ -53,3 +53,21 @@ describe('animated wallpaper and pet frame hold', () => {
     expect(client).toContain('return active && held')
   })
 })
+
+describe('wallpaper clarity control', () => {
+  it('registers the two-state control next to the session utilities and persists the choice', async () => {
+    const client = await readFile(CLIENT, 'utf8')
+    expect(client).toContain("conversation.session.header.utilities")
+    expect(client).toContain("id: 'deepblue-skin-clarity-toggle'")
+    expect(client).toContain("localStorage.setItem(CLARITY_STORAGE_KEY")
+    expect(client).toContain("'清透壁纸'")
+    expect(client).toContain("'恢复蒙版'")
+  })
+
+  it('removes both the wallpaper overlay and opaque content surfaces in clear mode', async () => {
+    const client = await readFile(CLIENT, 'utf8')
+    expect(client).toContain("clear ? 'transparent'")
+    expect(client).toContain('--deepblue-skin-bg-layer-1-light')
+    expect(client).toContain("var(--deepblue-skin-bg-layer-1-light)")
+  })
+})

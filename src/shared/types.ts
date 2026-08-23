@@ -433,7 +433,7 @@ export interface SkinStoreState {
   message?: string
 }
 
-export type SkinTransferOperation = 'download' | 'preview' | 'apply' | 'remove'
+export type SkinTransferOperation = 'download' | 'preview' | 'apply' | 'desktop' | 'remove'
 export type SkinTransferStatus = 'queued' | 'downloading' | 'verifying' | 'applying' | 'removing' | 'completed' | 'failed'
 
 export interface SkinTransferState {
@@ -663,6 +663,7 @@ export interface LauncherApi {
   downloadSkin(skinId: string): Promise<LauncherSnapshot>
   previewSkin(skinId: string): Promise<SkinPreviewResult>
   applySkin(skinId: string): Promise<LauncherSnapshot>
+  applySkinToDesktop(skinId: string): Promise<LauncherSnapshot>
   removeSkin(skinId: string): Promise<LauncherSnapshot>
   toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot>
   clearSkin(): Promise<LauncherSnapshot>

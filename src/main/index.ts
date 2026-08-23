@@ -104,6 +104,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:download-skin', (_event, skinId: string) => controller?.downloadSkin(skinId))
   ipcMain.handle('launcher:preview-skin', (_event, skinId: string) => controller?.previewSkin(skinId))
   ipcMain.handle('launcher:apply-skin', (_event, skinId: string) => controller?.applySkin(skinId))
+  ipcMain.handle('launcher:apply-skin-to-desktop', (_event, skinId: string) => controller?.applySkinToDesktop(skinId))
   ipcMain.handle('launcher:remove-skin', (_event, skinId: string) => controller?.removeSkin(skinId))
   ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
   ipcMain.handle('launcher:clear-skin', () => controller?.clearSkin())
