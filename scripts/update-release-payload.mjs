@@ -28,6 +28,7 @@ payload.harness = bundledVersions.map((entry) => ({
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    'Gitee 运行资源迁移到视频资源仓的独立 runtime-assets 分支，与皮肤目录和视频素材分支隔离；国内首选下载线路不变，同时避开旧运行仓容量上限',
     '动态桌面正式支持 GIF、动态 WebP、MP4 与 WebM：直接播放签名目录中的原媒体，不再把动图降级成首帧、把视频降级成封面',
     '新增 Windows 10/11 桌面图标后方的常驻渲染层，多显示器分别铺满；关闭主窗口后由托盘继续播放，可在皮肤卡片、高清预览或托盘一键停止',
     '动态桌面选择会安全保存在本机，下次启动自动恢复；退出启动器时停止渲染并保留底层 Windows 静态壁纸，静态高清图仍走系统原生壁纸接口',

@@ -83,7 +83,7 @@ describe('catalog signature verification', () => {
 
   it('accepts signed Gitee multipart mirrors only when every part is bounded and totals the artifact size', () => {
     const first = {
-      url: 'https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/runtime-v0.10.13/node.tar.gz.part001',
+      url: 'https://gitee.com/wanggp123/deepseek-harness-skins-video/raw/runtime-assets/runtime-v0.10.20/node.tar.gz.part001',
       sha256: 'b'.repeat(64),
       size: 4
     }

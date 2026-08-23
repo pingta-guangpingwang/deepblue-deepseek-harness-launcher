@@ -9,7 +9,7 @@
 - OSS/CDN 基础地址；
 - npmmirror 或其他 npm registry。
 
-GitHub 保存源码和最终备用的 Release 附件；Gitee 的 `runtime-assets` 固定资源分支是国内首选模块镜像；OSS/CDN 是国内第二线路，并发布不到 1 MB 的联网引导器、内容寻址模块和 `release-v2/launcher-manifest.json`。完整离线包仍只放百度网盘兜底。
+GitHub 保存源码和最终备用的 Release 附件；Gitee 视频资源仓的 `runtime-assets` 独立分支是国内首选模块镜像，与皮肤目录所在的 `master` 分支隔离；OSS/CDN 是国内第二线路，并发布不到 1 MB 的联网引导器、内容寻址模块和 `release-v2/launcher-manifest.json`。完整离线包仍只放百度网盘兜底。
 
 ## 2. 生成签名密钥
 

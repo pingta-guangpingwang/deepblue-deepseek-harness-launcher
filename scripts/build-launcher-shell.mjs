@@ -103,7 +103,7 @@ async function splitForGitee(file, fileName, tag) {
       const partName = `${fileName}.part${String(index).padStart(3, '0')}`
       await writeFile(path.join(targetRoot, partName), body)
       parts.push({
-        url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${partName}`,
+        url: `https://gitee.com/wanggp123/deepseek-harness-skins-video/raw/runtime-assets/${tag}/${partName}`,
         sha256: createHash('sha256').update(body).digest('hex'),
         size: bytesRead
       })

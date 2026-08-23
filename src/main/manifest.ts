@@ -46,7 +46,7 @@ function validRuntimeArtifact(value: unknown): value is RuntimeModuleArtifact {
       const validPath = mirror.id === 'github'
         ? url.pathname.startsWith('/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/')
         : mirror.id === 'gitee'
-          ? ['/wanggp123/deepseek-harness-launcher/', '/pingta-guangpingwang/deepblue-deepseek-harness-launcher/'].some((prefix) => url.pathname.startsWith(prefix))
+          ? ['/wanggp123/deepseek-harness-launcher/', '/wanggp123/deepseek-harness-skins-video/', '/pingta-guangpingwang/deepblue-deepseek-harness-launcher/'].some((prefix) => url.pathname.startsWith(prefix))
           : url.pathname.startsWith('/modules/')
       const validUrl = url.protocol === 'https:' && !url.username && !url.password && !url.hash && !!hosts?.has(url.hostname) && validPath
       if (!validUrl) return false
@@ -63,7 +63,7 @@ function validRuntimeArtifact(value: unknown): value is RuntimeModuleArtifact {
         try {
           const partUrl = new URL(part.url)
           if (partUrl.protocol !== 'https:' || partUrl.hostname !== 'gitee.com' || partUrl.username || partUrl.password || partUrl.hash) return false
-          if (!partUrl.pathname.startsWith('/wanggp123/deepseek-harness-launcher/raw/runtime-assets/')) return false
+          if (!['/wanggp123/deepseek-harness-launcher/raw/runtime-assets/', '/wanggp123/deepseek-harness-skins-video/raw/runtime-assets/'].some((prefix) => partUrl.pathname.startsWith(prefix))) return false
         } catch {
           return false
         }

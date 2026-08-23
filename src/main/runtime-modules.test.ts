@@ -179,7 +179,7 @@ describe('runtime module store', () => {
       if (String(url).startsWith('https://gitee.com/')) {
         return new Response(null, {
           status: 302,
-          headers: { location: 'https://raw.giteeusercontent.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/runtime-v0.10.13/node.tar.gz.part001?signature=test' }
+          headers: { location: 'https://raw.giteeusercontent.com/wanggp123/deepseek-harness-skins-video/raw/runtime-assets/runtime-v0.10.20/node.tar.gz.part001?signature=test' }
         })
       }
       return new Response(responseBody(item.archive), { status: 200, headers: { 'content-length': String(item.archive.byteLength) } })
