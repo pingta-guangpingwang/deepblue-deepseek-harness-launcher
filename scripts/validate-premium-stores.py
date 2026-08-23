@@ -58,14 +58,16 @@ def main() -> int:
     pet_payload = json.loads((root / "pet-store" / "catalog.payload.json").read_text(encoding="utf-8"))
     skins, pets = skin_payload["items"], pet_payload["items"]
     check(len(skins) >= 63, f"Expected at least 63 skins, got {len(skins)}")
-    check(len(pets) >= 56, f"Expected at least 56 pets, got {len(pets)}")
+    check(len(pets) >= 50, f"Expected at least 50 pets, got {len(pets)}")
     check(len({item["id"] for item in skins}) == len(skins), "Duplicate skin id")
     check(len({item["id"] for item in pets}) == len(pets), "Duplicate pet id")
     check(sum(item["mediaKind"] == "video" for item in skins) >= 22, "Expected at least 22 video skins")
 
     new_pets = [item for item in pets if item["id"].startswith("sd2-")]
     check(len(new_pets) == 50, f"Expected 50 generated pets, got {len(new_pets)}")
+    check(len(new_pets) == len(pets), "Pet catalog must not contain legacy static pets")
     for item in new_pets:
+        check(item.get("mediaKind") == "animated", f"Pet is not declared animated: {item['id']}")
         local = root / "pet-store" / "assets" / Path(item["media"]["url"]).name
         with Image.open(local) as image:
             check(image.size == (360, 360), f"Unexpected pet canvas: {local}")

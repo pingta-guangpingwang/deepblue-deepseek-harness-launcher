@@ -40,6 +40,7 @@ if (manifest.algorithm !== 'ed25519' || manifest.payload?.schemaVersion !== 1 ||
 if (!verify(null, Buffer.from(JSON.stringify(manifest.payload)), publicKey, Buffer.from(manifest.signature, 'base64'))) throw new Error('Pet catalog signature is invalid')
 
 for (const item of manifest.payload.items) {
+  if (item.mediaKind !== 'animated') throw new Error(`${item.id} is not an animated pet`)
   for (const [folder, asset] of [['thumbnails', item.thumbnail], ['assets', item.media]]) {
     const filename = new URL(asset.url).pathname.split('/').at(-1)
     const target = path.join(assetRoot, folder, filename)

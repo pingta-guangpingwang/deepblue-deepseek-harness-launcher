@@ -139,8 +139,8 @@ export const mockSnapshot: LauncherSnapshot = {
     status: 'ready',
     source: 'remote',
     generatedAt: petCatalog.generatedAt,
-    activePetId: 'deepblue-whale-helper',
-    downloadedPetIds: ['deepblue-whale-helper'],
+    activePetId: 'sd2-cloud-cat-luna',
+    downloadedPetIds: ['sd2-cloud-cat-luna'],
     items: petCatalog.items as LauncherSnapshot['pets']['items']
   },
   settings: {

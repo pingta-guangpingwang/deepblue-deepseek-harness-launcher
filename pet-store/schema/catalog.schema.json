@@ -14,7 +14,16 @@
         "schemaVersion": { "const": 1 },
         "generatedAt": { "type": "string", "format": "date-time" },
         "pageSize": { "const": 20 },
-        "items": { "type": "array" }
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "mediaKind", "thumbnail", "media", "license", "behavior"],
+            "properties": {
+              "mediaKind": { "const": "animated" }
+            }
+          }
+        }
       }
     }
   }
