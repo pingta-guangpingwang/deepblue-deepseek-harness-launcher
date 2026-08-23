@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { nextFavoriteSkinIds, verifySkinCatalog } from './skins'
+import { isSkinResponseTypeCompatible, nextFavoriteSkinIds, verifySkinCatalog } from './skins'
 import type { SignedSkinCatalogManifest, SkinCatalogPayload } from '../shared/types'
 
 const payload: SkinCatalogPayload = {
@@ -34,5 +34,20 @@ describe('skin favorites', () => {
   it('adds a favorite to the front and removes it on the next toggle', () => {
     expect(nextFavoriteSkinIds(['skin-b', 'skin-b'], 'skin-a')).toEqual(['skin-a', 'skin-b'])
     expect(nextFavoriteSkinIds(['skin-a', 'skin-b'], 'skin-a')).toEqual(['skin-b'])
+  })
+})
+
+describe('skin response media compatibility', () => {
+  it('accepts trusted image transcoding while rejecting cross-category content', () => {
+    expect(isSkinResponseTypeCompatible('image/jpeg', 'image/webp')).toBe(true)
+    expect(isSkinResponseTypeCompatible('video/mp4', 'video/webm')).toBe(true)
+    expect(isSkinResponseTypeCompatible('video/mp4', 'text/html')).toBe(false)
+    expect(isSkinResponseTypeCompatible('image/png', 'video/mp4')).toBe(false)
+  })
+
+  it('accepts exact, absent and generic binary response types', () => {
+    expect(isSkinResponseTypeCompatible('image/png', 'image/png')).toBe(true)
+    expect(isSkinResponseTypeCompatible('image/png', 'application/octet-stream')).toBe(true)
+    expect(isSkinResponseTypeCompatible('image/png')).toBe(true)
   })
 })

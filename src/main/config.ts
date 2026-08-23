@@ -12,18 +12,18 @@ const defaultSources: SourceConfig[] = [
     kind: 'repository'
   },
   {
+    id: 'runtime-v2',
+    name: 'OSS 运行时目录',
+    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json',
+    enabled: true,
+    kind: 'manifest'
+  },
+  {
     id: 'github',
     name: 'GitHub',
     baseUrl: 'https://github.com/pingta-guangpingwang/deepseek-harness.git',
     enabled: true,
     kind: 'repository'
-  },
-  {
-    id: 'runtime-v2',
-    name: '运行时模块目录',
-    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json',
-    enabled: true,
-    kind: 'manifest'
   },
   {
     id: 'npmmirror',

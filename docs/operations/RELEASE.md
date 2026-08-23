@@ -9,7 +9,7 @@
 - OSS/CDN 基础地址；
 - npmmirror 或其他 npm registry。
 
-GitHub 保存源码和内容寻址模块；Gitee 仓库只在真实可用后加入镜像。OSS/CDN 对外发布不到 1 MB 的联网引导器和 `release-v2/launcher-manifest.json`，不承载大模块与完整离线包日常流量。
+GitHub 保存源码和最终备用的 Release 附件；Gitee 的 `runtime-assets` 固定资源分支是国内首选模块镜像；OSS/CDN 是国内第二线路，并发布不到 1 MB 的联网引导器、内容寻址模块和 `release-v2/launcher-manifest.json`。完整离线包仍只放百度网盘兜底。
 
 ## 2. 生成签名密钥
 
@@ -48,7 +48,7 @@ Windows Authenticode 的开源免费路径见 [Code signing policy](../CODE_SIGN
 2. UI 壳打包必须从 `out/main/index.js` 自动发现所有第三方裸导入并带齐依赖闭包；成品安装目录启动后若出现 `ERR_MODULE_NOT_FOUND`，整次发布立即失败。
 3. 使用 Microsoft Defender 扫描联网引导器、完整离线 EXE 和安装后的完整目录，任何检测都阻止发布。
 4. Windows 正式安装器必须以 `Get-AuthenticodeSignature` 验证为 `Valid`；下载页显示的发布者必须与批准的 SignPath Foundation 证书一致。未获批阶段只允许明确标为 unsigned beta，不能把更新目录的 Ed25519 签名当作 Authenticode。
-5. 把 UI 壳和运行模块发布为 GitHub Release 附件；OSS只同步联网引导器和签名清单。完整离线包发布到百度网盘。Gitee/OSS 大模块只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
+5. 把 UI 壳和运行模块同时发布为 Gitee、OSS、GitHub 三条真实公开线路，顺序固定为 Gitee → OSS → GitHub；完整离线包发布到百度网盘。三条线路只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
    OSS 的公开下载对象必须在上传时显式指定 `--acl public-read`，不得依赖 Bucket 的默认私有 ACL，也不得使用 `public-read-write`。例如：
 
    ```sh
@@ -56,8 +56,8 @@ Windows Authenticode 的开源免费路径见 [Code signing policy](../CODE_SIGN
    ```
 
    稳定地址被覆盖后，必须在不携带 OSS 凭据的普通网络环境执行 `npm run release:verify-public-downloads`。任意地址不是 HTTPS、返回非 200、缺少正整数 `Content-Length` 或内容为 XML 错误页，都必须中止发布。该约定只赋予匿名读取；Bucket 列目录、上传、覆盖和删除权限继续保持关闭。
-5. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
-6. 使用生产私钥签名：
+6. 运行 `npm run catalog:prepare`，把小型联网引导器和 `runtime-modules.generated.json` 写入 schema-2 payload。
+7. 使用生产私钥签名：
 
 ```sh
 LAUNCHER_SIGNING_KEY=/secure/runtime-production-v2-1-private.pem \
@@ -65,10 +65,11 @@ LAUNCHER_SIGNING_KEY_ID=runtime-production-v2-1 \
 npm run sign:manifest -- release/launcher-catalog-payload.json release/launcher-manifest-v2.json
 ```
 
-7. 把签名后的清单原子发布到 OSS `release-v2/launcher-manifest.json`。
-8. 用上一正式版启动器执行“检查更新”，验证差异模块确认弹窗、每模块与总进度、公开渠道预检、主渠道失败后的自动回退、签名、SHA-256、失败整批回滚和成功后自动重启；清单中的每条应急 URL 都必须在无凭据客户端返回可下载响应，403/404 地址不得发布。
-9. 将通过审核并重新签名的目录同步到三个固定公开 Gitee 仓库：皮肤主仓、皮肤视频分仓和宠物仓。皮肤主仓的 `catalog.json` 同时索引主仓与视频分仓媒体；`catalog.json`、`trust.json` 与资源地址均为固定 URL。安装包只携带目录正文作为离线浏览兜底，不携带商店媒体，也不得再接入任意外部来源目录。
-10. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
+8. 把签名后的清单原子发布到 OSS `release-v2/launcher-manifest.json`，并覆盖永久在线安装器地址。
+9. 必须运行 `npm run release:smoke-public-fresh-install`。该门禁会匿名下载永久公开 EXE，在全新临时目录安装，不使用任何本机 UI 壳或运行模块，继续通过公网安装 Node.js、Harness 并启动 Harness Web。只有报告、环境探针和本地 HTTP 可用性全部通过才算发布成功；`bootstrap:smoke-local-artifact` 仅是构建期快速检查，不能替代此门禁。
+10. 用上一正式版启动器执行“检查更新”，验证差异模块确认弹窗、每模块与总进度、公开渠道预检、主渠道失败后的自动回退、签名、SHA-256、失败整批回滚和成功后自动重启；清单中的每条应急 URL 都必须在无凭据客户端返回可下载响应，403/404 地址不得发布。
+11. 将通过审核并重新签名的目录同步到三个固定公开 Gitee 仓库：皮肤主仓、皮肤视频分仓和宠物仓。皮肤主仓的 `catalog.json` 同时索引主仓与视频分仓媒体；`catalog.json`、`trust.json` 与资源地址均为固定 URL。安装包只携带目录正文作为离线浏览兜底，不携带商店媒体，也不得再接入任意外部来源目录。
+12. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
 
 ## 5. 灰度和回滚
 

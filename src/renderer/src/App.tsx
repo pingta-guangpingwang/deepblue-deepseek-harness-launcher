@@ -91,6 +91,7 @@ import type {
   PetSpecies,
   PetStyle,
   SkinMediaKind,
+  SkinPreview,
   SkinStyle,
   SourceHealth
 } from '../../shared/types'
@@ -356,6 +357,7 @@ function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSo
   const ready = coreRuntimeReady(snapshot.environment)
   const running = snapshot.runStatus === 'running'
   const transitioning = snapshot.runStatus === 'starting' || snapshot.runStatus === 'stopping'
+  const showLaunchProgress = snapshot.launchProgress.status !== 'idle'
   return (
     <div className="dashboard-grid">
       <section className="deepseek-hero">
@@ -377,8 +379,12 @@ function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSo
           <span className={classNames('launch-status-icon', ready && 'ready', snapshot.runStatus === 'error' && 'error')}>
             {snapshot.runStatus === 'error' ? <CircleAlert /> : running ? <Activity /> : <Check />}
           </span>
-          <div><span>运行状态</span><h2>{running ? 'Harness 正在运行' : ready ? '环境已就绪' : '需要完成环境修复'}</h2><p>{running ? `本地服务已在 ${snapshot.serviceUrl} 就绪。` : ready ? '所有必要组件已准备好，可以立即启动。' : '启动器会尝试补齐缺失组件。'}</p></div>
+          <div><span>运行状态</span><h2>{running ? 'Harness 正在运行' : snapshot.runStatus === 'starting' ? 'Harness 正在启动' : ready ? '环境已就绪' : '需要完成环境修复'}</h2><p>{running ? `本地服务已在 ${snapshot.serviceUrl} 就绪。` : snapshot.runStatus === 'starting' ? snapshot.launchProgress.message : ready ? '所有必要组件已准备好，可以立即启动。' : '启动器会尝试补齐缺失组件。'}</p></div>
         </div>
+        {showLaunchProgress && <div className={classNames('harness-launch-progress', snapshot.launchProgress.status)} aria-live="polite">
+          <div><span>{snapshot.launchProgress.message}</span><strong>{snapshot.launchProgress.progress}%</strong></div>
+          <div className="harness-launch-progress-track" role="progressbar" aria-label="DeepSeek Harness 启动进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={snapshot.launchProgress.progress}><span style={{ width: `${snapshot.launchProgress.progress}%` }} /></div>
+        </div>}
         <div className="launch-actions">
           <button className={classNames('launch-button', running && 'stop')} disabled={transitioning || !!busy} onClick={running ? onStop : onStart}>
             {transitioning ? <LoaderCircle className="spin" /> : running ? <CircleStop /> : <Play fill="currentColor" />}
@@ -472,7 +478,7 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
 
       <div className="version-side-column">
         <Card title="下载源" action={<button className="icon-button" onClick={onSources}><RefreshCw size={15} /></button>}>
-          <p className="card-intro">下载前检测签名渠道；清单提供多个真实镜像时，失败会自动切换。当前大模块使用 GitHub。</p>
+          <p className="card-intro">下载前按 Gitee、OSS、GitHub 顺序检测签名渠道；当前线路不可用或持续无进度时立即自动切换。</p>
           <div className="source-priority">
             {snapshot.sources.map((source, index) => (
               <div key={source.id}><span>{index + 1}</span><strong>{source.name}</strong><StatusDot status={source.status} /><small>{source.latencyMs ? `${source.latencyMs}ms` : source.status === 'unconfigured' ? '待配置' : '—'}</small></div>
@@ -798,20 +804,30 @@ const skinKindLabels: Record<SkinMediaKind, string> = {
   video: '视频壁纸'
 }
 
-function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, onClear }: {
+function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onRemove, onToggleFavorite, onClear }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
+  onDownload: (skinId: string) => void
+  onPreview: (skinId: string) => Promise<SkinPreview | undefined>
   onApply: (skinId: string) => void
+  onRemove: (skinId: string) => void
   onToggleFavorite: (skinId: string) => void
   onClear: () => void
 }): ReactNode {
+  const [preview, setPreview] = useState<SkinPreview>()
   const [view, setView] = useState<'all' | 'current' | 'favorites'>('all')
   const [query, setQuery] = useState('')
   const [style, setStyle] = useState<SkinStyle | 'all'>('all')
   const [kind, setKind] = useState<SkinMediaKind | 'all'>('all')
   const [page, setPage] = useState(1)
   const { viewportRef, pageSize } = useAdaptiveCatalogCapacity()
+  useEffect(() => {
+    if (!preview) return
+    const closeOnEscape = (event: globalThis.KeyboardEvent): void => { if (event.key === 'Escape') setPreview(undefined) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [preview])
   const favorites = new Set(snapshot.skins.favoriteSkinIds)
   const downloaded = new Set(snapshot.skins.downloadedSkinIds)
   const viewItems = snapshot.skins.items.filter((skin) => {
@@ -840,6 +856,10 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, o
     : view === 'favorites'
       ? { title: '还没有收藏皮肤', text: '在商店点击心形按钮，就能建立自己的皮肤库。' }
       : { title: '没有匹配的皮肤', text: '换一个分类或清空搜索词。' }
+  const openPreview = async (skinId: string): Promise<void> => {
+    const result = await onPreview(skinId)
+    if (result) setPreview(result)
+  }
   return (
     <div className="skin-store-layout catalog-store-layout">
       <Card className="skin-store-hero">
@@ -876,6 +896,8 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, o
         const active = snapshot.skins.activeSkinId === skin.id
         const cached = downloaded.has(skin.id)
         const favorite = favorites.has(skin.id)
+        const transfer = snapshot.skins.transfers[skin.id]
+        const transferring = transfer && ['queued', 'downloading', 'verifying', 'applying', 'removing'].includes(transfer.status)
         return (
           <article className={classNames('skin-card', active && 'active')} key={skin.id}>
             <div className="skin-preview">
@@ -889,7 +911,15 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, o
               <div className="skin-title-row"><div><h2>{skin.name}</h2><p>{skin.description}</p></div></div>
               <div className="tag-row">{skin.styles.map((entry) => <span key={entry}>{skinStyleLabels[entry]}</span>)}{skin.tags.filter((tag) => !skin.styles.some((entry) => skinStyleLabels[entry] === tag)).slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
               <div className="skin-license"><ShieldCheck size={14} /><span>{skin.license.name} · {skin.license.author}</span><button onClick={() => void window.launcher?.openExternal(skin.license.sourceUrl)}><ExternalLink size={12} /></button></div>
-              <button className={active ? 'small-button' : 'primary-button'} disabled={!!busy || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={15} />已应用</> : cached ? <><Palette size={15} />立即应用</> : <><CloudDownload size={15} />下载并应用 · {(skin.media.size / 1024 / 1024).toFixed(1)} MB</>}</button>
+              {transfer && <div className={classNames('skin-transfer-progress', transfer.status)} title={transfer.message} aria-live="polite">
+                <span className="skin-transfer-fill" style={{ width: `${Math.max(3, transfer.progress)}%` }} />
+                <div role="progressbar" aria-label={`${skin.name}${transfer.message}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={transfer.progress}><span>{transfer.message}</span><strong>{transfer.status === 'failed' ? '失败' : `${transfer.progress}%`}</strong></div>
+              </div>}
+              <div className="skin-card-actions">
+                <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(skin.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
+                <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(skin.id) : onDownload(skin.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>
+                <button className={active ? 'small-button' : 'primary-button'} disabled={Boolean(transferring) || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={14} />已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><Palette size={14} />应用</>}</button>
+              </div>
             </div>
           </article>
         )
@@ -897,6 +927,15 @@ function SkinStorePage({ snapshot, busy, onRefresh, onApply, onToggleFavorite, o
       </div>
 
       <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.skins.activeSkinId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>恢复 Harness 默认皮肤</button> : undefined} />
+      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}>
+        <section className="skin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="skin-preview-title">
+          <header><div><span>本机高清预览</span><h2 id="skin-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭高清预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header>
+          <div className="skin-preview-stage">
+            {preview.mediaKind === 'video' ? <video src={preview.mediaUrl} poster={preview.posterUrl} controls autoPlay muted loop /> : <img src={preview.mediaUrl} alt={`${preview.name}高清预览`} />}
+          </div>
+          <footer><span><ShieldCheck size={14} />已从本机缓存读取，关闭弹窗后仍可离线预览</span><button className="primary-button" disabled={snapshot.skins.activeSkinId === preview.skinId} onClick={() => onApply(preview.skinId)}>{snapshot.skins.activeSkinId === preview.skinId ? <><Check size={15} />正在使用</> : <><Palette size={15} />应用这款皮肤</>}</button></footer>
+        </section>
+      </div>}
     </div>
   )
 }
@@ -1597,7 +1636,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
         <label className="field-label"><span>更新通道<small>稳定版优先；预览版更快获得新能力</small></span><select value={draft.channel} onChange={(event) => setDraft({ ...draft, channel: event.target.value as LauncherSettings['channel'] })}><option value="stable">稳定版</option><option value="preview">预览版</option></select></label>
       </Card>
       <Card className="source-settings" title="下载与仓库源">
-        <p className="card-intro">运行模块固定按 Gitee、GitHub、OSS 的顺序探测与切换；OSS 只作最后应急兜底。npmmirror 负责 npm 软件包和插件依赖。</p>
+        <p className="card-intro">运行模块固定按 Gitee、OSS、GitHub 的顺序探测与切换；OSS 是国内备用，GitHub 放在最后。npmmirror 负责 npm 软件包和插件依赖。</p>
         {draft.sources.map((source, index) => (
           <div className="source-setting-row" key={source.id}>
             <Toggle checked={source.enabled} onChange={(enabled) => updateSource(index, { enabled })} />
@@ -1665,13 +1704,14 @@ export default function App(): ReactNode {
   const start = (): void => {
     if (window.launcher) void run('start', () => window.launcher!.startHarness())
     else {
-      setSnapshot((current) => ({ ...current, runStatus: 'starting' }))
-      window.setTimeout(() => setSnapshot((current) => ({ ...current, runStatus: 'running', serviceUrl: `http://127.0.0.1:${current.settings.port}`, logs: [...current.logs, { id: Date.now(), time: new Date().toLocaleTimeString('zh-CN', { hour12: false }), level: 'INFO', message: `Harness 已就绪：http://127.0.0.1:${current.settings.port}` }] })), 900)
+      setSnapshot((current) => ({ ...current, runStatus: 'starting', launchProgress: { status: 'starting', progress: 58, message: '正在同步模型配置与本机密钥' } }))
+      window.setTimeout(() => setSnapshot((current) => ({ ...current, launchProgress: { status: 'waiting', progress: 82, message: `正在等待本地服务端口 ${current.settings.port} 就绪` } })), 420)
+      window.setTimeout(() => setSnapshot((current) => ({ ...current, runStatus: 'running', launchProgress: { status: 'ready', progress: 100, message: 'Harness 已就绪，可以开始使用' }, serviceUrl: `http://127.0.0.1:${current.settings.port}`, logs: [...current.logs, { id: Date.now(), time: new Date().toLocaleTimeString('zh-CN', { hour12: false }), level: 'INFO', message: `Harness 已就绪：http://127.0.0.1:${current.settings.port}` }] })), 900)
     }
   }
   const stop = (): void => {
     if (window.launcher) void run('stop', () => window.launcher!.stopHarness())
-    else setSnapshot((current) => ({ ...current, runStatus: 'stopped', serviceUrl: undefined }))
+    else setSnapshot((current) => ({ ...current, runStatus: 'stopped', launchProgress: { status: 'idle', progress: 0, message: 'Harness 已停止' }, serviceUrl: undefined }))
   }
   const chooseWorkspace = (): void => { if (window.launcher) void run('workspace', () => window.launcher!.chooseWorkspace()) }
   const storageAction = async (name: string, action: () => Promise<LauncherSnapshot>, preview: () => LauncherSnapshot): Promise<void> => {
@@ -1787,7 +1827,29 @@ export default function App(): ReactNode {
     }
   }
   const refreshSkins = (): void => { if (window.launcher) void run('skins', () => window.launcher!.refreshSkins()) }
-  const applySkin = (skinId: string): void => { if (window.launcher) void run(`skin-${skinId}`, () => window.launcher!.applySkin(skinId)) }
+  const downloadSkin = (skinId: string): void => {
+    if (window.launcher) void window.launcher.downloadSkin(skinId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, skins: { ...current.skins, downloadedSkinIds: [...new Set([...current.skins.downloadedSkinIds, skinId])], transfers: { ...current.skins.transfers, [skinId]: { operation: 'download', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '高清资源已下载，可直接预览或应用' } } } }))
+  }
+  const previewSkin = async (skinId: string): Promise<SkinPreview | undefined> => {
+    if (window.launcher) {
+      const result = await window.launcher.previewSkin(skinId)
+      setSnapshot(result.snapshot)
+      return result.preview
+    }
+    const skin = snapshot.skins.items.find((item) => item.id === skinId)
+    if (!skin) return undefined
+    downloadSkin(skinId)
+    return { skinId, name: skin.name, mediaKind: skin.mediaKind, mediaUrl: skin.media.url, posterUrl: skin.poster?.url, mime: skin.media.mime }
+  }
+  const applySkin = (skinId: string): void => {
+    if (window.launcher) void window.launcher.applySkin(skinId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, skins: { ...current.skins, activeSkinId: skinId, downloadedSkinIds: [...new Set([...current.skins.downloadedSkinIds, skinId])], transfers: { ...current.skins.transfers, [skinId]: { operation: 'apply', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '皮肤已保存，下次启动 Harness 自动生效' } } } }))
+  }
+  const removeSkin = (skinId: string): void => {
+    if (window.launcher) void window.launcher.removeSkin(skinId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, skins: { ...current.skins, activeSkinId: current.skins.activeSkinId === skinId ? undefined : current.skins.activeSkinId, downloadedSkinIds: current.skins.downloadedSkinIds.filter(id => id !== skinId), transfers: { ...current.skins.transfers, [skinId]: { operation: 'remove', status: 'completed', progress: 100, receivedBytes: 0, totalBytes: 0, message: '已从本机删除' } } } }))
+  }
   const toggleSkinFavorite = (skinId: string): void => {
     if (window.launcher) void run(`skin-favorite-${skinId}`, () => window.launcher!.toggleSkinFavorite(skinId))
     else setSnapshot((current) => ({ ...current, skins: { ...current.skins, favoriteSkinIds: current.skins.favoriteSkinIds.includes(skinId) ? current.skins.favoriteSkinIds.filter(id => id !== skinId) : [skinId, ...current.skins.favoriteSkinIds] } }))
@@ -1847,7 +1909,7 @@ export default function App(): ReactNode {
 
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
-          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onApply={applySkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
+          {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}

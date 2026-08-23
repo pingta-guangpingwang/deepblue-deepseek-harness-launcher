@@ -428,8 +428,35 @@ export interface SkinStoreState {
   activeSkinId?: string
   downloadedSkinIds: string[]
   favoriteSkinIds: string[]
+  transfers: Record<string, SkinTransferState>
   items: SkinCatalogItem[]
   message?: string
+}
+
+export type SkinTransferOperation = 'download' | 'preview' | 'apply' | 'remove'
+export type SkinTransferStatus = 'queued' | 'downloading' | 'verifying' | 'applying' | 'removing' | 'completed' | 'failed'
+
+export interface SkinTransferState {
+  operation: SkinTransferOperation
+  status: SkinTransferStatus
+  progress: number
+  receivedBytes: number
+  totalBytes: number
+  message: string
+}
+
+export interface SkinPreview {
+  skinId: string
+  name: string
+  mediaKind: SkinMediaKind
+  mediaUrl: string
+  posterUrl?: string
+  mime: SkinAsset['mime']
+}
+
+export interface SkinPreviewResult {
+  snapshot: LauncherSnapshot
+  preview?: SkinPreview
 }
 
 export interface PetLicense {
@@ -489,6 +516,7 @@ export interface LauncherSnapshot {
   platform: string
   distributionMode: DistributionMode
   runStatus: RunStatus
+  launchProgress: HarnessLaunchProgress
   serviceUrl?: string
   activeHarnessVersion: string
   latestHarnessVersion: string
@@ -511,6 +539,12 @@ export interface LauncherSnapshot {
   pets: PetStoreState
   settings: LauncherSettings
   installation: LauncherInstallationState
+}
+
+export interface HarnessLaunchProgress {
+  status: 'idle' | 'preparing' | 'starting' | 'waiting' | 'ready' | 'failed'
+  progress: number
+  message: string
 }
 
 export interface LauncherInstallationState {
@@ -621,7 +655,10 @@ export interface LauncherApi {
   refreshModelUsage(): Promise<LauncherSnapshot>
   testMultimodal(request: MultimodalTestRequest): Promise<MultimodalTestResult>
   refreshSkins(): Promise<LauncherSnapshot>
+  downloadSkin(skinId: string): Promise<LauncherSnapshot>
+  previewSkin(skinId: string): Promise<SkinPreviewResult>
   applySkin(skinId: string): Promise<LauncherSnapshot>
+  removeSkin(skinId: string): Promise<LauncherSnapshot>
   toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot>
   clearSkin(): Promise<LauncherSnapshot>
   refreshPets(): Promise<LauncherSnapshot>

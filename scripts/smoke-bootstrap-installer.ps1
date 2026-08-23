@@ -40,7 +40,7 @@ try {
   $appProcess = Start-Process -FilePath $app -ArgumentList @("--user-data-dir=$userData", '--disable-gpu') -PassThru -WindowStyle Hidden
   Start-Sleep -Seconds 7
   if ($appProcess.HasExited) { throw "Launcher shell exited during startup ($($appProcess.ExitCode))." }
-  Write-Host "Bootstrap smoke passed: $((Get-Item -LiteralPath $installer).Length) byte installer installed and launched the modular UI shell."
+  Write-Host "Local-artifact bootstrap smoke passed. This fast check does not satisfy the public fresh-install release gate."
 } finally {
   if ($appProcess -and -not $appProcess.HasExited) { & taskkill.exe /pid $appProcess.Id /t /f | Out-Null }
   $tempRoot = [IO.Path]::GetFullPath($env:TEMP + [IO.Path]::DirectorySeparatorChar)

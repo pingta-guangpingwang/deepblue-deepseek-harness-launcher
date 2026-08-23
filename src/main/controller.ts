@@ -11,7 +11,7 @@ import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, mergeBundled
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
 import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
-import { SkinStore } from './skins'
+import { SkinStore, type SkinDownloadProgress } from './skins'
 import { PetStore } from './pets'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
@@ -33,6 +33,9 @@ import type {
   MultimodalTestResult,
   RuntimeModuleId,
   RuntimeModuleRelease,
+  SkinPreviewResult,
+  SkinStoreState,
+  SkinTransferOperation,
   SourceConfig,
   SourceHealth
 } from '../shared/types'
@@ -67,7 +70,7 @@ function moduleStepStatus(phase: LauncherTaskStep['phase']): LauncherTaskStep['s
 }
 
 function runtimeSourceLabel(source?: string): string {
-  return source === 'github' ? 'GitHub' : source === 'gitee' ? 'Gitee' : source === 'oss' ? 'OSS 应急镜像' : '下载渠道'
+  return source === 'github' ? 'GitHub 最终备用' : source === 'gitee' ? 'Gitee' : source === 'oss' ? 'OSS 国内镜像' : '下载渠道'
 }
 
 export class LauncherController {
@@ -106,6 +109,7 @@ export class LauncherController {
       platform: `${process.platform}-${process.arch}`,
       distributionMode: this.distributionMode,
       runStatus: 'stopped',
+      launchProgress: { status: 'idle', progress: 0, message: '等待启动' },
       activeHarnessVersion: this.config.activeVersion,
       latestHarnessVersion: '0.1.1-rc.2',
       runtimeUpdates: { status: 'idle', items: [] },
@@ -133,6 +137,7 @@ export class LauncherController {
         generatedAt: '',
         downloadedSkinIds: [],
         favoriteSkinIds: [],
+        transfers: {},
         items: []
       },
       pets: {
@@ -240,58 +245,83 @@ export class LauncherController {
   }
 
   async startHarness(): Promise<LauncherSnapshot> {
-    if (this.service && this.snapshot.runStatus !== 'error') return this.getSnapshot()
-    const paths = launcherDataPaths()
-    let runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
-    if (!(await isExecutable(runtime.dsh))) {
-      if (this.distributionMode === 'online') {
-        this.log('INFO', '在线轻量版正在首次获取 Harness 核心')
-        await this.installHarness(this.config.activeVersion)
-        runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
-      }
-      if (!(await isExecutable(runtime.dsh))) {
-        this.snapshot.runStatus = 'error'
-        this.log('ERROR', '未找到 Harness 核心，请检查网络后执行快速修复')
-        this.emit()
-        return this.getSnapshot()
-      }
+    if (this.service && this.snapshot.runStatus !== 'error') {
+      this.updateLaunchProgress('ready', 100, 'Harness 已在运行')
+      return this.getSnapshot()
     }
-    await mkdir(paths.dshHome, { recursive: true })
-    await mkdir(this.config.settings.workspace, { recursive: true })
-    await this.ensureSkinRuntime(runtime)
     this.snapshot.runStatus = 'starting'
     this.snapshot.serviceUrl = undefined
-    this.log('INFO', `正在启动 Harness，工作区：${this.config.settings.workspace}`)
-    this.emit()
-    const modelEnvironment = await this.modelStore.environment()
-    const child = spawnNode(runtime, [runtime.dsh, 'web', '--port', String(this.config.settings.port)], {
-      cwd: this.config.settings.workspace,
-      dshHome: paths.dshHome,
-      env: {
-        ...modelEnvironment,
-        DEEPBLUE_DSH_SKIN_CONFIG: paths.skinConfig,
-        DEEPBLUE_DSH_PET_CONFIG: paths.petConfig
+    this.updateLaunchProgress('preparing', 6, '正在检查 Harness 运行环境')
+    try {
+      const paths = launcherDataPaths()
+      let runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
+      if (!(await isExecutable(runtime.dsh))) {
+        if (this.distributionMode === 'online') {
+          this.updateLaunchProgress('preparing', 12, '首次启动，正在获取 Harness 核心')
+          this.log('INFO', '在线轻量版正在首次获取 Harness 核心')
+          await this.installHarness(this.config.activeVersion)
+          runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
+        }
+        if (!(await isExecutable(runtime.dsh))) {
+          this.snapshot.runStatus = 'error'
+          this.updateLaunchProgress('failed', 18, '未找到 Harness 核心，请先运行快速修复')
+          this.log('ERROR', '未找到 Harness 核心，请检查网络后执行快速修复')
+          this.emit()
+          return this.getSnapshot()
+        }
       }
-    })
-    this.service = child
-    child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO'))
-    child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
-    child.on('error', (error) => {
+      this.updateLaunchProgress('preparing', 28, '运行环境已就绪，正在准备工作区')
+      await mkdir(paths.dshHome, { recursive: true })
+      await mkdir(this.config.settings.workspace, { recursive: true })
+      this.updateLaunchProgress('preparing', 40, '正在加载皮肤、宠物与外观配置')
+      await this.ensureSkinRuntime(runtime)
+      this.updateLaunchProgress('starting', 58, '正在同步模型配置与本机密钥')
+      this.log('INFO', `正在启动 Harness，工作区：${this.config.settings.workspace}`)
+      this.emit()
+      const modelEnvironment = await this.modelStore.environment()
+      this.updateLaunchProgress('starting', 70, '正在启动 Harness 本地服务')
+      const child = spawnNode(runtime, [runtime.dsh, 'web', '--port', String(this.config.settings.port)], {
+        cwd: this.config.settings.workspace,
+        dshHome: paths.dshHome,
+        env: {
+          ...modelEnvironment,
+          DEEPBLUE_DSH_SKIN_CONFIG: paths.skinConfig,
+          DEEPBLUE_DSH_PET_CONFIG: paths.petConfig
+        }
+      })
+      this.service = child
+      this.updateLaunchProgress('waiting', 76, `服务已启动，等待端口 ${this.config.settings.port} 就绪`)
+      child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO'))
+      child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
+      child.on('error', (error) => {
+        this.snapshot.runStatus = 'error'
+        this.updateLaunchProgress('failed', this.snapshot.launchProgress.progress, `启动失败：${error.message}`)
+        this.log('ERROR', `启动失败：${error.message}`)
+        this.service = undefined
+        this.emit()
+      })
+      child.on('exit', (code, signal) => {
+        const expected = this.snapshot.runStatus === 'stopping'
+        this.service = undefined
+        this.snapshot.runStatus = expected || code === 0 ? 'stopped' : 'error'
+        this.snapshot.launchProgress = expected || code === 0
+          ? { status: 'idle', progress: 0, message: 'Harness 已停止' }
+          : { status: 'failed', progress: this.snapshot.launchProgress.progress, message: `Harness 异常退出（${signal || `code ${code ?? 'unknown'}`}）` }
+        this.snapshot.serviceUrl = undefined
+        this.log(expected ? 'INFO' : code === 0 ? 'INFO' : 'ERROR', `Harness 已退出（${signal || `code ${code ?? 'unknown'}`}）`)
+        this.emit()
+      })
+      void this.waitForServer()
+      return this.getSnapshot()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       this.snapshot.runStatus = 'error'
-      this.log('ERROR', `启动失败：${error.message}`)
       this.service = undefined
+      this.updateLaunchProgress('failed', this.snapshot.launchProgress.progress, `启动失败：${message}`)
+      this.log('ERROR', `Harness 启动准备失败：${message}`)
       this.emit()
-    })
-    child.on('exit', (code, signal) => {
-      const expected = this.snapshot.runStatus === 'stopping'
-      this.service = undefined
-      this.snapshot.runStatus = expected || code === 0 ? 'stopped' : 'error'
-      this.snapshot.serviceUrl = undefined
-      this.log(expected ? 'INFO' : code === 0 ? 'INFO' : 'ERROR', `Harness 已退出（${signal || `code ${code ?? 'unknown'}`}）`)
-      this.emit()
-    })
-    void this.waitForServer()
-    return this.getSnapshot()
+      return this.getSnapshot()
+    }
   }
 
   async stopHarness(): Promise<LauncherSnapshot> {
@@ -1095,28 +1125,83 @@ export class LauncherController {
   async refreshSkins(): Promise<LauncherSnapshot> {
     this.snapshot.skins = { ...this.snapshot.skins, status: 'loading' }
     this.emit()
-    this.snapshot.skins = await this.skinStore.refresh(this.config.settings.skinCatalogUrl)
+    this.replaceSkinState(await this.skinStore.refresh(this.config.settings.skinCatalogUrl))
     this.log(this.snapshot.skins.status === 'error' ? 'WARN' : 'INFO', this.snapshot.skins.message || `皮肤目录已加载：${this.snapshot.skins.items.length} 项`)
     this.emit()
     return this.getSnapshot()
   }
 
+  async downloadSkin(skinId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
+    if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
+    this.updateSkinTransfer(skinId, 'download', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '准备下载高清资源' })
+    try {
+      this.replaceSkinState(await this.skinStore.download(skinId, progress => this.updateSkinTransfer(skinId, 'download', progress)))
+      this.finishSkinTransfer(skinId, 'download', '高清资源已下载，可直接预览或应用')
+      this.log('INFO', `皮肤「${item.name}」已下载到本机`)
+    } catch (error) {
+      this.failSkinTransfer(skinId, 'download', error)
+      this.log('ERROR', `皮肤下载失败：${this.snapshot.skins.transfers[skinId]?.message || '未知错误'}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async previewSkin(skinId: string): Promise<SkinPreviewResult> {
+    const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
+    if (!item || this.skinTransferBusy(skinId)) return { snapshot: this.getSnapshot() }
+    this.updateSkinTransfer(skinId, 'preview', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '准备高清预览' })
+    try {
+      const result = await this.skinStore.preview(skinId, progress => this.updateSkinTransfer(skinId, 'preview', progress))
+      this.replaceSkinState(result.state)
+      this.finishSkinTransfer(skinId, 'preview', '高清预览已就绪')
+      this.emit()
+      return { snapshot: this.getSnapshot(), preview: result.preview }
+    } catch (error) {
+      this.failSkinTransfer(skinId, 'preview', error)
+      this.log('ERROR', `皮肤预览失败：${this.snapshot.skins.transfers[skinId]?.message || '未知错误'}`)
+      this.emit()
+      return { snapshot: this.getSnapshot() }
+    }
+  }
+
   async applySkin(skinId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
-    if (!item) return this.getSnapshot()
+    if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
     const task = this.addTask(`skin-${Date.now()}`, `应用皮肤「${item.name}」`, '正在校验本地缓存并按需下载原媒体')
+    this.updateSkinTransfer(skinId, 'apply', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '准备下载并应用' })
     this.emit()
     try {
       task.progress = 24
-      this.snapshot.skins = await this.skinStore.apply(skinId)
+      this.replaceSkinState(await this.skinStore.apply(skinId, progress => this.updateSkinTransfer(skinId, 'apply', progress)))
       task.progress = 100
       task.status = 'completed'
       task.detail = this.snapshot.runStatus === 'running' ? '皮肤已保存，重启 Harness 后生效' : '皮肤已保存，下次启动 Harness 自动生效'
+      this.finishSkinTransfer(skinId, 'apply', task.detail)
       this.log('INFO', task.detail)
     } catch (error) {
       task.status = 'failed'
       task.detail = error instanceof Error ? error.message : String(error)
+      this.failSkinTransfer(skinId, 'apply', error)
       this.log('ERROR', `皮肤应用失败：${task.detail}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async removeSkin(skinId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
+    if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
+    this.snapshot.skins.transfers[skinId] = { operation: 'remove', status: 'removing', progress: 30, receivedBytes: 0, totalBytes: item.media.size + (item.poster?.size || 0), message: '正在删除本机高清资源' }
+    this.emit()
+    try {
+      const wasActive = this.snapshot.skins.activeSkinId === skinId
+      this.replaceSkinState(await this.skinStore.remove(skinId))
+      this.finishSkinTransfer(skinId, 'remove', wasActive ? '已删除并恢复 Harness 默认皮肤' : '已从本机删除')
+      this.log('INFO', `已删除皮肤「${item.name}」的本机资源`)
+    } catch (error) {
+      this.failSkinTransfer(skinId, 'remove', error)
+      this.log('ERROR', `删除皮肤失败：${this.snapshot.skins.transfers[skinId]?.message || '未知错误'}`)
     }
     this.emit()
     return this.getSnapshot()
@@ -1553,6 +1638,70 @@ export class LauncherController {
     this.emit()
   }
 
+  private replaceSkinState(next: SkinStoreState): void {
+    this.snapshot.skins = { ...next, transfers: this.snapshot.skins.transfers }
+  }
+
+  private skinTransferBusy(skinId: string): boolean {
+    const status = this.snapshot.skins.transfers[skinId]?.status
+    return status === 'queued' || status === 'downloading' || status === 'verifying' || status === 'applying' || status === 'removing'
+  }
+
+  private updateSkinTransfer(skinId: string, operation: SkinTransferOperation, progress: SkinDownloadProgress): void {
+    const previous = this.snapshot.skins.transfers[skinId]
+    const previousIsActive = previous?.operation === operation && (previous.status === 'queued' || previous.status === 'downloading' || previous.status === 'verifying' || previous.status === 'applying' || previous.status === 'removing')
+    const previousProgress = previousIsActive ? previous.progress : 0
+    const ratio = progress.totalBytes > 0 ? progress.receivedBytes / progress.totalBytes : 0
+    const completedDownload = progress.status === 'completed'
+    const status = completedDownload && operation === 'apply'
+      ? 'applying'
+      : progress.status
+    const percent = progress.status === 'verifying'
+      ? Math.max(previousProgress, progress.receivedBytes > 0 ? 94 : 3)
+      : completedDownload
+        ? operation === 'apply' ? 97 : 100
+        : Math.max(previousProgress, 2, Math.min(92, Math.round(ratio * 92)))
+    const message = completedDownload && operation === 'apply' ? '资源已就绪，正在写入 Harness 外观配置' : progress.message
+    this.snapshot.skins.transfers[skinId] = {
+      operation,
+      status,
+      progress: percent,
+      receivedBytes: progress.receivedBytes,
+      totalBytes: progress.totalBytes,
+      message
+    }
+    if (!previous || previous.progress !== percent || previous.status !== status || previous.message !== message) this.emit()
+  }
+
+  private finishSkinTransfer(skinId: string, operation: SkinTransferOperation, message: string): void {
+    const previous = this.snapshot.skins.transfers[skinId]
+    this.snapshot.skins.transfers[skinId] = {
+      operation,
+      status: 'completed',
+      progress: 100,
+      receivedBytes: previous?.totalBytes || 0,
+      totalBytes: previous?.totalBytes || 0,
+      message
+    }
+  }
+
+  private failSkinTransfer(skinId: string, operation: SkinTransferOperation, error: unknown): void {
+    const previous = this.snapshot.skins.transfers[skinId]
+    this.snapshot.skins.transfers[skinId] = {
+      operation,
+      status: 'failed',
+      progress: previous?.progress || 0,
+      receivedBytes: previous?.receivedBytes || 0,
+      totalBytes: previous?.totalBytes || 0,
+      message: error instanceof Error ? error.message : String(error)
+    }
+  }
+
+  private updateLaunchProgress(status: LauncherSnapshot['launchProgress']['status'], progress: number, message: string): void {
+    this.snapshot.launchProgress = { status, progress: Math.max(0, Math.min(100, Math.round(progress))), message }
+    this.emit()
+  }
+
   private async waitForServer(): Promise<void> {
     const url = `http://127.0.0.1:${this.config.settings.port}`
     for (let attempt = 0; attempt < 90 && this.snapshot.runStatus === 'starting'; attempt += 1) {
@@ -1565,10 +1714,12 @@ export class LauncherController {
       } catch {
         // The server normally needs several seconds before accepting requests.
       }
+      if (attempt % 2 === 0) this.updateLaunchProgress('waiting', Math.min(96, 76 + Math.round(attempt / 89 * 20)), `正在等待本地服务就绪 · ${attempt + 1}/90`)
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
     if (this.snapshot.runStatus === 'starting') {
       this.snapshot.runStatus = 'error'
+      this.updateLaunchProgress('failed', 96, `等待服务超时：${url}`)
       this.log('ERROR', `等待服务超时：${url}`)
       this.emit()
     }
@@ -1578,6 +1729,7 @@ export class LauncherController {
     if (this.snapshot.runStatus === 'running') return
     this.snapshot.runStatus = 'running'
     this.snapshot.serviceUrl = url
+    this.snapshot.launchProgress = { status: 'ready', progress: 100, message: 'Harness 已就绪，可以开始使用' }
     this.log('INFO', `Harness 已就绪：${url}`)
     this.emit()
     if (this.config.settings.autoOpen) void shell.openExternal(url)

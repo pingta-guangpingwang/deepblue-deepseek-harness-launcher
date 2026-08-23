@@ -16,7 +16,7 @@ describe('guided installation and storage setup', () => {
     expect(bootstrap).toContain('CreateShortcut "$SMPROGRAMS\\深蓝DeepSeekHarness启动器\\深蓝DeepSeekHarness启动器.lnk"')
     expect(bootstrap).toContain('SHELL_URL_GITHUB')
     expect(bootstrap).toContain('SHELL_URL_OSS')
-    expect(bootstrap).toContain('OSS 应急镜像')
+    expect(bootstrap).toContain('OSS 国内镜像')
   })
 
   it('requires first-run confirmation before online modules start and preserves old data on migration', async () => {

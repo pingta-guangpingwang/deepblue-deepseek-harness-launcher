@@ -1,10 +1,31 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { LauncherController } from './controller'
+import { launcherDataPaths } from './config'
 import type { LauncherSettings, ModelProviderDraft, MultimodalTestRequest } from '../shared/types'
 
 let mainWindow: BrowserWindow | undefined
 let controller: LauncherController | undefined
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'deepblue-skin',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+}])
+
+function registerSkinPreviewProtocol(): void {
+  protocol.handle('deepblue-skin', (request) => {
+    const url = new URL(request.url)
+    const fileName = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    if (url.hostname !== 'cache' || !/^[a-f0-9]{64}\.(?:png|jpe?g|webp|gif|mp4|webm)$/i.test(fileName)) {
+      return new Response('Invalid skin preview path', { status: 400 })
+    }
+    const root = path.resolve(launcherDataPaths().skins, 'cache')
+    const target = path.resolve(root, fileName)
+    if (path.dirname(target) !== root) return new Response('Invalid skin preview path', { status: 400 })
+    return net.fetch(pathToFileURL(target).toString())
+  })
+}
 
 function createWindow(): BrowserWindow {
   const icon = app.isPackaged
@@ -80,7 +101,10 @@ function registerIpc(): void {
   ipcMain.handle('launcher:refresh-model-usage', () => controller?.refreshModelUsage())
   ipcMain.handle('launcher:test-multimodal', (_event, request: MultimodalTestRequest) => controller?.testMultimodal(request))
   ipcMain.handle('launcher:refresh-skins', () => controller?.refreshSkins())
+  ipcMain.handle('launcher:download-skin', (_event, skinId: string) => controller?.downloadSkin(skinId))
+  ipcMain.handle('launcher:preview-skin', (_event, skinId: string) => controller?.previewSkin(skinId))
   ipcMain.handle('launcher:apply-skin', (_event, skinId: string) => controller?.applySkin(skinId))
+  ipcMain.handle('launcher:remove-skin', (_event, skinId: string) => controller?.removeSkin(skinId))
   ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
   ipcMain.handle('launcher:clear-skin', () => controller?.clearSkin())
   ipcMain.handle('launcher:refresh-pets', () => controller?.refreshPets())
@@ -110,6 +134,7 @@ if (!hasSingleInstanceLock) {
 
   app.whenReady().then(async () => {
     app.setAppUserModelId('org.deepseek-harness.launcher')
+    registerSkinPreviewProtocol()
     registerIpc()
     mainWindow = createWindow()
     controller = new LauncherController(mainWindow)

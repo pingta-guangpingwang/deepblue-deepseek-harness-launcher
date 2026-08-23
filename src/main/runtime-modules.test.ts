@@ -5,7 +5,7 @@ import path from 'node:path'
 import * as tar from 'tar'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeModuleRelease } from '../shared/types'
-import { RuntimeModuleStore } from './runtime-modules'
+import { readRuntimeDownloadChunk, RuntimeModuleStore } from './runtime-modules'
 
 const roots: string[] = []
 
@@ -45,6 +45,7 @@ async function fixture(version: string, contents: string): Promise<{ module: Run
         unpackedSize: 4_096,
         mirrors: [
           { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/releases/download/${version}/node.tar.gz` },
+          { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${version}/node.tar.gz` },
           { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${version}/node.tar.gz` }
         ]
       }]
@@ -67,18 +68,18 @@ describe('runtime module store', () => {
     const progress: string[] = []
     const installed = await store.install(item.module, [item.module], 'win32', 'x64', (entry) => progress.push(`${entry.phase}:${entry.mirrorId || ''}`))
     expect(installed.reused).toBe(false)
-    expect(installed.mirrorId).toBe('github')
+    expect(installed.mirrorId).toBe('oss')
     expect(await readFile(path.join(installed.root, 'bin', 'runtime.txt'), 'utf8')).toBe('node-runtime-v1')
     expect(await readFile(path.join(installed.root, 'node_modules', '@scope', 'package', 'package.json'), 'utf8')).toContain('@scope/package')
     expect(await store.activeRoot('node-runtime')).toBe(installed.root)
     expect(progress).toEqual(expect.arrayContaining([
       'source-check:gitee',
       'source-ready:gitee',
-      'source-check:github',
-      'source-ready:github',
       'source-fallback:gitee',
-      'verify:github',
-      'activate:github'
+      'source-check:oss',
+      'source-ready:oss',
+      'verify:oss',
+      'activate:oss'
     ]))
 
     const reused = await store.install(item.module, [item.module], 'win32', 'x64')
@@ -105,7 +106,7 @@ describe('runtime module store', () => {
     expect(await store.activeRoot('node-runtime')).toBe(rolledBack)
   })
 
-  it('probes every signed channel and skips an unavailable mirror before downloading', async () => {
+  it('switches directly from an unavailable Gitee mirror to OSS without waiting for GitHub', async () => {
     const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-channel-probe-'))
     roots.push(installationRoot)
     const item = await fixture('24.16.0', 'probe-before-download')
@@ -120,12 +121,20 @@ describe('runtime module store', () => {
     const progress: string[] = []
     const store = new RuntimeModuleStore(installationRoot)
     const result = await store.install(item.module, [item.module], 'win32', 'x64', (entry) => progress.push(`${entry.phase}:${entry.mirrorId || ''}`))
-    expect(result.mirrorId).toBe('github')
+    expect(result.mirrorId).toBe('oss')
     expect(calls.filter((call) => call.method === 'GET')).toEqual([
-      expect.objectContaining({ url: expect.stringContaining('github.com') })
+      expect.objectContaining({ url: expect.stringContaining('aliyuncs.com') })
     ])
+    expect(calls.some((call) => call.url.includes('github.com'))).toBe(false)
     expect(progress).toContain('source-fallback:gitee')
-    expect(progress).toContain('download:github')
+    expect(progress).toContain('download:oss')
+  })
+
+  it('rejects a body read after sustained zero-byte progress', async () => {
+    const stream = new ReadableStream<Uint8Array>({ start: () => undefined })
+    const reader = stream.getReader()
+    await expect(readRuntimeDownloadChunk(reader, 20)).rejects.toThrow('持续 1 秒无下载进度')
+    await reader.cancel()
   })
 
   it('rejects a downloaded artifact that does not match the signed digest', async () => {

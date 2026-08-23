@@ -13,6 +13,7 @@ import type {
   SkinAsset,
   SkinCatalogItem,
   SkinCatalogPayload,
+  SkinPreview,
   SkinStoreState
 } from '../shared/types'
 
@@ -45,6 +46,20 @@ interface ActiveSkinConfig {
 interface FavoriteSkinFile {
   schemaVersion: 1
   skinIds: string[]
+}
+
+export interface SkinDownloadProgress {
+  status: 'downloading' | 'verifying' | 'completed'
+  receivedBytes: number
+  totalBytes: number
+  message: string
+}
+
+type SkinDownloadReporter = (progress: SkinDownloadProgress) => void
+
+export function isSkinResponseTypeCompatible(expected: SkinAsset['mime'], responseType?: string): boolean {
+  if (!responseType || responseType === 'application/octet-stream' || responseType === expected) return true
+  return ALLOWED_MIME.has(responseType as SkinAsset['mime']) && responseType.split('/', 1)[0] === expected.split('/', 1)[0]
 }
 
 export function nextFavoriteSkinIds(current: string[], skinId: string): string[] {
@@ -170,18 +185,19 @@ async function verifyCachedAsset(target: string, asset: SkinAsset): Promise<bool
 }
 
 /** Rejects an over-long stream even when the channel omits Content-Length. */
-function cappedStream(source: Readable, limit: number): AsyncGenerator<Buffer> {
+function cappedStream(source: Readable, limit: number, onChunk?: (receivedBytes: number) => void): AsyncGenerator<Buffer> {
   return (async function* () {
     let seen = 0
     for await (const chunk of source) {
       seen += (chunk as Buffer).length
       if (seen > limit) throw new Error('远程皮肤资源超过清单声明大小')
+      onChunk?.(seen)
       yield chunk as Buffer
     }
   })()
 }
 
-async function fetchAssetFrom(asset: SkinAsset, url: string, temporary: string): Promise<void> {
+async function fetchAssetFrom(asset: SkinAsset, url: string, temporary: string, sourceLabel: string, onProgress?: SkinDownloadReporter): Promise<void> {
   const response = await fetch(url, {
     redirect: 'follow',
     signal: AbortSignal.timeout(downloadTimeoutMs(asset.size)),
@@ -193,10 +209,16 @@ async function fetchAssetFrom(asset: SkinAsset, url: string, temporary: string):
     throw new Error('远程皮肤资源超过清单声明大小')
   }
   const responseType = response.headers.get('content-type')?.split(';', 1)[0]
-  if (responseType && responseType !== 'application/octet-stream' && responseType !== asset.mime) throw new Error('资源类型与清单不一致')
+  // Gitee may transcode a trusted raw JPG to WebP. The signed byte size and
+  // SHA-256 check below remain authoritative, while cross-category responses
+  // (for example HTML returned for a video) are still rejected.
+  if (!isSkinResponseTypeCompatible(asset.mime, responseType)) throw new Error('资源类型与清单不一致')
   await unlink(temporary).catch(() => undefined)
   try {
-    await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size), createWriteStream(temporary, { flags: 'wx' }))
+    await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size, (receivedBytes) => {
+      onProgress?.({ status: 'downloading', receivedBytes, totalBytes: asset.size, message: `正在从 ${sourceLabel} 下载` })
+    }), createWriteStream(temporary, { flags: 'wx' }))
+    onProgress?.({ status: 'verifying', receivedBytes: asset.size, totalBytes: asset.size, message: '下载完成，正在校验完整性' })
     if (!(await verifyCachedAsset(temporary, asset))) throw new Error('完整性校验失败')
   } catch (error) {
     await unlink(temporary).catch(() => undefined)
@@ -204,10 +226,14 @@ async function fetchAssetFrom(asset: SkinAsset, url: string, temporary: string):
   }
 }
 
-async function downloadAsset(asset: SkinAsset): Promise<string> {
+async function downloadAsset(asset: SkinAsset, onProgress?: SkinDownloadReporter): Promise<string> {
   assertAsset(asset)
   const target = cachePath(asset)
-  if (await verifyCachedAsset(target, asset)) return target
+  onProgress?.({ status: 'verifying', receivedBytes: 0, totalBytes: asset.size, message: '正在检查本地缓存' })
+  if (await verifyCachedAsset(target, asset)) {
+    onProgress?.({ status: 'completed', receivedBytes: asset.size, totalBytes: asset.size, message: '本地高清资源已就绪' })
+    return target
+  }
   await mkdir(path.dirname(target), { recursive: true })
   const temporary = `${target}.part`
   const candidates = mirrorCandidates(asset.url, asset.size)
@@ -215,8 +241,11 @@ async function downloadAsset(asset: SkinAsset): Promise<string> {
   let lastFailure = '未知错误'
   for (const candidate of candidates) {
     try {
-      await fetchAssetFrom(asset, candidate.url, temporary)
+      onProgress?.({ status: 'downloading', receivedBytes: 0, totalBytes: asset.size, message: `正在连接 ${candidate.id.toUpperCase()}` })
+      await fetchAssetFrom(asset, candidate.url, temporary, candidate.id.toUpperCase(), onProgress)
+      await unlink(target).catch(() => undefined)
       await rename(temporary, target)
+      onProgress?.({ status: 'completed', receivedBytes: asset.size, totalBytes: asset.size, message: '高清资源下载完成' })
       return target
     } catch (error) {
       lastFailure = `${candidate.id}：${error instanceof Error ? error.message : String(error)}`
@@ -269,9 +298,55 @@ export class SkinStore {
     return this.snapshot(this.payload.items.length ? 'offline' : 'error')
   }
 
-  async apply(skinId: string): Promise<SkinStoreState> {
+  private item(skinId: string): SkinCatalogItem {
     const item = this.payload.items.find(entry => entry.id === skinId)
     if (!item) throw new Error('所选皮肤不在当前 Gitee 签名目录中')
+    return item
+  }
+
+  private async downloadItem(item: SkinCatalogItem, onProgress?: SkinDownloadReporter): Promise<{ mediaPath: string; posterPath?: string }> {
+    const assets = [item.media, ...(item.poster ? [item.poster] : [])]
+    const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0)
+    let completedBytes = 0
+    const paths: string[] = []
+    for (const asset of assets) {
+      const localPath = await downloadAsset(asset, (progress) => {
+        onProgress?.({
+          ...progress,
+          receivedBytes: Math.min(totalBytes, completedBytes + progress.receivedBytes),
+          totalBytes
+        })
+      })
+      paths.push(localPath)
+      completedBytes += asset.size
+    }
+    onProgress?.({ status: 'completed', receivedBytes: totalBytes, totalBytes, message: '高清资源已下载到本机' })
+    return { mediaPath: paths[0]!, ...(paths[1] ? { posterPath: paths[1] } : {}) }
+  }
+
+  async download(skinId: string, onProgress?: SkinDownloadReporter): Promise<SkinStoreState> {
+    await this.downloadItem(this.item(skinId), onProgress)
+    return this.snapshot('ready')
+  }
+
+  async preview(skinId: string, onProgress?: SkinDownloadReporter): Promise<{ state: SkinStoreState; preview: SkinPreview }> {
+    const item = this.item(skinId)
+    const downloaded = await this.downloadItem(item, onProgress)
+    return {
+      state: await this.snapshot('ready'),
+      preview: {
+        skinId,
+        name: item.name,
+        mediaKind: item.mediaKind,
+        mediaUrl: `deepblue-skin://cache/${path.basename(downloaded.mediaPath)}`,
+        ...(downloaded.posterPath ? { posterUrl: `deepblue-skin://cache/${path.basename(downloaded.posterPath)}` } : {}),
+        mime: item.media.mime
+      }
+    }
+  }
+
+  async apply(skinId: string, onProgress?: SkinDownloadReporter): Promise<SkinStoreState> {
+    const item = this.item(skinId)
     const chosen: { mediaKind: SkinCatalogItem['mediaKind']; media: SkinAsset; poster?: SkinAsset; presentation: SkinCatalogItem['presentation']; license: ActiveSkinConfig['license'] } = {
       mediaKind: item.mediaKind,
       media: item.media,
@@ -279,8 +354,7 @@ export class SkinStore {
       presentation: item.presentation,
       license: item.license
     }
-    const mediaPath = await downloadAsset(chosen.media)
-    const posterPath = chosen.poster ? await downloadAsset(chosen.poster) : undefined
+    const { mediaPath, posterPath } = await this.downloadItem(item, onProgress)
     const config: ActiveSkinConfig = {
       schemaVersion: 1,
       skinId,
@@ -308,6 +382,20 @@ export class SkinStore {
     return this.snapshot('ready')
   }
 
+  async remove(skinId: string): Promise<SkinStoreState> {
+    const item = this.item(skinId)
+    let activeSkinId: string | undefined
+    try {
+      activeSkinId = (JSON.parse(await readFile(launcherDataPaths().skinConfig, 'utf8')) as ActiveSkinConfig).skinId
+    } catch {
+      // No active skin needs to be reset.
+    }
+    if (activeSkinId === skinId) await unlink(launcherDataPaths().skinConfig).catch(() => undefined)
+    const targets = [...new Set([item.media, ...(item.poster ? [item.poster] : [])].map(cachePath))]
+    await Promise.all(targets.flatMap(target => [unlink(target).catch(() => undefined), unlink(`${target}.part`).catch(() => undefined)]))
+    return this.snapshot('ready')
+  }
+
   async snapshot(status: SkinStoreState['status'] = 'ready'): Promise<SkinStoreState> {
     let activeSkinId: string | undefined
     try {
@@ -317,7 +405,9 @@ export class SkinStore {
     }
     const downloadedSkinIds: string[] = []
     for (const item of this.payload.items) {
-      if (await exists(cachePath(item.media))) downloadedSkinIds.push(item.id)
+      const mediaReady = await exists(cachePath(item.media))
+      const posterReady = !item.poster || await exists(cachePath(item.poster))
+      if (mediaReady && posterReady) downloadedSkinIds.push(item.id)
     }
     const itemIds = new Set(this.payload.items.map(item => item.id))
     const favoriteSkinIds = (await readFavoriteSkinIds()).filter(id => itemIds.has(id))
@@ -328,6 +418,7 @@ export class SkinStore {
       ...(activeSkinId ? { activeSkinId } : {}),
       downloadedSkinIds,
       favoriteSkinIds,
+      transfers: {},
       items: structuredClone(this.payload.items),
       ...(this.message ? { message: this.message } : {})
     }

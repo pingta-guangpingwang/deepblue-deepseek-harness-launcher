@@ -7,6 +7,7 @@ export const mockSnapshot: LauncherSnapshot = {
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
+  launchProgress: { status: 'idle', progress: 0, message: '等待启动' },
   activeHarnessVersion: '0.1.1-rc.2',
   latestHarnessVersion: '0.1.1-rc.2',
   runtimeUpdates: {
@@ -102,6 +103,7 @@ export const mockSnapshot: LauncherSnapshot = {
     activeSkinId: 'deep-ocean-whale',
     downloadedSkinIds: ['deep-ocean-whale'],
     favoriteSkinIds: ['deep-ocean-whale', 'anime-star-observatory'],
+    transfers: {},
     items: [
       {
         id: 'deep-ocean-whale', name: '深海鲸歌', description: '发光鲸鱼穿行于深海数据城，适合深色半透明界面。', mediaKind: 'image', styles: ['cyber', 'nature'], tags: ['深海', '鲸鱼', '蓝色', '宁静'], featured: true, contentRating: 'everyone',

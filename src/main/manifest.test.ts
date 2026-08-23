@@ -158,7 +158,7 @@ describe('catalog signature verification', () => {
     expect(script).not.toContain('`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/releases/${packageJson.version}`')
   })
 
-  it('publishes every modular artifact in the Gitee, GitHub, OSS fallback order', () => {
+  it('publishes every modular artifact in the Gitee, OSS, GitHub fallback order without resume prompts', () => {
     const runtimeBuilder = readFileSync(path.resolve('scripts/build-runtime-modules.mjs'), 'utf8')
     const shellBuilder = readFileSync(path.resolve('scripts/build-launcher-shell.mjs'), 'utf8')
     const bootstrapBuilder = readFileSync(path.resolve('scripts/build-bootstrap-installer.ps1'), 'utf8')
@@ -168,12 +168,26 @@ describe('catalog signature verification', () => {
       const github = source.indexOf("{ id: 'github'")
       const oss = source.indexOf("{ id: 'oss'")
       expect(gitee).toBeGreaterThan(-1)
-      expect(gitee).toBeLessThan(github)
-      expect(github).toBeLessThan(oss)
+      expect(gitee).toBeLessThan(oss)
+      expect(oss).toBeLessThan(github)
     }
     expect(bootstrapBuilder).toContain('SHELL_URL_GITEE')
-    expect(bootstrapInstaller.indexOf('SHELL_URL_GITEE')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_GITHUB'))
-    expect(bootstrapInstaller.indexOf('SHELL_URL_GITHUB')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
+    expect(bootstrapInstaller.indexOf('SHELL_URL_GITEE')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
+    expect(bootstrapInstaller.indexOf('SHELL_URL_OSS')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_GITHUB'))
+    expect(bootstrapInstaller).toContain('/RECEIVETIMEOUT 15')
+    expect(bootstrapInstaller).not.toContain('/RESUME')
+  })
+
+  it('keeps local artifact smoke separate from the mandatory public fresh-install gate', () => {
+    const packageJson = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { scripts: Record<string, string> }
+    const windowsBuilder = readFileSync(path.resolve('scripts/build-windows-variants.ps1'), 'utf8')
+    const publicGate = readFileSync(path.resolve('scripts/smoke-public-fresh-install.ps1'), 'utf8')
+    expect(packageJson.scripts['bootstrap:smoke-local-artifact']).toBeTruthy()
+    expect(packageJson.scripts['release:smoke-public-fresh-install']).toBeTruthy()
+    expect(packageJson.scripts['bootstrap:smoke']).toBeUndefined()
+    expect(windowsBuilder).toContain('bootstrap:smoke-local-artifact')
+    expect(publicGate).toContain('deepblue-deepseek-harness-launcher-win-x64-online.exe')
+    expect(publicGate).not.toContain('LOCAL_SHELL')
   })
 
   it('keeps the modular catalog on an isolated v2 trust root and endpoint', () => {

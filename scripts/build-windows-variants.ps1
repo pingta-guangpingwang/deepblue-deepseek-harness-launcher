@@ -68,9 +68,9 @@ Write-Host 'Building and testing the sub-megabyte online bootstrap...'
 if ($LASTEXITCODE -ne 0) {
   throw "Online bootstrap build failed (exit code $LASTEXITCODE)."
 }
-& npm run bootstrap:smoke
+& npm run bootstrap:smoke-local-artifact
 if ($LASTEXITCODE -ne 0) {
-  throw "Online bootstrap smoke failed (exit code $LASTEXITCODE)."
+  throw "Local-artifact bootstrap smoke failed (exit code $LASTEXITCODE)."
 }
 Copy-Item -LiteralPath (Join-Path $releaseDirectory 'deepblue-deepseek-harness-launcher-win-x64-online-bootstrap.exe') -Destination $onlineFile -Force
 

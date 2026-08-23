@@ -11,6 +11,7 @@ const MODULE_STATE_SCHEMA_VERSION = 1
 const MAX_ARCHIVE_BYTES = 2_000_000_000
 const MAX_REDIRECTS = 5
 const DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1_000
+const DOWNLOAD_STALL_TIMEOUT_MS = 15_000
 const SAFE_ENTRY_PATH = /^(?![A-Za-z]:)(?![\\/])(?!.*(?:^|[\\/])\.\.(?:[\\/]|$))[0-9A-Za-z@+._/-]+$/
 const SAFE_VERSION = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/
 const MODULE_IDS = new Set<RuntimeModuleId>(['node-runtime', 'harness-core', 'package-manager', 'terminal-native', 'launcher-ui'])
@@ -158,58 +159,64 @@ async function responseFollowingRedirects(
   throw new Error('模块镜像重定向次数过多')
 }
 
-interface MirrorProbe {
-  mirror: RuntimeModuleArtifact['mirrors'][number]
-  available: boolean
-  latencyMs?: number
-  message?: string
-}
-
-async function probeMirrors(
+async function probeMirror(
   module: RuntimeModuleRelease,
   artifact: RuntimeModuleArtifact,
+  mirror: RuntimeModuleArtifact['mirrors'][number],
   onProgress?: (progress: RuntimeModuleInstallProgress) => void
-): Promise<MirrorProbe[]> {
-  const probes: MirrorProbe[] = []
-  for (const mirror of artifact.mirrors) {
+): Promise<boolean> {
+  onProgress?.({
+    moduleId: module.id,
+    phase: 'source-check',
+    receivedBytes: 0,
+    totalBytes: artifact.size,
+    mirrorId: mirror.id,
+    message: `正在检测 ${mirror.id}`
+  })
+  const startedAt = Date.now()
+  try {
+    const response = await responseFollowingRedirects(mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
+    const latencyMs = Date.now() - startedAt
+    const available = response.ok
+    const message = available ? `${mirror.id} 可用（${latencyMs}ms）` : `${mirror.id} 返回 HTTP ${response.status}`
     onProgress?.({
       moduleId: module.id,
-      phase: 'source-check',
+      phase: available ? 'source-ready' : 'source-fallback',
       receivedBytes: 0,
       totalBytes: artifact.size,
       mirrorId: mirror.id,
-      message: `正在检测 ${mirror.id}`
+      latencyMs,
+      message
     })
-    const startedAt = Date.now()
-    try {
-      const response = await responseFollowingRedirects(mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
-      const latencyMs = Date.now() - startedAt
-      const available = response.ok
-      const message = available ? `${mirror.id} 可用（${latencyMs}ms）` : `${mirror.id} 返回 HTTP ${response.status}`
-      probes.push({ mirror, available, latencyMs, message })
-      onProgress?.({
-        moduleId: module.id,
-        phase: available ? 'source-ready' : 'source-fallback',
-        receivedBytes: 0,
-        totalBytes: artifact.size,
-        mirrorId: mirror.id,
-        latencyMs,
-        message
-      })
-    } catch (error) {
-      const message = `${mirror.id} 不可用：${error instanceof Error ? error.message : String(error)}`
-      probes.push({ mirror, available: false, message })
-      onProgress?.({
-        moduleId: module.id,
-        phase: 'source-fallback',
-        receivedBytes: 0,
-        totalBytes: artifact.size,
-        mirrorId: mirror.id,
-        message
-      })
-    }
+    return available
+  } catch (error) {
+    const message = `${mirror.id} 不可用：${error instanceof Error ? error.message : String(error)}`
+    onProgress?.({
+      moduleId: module.id,
+      phase: 'source-fallback',
+      receivedBytes: 0,
+      totalBytes: artifact.size,
+      mirrorId: mirror.id,
+      message
+    })
+    return false
   }
-  return probes.sort((left, right) => Number(right.available) - Number(left.available))
+}
+
+/** Rejects one stalled body read so the caller can cancel this source and try the next mirror. */
+export async function readRuntimeDownloadChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs = DOWNLOAD_STALL_TIMEOUT_MS
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const stalled = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => reject(new Error(`持续 ${Math.ceil(timeoutMs / 1_000)} 秒无下载进度`)), timeoutMs)
+  })
+  try {
+    return await Promise.race([reader.read(), stalled])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
 }
 
 async function downloadArtifact(
@@ -227,8 +234,8 @@ async function downloadArtifact(
   }
   const partialFile = `${finalFile}.part`
   let lastFailure = '没有可用的模块镜像'
-  const probes = await probeMirrors(module, artifact, onProgress)
-  for (const { mirror } of probes) {
+  for (const mirror of artifact.mirrors) {
+    if (!await probeMirror(module, artifact, mirror, onProgress)) continue
     try {
       let offset = 0
       try {
@@ -258,16 +265,19 @@ async function downloadArtifact(
         output.once('error', reject)
       })
       let received = offset
+      const reader = response.body.getReader()
       try {
-        const reader = response.body.getReader()
         while (true) {
-          const { done, value } = await reader.read()
+          const { done, value } = await readRuntimeDownloadChunk(reader)
           if (done) break
           received += value.byteLength
           if (received > artifact.size || received > MAX_ARCHIVE_BYTES) throw new Error('下载内容超过签名清单大小')
           if (!output.write(value)) await once(output, 'drain')
           onProgress?.({ moduleId: module.id, phase: 'download', receivedBytes: received, totalBytes: artifact.size, mirrorId: mirror.id })
         }
+      } catch (error) {
+        await reader.cancel(error instanceof Error ? error.message : String(error)).catch(() => undefined)
+        throw error
       } finally {
         output.end()
         await outputClosed

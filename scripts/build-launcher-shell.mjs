@@ -137,9 +137,9 @@ const payload = {
   unpackedSize,
   executable: '深蓝DeepSeekHarness启动器.exe',
   mirrors: [
-    { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/releases/download/${tag}/${fileName}` },
-    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` },
-    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` }
+    { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${fileName}` },
+    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` },
+    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` }
   ],
   includedPackages: [...selected].sort()
 }
