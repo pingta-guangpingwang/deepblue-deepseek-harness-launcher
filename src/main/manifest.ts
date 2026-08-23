@@ -48,7 +48,27 @@ function validRuntimeArtifact(value: unknown): value is RuntimeModuleArtifact {
         : mirror.id === 'gitee'
           ? ['/wanggp123/deepseek-harness-launcher/', '/pingta-guangpingwang/deepblue-deepseek-harness-launcher/'].some((prefix) => url.pathname.startsWith(prefix))
           : url.pathname.startsWith('/modules/')
-      return url.protocol === 'https:' && !url.username && !url.password && !url.hash && !!hosts?.has(url.hostname) && validPath
+      const validUrl = url.protocol === 'https:' && !url.username && !url.password && !url.hash && !!hosts?.has(url.hostname) && validPath
+      if (!validUrl) return false
+      if (mirror.parts === undefined) return true
+      if (mirror.id !== 'gitee' || !Array.isArray(mirror.parts) || mirror.parts.length < 1 || mirror.parts.length > 64) return false
+      if (mirror.url !== mirror.parts[0]?.url) return false
+      const partUrls = new Set<string>()
+      let partBytes = 0
+      for (const part of mirror.parts) {
+        if (!isRecord(part) || !SHA256_PATTERN.test(part.sha256) || !Number.isSafeInteger(part.size) || part.size < 1 || part.size > 8 * 1024 * 1024) return false
+        if (partUrls.has(part.url)) return false
+        partUrls.add(part.url)
+        partBytes += part.size
+        try {
+          const partUrl = new URL(part.url)
+          if (partUrl.protocol !== 'https:' || partUrl.hostname !== 'gitee.com' || partUrl.username || partUrl.password || partUrl.hash) return false
+          if (!partUrl.pathname.startsWith('/wanggp123/deepseek-harness-launcher/raw/runtime-assets/')) return false
+        } catch {
+          return false
+        }
+      }
+      return partBytes === artifact.size
     } catch {
       return false
     }

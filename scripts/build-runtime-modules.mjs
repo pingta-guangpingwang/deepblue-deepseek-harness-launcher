@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as tar from 'tar'
 
@@ -10,6 +10,7 @@ const packagedRoot = path.resolve(process.argv[2] || expectedPackage)
 const appRoot = path.join(packagedRoot, 'resources', 'app')
 const modulesRoot = path.join(root, 'release', 'modules')
 const generatedFile = path.join(root, 'release', 'runtime-modules.generated.json')
+const GITEE_PART_BYTES = 5 * 1024 * 1024
 
 if (packagedRoot.toLowerCase() !== expectedPackage.toLowerCase()) {
   throw new Error(`Refusing to package runtime modules outside the generated Windows package: ${packagedRoot}`)
@@ -35,6 +36,36 @@ async function sha256(file) {
   const digest = createHash('sha256')
   for await (const chunk of createReadStream(file)) digest.update(chunk)
   return digest.digest('hex')
+}
+
+async function splitForGitee(file, fileName, tag) {
+  const targetRoot = path.join(root, 'release', 'gitee-parts', tag)
+  await mkdir(targetRoot, { recursive: true })
+  const handle = await open(file, 'r')
+  const parts = []
+  try {
+    let offset = 0
+    let index = 1
+    while (true) {
+      const buffer = Buffer.allocUnsafe(GITEE_PART_BYTES)
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, offset)
+      if (bytesRead === 0) break
+      const body = buffer.subarray(0, bytesRead)
+      const partName = `${fileName}.part${String(index).padStart(3, '0')}`
+      await writeFile(path.join(targetRoot, partName), body)
+      parts.push({
+        url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${partName}`,
+        sha256: createHash('sha256').update(body).digest('hex'),
+        size: bytesRead
+      })
+      offset += bytesRead
+      index += 1
+    }
+  } finally {
+    await handle.close()
+  }
+  if (parts.length < 1) throw new Error(`Refusing to publish an empty Gitee artifact: ${fileName}`)
+  return parts
 }
 
 async function pack({ id, version, cwd, entries }) {
@@ -83,10 +114,17 @@ const [nodeArtifact, harnessArtifact, packageManagerArtifact] = await Promise.al
   pack({ id: 'package-manager', version: pnpmPackage.version, cwd: appRoot, entries: ['node_modules/pnpm'] })
 ])
 
+const tag = `runtime-v${launcher.version}`
+const giteePartsRoot = path.join(root, 'release', 'gitee-parts', tag)
+await rm(giteePartsRoot, { recursive: true, force: true })
+await mkdir(giteePartsRoot, { recursive: true })
+for (const artifact of [nodeArtifact, harnessArtifact, packageManagerArtifact]) {
+  artifact.giteeParts = await splitForGitee(artifact.file, artifact.fileName, tag)
+}
+
 function mirrors(artifact) {
-  const tag = `runtime-v${launcher.version}`
   return [
-    { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${artifact.fileName}` },
+    { id: 'gitee', url: artifact.giteeParts[0].url, parts: artifact.giteeParts },
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${artifact.fileName}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${artifact.fileName}` }
   ]

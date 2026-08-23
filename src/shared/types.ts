@@ -587,6 +587,11 @@ export type RuntimeModuleId =
 export interface RuntimeModuleMirror {
   id: 'gitee' | 'github' | 'oss'
   url: string
+  parts?: Array<{
+    url: string
+    sha256: string
+    size: number
+  }>
 }
 
 export interface RuntimeModuleArtifact {

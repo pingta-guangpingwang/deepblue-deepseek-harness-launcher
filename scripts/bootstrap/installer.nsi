@@ -67,7 +67,7 @@ Section "安装启动器" SEC_MAIN
     StrCpy $DownloadStatus "PENDING"
     DetailPrint "资源 1/1 · 启动器 UI 壳 ${SHELL_VERSION}"
     DetailPrint "正在检测 Gitee 国内镜像；不可用或持续无进度时切换 OSS，最后尝试 GitHub"
-    !insertmacro DownloadMirror "${SHELL_URL_GITEE}" "Gitee 国内镜像"
+    !insertmacro DownloadGiteeParts
     !insertmacro DownloadMirror "${SHELL_URL_OSS}" "OSS 国内镜像"
     !insertmacro DownloadMirror "${SHELL_URL_GITHUB}" "GitHub Releases"
   ${EndIf}

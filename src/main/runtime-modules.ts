@@ -175,7 +175,7 @@ async function probeMirror(
   })
   const startedAt = Date.now()
   try {
-    const response = await responseFollowingRedirects(mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
+    const response = await responseFollowingRedirects(mirror.parts?.[0]?.url || mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
     const latencyMs = Date.now() - startedAt
     const available = response.ok
     const message = available ? `${mirror.id} 可用（${latencyMs}ms）` : `${mirror.id} 返回 HTTP ${response.status}`
@@ -219,6 +219,65 @@ export async function readRuntimeDownloadChunk(
   }
 }
 
+async function downloadMultipartMirror(
+  partialFile: string,
+  module: RuntimeModuleRelease,
+  artifact: RuntimeModuleArtifact,
+  mirror: RuntimeModuleArtifact['mirrors'][number],
+  onProgress?: (progress: RuntimeModuleInstallProgress) => void
+): Promise<number> {
+  if (!mirror.parts?.length) throw new Error('分片目录为空')
+  await rm(partialFile, { force: true })
+  const output = createWriteStream(partialFile, { flags: 'w', mode: 0o600 })
+  const outputClosed = new Promise<void>((resolve, reject) => {
+    output.once('close', resolve)
+    output.once('error', reject)
+  })
+  let received = 0
+  try {
+    for (let partIndex = 0; partIndex < mirror.parts.length; partIndex += 1) {
+      const part = mirror.parts[partIndex]!
+      const response = await responseFollowingRedirects(part.url, mirror.id, 0, AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS))
+      if (response.status !== 200) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} 返回 HTTP ${response.status}`)
+      if (!response.body) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} 没有内容`)
+      const declaredLengthHeader = response.headers.get('content-length')
+      const declaredLength = Number(declaredLengthHeader)
+      if (declaredLengthHeader !== null && (!Number.isFinite(declaredLength) || declaredLength !== part.size)) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} 响应大小不匹配`)
+      const digest = createHash('sha256')
+      const reader = response.body.getReader()
+      let partBytes = 0
+      try {
+        while (true) {
+          const { done, value } = await readRuntimeDownloadChunk(reader)
+          if (done) break
+          partBytes += value.byteLength
+          received += value.byteLength
+          if (partBytes > part.size || received > artifact.size || received > MAX_ARCHIVE_BYTES) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} 超过签名清单大小`)
+          digest.update(value)
+          if (!output.write(value)) await once(output, 'drain')
+          onProgress?.({
+            moduleId: module.id,
+            phase: 'download',
+            receivedBytes: received,
+            totalBytes: artifact.size,
+            mirrorId: mirror.id,
+            message: `Gitee 分片 ${partIndex + 1}/${mirror.parts.length}`
+          })
+        }
+      } catch (error) {
+        await reader.cancel(error instanceof Error ? error.message : String(error)).catch(() => undefined)
+        throw error
+      }
+      if (partBytes !== part.size) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} 大小不匹配：${partBytes}/${part.size}`)
+      if (digest.digest('hex') !== part.sha256) throw new Error(`分片 ${partIndex + 1}/${mirror.parts.length} SHA-256 校验失败`)
+    }
+  } finally {
+    output.end()
+    await outputClosed
+  }
+  return received
+}
+
 async function downloadArtifact(
   root: string,
   module: RuntimeModuleRelease,
@@ -237,50 +296,55 @@ async function downloadArtifact(
   for (const mirror of artifact.mirrors) {
     if (!await probeMirror(module, artifact, mirror, onProgress)) continue
     try {
-      let offset = 0
-      try {
-        offset = (await stat(partialFile)).size
-        if (offset > artifact.size) {
+      let received = 0
+      if (mirror.parts?.length) {
+        received = await downloadMultipartMirror(partialFile, module, artifact, mirror, onProgress)
+      } else {
+        let offset = 0
+        try {
+          offset = (await stat(partialFile)).size
+          if (offset > artifact.size) {
+            await rm(partialFile, { force: true })
+            offset = 0
+          }
+        } catch (error) {
+          if (!isNotFound(error)) throw error
+        }
+        const response = await responseFollowingRedirects(mirror.url, mirror.id, offset, AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS))
+        if (offset > 0 && response.status === 200) {
           await rm(partialFile, { force: true })
           offset = 0
+        } else if (offset > 0 && response.status !== 206) {
+          throw new Error(`断点续传返回 HTTP ${response.status}`)
+        } else if (offset === 0 && response.status !== 200) {
+          throw new Error(`下载返回 HTTP ${response.status}`)
         }
-      } catch (error) {
-        if (!isNotFound(error)) throw error
-      }
-      const response = await responseFollowingRedirects(mirror.url, mirror.id, offset, AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS))
-      if (offset > 0 && response.status === 200) {
-        await rm(partialFile, { force: true })
-        offset = 0
-      } else if (offset > 0 && response.status !== 206) {
-        throw new Error(`断点续传返回 HTTP ${response.status}`)
-      } else if (offset === 0 && response.status !== 200) {
-        throw new Error(`下载返回 HTTP ${response.status}`)
-      }
-      if (!response.body) throw new Error('下载响应没有内容')
-      const declaredLength = Number(response.headers.get('content-length'))
-      if (Number.isFinite(declaredLength) && declaredLength > artifact.size - offset) throw new Error('下载响应超过签名清单大小')
-      const output = createWriteStream(partialFile, { flags: offset > 0 ? 'a' : 'w', mode: 0o600 })
-      const outputClosed = new Promise<void>((resolve, reject) => {
-        output.once('close', resolve)
-        output.once('error', reject)
-      })
-      let received = offset
-      const reader = response.body.getReader()
-      try {
-        while (true) {
-          const { done, value } = await readRuntimeDownloadChunk(reader)
-          if (done) break
-          received += value.byteLength
-          if (received > artifact.size || received > MAX_ARCHIVE_BYTES) throw new Error('下载内容超过签名清单大小')
-          if (!output.write(value)) await once(output, 'drain')
-          onProgress?.({ moduleId: module.id, phase: 'download', receivedBytes: received, totalBytes: artifact.size, mirrorId: mirror.id })
+        if (!response.body) throw new Error('下载响应没有内容')
+        const declaredLength = Number(response.headers.get('content-length'))
+        if (Number.isFinite(declaredLength) && declaredLength > artifact.size - offset) throw new Error('下载响应超过签名清单大小')
+        const output = createWriteStream(partialFile, { flags: offset > 0 ? 'a' : 'w', mode: 0o600 })
+        const outputClosed = new Promise<void>((resolve, reject) => {
+          output.once('close', resolve)
+          output.once('error', reject)
+        })
+        received = offset
+        const reader = response.body.getReader()
+        try {
+          while (true) {
+            const { done, value } = await readRuntimeDownloadChunk(reader)
+            if (done) break
+            received += value.byteLength
+            if (received > artifact.size || received > MAX_ARCHIVE_BYTES) throw new Error('下载内容超过签名清单大小')
+            if (!output.write(value)) await once(output, 'drain')
+            onProgress?.({ moduleId: module.id, phase: 'download', receivedBytes: received, totalBytes: artifact.size, mirrorId: mirror.id })
+          }
+        } catch (error) {
+          await reader.cancel(error instanceof Error ? error.message : String(error)).catch(() => undefined)
+          throw error
+        } finally {
+          output.end()
+          await outputClosed
         }
-      } catch (error) {
-        await reader.cancel(error instanceof Error ? error.message : String(error)).catch(() => undefined)
-        throw error
-      } finally {
-        output.end()
-        await outputClosed
       }
       if (received !== artifact.size) throw new Error(`下载大小不匹配：${received}/${artifact.size}`)
       onProgress?.({ moduleId: module.id, phase: 'verify', receivedBytes: received, totalBytes: artifact.size, mirrorId: mirror.id })
@@ -291,6 +355,7 @@ async function downloadArtifact(
       await rename(partialFile, finalFile)
       return { file: finalFile, mirrorId: mirror.id }
     } catch (error) {
+      await rm(partialFile, { force: true })
       lastFailure = `${mirror.id}: ${error instanceof Error ? error.message : String(error)}`
       onProgress?.({
         moduleId: module.id,

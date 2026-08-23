@@ -130,6 +130,39 @@ describe('runtime module store', () => {
     expect(progress).toContain('download:oss')
   })
 
+  it('reassembles and verifies signed Gitee parts before installing the module', async () => {
+    const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-gitee-parts-'))
+    roots.push(installationRoot)
+    const item = await fixture('24.16.0', 'gitee-parts')
+    const splitAt = Math.max(1, Math.floor(item.archive.byteLength / 2))
+    const parts = [item.archive.subarray(0, splitAt), item.archive.subarray(splitAt)]
+    const gitee = item.module.artifacts[0]!.mirrors[0]!
+    gitee.parts = parts.map((part, index) => ({
+      url: `${gitee.url}.part${String(index + 1).padStart(3, '0')}`,
+      sha256: createHash('sha256').update(part).digest('hex'),
+      size: part.byteLength
+    }))
+    gitee.url = gitee.parts[0]!.url
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200 })
+      const index = Number(String(url).match(/part(\d+)$/)?.[1] || 0) - 1
+      const body = parts[index]
+      if (!body) return new Response(null, { status: 404 })
+      return new Response(responseBody(body), { status: 200, headers: { 'content-length': String(body.byteLength) } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const progress: string[] = []
+    const store = new RuntimeModuleStore(installationRoot)
+    const installed = await store.install(item.module, [item.module], 'win32', 'x64', (entry) => {
+      if (entry.message) progress.push(entry.message)
+    })
+    expect(installed.mirrorId).toBe('gitee')
+    expect(await readFile(path.join(installed.root, 'bin', 'runtime.txt'), 'utf8')).toBe('gitee-parts')
+    expect(progress).toContain('Gitee 分片 1/2')
+    expect(progress).toContain('Gitee 分片 2/2')
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('aliyuncs.com'))).toBe(false)
+  })
+
   it('rejects a body read after sustained zero-byte progress', async () => {
     const stream = new ReadableStream<Uint8Array>({ start: () => undefined })
     const reader = stream.getReader()

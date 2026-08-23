@@ -16,6 +16,25 @@ if ($LASTEXITCODE -ne 0) { throw "Hash verifier rejected the authentic shell ($L
 if ($LASTEXITCODE -ne 4) { throw "Hash verifier did not reject a wrong digest ($LASTEXITCODE)." }
 
 $qaRoot = Join-Path $env:TEMP ('deepblue-bootstrap-smoke-' + [guid]::NewGuid().ToString('N'))
+$joinFixture = Join-Path $qaRoot 'join-fixture'
+New-Item -ItemType Directory -Path $joinFixture -Force | Out-Null
+$partOne = Join-Path $joinFixture 'part-001'
+$partTwo = Join-Path $joinFixture 'part-002'
+$joined = Join-Path $joinFixture 'joined.bin'
+[IO.File]::WriteAllBytes($partOne, [byte[]](1, 2, 3, 4))
+[IO.File]::WriteAllBytes($partTwo, [byte[]](5, 6, 7))
+function Get-TestSha256([string]$file) {
+  $stream = [IO.File]::OpenRead($file)
+  try {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+  } finally { $stream.Dispose() }
+}
+$expectedJoined = Join-Path $joinFixture 'expected.bin'
+[IO.File]::WriteAllBytes($expectedJoined, [byte[]](1, 2, 3, 4, 5, 6, 7))
+& $verifier --join $joined (Get-TestSha256 $expectedJoined) 7 $partOne (Get-TestSha256 $partOne) 4 $partTwo (Get-TestSha256 $partTwo) 3
+if ($LASTEXITCODE -ne 0 -or (Get-TestSha256 $joined) -ne (Get-TestSha256 $expectedJoined)) { throw "Hash verifier could not reassemble signed parts ($LASTEXITCODE)." }
 $appRoot = Join-Path $qaRoot ('shells\' + [string]$metadata.version)
 $app = Join-Path $appRoot ([string]$metadata.executable)
 $appProcess = $null

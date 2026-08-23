@@ -59,7 +59,9 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     installationRoots.push(installationRoot)
     vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => {
       const parsed = new URL(String(url))
-      const file = path.join(releaseRoot, 'modules', path.basename(parsed.pathname))
+      const file = parsed.hostname === 'gitee.com'
+        ? path.join(releaseRoot, 'gitee-parts', `runtime-v${JSON.parse(await readFile(path.resolve('package.json'), 'utf8')).version}`, path.basename(parsed.pathname))
+        : path.join(releaseRoot, 'modules', path.basename(parsed.pathname))
       const bytes = await readFile(file)
       return new Response(Uint8Array.from(bytes).buffer, { status: 200 })
     }))

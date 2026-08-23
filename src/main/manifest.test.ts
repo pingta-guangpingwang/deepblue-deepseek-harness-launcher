@@ -81,6 +81,23 @@ describe('catalog signature verification', () => {
     }])).toBe(false)
   })
 
+  it('accepts signed Gitee multipart mirrors only when every part is bounded and totals the artifact size', () => {
+    const first = {
+      url: 'https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/runtime-v0.10.13/node.tar.gz.part001',
+      sha256: 'b'.repeat(64),
+      size: 4
+    }
+    const multipart = {
+      ...runtimeModule,
+      artifacts: [{
+        ...runtimeModule.artifacts[0]!,
+        mirrors: [{ id: 'gitee' as const, url: first.url, parts: [first, { ...first, url: first.url.replace('001', '002'), sha256: 'c'.repeat(64), size: 6 }] }]
+      }]
+    }
+    expect(validateRuntimeModules([multipart])).toBe(true)
+    expect(validateRuntimeModules([{ ...multipart, artifacts: [{ ...multipart.artifacts[0]!, mirrors: [{ ...multipart.artifacts[0]!.mirrors[0]!, parts: [first] }] }] }])).toBe(false)
+  })
+
   it('requires schema 2 before accepting runtime modules', () => {
     const { publicKey, privateKey } = generateKeyPairSync('ed25519')
     const modularPayload: SignedCatalogPayload = { ...payload, schemaVersion: 2, runtimeModules: [runtimeModule] }
@@ -172,7 +189,8 @@ describe('catalog signature verification', () => {
       expect(oss).toBeLessThan(github)
     }
     expect(bootstrapBuilder).toContain('SHELL_URL_GITEE')
-    expect(bootstrapInstaller.indexOf('SHELL_URL_GITEE')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
+    expect(bootstrapBuilder).toContain('DownloadGiteeParts')
+    expect(bootstrapInstaller.indexOf('DownloadGiteeParts')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
     expect(bootstrapInstaller.indexOf('SHELL_URL_OSS')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_GITHUB'))
     expect(bootstrapInstaller).toContain('/RECEIVETIMEOUT 15')
     expect(bootstrapInstaller).not.toContain('/RESUME')

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { discoverMainRuntimePackages } from './launcher-runtime-packages.mjs'
@@ -11,6 +11,7 @@ const packagedRoot = path.join(releaseRoot, 'win-unpacked')
 const stagingRoot = path.join(releaseRoot, `.launcher-shell-stage-${process.pid}`)
 const generatedFile = path.join(releaseRoot, 'launcher-shell.generated.json')
 const launcherPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+const GITEE_PART_BYTES = 5 * 1024 * 1024
 
 async function exists(target) {
   try {
@@ -79,6 +80,39 @@ async function sha256(file) {
   return digest.digest('hex')
 }
 
+async function splitForGitee(file, fileName, tag) {
+  const targetRoot = path.join(releaseRoot, 'gitee-parts', tag)
+  await mkdir(targetRoot, { recursive: true })
+  for (const entry of await readdir(targetRoot)) {
+    if (entry.startsWith('launcher-shell-')) await rm(path.join(targetRoot, entry), { force: true })
+  }
+  const handle = await open(file, 'r')
+  const parts = []
+  try {
+    let offset = 0
+    let index = 1
+    while (true) {
+      const buffer = Buffer.allocUnsafe(GITEE_PART_BYTES)
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, offset)
+      if (bytesRead === 0) break
+      const body = buffer.subarray(0, bytesRead)
+      const partName = `${fileName}.part${String(index).padStart(3, '0')}`
+      await writeFile(path.join(targetRoot, partName), body)
+      parts.push({
+        url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${partName}`,
+        sha256: createHash('sha256').update(body).digest('hex'),
+        size: bytesRead
+      })
+      offset += bytesRead
+      index += 1
+    }
+  } finally {
+    await handle.close()
+  }
+  if (parts.length < 1) throw new Error(`Refusing to publish an empty Gitee shell: ${fileName}`)
+  return parts
+}
+
 if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('Launcher shell artifacts must be built on Windows x64')
 await access(path.join(packagedRoot, '深蓝DeepSeekHarness启动器.exe'))
 await rm(stagingRoot, { recursive: true, force: true })
@@ -124,6 +158,7 @@ const unpackedSize = await (async function sizeUnder(target) {
   return total
 })(stagingRoot)
 const tag = `runtime-v${launcherPackage.version}`
+const giteeParts = await splitForGitee(archive, fileName, tag)
 const payload = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
@@ -137,7 +172,7 @@ const payload = {
   unpackedSize,
   executable: '深蓝DeepSeekHarness启动器.exe',
   mirrors: [
-    { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/${tag}/${fileName}` },
+    { id: 'gitee', url: giteeParts[0].url, parts: giteeParts },
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` }
   ],

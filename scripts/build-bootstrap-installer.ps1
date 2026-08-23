@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $releaseRoot = Join-Path $projectRoot 'release'
@@ -28,6 +28,10 @@ foreach ($required in @($sevenZip, $makeNsis, $pluginRoot, $appIcon)) { if (-not
 function Escape-Nsis([string]$value) { return $value.Replace('$', '$$').Replace('"', '$\"') }
 $mirrors = @{}
 foreach ($mirror in $generated.mirrors) { $mirrors[[string]$mirror.id] = [string]$mirror.url }
+$giteeMirror = $generated.mirrors | Where-Object { [string]$_.id -eq 'gitee' } | Select-Object -First 1
+if (-not $giteeMirror -or -not $giteeMirror.parts -or $giteeMirror.parts.Count -lt 1) {
+  throw 'The generated launcher shell does not contain signed Gitee parts.'
+}
 $lines = @(
   "!define SHELL_VERSION `"$(Escape-Nsis ([string]$generated.version))`"",
   "!define SHELL_EXECUTABLE `"$(Escape-Nsis ([string]$generated.executable))`"",
@@ -37,6 +41,29 @@ $lines = @(
   "!define SHELL_URL_GITHUB `"$(Escape-Nsis $mirrors.github)`"",
   "!define SHELL_URL_OSS `"$(Escape-Nsis $mirrors.oss)`""
 )
+$giteePartLines = @('!macro DownloadGiteeParts', '  StrCpy $DownloadStatus "OK"')
+$joinCommand = '"$PLUGINSDIR\HashVerifier.exe" --join "$PLUGINSDIR\launcher-shell.7z" "${SHELL_SHA256}" "${SHELL_SIZE}"'
+$nsisShellVersion = '$' + '{SHELL_VERSION}'
+for ($index = 0; $index -lt $giteeMirror.parts.Count; $index++) {
+  $part = $giteeMirror.parts[$index]
+  $partNumber = $index + 1
+  $partFile = "shell-part-{0:d3}" -f $partNumber
+  $escapedPartUrl = Escape-Nsis ([string]$part.url)
+  $giteePartLines += '  ${If} $DownloadStatus == "OK"'
+  $giteePartLines += "    DetailPrint `"正在下载 Gitee 分片 $partNumber/$($giteeMirror.parts.Count)…`""
+  $giteePartLines += "    inetc::get /USERAGENT `"DeepBlue-DeepSeek-Harness-Bootstrap/$nsisShellVersion`" /CONNECTTIMEOUT 8 /RECEIVETIMEOUT 15 `"$escapedPartUrl`" `"`$PLUGINSDIR\$partFile`" /END"
+  $giteePartLines += '    Pop $DownloadStatus'
+  $giteePartLines += '  ${EndIf}'
+  $joinCommand += (' "$PLUGINSDIR\{0}" "{1}" "{2}"' -f $partFile, [string]$part.sha256, [string]$part.size)
+}
+$giteePartLines += '  ${If} $DownloadStatus == "OK"'
+$giteePartLines += ('    ExecWait ''{0}'' $0' -f $joinCommand)
+$giteePartLines += '    ${If} $0 != 0'
+$giteePartLines += '      StrCpy $DownloadStatus "Gitee 分片校验失败（代码 $0）"'
+$giteePartLines += '    ${EndIf}'
+$giteePartLines += '  ${EndIf}'
+$giteePartLines += '!macroend'
+$lines += $giteePartLines
 Set-Content -LiteralPath $include -Value $lines -Encoding UTF8
 
 & $makeNsis `
