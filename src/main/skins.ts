@@ -8,6 +8,7 @@ import { Readable } from 'node:stream'
 import { launcherDataPaths } from './config'
 import { downloadTimeoutMs, mirrorCandidates } from './asset-mirrors'
 import { fetchTrustedStoreKey } from './store-trust'
+import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
 import type {
   SignedSkinCatalogManifest,
   SkinAsset,
@@ -390,15 +391,18 @@ export class SkinStore {
     thumbnailPath?: string
   }> {
     const item = this.item(skinId)
+    const capability = desktopWallpaperCapability(item)
+    if (!capability.supported) throw new Error(capability.reason)
     if (item.mediaKind === 'video') {
-      const sourceAsset = item.poster || item.thumbnail
+      const sourceAsset = capability.asset
+      const usingPoster = sourceAsset === item.poster
       const sourcePath = await downloadAsset(sourceAsset, onProgress)
-      onProgress?.({ status: 'completed', receivedBytes: sourceAsset.size, totalBytes: sourceAsset.size, message: item.poster ? '视频高清封面已就绪' : '视频预览图已就绪' })
+      onProgress?.({ status: 'completed', receivedBytes: sourceAsset.size, totalBytes: sourceAsset.size, message: usingPoster ? '视频高清封面已就绪' : '视频预览图已就绪' })
       return {
         state: await this.snapshot('ready'),
         mediaKind: item.mediaKind,
         mediaPath: cachePath(item.media),
-        ...(item.poster ? { posterPath: sourcePath } : { thumbnailPath: sourcePath })
+        ...(usingPoster ? { posterPath: sourcePath } : { thumbnailPath: sourcePath })
       }
     }
     const mediaPath = await downloadAsset(item.media, onProgress)

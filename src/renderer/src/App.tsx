@@ -101,6 +101,7 @@ import { mockSnapshot } from './mock'
 import deepseekLogo from './assets/deepseek-logo.svg'
 import { catalogCapacity, catalogPageTokens } from './catalog-pagination'
 import { onlinePageRefreshTarget } from './online-page-refresh'
+import { desktopWallpaperCapability } from '../../shared/desktop-wallpaper'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }] },
@@ -844,6 +845,8 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const previewItem = preview ? snapshot.skins.items.find((entry) => entry.id === preview.skinId) : undefined
+  const previewDesktopAction = previewItem ? desktopWallpaperCapability(previewItem) : undefined
   const chooseStyle = (next: SkinStyle | 'all'): void => { setStyle(next); setPage(1) }
   const chooseKind = (next: SkinMediaKind | 'all'): void => { setKind(next); setPage(1) }
   const chooseView = (next: 'all' | 'current' | 'favorites'): void => {
@@ -876,6 +879,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
       </Card>
 
       {snapshot.skins.message && <div className="skin-notice"><Info size={15} />{snapshot.skins.message}</div>}
+      <div className="skin-notice"><Monitor size={15} />Windows 桌面使用静态图片：视频取封面，动图取首帧；没有可用静态图的资源不会显示桌面按钮。</div>
       <Card className="skin-toolbar skin-library-toolbar">
         <div className="skin-library-tabs" role="tablist" aria-label="皮肤库视图">
           <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'active' : ''} onClick={() => chooseView('all')}><Images size={15} /><span>全部商店</span><b>{snapshot.skins.items.length}</b></button>
@@ -900,6 +904,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
         const favorite = favorites.has(skin.id)
         const transfer = snapshot.skins.transfers[skin.id]
         const transferring = transfer && ['queued', 'downloading', 'verifying', 'applying', 'removing'].includes(transfer.status)
+        const desktopAction = desktopWallpaperCapability(skin)
         return (
           <article className={classNames('skin-card', active && 'active')} key={skin.id}>
             <div className="skin-preview">
@@ -921,7 +926,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
                 <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(skin.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
                 <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(skin.id) : onDownload(skin.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>
                 <button className={active ? 'small-button' : 'primary-button'} disabled={Boolean(transferring) || active} onClick={() => onApply(skin.id)}>{active ? <><Check size={14} />Harness 已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><Palette size={14} />应用到 Harness</>}</button>
-                <button className="desktop-wallpaper-button" disabled={Boolean(transferring)} onClick={() => onApplyDesktop(skin.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : <Monitor size={14} />}设为电脑桌面</button>
+                {desktopAction.supported && <button className="desktop-wallpaper-button" title={desktopAction.explanation} disabled={Boolean(transferring)} onClick={() => onApplyDesktop(skin.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : <Monitor size={14} />}{desktopAction.label}</button>}
               </div>
             </div>
           </article>
@@ -936,7 +941,7 @@ function SkinStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApp
           <div className="skin-preview-stage">
             {preview.mediaKind === 'video' ? <video src={preview.mediaUrl} poster={preview.posterUrl} controls autoPlay muted loop /> : <img src={preview.mediaUrl} alt={`${preview.name}高清预览`} />}
           </div>
-          <footer><span><ShieldCheck size={14} />已从本机缓存读取，关闭弹窗后仍可离线预览</span><div className="skin-preview-actions"><button className="small-button" onClick={() => onApplyDesktop(preview.skinId)}><Monitor size={15} />设为电脑桌面</button><button className="primary-button" disabled={snapshot.skins.activeSkinId === preview.skinId} onClick={() => onApply(preview.skinId)}>{snapshot.skins.activeSkinId === preview.skinId ? <><Check size={15} />Harness 正在使用</> : <><Palette size={15} />应用到 Harness</>}</button></div></footer>
+          <footer><span><ShieldCheck size={14} />已从本机缓存读取，关闭弹窗后仍可离线预览</span><div className="skin-preview-actions">{previewDesktopAction?.supported && <button className="small-button" title={previewDesktopAction.explanation} onClick={() => onApplyDesktop(preview.skinId)}><Monitor size={15} />{previewDesktopAction.label}</button>}<button className="primary-button" disabled={snapshot.skins.activeSkinId === preview.skinId} onClick={() => onApply(preview.skinId)}>{snapshot.skins.activeSkinId === preview.skinId ? <><Check size={15} />Harness 正在使用</> : <><Palette size={15} />应用到 Harness</>}</button></div></footer>
         </section>
       </div>}
     </div>

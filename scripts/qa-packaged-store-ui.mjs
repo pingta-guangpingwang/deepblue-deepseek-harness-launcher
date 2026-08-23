@@ -98,7 +98,7 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
   await page.screenshot({ path: path.join(outputRoot, `${label}-page-1.png`) })
   if (label.includes('skins')) {
     const visibleCards = await page.locator('.skin-card').count()
-    const desktopActions = await page.getByRole('button', { name: '设为电脑桌面', exact: true }).count()
+    const desktopActions = await page.locator('.skin-card .desktop-wallpaper-button').count()
     const harnessActions = await page.getByRole('button', { name: /^(应用到 Harness|Harness 已应用)$/ }).count()
     check(`${label} 每款壁纸都有独立的 Harness 与电脑桌面入口`, desktopActions === visibleCards && harnessActions === visibleCards, `cards=${visibleCards}, harness=${harnessActions}, desktop=${desktopActions}`)
     const actionsFit = await page.locator('.skin-card-actions').evaluateAll(nodes => nodes.every(node => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1))

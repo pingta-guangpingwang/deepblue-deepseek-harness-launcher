@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.17",
+  "version": "0.10.18",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",

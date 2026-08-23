@@ -21,6 +21,7 @@ import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
 import { coreRuntimeMissing } from '../shared/environment-health'
+import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
 import type {
   EnvironmentItem,
   HarnessVersion,
@@ -1232,7 +1233,14 @@ export class LauncherController {
   async applySkinToDesktop(skinId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.skins.items.find(entry => entry.id === skinId)
     if (!item || this.skinTransferBusy(skinId)) return this.getSnapshot()
-    const desktopAssetSize = item.mediaKind === 'video' ? (item.poster || item.thumbnail).size : item.media.size
+    const capability = desktopWallpaperCapability(item)
+    if (!capability.supported) {
+      this.failSkinTransfer(skinId, 'desktop', new Error(capability.reason))
+      this.log('WARN', `皮肤「${item.name}」不显示电脑桌面操作：${capability.reason}`)
+      this.emit()
+      return this.getSnapshot()
+    }
+    const desktopAssetSize = capability.asset.size
     this.updateSkinTransfer(skinId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: desktopAssetSize, message: '准备电脑桌面壁纸' })
     this.emit()
     try {
