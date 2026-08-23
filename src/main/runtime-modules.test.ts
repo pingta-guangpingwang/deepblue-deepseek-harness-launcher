@@ -161,6 +161,7 @@ describe('runtime module store', () => {
     expect(progress).toContain('Gitee 分片 1/2')
     expect(progress).toContain('Gitee 分片 2/2')
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('aliyuncs.com'))).toBe(false)
+    expect(fetchMock.mock.calls.some(([_url, init]) => init?.method === 'HEAD')).toBe(false)
   })
 
   it('rejects a body read after sustained zero-byte progress', async () => {

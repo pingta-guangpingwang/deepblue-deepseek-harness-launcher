@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$InstallerUrl = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/download/deepblue-deepseek-harness-launcher-win-x64-online.exe',
   [int]$TimeoutMinutes = 20,
   [switch]$KeepInstallation
@@ -12,6 +12,15 @@ $installerFile = Join-Path $qaRoot 'public-online-installer.exe'
 $installRoot = Join-Path $qaRoot 'installed-program'
 $outputRoot = Join-Path $projectRoot 'output\playwright\public-fresh-install'
 $installerProcess = $null
+
+function Get-Sha256([string]$Target) {
+  $stream = [IO.File]::OpenRead($Target)
+  try {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+  } finally { $stream.Dispose() }
+}
 
 function Remove-VerifiedQaRoot([string]$Target) {
   $tempRoot = [IO.Path]::GetFullPath($env:TEMP + [IO.Path]::DirectorySeparatorChar)
@@ -46,7 +55,7 @@ try {
 
   $installerInfo = Get-Item -LiteralPath $installerFile
   if ($installerInfo.Length -lt 100000) { throw "Anonymous installer download is unexpectedly small: $($installerInfo.Length) bytes." }
-  $installerSha256 = (Get-FileHash -LiteralPath $installerFile -Algorithm SHA256).Hash.ToLowerInvariant()
+  $installerSha256 = Get-Sha256 $installerFile
   Write-Host "Downloaded anonymous public installer: $($installerInfo.Length) bytes, SHA256 $installerSha256"
 
   $installerProcess = Start-Process -FilePath $installerFile -ArgumentList @('/S', '/QA', "/D=$installRoot") -PassThru -WindowStyle Hidden
@@ -62,6 +71,9 @@ try {
   if ($installerProcess.ExitCode -ne 0) { throw "Public online installer failed with exit code $($installerProcess.ExitCode)." }
 
   $app = Join-Path $installRoot ("shells\{0}\深蓝DeepSeekHarness启动器.exe" -f [string]$package.version)
+  while (-not (Test-Path -LiteralPath $app -PathType Leaf) -and [DateTime]::UtcNow -lt $installerDeadline) {
+    Start-Sleep -Milliseconds 500
+  }
   if (-not (Test-Path -LiteralPath $app -PathType Leaf)) { throw "Public installer did not install launcher $($package.version)." }
   $runtimeRoot = Join-Path $qaRoot 'fresh-storage\runtime\modules'
   if (Test-Path -LiteralPath $runtimeRoot) { throw 'Fresh-install gate was not clean before the launcher started.' }
@@ -70,10 +82,16 @@ try {
   $env:QA_PUBLIC_ROOT = $qaRoot
   $env:QA_PUBLIC_OUTPUT = $outputRoot
   $env:QA_PUBLIC_TIMEOUT_MS = [string]($TimeoutMinutes * 60 * 1000)
-  & node (Join-Path $PSScriptRoot 'qa-public-fresh-install.mjs')
-  if ($LASTEXITCODE -ne 0) { throw "Public launcher/Harness QA failed with exit code $LASTEXITCODE." }
+  $reportPath = Join-Path $outputRoot 'public-fresh-install-report.json'
+  Remove-Item -LiteralPath $reportPath -Force -ErrorAction SilentlyContinue
+  $nodeExecutable = (Get-Command node.exe -ErrorAction Stop).Source
+  Write-Host "Starting cache-free launcher and Harness QA with $nodeExecutable"
+  & $nodeExecutable (Join-Path $PSScriptRoot 'qa-public-fresh-install.mjs')
+  $qaExitCode = $LASTEXITCODE
+  if ($qaExitCode -ne 0) { throw "Public launcher/Harness QA failed with exit code $qaExitCode." }
+  if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) { throw 'Public launcher/Harness QA returned without a release-gate report.' }
 
-  $report = Get-Content -LiteralPath (Join-Path $outputRoot 'public-fresh-install-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+  $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
   $summary = [ordered]@{
     passed = $true
     installerUrl = $InstallerUrl

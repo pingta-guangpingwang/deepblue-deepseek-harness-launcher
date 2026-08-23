@@ -174,8 +174,20 @@ async function probeMirror(
     message: `正在检测 ${mirror.id}`
   })
   const startedAt = Date.now()
+  if (mirror.parts?.length) {
+    onProgress?.({
+      moduleId: module.id,
+      phase: 'source-ready',
+      receivedBytes: 0,
+      totalBytes: artifact.size,
+      mirrorId: mirror.id,
+      latencyMs: 0,
+      message: `${mirror.id} 签名分片已就绪，开始逐片下载验证`
+    })
+    return true
+  }
   try {
-    const response = await responseFollowingRedirects(mirror.parts?.[0]?.url || mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
+    const response = await responseFollowingRedirects(mirror.url, mirror.id, 0, AbortSignal.timeout(5_000), 'HEAD')
     const latencyMs = Date.now() - startedAt
     const available = response.ok
     const message = available ? `${mirror.id} 可用（${latencyMs}ms）` : `${mirror.id} 返回 HTTP ${response.status}`
