@@ -41,8 +41,9 @@ const app = await electron.launch({
 })
 
 let finalSnapshot
+let page
 try {
-  const page = await app.firstWindow()
+  page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   const startButton = page.getByRole('button', { name: '启动 DeepSeek Harness', exact: true })
   await startButton.waitFor({ state: 'visible', timeout: 60_000 })
@@ -86,6 +87,17 @@ try {
     finalLogs: finalSnapshot.logs.slice(-30)
   }, null, 2)}\n`, 'utf8')
 } finally {
+  if (finalSnapshot?.runStatus !== 'running') {
+    await page?.screenshot({ path: path.join(outputRoot, 'public-fresh-install-failed.png') }).catch(() => undefined)
+    await writeFile(path.join(outputRoot, 'public-fresh-install-failure.json'), `${JSON.stringify({
+      passed: false,
+      testedAt: new Date().toISOString(),
+      elapsedMs: Date.now() - startedAt,
+      observedSources: [...observedSources],
+      observedProgress,
+      snapshot: finalSnapshot
+    }, null, 2)}\n`, 'utf8').catch(() => undefined)
+  }
   await app.close().catch(() => undefined)
 }
 

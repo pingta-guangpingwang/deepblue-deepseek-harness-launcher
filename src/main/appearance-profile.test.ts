@@ -18,4 +18,29 @@ describe('appearance web profile repair', () => {
     })
     expect(repaired.dsh?.profile?.bundles).toEqual(['@deepseek-ai/dsh-base', '@deepblue/dsh-skin-runtime'])
   })
+
+  it('seeds the DSH web defaults before the appearance bundle on a fresh install', () => {
+    const repaired = appearanceProfileWithArchive({}, 'C:\\launcher\\deepblue-dsh-skin-runtime-0.6.0.tgz')
+
+    expect(repaired.dsh?.profile?.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@deepblue/dsh-skin-runtime'
+    ])
+    expect(repaired.dependencies).toEqual({
+      '@deepblue/dsh-skin-runtime': 'file:C:/launcher/deepblue-dsh-skin-runtime-0.6.0.tgz'
+    })
+  })
+
+  it('repairs an empty bundles array left by an incomplete first install', () => {
+    const repaired = appearanceProfileWithArchive({
+      dsh: { profile: { bundles: [] } }
+    }, 'D:\\DeepBlue\\skin-runtime.tgz')
+
+    expect(repaired.dsh?.profile?.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@deepblue/dsh-skin-runtime'
+    ])
+  })
 })

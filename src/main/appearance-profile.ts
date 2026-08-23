@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const APPEARANCE_PACKAGE = '@deepblue/dsh-skin-runtime'
+const DEFAULT_WEB_BUNDLES = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
 
 interface WebProfile {
   name?: string
@@ -12,7 +13,11 @@ interface WebProfile {
 
 export function appearanceProfileWithArchive(profile: WebProfile, archive: string): WebProfile {
   const normalizedArchive = archive.split(path.sep).join('/')
-  const bundles = profile.dsh?.profile?.bundles || []
+  // DSH initializes these bundles only when the profile file does not exist.
+  // The launcher must create the file early to install the appearance plugin,
+  // so a genuinely fresh profile needs the same defaults seeded here.
+  const existingBundles = profile.dsh?.profile?.bundles
+  const bundles = existingBundles?.length ? existingBundles : DEFAULT_WEB_BUNDLES
   return {
     ...profile,
     name: profile.name || 'dsh-profile-web',
