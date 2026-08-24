@@ -70,6 +70,7 @@ npm run sign:manifest -- release/launcher-catalog-payload.json release/launcher-
 8. 把签名后的清单原子发布到 OSS `release-v2/launcher-manifest.json`，并覆盖永久在线安装器地址。
 9. 必须运行 `npm run release:smoke-public-fresh-install`。该门禁会匿名下载永久公开 EXE，在全新临时目录安装，不使用任何本机 UI 壳或运行模块，继续通过公网安装 Node.js、Harness 并启动 Harness Web。只有报告、环境探针和本地 HTTP 可用性全部通过才算发布成功；`bootstrap:smoke-local-artifact` 仅是构建期快速检查，不能替代此门禁。
 10. 用上一正式版启动器执行“检查更新”，验证差异模块确认弹窗、每模块与总进度、公开渠道预检、主渠道失败后的自动回退、签名、SHA-256、失败整批回滚和成功后自动重启；清单中的每条应急 URL 都必须在无凭据客户端返回可下载响应，403/404 地址不得发布。
+    基础内核更新还必须从上一正式安装目录实测：点击一次后下载器应自动静默安装到原目录、把桌面和开始菜单快捷方式切到新版本，并自动拉起新内核；仅把安装器保存到“下载”目录不得算通过。
 11. 将通过审核并重新签名的目录同步到三个固定公开 Gitee 仓库：皮肤主仓、皮肤视频分仓和宠物仓。皮肤主仓的 `catalog.json` 同时索引主仓与视频分仓媒体；`catalog.json`、`trust.json` 与资源地址均为固定 URL。安装包只携带目录正文作为离线浏览兜底，不携带商店媒体，也不得再接入任意外部来源目录。
 12. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
 

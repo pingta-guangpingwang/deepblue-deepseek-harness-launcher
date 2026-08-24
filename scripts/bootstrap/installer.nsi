@@ -33,6 +33,7 @@ Var QaMode
 Var DownloadStatus
 Var FinalShell
 Var StagingShell
+Var AutoStart
 
 !macro DownloadMirror URL LABEL
   ${If} $DownloadStatus != "OK"
@@ -46,10 +47,16 @@ Function .onInit
   ${GetParameters} $0
   ${GetOptions} $0 "/LOCAL_SHELL=" $LocalShell
   StrCpy $QaMode "0"
+  StrCpy $AutoStart "0"
   ClearErrors
   ${GetOptions} $0 "/QA" $1
   ${IfNot} ${Errors}
     StrCpy $QaMode "1"
+  ${EndIf}
+  ClearErrors
+  ${GetOptions} $0 "/AUTOSTART" $1
+  ${IfNot} ${Errors}
+    StrCpy $AutoStart "1"
   ${EndIf}
 FunctionEnd
 
@@ -127,6 +134,9 @@ Section "安装启动器" SEC_MAIN
     CreateDirectory "$SMPROGRAMS\深蓝DeepSeekHarness启动器"
     CreateShortcut "$SMPROGRAMS\深蓝DeepSeekHarness启动器\深蓝DeepSeekHarness启动器.lnk" "$FinalShell\${SHELL_EXECUTABLE}"
     CreateShortcut "$DESKTOP\深蓝DeepSeekHarness启动器.lnk" "$FinalShell\${SHELL_EXECUTABLE}"
+  ${EndIf}
+  ${If} $AutoStart == "1"
+    Exec '"$FinalShell\${SHELL_EXECUTABLE}"'
   ${EndIf}
 SectionEnd
 

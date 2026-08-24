@@ -452,7 +452,7 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
         <div><span className="summary-icon success"><ShieldCheck /></span><p>系统健康状态</p><strong className="success-text">完整</strong><small>核心组件正常</small></div>
       </Card>
 
-      {snapshot.launcherUpdate && <Card className="launcher-update-banner"><span className="catalog-icon"><AppWindow /></span><div><span>基础内核更新 · 极少发生</span><h2>深蓝DeepSeekHarness内核 {snapshot.launcherUpdate.version}</h2><p>{snapshot.launcherUpdate.notes.join(' · ')}</p></div><button className="primary-button" onClick={onLauncherUpdate} disabled={!!busy}><HardDriveDownload size={16} />下载内核安装器</button></Card>}
+      {snapshot.launcherUpdate && <Card className="launcher-update-banner"><span className="catalog-icon"><AppWindow /></span><div><span>基础内核更新 · 极少发生</span><h2>深蓝DeepSeekHarness内核 {snapshot.launcherUpdate.version}</h2><p>{snapshot.launcherUpdate.notes.join(' · ')}</p></div><button className="primary-button" onClick={onLauncherUpdate} disabled={!!busy}><HardDriveDownload size={16} />安装并自动重启</button></Card>}
 
       <div className="version-main-column">
         <Card className="update-card">

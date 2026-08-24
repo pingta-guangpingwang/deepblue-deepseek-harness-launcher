@@ -5,6 +5,7 @@ import { access, mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const launcherExecutable = process.env.QA_LAUNCHER_EXE || path.join(root, 'release', 'win-unpacked', '深蓝DeepSeekHarness启动器.exe')
@@ -57,6 +58,10 @@ const failures = []
 function check(label, condition, detail = '') {
   process.stderr.write(`${condition ? 'ok  ' : 'FAIL'} ${label}${detail ? ` · ${detail}` : ''}\n`)
   if (!condition) failures.push(label)
+}
+
+function screenshotDigest(bytes) {
+  return createHash('sha256').update(bytes).digest('hex')
 }
 
 const app = await electron.launch({
@@ -120,6 +125,14 @@ try {
   await live2dPet.waitFor({ state: 'visible', timeout: 30_000 })
   await current.page.waitForFunction(() => document.querySelector('.deepblue-pet[data-pack-kind="live2d"]')?.getAttribute('data-live2d') === 'ready', undefined, { timeout: 90_000 })
   check('DSH Live2D 加载完整动态模型而非纹理碎图', await live2dPet.getAttribute('data-live2d') === 'ready' && await live2dPet.locator('canvas').count() === 1)
+  const live2dCanvas = live2dPet.locator('canvas')
+  const idleDigests = []
+  for (let sample = 0; sample < 8; sample += 1) {
+    idleDigests.push(screenshotDigest(await live2dCanvas.screenshot()))
+    await current.page.waitForTimeout(260)
+  }
+  check('DSH Live2D 待机动画持续产生不同画面', new Set(idleDigests).size >= 3, `uniqueFrames=${new Set(idleDigests).size}`)
+  await live2dCanvas.screenshot({ path: path.join(outputRoot, 'harness-live2d-idle-before-click.png') })
   const beforeMotion = await live2dPet.getAttribute('data-live2d-motion')
   await live2dPet.click()
   await current.page.waitForFunction(previous => {
@@ -128,6 +141,9 @@ try {
   }, beforeMotion, { timeout: 10_000 })
   const clickedMotion = await live2dPet.getAttribute('data-live2d-motion')
   check('DSH Live2D 单击后真实播放模型互动动作', Boolean(clickedMotion), clickedMotion || '')
+  await current.page.waitForTimeout(420)
+  const clickFrame = await live2dCanvas.screenshot({ path: path.join(outputRoot, 'harness-live2d-click-frame.png') })
+  check('DSH Live2D 点击动作产生可见画面变化', !idleDigests.includes(screenshotDigest(clickFrame)))
   await current.page.screenshot({ path: path.join(outputRoot, 'harness-live2d-click.png'), fullPage: true })
   check('DSH Live2D 页面没有脚本错误', current.errors.length === 0, current.errors.join(' | '))
   await current.page.close()

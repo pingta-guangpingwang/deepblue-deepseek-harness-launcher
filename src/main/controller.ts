@@ -21,6 +21,7 @@ import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
+import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
@@ -715,8 +716,8 @@ export class LauncherController {
     if (!update) return this.getSnapshot()
     const task = this.addTask(`launcher-${Date.now()}`, `下载启动器 ${update.version}`, '准备下载签名清单指定的整合包')
     this.emit()
-    const fileName = path.basename(new URL(update.artifact.url).pathname) || `DeepSeek-Harness-Launcher-${update.version}`
-    const target = path.join(app.getPath('downloads'), fileName)
+    const fileName = `deepblue-launcher-kernel-${update.version}-${Date.now()}.exe`
+    const target = path.join(app.getPath('temp'), fileName)
     const temporary = `${target}.download`
     try {
       const response = await fetch(update.artifact.url, { signal: AbortSignal.timeout(120_000) })
@@ -737,12 +738,28 @@ export class LauncherController {
       await once(output, 'finish')
       const digest = hasher.digest('hex')
       if (digest.toLowerCase() !== update.artifact.sha256.toLowerCase()) throw new Error('SHA-256 完整性校验失败')
+      await rm(target, { force: true })
       await rename(temporary, target)
       task.progress = 100
       task.status = 'completed'
-      task.detail = `整合包已保存到 ${target}`
-      this.log('INFO', task.detail)
-      shell.showItemInFolder(target)
+      const installRoot = installedLauncherRoot(process.execPath)
+      if (!installRoot) {
+        task.detail = `安装器已保存到 ${target}；当前为开发或便携运行方式，请手动安装`
+        this.log('WARN', task.detail)
+        shell.showItemInFolder(target)
+      } else {
+        task.detail = '内核安装器已校验，正在自动安装并重启到新版本'
+        this.log('INFO', `${task.detail}：${update.version}`)
+        if (this.service) await this.stopHarness()
+        const installer = spawn(target, silentLauncherUpdateArgs(installRoot), {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true
+        })
+        installer.unref()
+        this.emit()
+        setTimeout(() => app.exit(0), 700)
+      }
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined)
       task.status = 'failed'
