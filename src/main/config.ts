@@ -36,6 +36,26 @@ const defaultSources: SourceConfig[] = [
 
 export const FIXED_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins/raw/master/catalog.json'
 export const FIXED_PET_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/catalog.json'
+export const FIXED_PET_CATALOG_SOURCES = [
+  {
+    id: 'official',
+    name: '原创动图',
+    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets',
+    catalogUrl: FIXED_PET_CATALOG_URL
+  },
+  {
+    id: 'pixel',
+    name: '像素精灵',
+    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel',
+    catalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel/raw/master/catalog.json'
+  },
+  {
+    id: 'live2d',
+    name: 'Live2D',
+    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d',
+    catalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d/raw/master/catalog.json'
+  }
+] as const
 
 export interface PersistedConfig {
   settings: LauncherSettings
@@ -172,7 +192,7 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
   await rename(temporary, target)
 }
 
-export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string } {
+export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string; petFavorites: string } {
   const root = configuredStorageRoot || app.getPath('userData')
   return {
     root,
@@ -184,6 +204,7 @@ export function launcherDataPaths(): { root: string; runtime: string; dshHome: s
     skinConfig: path.join(root, 'skins', 'active.json'),
     skinFavorites: path.join(root, 'skins', 'favorites.json'),
     pets: path.join(root, 'pets'),
-    petConfig: path.join(root, 'pets', 'active.json')
+    petConfig: path.join(root, 'pets', 'active.json'),
+    petFavorites: path.join(root, 'pets', 'favorites.json')
   }
 }

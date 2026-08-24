@@ -13,6 +13,9 @@ let quitting = false
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deepblue-skin',
   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+}, {
+  scheme: 'deepblue-pet',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
 }])
 
 function registerSkinPreviewProtocol(): void {
@@ -25,6 +28,20 @@ function registerSkinPreviewProtocol(): void {
     const root = path.resolve(launcherDataPaths().skins, 'cache')
     const target = path.resolve(root, fileName)
     if (path.dirname(target) !== root) return new Response('Invalid skin preview path', { status: 400 })
+    return net.fetch(pathToFileURL(target).toString())
+  })
+}
+
+function registerPetPreviewProtocol(): void {
+  protocol.handle('deepblue-pet', (request) => {
+    const url = new URL(request.url)
+    const fileName = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    if (url.hostname !== 'cache' || !/^[a-f0-9]{64}\.(?:png|jpe?g|webp|gif)$/i.test(fileName)) {
+      return new Response('Invalid pet preview path', { status: 400 })
+    }
+    const root = path.resolve(launcherDataPaths().pets, 'cache')
+    const target = path.resolve(root, fileName)
+    if (path.dirname(target) !== root) return new Response('Invalid pet preview path', { status: 400 })
     return net.fetch(pathToFileURL(target).toString())
   })
 }
@@ -175,7 +192,11 @@ function registerIpc(): void {
   ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
   ipcMain.handle('launcher:clear-skin', () => controller?.clearSkin())
   ipcMain.handle('launcher:refresh-pets', () => controller?.refreshPets())
+  ipcMain.handle('launcher:download-pet', (_event, petId: string) => controller?.downloadPet(petId))
+  ipcMain.handle('launcher:preview-pet', (_event, petId: string) => controller?.previewPet(petId))
   ipcMain.handle('launcher:apply-pet', (_event, petId: string) => controller?.applyPet(petId))
+  ipcMain.handle('launcher:remove-pet', (_event, petId: string) => controller?.removePet(petId))
+  ipcMain.handle('launcher:toggle-pet-favorite', (_event, petId: string) => controller?.togglePetFavorite(petId))
   ipcMain.handle('launcher:clear-pet', () => controller?.clearPet())
   ipcMain.handle('launcher:import-pet', () => controller?.importPet())
   ipcMain.handle('launcher:remove-custom-pet', (_event, petId: string) => controller?.removeCustomPet(petId))
@@ -209,6 +230,7 @@ if (!hasSingleInstanceLock) {
   app.whenReady().then(async () => {
     app.setAppUserModelId('org.deepseek-harness.launcher')
     registerSkinPreviewProtocol()
+    registerPetPreviewProtocol()
     registerIpc()
     mainWindow = createWindow()
     controller = new LauncherController(mainWindow)

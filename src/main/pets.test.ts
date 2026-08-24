@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateKeyPairSync, sign } from 'node:crypto'
-import { verifyPetCatalog } from './pets'
+import { nextFavoritePetIds, verifyPetCatalog } from './pets'
 import type { PetCatalogPayload, SignedPetCatalogManifest } from '../shared/types'
 
 const payload: PetCatalogPayload = {
@@ -28,5 +28,12 @@ describe('pet catalog signature verification', () => {
     const publicPem = publicKey.export({ type: 'spki', format: 'pem' }).toString()
     expect(verifyPetCatalog({ keyId: 'test', algorithm: 'ed25519', payload: { ...payload, generatedAt: 'tampered' }, signature }, publicPem)).toBe(false)
     expect(verifyPetCatalog({ keyId: 'test', algorithm: 'ed25519', payload: { ...payload, pageSize: 40 as 20 }, signature }, publicPem)).toBe(false)
+  })
+})
+
+describe('pet favorites', () => {
+  it('adds newest first, removes on a second click and eliminates duplicates', () => {
+    expect(nextFavoritePetIds(['px-0001', 'px-0001'], 'l2d-0001')).toEqual(['l2d-0001', 'px-0001'])
+    expect(nextFavoritePetIds(['l2d-0001', 'px-0001'], 'l2d-0001')).toEqual(['px-0001'])
   })
 })

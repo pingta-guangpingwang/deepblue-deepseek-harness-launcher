@@ -141,6 +141,13 @@ export const mockSnapshot: LauncherSnapshot = {
     generatedAt: petCatalog.generatedAt,
     activePetId: 'sd2-cloud-cat-luna',
     downloadedPetIds: ['sd2-cloud-cat-luna'],
+    favoritePetIds: ['sd2-cloud-cat-luna'],
+    transfers: {},
+    sources: [
+      { id: 'official', name: '原创动图', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets', status: 'ready', itemCount: petCatalog.items.length },
+      { id: 'pixel', name: '像素精灵', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel', status: 'ready', itemCount: 800 },
+      { id: 'live2d', name: 'Live2D', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d', status: 'ready', itemCount: 230 }
+    ],
     items: petCatalog.items as LauncherSnapshot['pets']['items']
   },
   settings: {

@@ -5,14 +5,17 @@ import { access, copyFile, mkdir, readFile, rename, stat, unlink, writeFile } fr
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
-import { launcherDataPaths } from './config'
+import { FIXED_PET_CATALOG_SOURCES, launcherDataPaths } from './config'
 import { downloadTimeoutMs, mirrorCandidates } from './asset-mirrors'
 import { fetchTrustedStoreKey } from './store-trust'
 import type {
   PetAsset,
   PetCatalogItem,
   PetCatalogPayload,
+  PetCatalogSourceId,
+  PetCatalogSourceState,
   PetMediaKind,
+  PetPreview,
   PetStoreState,
   SignedPetCatalogManifest
 } from '../shared/types'
@@ -20,14 +23,30 @@ import type {
 const MAX_MEDIA_BYTES = 12 * 1024 * 1024
 const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
 const ALLOWED_MIME = new Set<PetAsset['mime']>(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+const GITEE_PET_ASSET_PREFIXES = FIXED_PET_CATALOG_SOURCES.map(source => `${source.repositoryUrl}/raw/master/`)
 
 interface ActivePetConfig {
   schemaVersion: 1
   petId: string
   mediaKind: PetMediaKind
   mediaPath: string
+  packKind?: PetCatalogItem['packKind']
   behavior: PetCatalogItem['behavior']
 }
+
+interface FavoritePetFile {
+  schemaVersion: 1
+  petIds: string[]
+}
+
+export interface PetDownloadProgress {
+  status: 'downloading' | 'verifying' | 'completed'
+  receivedBytes: number
+  totalBytes: number
+  message: string
+}
+
+type PetDownloadReporter = (progress: PetDownloadProgress) => void
 
 interface CustomPetRecord {
   item: PetCatalogItem
@@ -65,6 +84,7 @@ export function verifyPetCatalog(manifest: SignedPetCatalogManifest, publicKey: 
 function assertAsset(asset: PetAsset, thumbnail = false): void {
   const url = new URL(asset.url)
   if (url.protocol !== 'https:') throw new Error('宠物资源必须使用 HTTPS')
+  if (!GITEE_PET_ASSET_PREFIXES.some(prefix => asset.url.startsWith(prefix))) throw new Error('宠物资源必须来自三个固定的 Gitee 宠物仓库')
   if (!/^[a-f0-9]{64}$/i.test(asset.sha256)) throw new Error('宠物资源 SHA-256 无效')
   if (!ALLOWED_MIME.has(asset.mime)) throw new Error(`不支持的宠物资源类型：${asset.mime}`)
   const limit = thumbnail ? MAX_THUMBNAIL_BYTES : MAX_MEDIA_BYTES
@@ -94,7 +114,33 @@ function assertCatalog(payload: PetCatalogPayload): void {
       throw new Error(`宠物 ${item.id} 的悬停动作无效`)
     }
     if (item.license.name === 'LOCAL') throw new Error(`宠物 ${item.id} 的许可证无效`)
+    if (item.packKind !== undefined && !['pixel-atlas', 'live2d'].includes(item.packKind)) throw new Error(`宠物 ${item.id} 的资源包类型无效`)
+    if (item.packKind && (!item.entry || !/^[a-z0-9][a-z0-9._-]{1,63}$/i.test(item.entry) || !item.packPath || !/^packs\/[a-z0-9-]+\/$/.test(item.packPath))) {
+      throw new Error(`宠物 ${item.id} 的资源包入口无效`)
+    }
   }
+}
+
+export function nextFavoritePetIds(current: string[], petId: string): string[] {
+  const unique = [...new Set(current.filter(id => typeof id === 'string' && id.length <= 64))]
+  return unique.includes(petId) ? unique.filter(id => id !== petId) : [petId, ...unique]
+}
+
+async function readFavoritePetIds(): Promise<string[]> {
+  try {
+    const parsed = JSON.parse(await readFile(launcherDataPaths().petFavorites, 'utf8')) as Partial<FavoritePetFile>
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.petIds)) return []
+    return [...new Set(parsed.petIds.filter(id => typeof id === 'string' && /^[a-z0-9][a-z0-9-]{1,63}$/.test(id)))].slice(0, 2_000)
+  } catch {
+    return []
+  }
+}
+
+async function writeFavoritePetIds(petIds: string[]): Promise<void> {
+  const target = launcherDataPaths().petFavorites
+  await mkdir(path.dirname(target), { recursive: true })
+  await writeFile(`${target}.next`, `${JSON.stringify({ schemaVersion: 1, petIds } satisfies FavoritePetFile, null, 2)}\n`, 'utf8')
+  await rename(`${target}.next`, target)
 }
 
 function extensionFor(asset: PetAsset): string {
@@ -136,18 +182,19 @@ async function verifyCachedAsset(target: string, asset: PetAsset): Promise<boole
 }
 
 /** Rejects an over-long stream even when the channel omits Content-Length. */
-function cappedStream(source: Readable, limit: number): AsyncGenerator<Buffer> {
+function cappedStream(source: Readable, limit: number, onChunk?: (receivedBytes: number) => void): AsyncGenerator<Buffer> {
   return (async function* () {
     let seen = 0
     for await (const chunk of source) {
       seen += (chunk as Buffer).length
       if (seen > limit) throw new Error('远程宠物资源超过清单声明大小')
+      onChunk?.(seen)
       yield chunk as Buffer
     }
   })()
 }
 
-async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string): Promise<void> {
+async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string, sourceLabel: string, onProgress?: PetDownloadReporter): Promise<void> {
   const response = await fetch(url, {
     redirect: 'follow',
     signal: AbortSignal.timeout(downloadTimeoutMs(asset.size)),
@@ -160,7 +207,10 @@ async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string): 
   if (responseType && responseType !== 'application/octet-stream' && responseType !== asset.mime) throw new Error('资源类型与清单不一致')
   await unlink(temporary).catch(() => undefined)
   try {
-    await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size), createWriteStream(temporary, { flags: 'wx' }))
+    await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size, receivedBytes => {
+      onProgress?.({ status: 'downloading', receivedBytes, totalBytes: asset.size, message: `正在从 ${sourceLabel} 下载` })
+    }), createWriteStream(temporary, { flags: 'wx' }))
+    onProgress?.({ status: 'verifying', receivedBytes: asset.size, totalBytes: asset.size, message: '下载完成，正在校验完整性' })
     if (!(await verifyCachedAsset(temporary, asset))) throw new Error('完整性校验失败')
   } catch (error) {
     await unlink(temporary).catch(() => undefined)
@@ -168,10 +218,14 @@ async function fetchAssetFrom(asset: PetAsset, url: string, temporary: string): 
   }
 }
 
-async function downloadAsset(asset: PetAsset): Promise<string> {
+async function downloadAsset(asset: PetAsset, onProgress?: PetDownloadReporter): Promise<string> {
   assertAsset(asset)
   const target = cachePath(asset)
-  if (await verifyCachedAsset(target, asset)) return target
+  onProgress?.({ status: 'verifying', receivedBytes: 0, totalBytes: asset.size, message: '正在检查本地缓存' })
+  if (await verifyCachedAsset(target, asset)) {
+    onProgress?.({ status: 'completed', receivedBytes: asset.size, totalBytes: asset.size, message: '本机宠物资源已就绪' })
+    return target
+  }
   await mkdir(path.dirname(target), { recursive: true })
   const temporary = `${target}.part`
   const candidates = mirrorCandidates(asset.url, asset.size)
@@ -179,8 +233,11 @@ async function downloadAsset(asset: PetAsset): Promise<string> {
   let lastFailure = '未知错误'
   for (const candidate of candidates) {
     try {
-      await fetchAssetFrom(asset, candidate.url, temporary)
+      onProgress?.({ status: 'downloading', receivedBytes: 0, totalBytes: asset.size, message: `正在连接 ${candidate.id.toUpperCase()}` })
+      await fetchAssetFrom(asset, candidate.url, temporary, candidate.id.toUpperCase(), onProgress)
+      await unlink(target).catch(() => undefined)
       await rename(temporary, target)
+      onProgress?.({ status: 'completed', receivedBytes: asset.size, totalBytes: asset.size, message: '宠物资源下载完成' })
       return target
     } catch (error) {
       lastFailure = `${candidate.id}：${error instanceof Error ? error.message : String(error)}`
@@ -246,35 +303,108 @@ export class PetStore {
   private payload: PetCatalogPayload = { schemaVersion: 1, generatedAt: '', pageSize: 20, items: [] }
   private source: PetStoreState['source'] = 'bundled'
   private message: string | undefined
+  private sources: PetCatalogSourceState[] = []
 
-  async refresh(url: string): Promise<PetStoreState> {
+  async refresh(): Promise<PetStoreState> {
     this.message = undefined
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' } })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const manifest = await response.json() as SignedPetCatalogManifest
-      const remoteKey = await fetchTrustedStoreKey('pet', url, manifest.keyId).catch(() => undefined)
-      const bundledKey = await readPublicKey()
-      if (![remoteKey, bundledKey].some(key => key && verifyPetCatalog(manifest, key))) throw new Error('签名校验失败')
-      assertCatalog(manifest.payload)
-      this.payload = manifest.payload
-      this.source = 'remote'
-      return this.snapshot('ready')
-    } catch (error) {
-      this.message = `在线目录不可用，已使用内置目录：${error instanceof Error ? error.message : String(error)}`
+    const bundledKey = await readPublicKey()
+    const results = await Promise.all(FIXED_PET_CATALOG_SOURCES.map(async (source) => {
+      try {
+        const response = await fetch(source.catalogUrl, { signal: AbortSignal.timeout(12_000), headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' } })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const manifest = await response.json() as SignedPetCatalogManifest
+        const remoteKey = await fetchTrustedStoreKey('pet', source.catalogUrl, manifest.keyId).catch(() => undefined)
+        if (![remoteKey, bundledKey].some(key => key && verifyPetCatalog(manifest, key))) throw new Error('签名校验失败')
+        assertCatalog(manifest.payload)
+        return { source, payload: manifest.payload }
+      } catch (error) {
+        return { source, error: error instanceof Error ? error.message : String(error) }
+      }
+    }))
+    const merged = new Map<string, PetCatalogItem>()
+    const generatedAt: string[] = []
+    this.sources = []
+    for (const result of results) {
+      if (result.payload) {
+        for (const item of result.payload.items) {
+          if (merged.has(item.id)) throw new Error(`三个宠物目录存在重复 ID：${item.id}`)
+          merged.set(item.id, { ...structuredClone(item), catalogSource: result.source.id as Exclude<PetCatalogSourceId, 'custom'> })
+        }
+        generatedAt.push(result.payload.generatedAt)
+        this.sources.push({ id: result.source.id, name: result.source.name, repositoryUrl: result.source.repositoryUrl, status: 'ready', itemCount: result.payload.items.length })
+      } else {
+        this.sources.push({ id: result.source.id, name: result.source.name, repositoryUrl: result.source.repositoryUrl, status: 'error', itemCount: 0, message: result.error })
+      }
     }
-    const bundled = await readBundledCatalog()
-    if (bundled) this.payload = bundled
-    this.source = 'bundled'
-    return this.snapshot(this.payload.items.length ? 'offline' : 'error')
+    const officialState = this.sources.find(source => source.id === 'official')
+    if (officialState?.status !== 'ready') {
+      const bundled = await readBundledCatalog()
+      if (bundled) {
+        for (const item of bundled.items) if (!merged.has(item.id)) merged.set(item.id, { ...structuredClone(item), catalogSource: 'official' })
+        generatedAt.push(bundled.generatedAt)
+        Object.assign(officialState || {}, { status: 'offline', itemCount: bundled.items.length, message: '在线目录不可用，已使用内置目录' })
+      }
+    }
+    this.payload = {
+      schemaVersion: 1,
+      generatedAt: generatedAt.sort().at(-1) || '',
+      pageSize: 20,
+      items: [...merged.values()]
+    }
+    const failures = this.sources.filter(source => source.status !== 'ready')
+    this.message = failures.length ? `${failures.map(source => source.name).join('、')}目录暂不可用，其余来源已正常加载。` : undefined
+    this.source = results.some(result => result.payload) ? 'remote' : 'bundled'
+    const status: PetStoreState['status'] = this.payload.items.length ? (this.source === 'remote' ? 'ready' : 'offline') : 'error'
+    return this.snapshot(status)
   }
 
-  async apply(petId: string): Promise<PetStoreState> {
+  private item(petId: string): PetCatalogItem {
+    const item = this.payload.items.find(entry => entry.id === petId)
+    if (!item) throw new Error('所选宠物不在当前 Gitee 签名目录中')
+    return item
+  }
+
+  async download(petId: string, onProgress?: PetDownloadReporter): Promise<PetStoreState> {
+    await downloadAsset(this.item(petId).media, onProgress)
+    return this.snapshot('ready')
+  }
+
+  async preview(petId: string, onProgress?: PetDownloadReporter): Promise<{ state: PetStoreState; preview: PetPreview }> {
+    const item = this.item(petId)
+    const previewAsset = item.packKind === 'live2d' ? item.thumbnail : item.media
+    const assets = previewAsset === item.media ? [item.media] : [item.media, previewAsset]
+    const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0)
+    let completedBytes = 0
+    const paths: string[] = []
+    for (const asset of assets) {
+      paths.push(await downloadAsset(asset, progress => onProgress?.({
+        ...progress,
+        receivedBytes: Math.min(totalBytes, completedBytes + progress.receivedBytes),
+        totalBytes,
+      })))
+      completedBytes += asset.size
+    }
+    const previewPath = paths.at(-1)!
+    return {
+      state: await this.snapshot('ready'),
+      preview: {
+        petId,
+        name: item.name,
+        mediaKind: item.mediaKind,
+        packKind: item.packKind || 'image',
+        mediaUrl: `deepblue-pet://cache/${path.basename(previewPath)}`,
+        mime: previewAsset.mime
+      }
+    }
+  }
+
+  async apply(petId: string, onProgress?: PetDownloadReporter): Promise<PetStoreState> {
     const custom = (await readCustomRecords()).find(record => record.item.id === petId)
     const item = custom?.item || this.payload.items.find(entry => entry.id === petId)
     if (!item) throw new Error('所选宠物不在当前目录中')
-    const mediaPath = custom?.mediaPath || await downloadAsset(item.media)
-    const config: ActivePetConfig = { schemaVersion: 1, petId: item.id, mediaKind: item.mediaKind, mediaPath, behavior: item.behavior }
+    if (item.packKind === 'live2d') throw new Error('Live2D 模型包已支持下载、收藏与预览；安全运行库接入后才可应用到 Harness')
+    const mediaPath = custom?.mediaPath || await downloadAsset(item.media, onProgress)
+    const config: ActivePetConfig = { schemaVersion: 1, petId: item.id, mediaKind: item.mediaKind, mediaPath, ...(item.packKind ? { packKind: item.packKind } : {}), behavior: item.behavior }
     const target = launcherDataPaths().petConfig
     await mkdir(path.dirname(target), { recursive: true })
     await writeFile(`${target}.next`, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
@@ -284,6 +414,26 @@ export class PetStore {
 
   async clear(): Promise<PetStoreState> {
     await unlink(launcherDataPaths().petConfig).catch(() => undefined)
+    return this.snapshot('ready')
+  }
+
+  async toggleFavorite(petId: string): Promise<PetStoreState> {
+    this.item(petId)
+    await writeFavoritePetIds(nextFavoritePetIds(await readFavoritePetIds(), petId))
+    return this.snapshot('ready')
+  }
+
+  async remove(petId: string): Promise<PetStoreState> {
+    const item = this.item(petId)
+    let activePetId: string | undefined
+    try {
+      activePetId = (JSON.parse(await readFile(launcherDataPaths().petConfig, 'utf8')) as ActivePetConfig).petId
+    } catch {
+      // No active pet needs to be reset.
+    }
+    if (activePetId === petId) await unlink(launcherDataPaths().petConfig).catch(() => undefined)
+    const targets = [...new Set([item.media, ...(item.packKind === 'live2d' ? [item.thumbnail] : [])].map(cachePath))]
+    await Promise.all(targets.flatMap(target => [unlink(target).catch(() => undefined), unlink(`${target}.part`).catch(() => undefined)]))
     return this.snapshot('ready')
   }
 
@@ -354,18 +504,21 @@ export class PetStore {
       // No active pet is the normal initial state.
     }
     const downloadedPetIds: string[] = []
-    for (const item of this.payload.items) {
-      if (await verifyCachedAsset(cachePath(item.media), item.media)) downloadedPetIds.push(item.id)
-    }
+    for (const item of this.payload.items) if (await exists(cachePath(item.media))) downloadedPetIds.push(item.id)
     const customItems = (await readCustomRecords()).map(withPreview)
     downloadedPetIds.push(...customItems.map(item => item.id))
+    const itemIds = new Set(this.payload.items.map(item => item.id))
+    const favoritePetIds = (await readFavoritePetIds()).filter(id => itemIds.has(id))
     return {
       status,
       source: this.source,
       generatedAt: this.payload.generatedAt,
       ...(activePetId ? { activePetId } : {}),
       downloadedPetIds,
-      items: [...customItems, ...structuredClone(this.payload.items)].map(item => ({ ...item, origin: item.origin || 'catalog' })),
+      favoritePetIds,
+      transfers: {},
+      sources: structuredClone(this.sources),
+      items: [...customItems.map(item => ({ ...item, catalogSource: 'custom' as const })), ...structuredClone(this.payload.items)].map(item => ({ ...item, origin: item.origin || 'catalog' })),
       ...(this.message ? { message: this.message } : {})
     }
   }

@@ -64,6 +64,13 @@ describe('wallpaper clarity control', () => {
     expect(client).toContain("'恢复蒙版'")
   })
 
+  it('renders signed pixel atlases as individual animated frames', async () => {
+    const client = await readFile(CLIENT, 'utf8')
+    expect(client).toContain("config.packKind === 'pixel-atlas'")
+    expect(client).toContain("image.naturalHeight % 11 === 0")
+    expect(client).toContain("data-pack-kind='pixel-atlas'")
+  })
+
   it('removes both the wallpaper overlay and opaque content surfaces in clear mode', async () => {
     const client = await readFile(CLIENT, 'utf8')
     expect(client).toContain("clear ? 'transparent'")

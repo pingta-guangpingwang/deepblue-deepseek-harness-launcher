@@ -89,6 +89,7 @@ import type {
   MultimodalTestRequest,
   MultimodalTestResult,
   PageId,
+  PetPreview,
   PetSpecies,
   PetStyle,
   SkinMediaKind,
@@ -144,6 +145,8 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
 const SKIN_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins'
 const SKIN_VIDEO_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins-video'
 const PET_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets'
+const PET_PIXEL_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel'
+const PET_LIVE2D_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d'
 
 function useAdaptiveCatalogCapacity(): { viewportRef: RefObject<HTMLDivElement | null>; pageSize: number } {
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -972,83 +975,180 @@ const petStyleLabels: Record<PetStyle, string> = {
   pixel: '像素风'
 }
 
-function PetStorePage({ snapshot, busy, onRefresh, onApply, onClear, onImport, onRemove }: {
+function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactNode {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const image = new Image()
+    let timer = 0
+    image.onload = () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (!context) return
+      const columns = 8
+      const rows = image.naturalHeight % 11 === 0 ? 11 : image.naturalHeight % 9 === 0 ? 9 : 1
+      const frameWidth = image.naturalWidth / columns
+      const frameHeight = image.naturalHeight / rows
+      canvas.width = frameWidth
+      canvas.height = frameHeight
+      const frames = Array.from({ length: columns }, (_, frame) => frame)
+      let index = 0
+      const draw = (): void => {
+        const frame = frames[index % frames.length] || 0
+        context.clearRect(0, 0, frameWidth, frameHeight)
+        context.drawImage(image, frame * frameWidth, 0, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
+        canvas.dataset.frameIndex = String(frame)
+        index += 1
+      }
+      draw()
+      timer = window.setInterval(draw, 150)
+    }
+    image.src = src
+    return () => { image.onload = null; if (timer) window.clearInterval(timer) }
+  }, [src])
+  return <canvas ref={canvasRef} aria-label={`${name}像素帧动画预览`} />
+}
+
+function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onClear, onImport, onRemove, onRemoveCustom, onToggleFavorite }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
+  onDownload: (petId: string) => void
+  onPreview: (petId: string) => Promise<PetPreview | undefined>
   onApply: (petId: string) => void
   onClear: () => void
   onImport: () => void
   onRemove: (petId: string) => void
+  onRemoveCustom: (petId: string) => void
+  onToggleFavorite: (petId: string) => void
 }): ReactNode {
+  const [preview, setPreview] = useState<PetPreview>()
+  const [view, setView] = useState<'all' | 'current' | 'favorites'>('all')
+  const [source, setSource] = useState<'all' | 'official' | 'pixel' | 'live2d' | 'custom'>('all')
   const [query, setQuery] = useState('')
   const [species, setSpecies] = useState<PetSpecies | 'all'>('all')
   const [style, setStyle] = useState<PetStyle | 'all'>('all')
   const [page, setPage] = useState(1)
   const { viewportRef, pageSize } = useAdaptiveCatalogCapacity()
-  const filtered = snapshot.pets.items.filter((pet) => {
+  useEffect(() => {
+    if (!preview) return
+    const closeOnEscape = (event: globalThis.KeyboardEvent): void => { if (event.key === 'Escape') setPreview(undefined) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [preview])
+  const favorites = new Set(snapshot.pets.favoritePetIds)
+  const downloaded = new Set(snapshot.pets.downloadedPetIds)
+  const viewItems = snapshot.pets.items.filter((pet) => {
+    if (view === 'current') return snapshot.pets.activePetId === pet.id
+    if (view === 'favorites') return favorites.has(pet.id)
+    return true
+  })
+  const filtered = viewItems.filter((pet) => {
     const matchesQuery = `${pet.name} ${pet.description} ${pet.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
-    return matchesQuery && (species === 'all' || pet.species === species) && (style === 'all' || pet.styles.includes(style))
+    return matchesQuery && (source === 'all' || pet.catalogSource === source) && (species === 'all' || pet.species === species) && (style === 'all' || pet.styles.includes(style))
   })
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const downloaded = new Set(snapshot.pets.downloadedPetIds)
+  const chooseView = (next: 'all' | 'current' | 'favorites'): void => { setView(next); setSource('all'); setQuery(''); setSpecies('all'); setStyle('all'); setPage(1) }
+  const chooseSource = (next: typeof source): void => { setSource(next); setPage(1) }
   const chooseSpecies = (next: PetSpecies | 'all'): void => { setSpecies(next); setPage(1) }
   const chooseStyle = (next: PetStyle | 'all'): void => { setStyle(next); setPage(1) }
+  const openPreview = async (petId: string): Promise<void> => {
+    const pet = snapshot.pets.items.find(item => item.id === petId)
+    if (!pet) return
+    if (pet.origin === 'custom' && pet.previewDataUrl) {
+      setPreview({ petId, name: pet.name, mediaKind: pet.mediaKind, packKind: 'image', mediaUrl: pet.previewDataUrl, mime: pet.media.mime })
+      return
+    }
+    const result = await onPreview(petId)
+    if (result) setPreview(result)
+  }
+  const sourceCount = (id: 'official' | 'pixel' | 'live2d'): number => snapshot.pets.sources.find(entry => entry.id === id)?.itemCount || 0
+  const emptyCopy = view === 'current'
+    ? { title: '还没有正在使用的宠物', text: '从商店挑一个伙伴，应用后会出现在这里。' }
+    : view === 'favorites'
+      ? { title: '还没有收藏宠物', text: '点击卡片右上角的心形按钮，建立自己的宠物库。' }
+      : { title: '没有匹配的宠物', text: '换一个来源或分类，也可以添加本地宠物。' }
   return (
     <div className="pet-store-layout catalog-store-layout">
       <Card className="pet-store-hero">
         <div className="pet-hero-icon"><PawPrint /></div>
-        <div><h2>给工作台找一个小伙伴</h2><p>宠物可以点击互动、拖到喜欢的位置，并在下次打开时记住位置。卡片按窗口尺寸自动分页，原图只在应用时下载。</p><OpenSourceInvite name="宠物商店" url={PET_STORE_REPOSITORY_URL} /></div>
+        <div><h2>给工作台找一个小伙伴</h2><p>{snapshot.pets.items.length} 只宠物来自三个固定的 Gitee 签名目录；缩略图用于浏览，只有下载、预览或应用时才获取原资源。</p><div className="store-repository-links"><OpenSourceInvite name="原创动图仓" url={PET_STORE_REPOSITORY_URL} /><OpenSourceInvite name="像素宠物仓" url={PET_PIXEL_STORE_REPOSITORY_URL} /><OpenSourceInvite name="Live2D 仓" url={PET_LIVE2D_STORE_REPOSITORY_URL} /></div></div>
         <div className="pet-hero-actions">
-          <span className={classNames('soft-badge', snapshot.pets.source === 'remote' ? 'green' : 'blue')}>{snapshot.pets.source === 'remote' ? 'Gitee 在线目录' : '内置离线目录'}</span>
-          <button className="quiet-button" disabled={busy === 'pets'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'pets' ? 'spin' : ''} />同步目录</button>
+          <span className={classNames('soft-badge', snapshot.pets.source === 'remote' ? 'green' : 'blue')}>{snapshot.pets.source === 'remote' ? 'Gitee 多源目录' : '内置离线目录'}</span>
+          <button className="quiet-button" disabled={busy === 'pets'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'pets' ? 'spin' : ''} />同步三个目录</button>
           <button className="quiet-button" disabled={!!busy} onClick={onImport}><Upload size={15} />添加本地宠物</button>
-          <button className="quiet-button" onClick={() => void window.launcher?.openExternal(PET_STORE_REPOSITORY_URL)}><Github size={15} />去仓库参与共创</button>
         </div>
       </Card>
 
       {snapshot.pets.message && <div className="skin-notice"><Info size={15} />{snapshot.pets.message}</div>}
 
-      <Card className="skin-toolbar pet-toolbar">
-        <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="搜索宠物、物种或画风" /></div>
-        <div className="skin-filter-row" aria-label="宠物分类">
-          {(['all', 'cat', 'dog', 'whale', 'fantasy', 'robot', 'pixel', 'other'] as const).map((value) => <button key={value} className={species === value ? 'active' : ''} onClick={() => chooseSpecies(value)}>{value === 'all' ? '全部宠物' : petSpeciesLabels[value]}</button>)}
+      <Card className="skin-toolbar skin-library-toolbar pet-toolbar">
+        <div className="skin-library-tabs" role="tablist" aria-label="宠物库视图">
+          <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'active' : ''} onClick={() => chooseView('all')}><PawPrint size={15} /><span>全部商店</span><b>{snapshot.pets.items.length}</b></button>
+          <button role="tab" aria-selected={view === 'current'} className={view === 'current' ? 'active' : ''} onClick={() => chooseView('current')}><Pin size={15} /><span>正在使用</span><b>{snapshot.pets.activePetId ? 1 : 0}</b></button>
+          <button role="tab" aria-selected={view === 'favorites'} className={view === 'favorites' ? 'active' : ''} onClick={() => chooseView('favorites')}><Heart size={15} /><span>我的收藏</span><b>{snapshot.pets.favoritePetIds.length}</b></button>
         </div>
-        <div className="skin-filter-row" aria-label="宠物画风">
-          {(['all', 'cute', 'calm', 'playful', 'cyber', 'pixel'] as const).map((value) => <button key={value} className={style === value ? 'active' : ''} onClick={() => chooseStyle(value)}>{value === 'all' ? '全部画风' : petStyleLabels[value]}</button>)}
-        </div>
+        {view !== 'current' && <>
+          <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder={view === 'favorites' ? '搜索收藏宠物' : '搜索宠物、物种或画风'} /></div>
+          <div className="skin-filter-row pet-source-filter" aria-label="宠物来源">
+            <button className={source === 'all' ? 'active' : ''} onClick={() => chooseSource('all')}>全部来源</button>
+            <button className={source === 'official' ? 'active' : ''} onClick={() => chooseSource('official')}>原创动图 {sourceCount('official')}</button>
+            <button className={source === 'pixel' ? 'active' : ''} onClick={() => chooseSource('pixel')}>像素精灵 {sourceCount('pixel')}</button>
+            <button className={source === 'live2d' ? 'active' : ''} onClick={() => chooseSource('live2d')}>Live2D {sourceCount('live2d')}</button>
+            <button className={source === 'custom' ? 'active' : ''} onClick={() => chooseSource('custom')}>本机导入</button>
+          </div>
+          <div className="skin-filter-row" aria-label="宠物分类">
+            {(['all', 'cat', 'dog', 'whale', 'fantasy', 'robot', 'pixel', 'other'] as const).map((value) => <button key={value} className={species === value ? 'active' : ''} onClick={() => chooseSpecies(value)}>{value === 'all' ? '全部宠物' : petSpeciesLabels[value]}</button>)}
+          </div>
+          <div className="skin-filter-row" aria-label="宠物画风">
+            {(['all', 'cute', 'calm', 'playful', 'cyber', 'pixel'] as const).map((value) => <button key={value} className={style === value ? 'active' : ''} onClick={() => chooseStyle(value)}>{value === 'all' ? '全部画风' : petStyleLabels[value]}</button>)}
+          </div>
+        </>}
       </Card>
 
       <div ref={viewportRef} className="catalog-grid-viewport">
-      {items.length ? <div className="pet-grid">{items.map((pet) => {
+      {items.length ? <div className={classNames('pet-grid', view !== 'all' && 'skin-library-grid')}>{items.map((pet) => {
         const active = snapshot.pets.activePetId === pet.id
         const cached = downloaded.has(pet.id)
+        const favorite = favorites.has(pet.id)
         const custom = pet.origin === 'custom'
+        const live2d = pet.packKind === 'live2d'
+        const transfer = snapshot.pets.transfers[pet.id]
+        const transferring = transfer && ['queued', 'downloading', 'verifying', 'applying', 'removing'].includes(transfer.status)
+        const kindLabel = live2d ? 'Live2D 模型' : pet.packKind === 'pixel-atlas' ? '像素帧动画' : pet.mediaKind === 'animated' ? '透明帧动画' : petSpeciesLabels[pet.species]
         return (
-          <article className={classNames('pet-card', active && 'active')} key={pet.id}>
+          <article className={classNames('pet-card', active && 'active')} data-pet-id={pet.id} data-catalog-source={pet.catalogSource} data-pack-kind={pet.packKind || 'image'} key={pet.id}>
             <div className="pet-preview">
               <span className="pet-stage" />
               <img src={pet.previewDataUrl || pet.thumbnail.url} loading="lazy" alt={`${pet.name}宠物预览`} />
-              <span className="skin-kind"><PawPrint size={13} />{petSpeciesLabels[pet.species]}</span>
+              <span className="skin-kind"><PawPrint size={13} />{kindLabel}</span>
               {pet.featured && <span className="skin-featured"><Sparkles size={13} />精选</span>}
               {custom && <span className="pet-custom"><Upload size={13} />本机</span>}
               {active && <span className="skin-active"><Check size={14} />当前使用</span>}
+              {!custom && <button className={classNames('skin-favorite-button', favorite && 'active')} aria-label={favorite ? `取消收藏${pet.name}` : `收藏${pet.name}`} title={favorite ? '取消收藏' : '收藏宠物'} disabled={busy === `pet-favorite-${pet.id}`} onClick={() => onToggleFavorite(pet.id)}><Heart size={16} fill={favorite ? 'currentColor' : 'none'} /></button>}
             </div>
             <div className="skin-card-body">
-              <div className="skin-title-row"><div><h2>{pet.name}</h2><p>{pet.description}</p></div>{custom && <button className="icon-danger" aria-label={`删除${pet.name}`} disabled={!!busy} onClick={() => onRemove(pet.id)}><Trash2 size={15} /></button>}</div>
+              <div className="skin-title-row"><div><h2>{pet.name}</h2><p>{pet.description}</p></div></div>
               <div className="tag-row">{pet.styles.map((entry) => <span key={entry}>{petStyleLabels[entry]}</span>)}{pet.tags.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <div className="pet-behavior"><span>点击：{pet.behavior.clickMotion === 'hop' ? '跳一跳' : pet.behavior.clickMotion === 'spin' ? '转圈' : '冒爱心'}</span><span>可拖动</span>{pet.mediaKind === 'animated' && <span>帧动画</span>}{pet.behavior.autoSpeakIntervalSec && <span>主动问候</span>}</div>
+              <div className="pet-behavior"><span>点击：{pet.behavior.clickMotion === 'hop' ? '跳一跳' : pet.behavior.clickMotion === 'spin' ? '转圈' : '冒爱心'}</span><span>可拖动</span>{pet.packKind === 'pixel-atlas' && <span>精灵表播放</span>}{pet.mediaKind === 'animated' && <span>帧动画</span>}{pet.behavior.autoSpeakIntervalSec && <span>主动问候</span>}</div>
               <div className="skin-license"><ShieldCheck size={14} /><span>{custom ? '仅保存在本机' : `${pet.license.name} · ${pet.license.author}`}</span>{!custom && <button onClick={() => void window.launcher?.openExternal(pet.license.sourceUrl)}><ExternalLink size={12} /></button>}</div>
-              <button className={active ? 'small-button' : 'primary-button'} disabled={!!busy || active} onClick={() => onApply(pet.id)}>{active ? <><Check size={15} />已应用</> : cached ? <><PawPrint size={15} />立即应用</> : <><CloudDownload size={15} />下载并应用 · {(pet.media.size / 1024 / 1024).toFixed(1)} MB</>}</button>
+              {transfer && <div className={classNames('skin-transfer-progress', transfer.status)} title={transfer.message} aria-live="polite"><span className="skin-transfer-fill" style={{ width: `${Math.max(3, transfer.progress)}%` }} /><div role="progressbar" aria-label={`${pet.name}${transfer.message}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={transfer.progress}><span>{transfer.message}</span><strong>{transfer.status === 'failed' ? '失败' : `${transfer.progress}%`}</strong></div></div>}
+              <div className="skin-card-actions pet-card-actions">
+                <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(pet.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
+                {!custom && <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(pet.id) : onDownload(pet.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>}
+                {custom && <button className="small-button danger" disabled={!!busy} onClick={() => onRemoveCustom(pet.id)}><Trash2 size={14} />删除</button>}
+                <button className={active ? 'small-button' : 'primary-button'} title={live2d ? 'Live2D 模型先支持安全下载、收藏和静态预览，暂不把未校验运行库注入 Harness' : undefined} disabled={Boolean(transferring) || active || live2d} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : live2d ? <><ShieldCheck size={14} />安全运行库待接入</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
+              </div>
             </div>
           </article>
         )
-      })}</div> : <Card><EmptyState icon={<PawPrint />} title="没有匹配的宠物" text="换一个分类、清空搜索词，或添加本地宠物。" /></Card>}
+      })}</div> : <Card className="skin-empty-card"><EmptyState icon={view === 'favorites' ? <Heart /> : <PawPrint />} title={emptyCopy.title} text={emptyCopy.text} />{view !== 'all' && <button className="primary-button skin-empty-action" onClick={() => chooseView('all')}>去商店挑选</button>}</Card>}
       </div>
 
       <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.pets.activePetId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button> : undefined} />
+      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '当前显示签名目录中的安全静态预览；不会执行模型包内脚本' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span>{preview.packKind !== 'live2d' && <button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button>}</footer></section></div>}
     </div>
   )
 }
@@ -1665,7 +1765,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
         <label className="field-label"><span>签名皮肤目录<small>固定使用 Gitee 主仓目录，并索引 skins 与 skins-video 两个仓库；签名不通过时回退内置目录。</small></span><input value={draft.skinCatalogUrl} readOnly aria-readonly="true" /></label>
       </Card>
       <Card className="source-settings" title="宠物商店源">
-        <label className="field-label"><span>签名宠物目录<small>固定使用 Gitee 宠物仓，只接受签名通过的目录；宠物媒体按需下载并校验完整性。</small></span><input value={draft.petCatalogUrl} readOnly aria-readonly="true" /></label>
+        <label className="field-label"><span>三个签名宠物目录<small>固定合并原创动图、像素精灵与 Live2D 三个 Gitee 仓；任一来源不可用时其余目录仍可浏览。</small></span><input value={`${draft.petCatalogUrl} · pets-pixel/catalog.json · pets-live2d/catalog.json`} readOnly aria-readonly="true" /></label>
       </Card>
     </div>
   )
@@ -1878,7 +1978,33 @@ export default function App(): ReactNode {
   }
   const clearSkin = (): void => { if (window.launcher) void run('skin-clear', () => window.launcher!.clearSkin()) }
   const refreshPets = (): void => { if (window.launcher) void run('pets', () => window.launcher!.refreshPets()) }
-  const applyPet = (petId: string): void => { if (window.launcher) void run(`pet-${petId}`, () => window.launcher!.applyPet(petId)) }
+  const downloadPet = (petId: string): void => {
+    if (window.launcher) void window.launcher.downloadPet(petId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, downloadedPetIds: [...new Set([...current.pets.downloadedPetIds, petId])], transfers: { ...current.pets.transfers, [petId]: { operation: 'download', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '宠物资源已下载，可直接预览或应用' } } } }))
+  }
+  const previewPet = async (petId: string): Promise<PetPreview | undefined> => {
+    if (window.launcher) {
+      const result = await window.launcher.previewPet(petId)
+      setSnapshot(result.snapshot)
+      return result.preview
+    }
+    const pet = snapshot.pets.items.find((item) => item.id === petId)
+    if (!pet) return undefined
+    downloadPet(petId)
+    return { petId, name: pet.name, mediaKind: pet.mediaKind, packKind: pet.packKind || 'image', mediaUrl: pet.thumbnail.url, mime: pet.thumbnail.mime }
+  }
+  const applyPet = (petId: string): void => {
+    if (window.launcher) void window.launcher.applyPet(petId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, activePetId: petId, downloadedPetIds: [...new Set([...current.pets.downloadedPetIds, petId])], transfers: { ...current.pets.transfers, [petId]: { operation: 'apply', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '宠物已保存，下次启动 Harness 自动出现' } } } }))
+  }
+  const removePet = (petId: string): void => {
+    if (window.launcher) void window.launcher.removePet(petId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, activePetId: current.pets.activePetId === petId ? undefined : current.pets.activePetId, downloadedPetIds: current.pets.downloadedPetIds.filter(id => id !== petId), transfers: { ...current.pets.transfers, [petId]: { operation: 'remove', status: 'completed', progress: 100, receivedBytes: 0, totalBytes: 0, message: '已从本机删除' } } } }))
+  }
+  const togglePetFavorite = (petId: string): void => {
+    if (window.launcher) void run(`pet-favorite-${petId}`, () => window.launcher!.togglePetFavorite(petId))
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, favoritePetIds: current.pets.favoritePetIds.includes(petId) ? current.pets.favoritePetIds.filter(id => id !== petId) : [petId, ...current.pets.favoritePetIds] } }))
+  }
   const clearPet = (): void => { if (window.launcher) void run('pet-clear', () => window.launcher!.clearPet()) }
   const importPet = (): void => { if (window.launcher) void run('pet-import', () => window.launcher!.importPet()) }
   const removeCustomPet = (petId: string): void => { if (window.launcher) void run(`pet-remove-${petId}`, () => window.launcher!.removeCustomPet(petId)) }
@@ -1932,7 +2058,7 @@ export default function App(): ReactNode {
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
-          {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removeCustomPet} />}
+          {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}

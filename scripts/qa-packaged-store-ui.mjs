@@ -18,9 +18,13 @@ await rm(outputRoot, { recursive: true, force: true })
 await mkdir(launcherDataRoot, { recursive: true })
 await mkdir(localAppDataRoot, { recursive: true })
 await mkdir(path.join(launcherDataRoot, 'skins'), { recursive: true })
+await mkdir(path.join(launcherDataRoot, 'pets'), { recursive: true })
 const bundledSkinCatalog = JSON.parse(await readFile(path.join(root, 'skin-store', 'catalog.payload.json'), 'utf8'))
+const bundledPetCatalog = JSON.parse(await readFile(path.join(root, 'pet-store', 'catalog.payload.json'), 'utf8'))
 const seededSkinId = bundledSkinCatalog.items.find(item => item.id === 'sd2-aurora-library-motion')?.id || bundledSkinCatalog.items[0]?.id
+const seededPetId = bundledPetCatalog.items[0]?.id
 if (!seededSkinId) throw new Error('Bundled skin catalog is empty')
+if (!seededPetId) throw new Error('Bundled pet catalog is empty')
 await writeFile(path.join(launcherDataRoot, 'launcher.json'), JSON.stringify({
   settings: {
     storageRoot: launcherDataRoot,
@@ -30,6 +34,8 @@ await writeFile(path.join(launcherDataRoot, 'launcher.json'), JSON.stringify({
 }, null, 2))
 await writeFile(path.join(launcherDataRoot, 'skins', 'favorites.json'), JSON.stringify({ schemaVersion: 1, skinIds: [seededSkinId] }, null, 2))
 await writeFile(path.join(launcherDataRoot, 'skins', 'active.json'), JSON.stringify({ schemaVersion: 1, skinId: seededSkinId }, null, 2))
+await writeFile(path.join(launcherDataRoot, 'pets', 'favorites.json'), JSON.stringify({ schemaVersion: 1, petIds: [seededPetId] }, null, 2))
+await writeFile(path.join(launcherDataRoot, 'pets', 'active.json'), JSON.stringify({ schemaVersion: 1, petId: seededPetId }, null, 2))
 
 const failures = []
 function check(label, condition, detail = '') {
@@ -130,6 +136,65 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
       check(`${label} 可取消收藏并恢复原收藏集`, await page.locator('.skin-card').count() === 1)
       await page.getByRole('tab', { name: /全部商店/ }).click()
       await page.waitForTimeout(250)
+    }
+  }
+  if (label.includes('pets')) {
+    const petState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets)
+    check(`${label} 合并三个固定宠物目录`, petState.sources.length === 3 && petState.items.length >= 50, `sources=${petState.sources.map(source => `${source.id}:${source.itemCount}`).join(',')}`)
+    check(`${label} 提供预览、下载和应用入口`, await page.getByRole('button', { name: '预览', exact: true }).count() > 0 && await page.getByRole('button', { name: /^(下载|删除)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到 Harness|Harness 已应用|安全运行库待接入)$/ }).count() > 0)
+    const petActionsVisible = await page.locator('.pet-card').evaluateAll(cards => cards.every(card => {
+      const cardRect = card.getBoundingClientRect()
+      const actions = card.querySelector('.pet-card-actions')
+      if (!actions) return false
+      const actionRect = actions.getBoundingClientRect()
+      return actionRect.height > 20 && actionRect.top >= cardRect.top && actionRect.bottom <= cardRect.bottom + 1 && [...actions.querySelectorAll('button')].every(button => {
+        const rect = button.getBoundingClientRect()
+        return rect.width > 20 && rect.height > 20 && rect.bottom <= cardRect.bottom + 1
+      })
+    }))
+    check(`${label} 宠物操作按钮实际可见且未被卡片裁切`, petActionsVisible)
+    const currentTab = page.getByRole('tab', { name: /正在使用/ })
+    const favoriteTab = page.getByRole('tab', { name: /我的收藏/ })
+    check(`${label} 提供当前使用和收藏视图`, await currentTab.count() === 1 && await favoriteTab.count() === 1)
+    await currentTab.click()
+    await page.waitForTimeout(250)
+    check(`${label} 当前使用视图同步真实宠物`, await page.locator('.pet-card').count() === 1 && await page.locator('.skin-active').count() === 1)
+    await favoriteTab.click()
+    await page.waitForTimeout(250)
+    check(`${label} 我的收藏视图读取持久化收藏`, await page.locator('.pet-card').count() === 1 && await page.getByRole('button', { name: /取消收藏/ }).count() === 1)
+    await page.getByRole('tab', { name: /全部商店/ }).click()
+    await page.waitForTimeout(250)
+    if (label === 'compact-pets') {
+      await page.getByRole('button', { name: /像素精灵 800/ }).evaluate(button => button.click())
+      const pixelCard = page.locator('.pet-card[data-catalog-source="pixel"]').first()
+      await pixelCard.waitFor({ state: 'visible', timeout: 30_000 })
+      await pixelCard.getByRole('button', { name: '预览', exact: true }).evaluate(button => button.click())
+      const pixelDialog = page.locator('.pet-preview-modal[role="dialog"]')
+      await pixelDialog.waitFor({ state: 'visible', timeout: 90_000 })
+      const pixelCanvas = pixelDialog.locator('canvas')
+      check(`${label} 像素目录可真实下载并打开帧动画预览`, await pixelCanvas.count() === 1)
+      const firstFrame = await pixelCanvas.getAttribute('data-frame-index')
+      await page.waitForTimeout(600)
+      const nextFrame = await pixelCanvas.getAttribute('data-frame-index')
+      check(`${label} 像素宠物预览帧持续变化`, firstFrame !== nextFrame)
+      await page.screenshot({ path: path.join(outputRoot, `${label}-pixel-preview.png`) })
+      await pixelDialog.getByRole('button', { name: /关闭/ }).evaluate(button => button.click())
+      await page.evaluate(async () => { const pet = (await window.launcher.getSnapshot()).pets.items.find(item => item.catalogSource === 'pixel'); if (pet) await window.launcher.applyPet(pet.id) })
+      const activePixel = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets.activePetId)
+      check(`${label} 像素帧动画可应用到 Harness`, Boolean(activePixel?.startsWith('px-')), `active=${activePixel}`)
+
+      await page.getByRole('button', { name: /Live2D 230/ }).evaluate(button => button.click())
+      const live2dCard = page.locator('.pet-card[data-catalog-source="live2d"]').first()
+      await live2dCard.waitFor({ state: 'visible', timeout: 30_000 })
+      check(`${label} Live2D 未引入未验证运行库`, await live2dCard.getByRole('button', { name: '安全运行库待接入', exact: true }).isDisabled())
+      await live2dCard.getByRole('button', { name: '预览', exact: true }).evaluate(button => button.click())
+      const live2dDialog = page.locator('.pet-preview-modal[role="dialog"]')
+      await live2dDialog.waitFor({ state: 'visible', timeout: 90_000 })
+      check(`${label} Live2D 签名资源可下载并安全预览`, await live2dDialog.locator('img').count() === 1)
+      await page.screenshot({ path: path.join(outputRoot, `${label}-live2d-preview.png`) })
+      await live2dDialog.getByRole('button', { name: /关闭/ }).evaluate(button => button.click())
+      await page.getByRole('button', { name: /全部来源/ }).evaluate(button => button.click())
+      await waitForCards(page, '.pet-card')
     }
   }
   const secondPage = page.locator('.catalog-page-buttons button').filter({ hasText: /^2$/ }).first()

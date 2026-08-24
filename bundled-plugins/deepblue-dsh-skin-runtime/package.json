@@ -1,6 +1,6 @@
 {
   "name": "@deepblue/dsh-skin-runtime",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Declarative skin and interactive pet runtime for the DeepSeekHarness launcher.",
   "type": "module",
   "main": "lib/index.js",

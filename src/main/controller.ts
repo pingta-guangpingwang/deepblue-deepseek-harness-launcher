@@ -14,7 +14,7 @@ import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } fr
 import { SkinStore, type SkinDownloadProgress } from './skins'
 import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-wallpaper'
 import { DynamicWallpaperManager } from './dynamic-wallpaper'
-import { PetStore } from './pets'
+import { PetStore, type PetDownloadProgress } from './pets'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
@@ -37,6 +37,9 @@ import type {
   ModelProviderDraft,
   MultimodalTestRequest,
   MultimodalTestResult,
+  PetPreviewResult,
+  PetStoreState,
+  PetTransferOperation,
   RuntimeModuleId,
   RuntimeModuleRelease,
   SkinPreviewResult,
@@ -160,6 +163,9 @@ export class LauncherController {
         source: 'bundled',
         generatedAt: '',
         downloadedPetIds: [],
+        favoritePetIds: [],
+        transfers: {},
+        sources: [],
         items: []
       },
       settings: this.config.settings,
@@ -1312,35 +1318,100 @@ export class LauncherController {
   async refreshPets(): Promise<LauncherSnapshot> {
     this.snapshot.pets = { ...this.snapshot.pets, status: 'loading' }
     this.emit()
-    this.snapshot.pets = await this.petStore.refresh(this.config.settings.petCatalogUrl)
+    this.replacePetState(await this.petStore.refresh())
     this.log(this.snapshot.pets.status === 'error' ? 'WARN' : 'INFO', this.snapshot.pets.message || `宠物目录已加载：${this.snapshot.pets.items.length} 项`)
     this.emit()
     return this.getSnapshot()
   }
 
+  async downloadPet(petId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.pets.items.find(entry => entry.id === petId)
+    if (!item || item.origin === 'custom' || this.petTransferBusy(petId)) return this.getSnapshot()
+    this.updatePetTransfer(petId, 'download', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size, message: '准备下载宠物资源' })
+    try {
+      this.replacePetState(await this.petStore.download(petId, progress => this.updatePetTransfer(petId, 'download', progress)))
+      this.finishPetTransfer(petId, 'download', '宠物资源已下载，可直接预览或应用')
+      this.log('INFO', `宠物「${item.name}」已下载到本机`)
+    } catch (error) {
+      this.failPetTransfer(petId, 'download', error)
+      this.log('ERROR', `宠物下载失败：${this.snapshot.pets.transfers[petId]?.message || '未知错误'}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async previewPet(petId: string): Promise<PetPreviewResult> {
+    const item = this.snapshot.pets.items.find(entry => entry.id === petId)
+    if (!item || item.origin === 'custom' || this.petTransferBusy(petId)) return { snapshot: this.getSnapshot() }
+    const previewBytes = item.media.size + (item.packKind === 'live2d' ? item.thumbnail.size : 0)
+    this.updatePetTransfer(petId, 'preview', { status: 'downloading', receivedBytes: 0, totalBytes: previewBytes, message: '准备宠物预览' })
+    try {
+      const result = await this.petStore.preview(petId, progress => this.updatePetTransfer(petId, 'preview', progress))
+      this.replacePetState(result.state)
+      this.finishPetTransfer(petId, 'preview', '宠物预览已就绪')
+      this.emit()
+      return { snapshot: this.getSnapshot(), preview: result.preview }
+    } catch (error) {
+      this.failPetTransfer(petId, 'preview', error)
+      this.log('ERROR', `宠物预览失败：${this.snapshot.pets.transfers[petId]?.message || '未知错误'}`)
+      this.emit()
+      return { snapshot: this.getSnapshot() }
+    }
+  }
+
   async applyPet(petId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.pets.items.find(entry => entry.id === petId)
-    if (!item) return this.getSnapshot()
+    if (!item || this.petTransferBusy(petId)) return this.getSnapshot()
     const task = this.addTask(`pet-${Date.now()}`, `启用宠物「${item.name}」`, '正在校验缓存并按需下载宠物资源')
+    this.updatePetTransfer(petId, 'apply', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size, message: '准备下载并应用' })
     this.emit()
     try {
       task.progress = 24
-      this.snapshot.pets = await this.petStore.apply(petId)
+      this.replacePetState(await this.petStore.apply(petId, progress => this.updatePetTransfer(petId, 'apply', progress)))
       task.progress = 100
       task.status = 'completed'
       task.detail = this.snapshot.runStatus === 'running' ? '宠物已保存，重启 Harness 后生效' : '宠物已保存，下次启动 Harness 自动出现'
+      this.finishPetTransfer(petId, 'apply', task.detail)
       this.log('INFO', task.detail)
     } catch (error) {
       task.status = 'failed'
       task.detail = error instanceof Error ? error.message : String(error)
+      this.failPetTransfer(petId, 'apply', error)
       this.log('ERROR', `宠物应用失败：${task.detail}`)
     }
     this.emit()
     return this.getSnapshot()
   }
 
+  async removePet(petId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.pets.items.find(entry => entry.id === petId)
+    if (!item || item.origin === 'custom' || this.petTransferBusy(petId)) return this.getSnapshot()
+    this.snapshot.pets.transfers[petId] = { operation: 'remove', status: 'removing', progress: 30, receivedBytes: 0, totalBytes: item.media.size, message: '正在删除本机宠物资源' }
+    this.emit()
+    try {
+      const wasActive = this.snapshot.pets.activePetId === petId
+      this.replacePetState(await this.petStore.remove(petId))
+      this.finishPetTransfer(petId, 'remove', wasActive ? '已删除并关闭当前宠物' : '已从本机删除')
+      this.log('INFO', `已删除宠物「${item.name}」的本机资源`)
+    } catch (error) {
+      this.failPetTransfer(petId, 'remove', error)
+      this.log('ERROR', `删除宠物失败：${this.snapshot.pets.transfers[petId]?.message || '未知错误'}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async togglePetFavorite(petId: string): Promise<LauncherSnapshot> {
+    this.replacePetState(await this.petStore.toggleFavorite(petId))
+    const favorite = this.snapshot.pets.favoritePetIds.includes(petId)
+    const item = this.snapshot.pets.items.find(entry => entry.id === petId)
+    this.log('INFO', `${favorite ? '已收藏' : '已取消收藏'}宠物${item ? `「${item.name}」` : ''}`)
+    this.emit()
+    return this.getSnapshot()
+  }
+
   async clearPet(): Promise<LauncherSnapshot> {
-    this.snapshot.pets = await this.petStore.clear()
+    this.replacePetState(await this.petStore.clear())
     this.log('INFO', this.snapshot.runStatus === 'running' ? '已关闭网页宠物，重启 Harness 后生效' : '已关闭网页宠物')
     this.emit()
     return this.getSnapshot()
@@ -1354,7 +1425,7 @@ export class LauncherController {
     })
     if (result.canceled || !result.filePaths[0]) return this.getSnapshot()
     try {
-      this.snapshot.pets = await this.petStore.importCustom(result.filePaths[0])
+      this.replacePetState(await this.petStore.importCustom(result.filePaths[0]))
       this.log('INFO', '本地宠物已添加，只保存在当前电脑')
     } catch (error) {
       this.log('ERROR', `添加本地宠物失败：${error instanceof Error ? error.message : String(error)}`)
@@ -1365,7 +1436,7 @@ export class LauncherController {
 
   async removeCustomPet(petId: string): Promise<LauncherSnapshot> {
     try {
-      this.snapshot.pets = await this.petStore.removeCustom(petId)
+      this.replacePetState(await this.petStore.removeCustom(petId))
       this.log('INFO', '已删除本地自定义宠物')
     } catch (error) {
       this.log('ERROR', `删除宠物失败：${error instanceof Error ? error.message : String(error)}`)
@@ -1432,7 +1503,7 @@ export class LauncherController {
     const paths = launcherDataPaths()
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
-    const expectedVersion = '0.6.0'
+    const expectedVersion = '0.7.0'
     const installedManifest = path.join(paths.dshHome, 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json')
     try {
       const manifest = JSON.parse(await readFile(installedManifest, 'utf8')) as { version?: string }
@@ -1731,6 +1802,66 @@ export class LauncherController {
       ...next,
       desktopWallpaper: this.dynamicWallpaper.state(),
       transfers: this.snapshot.skins.transfers
+    }
+  }
+
+  private replacePetState(next: PetStoreState): void {
+    this.snapshot.pets = {
+      ...next,
+      transfers: this.snapshot.pets.transfers
+    }
+  }
+
+  private petTransferBusy(petId: string): boolean {
+    const status = this.snapshot.pets.transfers[petId]?.status
+    return status === 'queued' || status === 'downloading' || status === 'verifying' || status === 'applying' || status === 'removing'
+  }
+
+  private updatePetTransfer(petId: string, operation: PetTransferOperation, progress: PetDownloadProgress): void {
+    const previous = this.snapshot.pets.transfers[petId]
+    const previousIsActive = previous?.operation === operation && (previous.status === 'queued' || previous.status === 'downloading' || previous.status === 'verifying' || previous.status === 'applying' || previous.status === 'removing')
+    const previousProgress = previousIsActive ? previous.progress : 0
+    const ratio = progress.totalBytes > 0 ? progress.receivedBytes / progress.totalBytes : 0
+    const completedDownload = progress.status === 'completed'
+    const status = completedDownload && operation === 'apply' ? 'applying' : progress.status
+    const percent = progress.status === 'verifying'
+      ? Math.max(previousProgress, progress.receivedBytes > 0 ? 94 : 3)
+      : completedDownload
+        ? operation === 'apply' ? 97 : 100
+        : Math.max(previousProgress, 2, Math.min(92, Math.round(ratio * 92)))
+    const message = completedDownload && operation === 'apply' ? '资源已就绪，正在写入 Harness 宠物配置' : progress.message
+    this.snapshot.pets.transfers[petId] = {
+      operation,
+      status,
+      progress: percent,
+      receivedBytes: progress.receivedBytes,
+      totalBytes: progress.totalBytes,
+      message
+    }
+    if (!previous || previous.progress !== percent || previous.status !== status || previous.message !== message) this.emit()
+  }
+
+  private finishPetTransfer(petId: string, operation: PetTransferOperation, message: string): void {
+    const previous = this.snapshot.pets.transfers[petId]
+    this.snapshot.pets.transfers[petId] = {
+      operation,
+      status: 'completed',
+      progress: 100,
+      receivedBytes: previous?.totalBytes || 0,
+      totalBytes: previous?.totalBytes || 0,
+      message
+    }
+  }
+
+  private failPetTransfer(petId: string, operation: PetTransferOperation, error: unknown): void {
+    const previous = this.snapshot.pets.transfers[petId]
+    this.snapshot.pets.transfers[petId] = {
+      operation,
+      status: 'failed',
+      progress: previous?.progress || 0,
+      receivedBytes: previous?.receivedBytes || 0,
+      totalBytes: previous?.totalBytes || 0,
+      message: error instanceof Error ? error.message : String(error)
     }
   }
 

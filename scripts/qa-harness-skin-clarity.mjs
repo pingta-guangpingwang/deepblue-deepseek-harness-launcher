@@ -123,7 +123,7 @@ try {
   check('Harness 页面没有未处理的脚本错误', consoleErrors.length === 0, consoleErrors.join(' | '))
 
   const installedManifest = JSON.parse(await readFile(path.join(storageRoot, 'harness-data', 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json'), 'utf8'))
-  check('实际 web profile 已升级外观插件', installedManifest.version === '0.6.0', installedManifest.version)
+  check('实际 web profile 已升级外观插件', installedManifest.version === '0.7.0', installedManifest.version)
   await launcher.getByRole('button', { name: '停止 DeepSeek Harness', exact: true }).click()
   await launcher.getByRole('button', { name: '启动 DeepSeek Harness', exact: true }).waitFor({ timeout: 30_000 })
 } finally {

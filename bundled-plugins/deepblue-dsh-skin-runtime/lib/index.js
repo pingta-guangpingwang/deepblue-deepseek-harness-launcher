@@ -43,6 +43,7 @@ async function readPetConfig() {
   try {
     const value = JSON.parse(await readFile(filename, 'utf8'))
     if (value?.schemaVersion !== 1 || typeof value.petId !== 'string' || !['static', 'animated'].includes(value.mediaKind) || typeof value.mediaPath !== 'string') return undefined
+    if (value.packKind !== undefined && value.packKind !== 'pixel-atlas') return undefined
     return value
   } catch {
     return undefined
@@ -176,6 +177,7 @@ export function apply(ctx) {
         schemaVersion: 1,
         petId: config.petId,
         mediaKind: config.mediaKind,
+        packKind: config.packKind || 'image',
         mediaUrl: versionedMediaUrl(PET_MEDIA_PATH, config.mediaPath),
         behavior: config.behavior
       })

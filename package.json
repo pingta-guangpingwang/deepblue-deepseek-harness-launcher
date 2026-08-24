@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.20",
+  "version": "0.10.21",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -34,6 +34,7 @@
     "sign:store-trust": "node scripts/sign-store-trust.mjs",
     "verify:skins": "node scripts/verify-skin-catalog.mjs",
     "verify:pets": "node scripts/verify-pet-catalog.mjs",
+    "verify:pets:remote": "node scripts/verify-remote-pet-catalogs.mjs",
     "package": "npm run build && electron-builder --dir",
     "dist:win": "npm run build && electron-builder --dir && powershell.exe -NoProfile -File scripts/build-windows-variants.ps1",
     "dist:mac": "npm run build && electron-builder --mac dmg zip"

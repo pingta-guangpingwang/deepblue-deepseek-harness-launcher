@@ -33,6 +33,8 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       .deepblue-pet-visual > canvas { display: none; }
       .deepblue-pet[data-held='true'] .deepblue-pet-visual > canvas { display: block; }
       .deepblue-pet[data-held='true'] .deepblue-pet-visual > img { display: none; }
+      .deepblue-pet[data-pack-kind='pixel-atlas'] .deepblue-pet-visual > canvas { display: block; image-rendering: pixelated; }
+      .deepblue-pet[data-pack-kind='pixel-atlas'] .deepblue-pet-visual > img { position: absolute; width: 1px; height: 1px; opacity: 0; }
       .deepblue-pet[data-idle='float'] .deepblue-pet-visual { animation: deepblue-pet-float 4.8s ease-in-out infinite; }
       .deepblue-pet[data-idle='bounce'] .deepblue-pet-visual { animation: deepblue-pet-bounce 3.6s ease-in-out infinite; }
       .deepblue-pet[data-reaction='hop'] .deepblue-pet-visual { animation: deepblue-pet-hop .55s cubic-bezier(.2,.8,.2,1); }
@@ -199,7 +201,9 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     const drag = React.useRef(null)
     const imageRef = React.useRef(null)
     const canvasRef = React.useRef(null)
-    const animated = config.mediaKind === 'animated'
+    const [atlasReady, setAtlasReady] = React.useState(0)
+    const pixelAtlas = config.packKind === 'pixel-atlas'
+    const animated = config.mediaKind === 'animated' && !pixelAtlas
     const held = useAnimationHold(animated)
     React.useEffect(() => {
       if (!held) return
@@ -211,6 +215,31 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       const context = canvas.getContext('2d')
       if (context) context.drawImage(image, 0, 0)
     }, [held, config.mediaUrl])
+    React.useEffect(() => {
+      if (!pixelAtlas || !atlasReady) return undefined
+      const image = imageRef.current
+      const canvas = canvasRef.current
+      if (!image || !canvas || !image.naturalWidth || !image.naturalHeight) return undefined
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (!context) return undefined
+      const columns = 8
+      const rows = image.naturalHeight % 11 === 0 ? 11 : image.naturalHeight % 9 === 0 ? 9 : 1
+      const frameWidth = image.naturalWidth / columns
+      const frameHeight = image.naturalHeight / rows
+      canvas.width = frameWidth
+      canvas.height = frameHeight
+      const frames = Array.from({ length: columns }, (_, frame) => frame)
+      let index = 0
+      const draw = () => {
+        const frame = frames[index % frames.length]
+        context.clearRect(0, 0, frameWidth, frameHeight)
+        context.drawImage(image, frame * frameWidth, 0, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
+        index += 1
+      }
+      draw()
+      const timer = setInterval(draw, 150)
+      return () => clearInterval(timer)
+    }, [pixelAtlas, atlasReady, config.mediaUrl])
     const bubbleTimer = React.useRef(null)
     const reactionTimer = React.useRef(null)
     const clamp = React.useCallback(point => ({ x: Math.max(6, Math.min(window.innerWidth - 90, point.x)), y: Math.max(6, Math.min(window.innerHeight - 90, point.y)) }), [])
@@ -265,12 +294,12 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     }
     const style = { left: position.x, top: position.y, '--deepblue-pet-width': `${config.behavior.widthPx}px` }
     return ReactDOM.createPortal(React.createElement('div', { className: 'deepblue-pet-host' },
-      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'aria-label': '网页宠物，可拖动位置，点击互动，双击表达喜欢', onDoubleClick: () => { setReaction('heart'); if (reactionTimer.current) clearTimeout(reactionTimer.current); reactionTimer.current = setTimeout(() => setReaction(''), 700) }, onPointerDown, onPointerMove, onPointerUp },
+      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'data-pack-kind': config.packKind || 'image', 'aria-label': '网页宠物，可拖动位置，点击互动，双击表达喜欢', onDoubleClick: () => { setReaction('heart'); if (reactionTimer.current) clearTimeout(reactionTimer.current); reactionTimer.current = setTimeout(() => setReaction(''), 700) }, onPointerDown, onPointerMove, onPointerUp },
         React.createElement('span', { className: 'deepblue-pet-visual' },
           bubble ? React.createElement('span', { className: 'deepblue-pet-bubble', role: 'status' }, bubble) : null,
           React.createElement('span', { className: 'deepblue-pet-sparks' }),
-          React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false }),
-          animated ? React.createElement('canvas', { ref: canvasRef, 'aria-hidden': 'true' }) : null
+          React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false, onLoad: () => { if (pixelAtlas) setAtlasReady(value => value + 1) } }),
+          animated || pixelAtlas ? React.createElement('canvas', { ref: canvasRef, 'aria-hidden': 'true' }) : null
         )
       )
     ), document.body)

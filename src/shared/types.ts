@@ -7,6 +7,8 @@ export type SkinStyle = 'realistic' | 'anime' | 'cyber' | 'pixel' | 'nature' | '
 export type PetMediaKind = 'static' | 'animated'
 export type PetSpecies = 'cat' | 'dog' | 'whale' | 'fantasy' | 'robot' | 'pixel' | 'other'
 export type PetStyle = 'cute' | 'calm' | 'playful' | 'cyber' | 'pixel'
+export type PetPackKind = 'image' | 'pixel-atlas' | 'live2d'
+export type PetCatalogSourceId = 'official' | 'pixel' | 'live2d' | 'custom'
 
 export interface SourceConfig {
   id: 'github' | 'gitee' | 'oss' | 'runtime-v2' | 'npmmirror'
@@ -465,7 +467,7 @@ export interface SkinPreviewResult {
 }
 
 export interface PetLicense {
-  name: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-SA-4.0' | 'LOCAL'
+  name: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-SA-4.0' | 'UNDECLARED' | 'LOCAL'
   url: string
   author: string
   sourceUrl: string
@@ -502,8 +504,47 @@ export interface PetCatalogItem {
   media: PetAsset
   license: PetLicense
   behavior: PetBehavior
+  packKind?: Exclude<PetPackKind, 'image'>
+  entry?: string
+  packPath?: string
+  catalogSource?: PetCatalogSourceId
   origin?: 'catalog' | 'custom'
   previewDataUrl?: string
+}
+
+export interface PetCatalogSourceState {
+  id: Exclude<PetCatalogSourceId, 'custom'>
+  name: string
+  repositoryUrl: string
+  status: 'ready' | 'offline' | 'error'
+  itemCount: number
+  message?: string
+}
+
+export type PetTransferOperation = 'download' | 'preview' | 'apply' | 'remove'
+export type PetTransferStatus = 'queued' | 'downloading' | 'verifying' | 'applying' | 'removing' | 'completed' | 'failed'
+
+export interface PetTransferState {
+  operation: PetTransferOperation
+  status: PetTransferStatus
+  progress: number
+  receivedBytes: number
+  totalBytes: number
+  message: string
+}
+
+export interface PetPreview {
+  petId: string
+  name: string
+  mediaKind: PetMediaKind
+  packKind: PetPackKind
+  mediaUrl: string
+  mime: PetAsset['mime']
+}
+
+export interface PetPreviewResult {
+  snapshot: LauncherSnapshot
+  preview?: PetPreview
 }
 
 export interface PetStoreState {
@@ -512,6 +553,9 @@ export interface PetStoreState {
   generatedAt: string
   activePetId?: string
   downloadedPetIds: string[]
+  favoritePetIds: string[]
+  transfers: Record<string, PetTransferState>
+  sources: PetCatalogSourceState[]
   items: PetCatalogItem[]
   message?: string
 }
@@ -674,7 +718,11 @@ export interface LauncherApi {
   toggleSkinFavorite(skinId: string): Promise<LauncherSnapshot>
   clearSkin(): Promise<LauncherSnapshot>
   refreshPets(): Promise<LauncherSnapshot>
+  downloadPet(petId: string): Promise<LauncherSnapshot>
+  previewPet(petId: string): Promise<PetPreviewResult>
   applyPet(petId: string): Promise<LauncherSnapshot>
+  removePet(petId: string): Promise<LauncherSnapshot>
+  togglePetFavorite(petId: string): Promise<LauncherSnapshot>
   clearPet(): Promise<LauncherSnapshot>
   importPet(): Promise<LauncherSnapshot>
   removeCustomPet(petId: string): Promise<LauncherSnapshot>
