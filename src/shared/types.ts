@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
+export type PageId = 'home' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
 export type RunStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'paused'
 export type DistributionMode = 'online' | 'offline'
@@ -86,6 +86,8 @@ export interface CatalogPlugin {
   updateAvailable: boolean
   featured: boolean
   tags: string[]
+  repositoryUrl?: string
+  permissionLevel?: 'standard' | 'network' | 'system'
 }
 
 export interface ModelCatalogItem {
@@ -521,7 +523,7 @@ export interface PetCatalogSourceState {
   message?: string
 }
 
-export type PetTransferOperation = 'download' | 'preview' | 'apply' | 'remove'
+export type PetTransferOperation = 'download' | 'preview' | 'apply' | 'desktop' | 'remove'
 export type PetTransferStatus = 'queued' | 'downloading' | 'verifying' | 'applying' | 'removing' | 'completed' | 'failed'
 
 export interface PetTransferState {
@@ -552,6 +554,10 @@ export interface PetStoreState {
   source: 'remote' | 'bundled'
   generatedAt: string
   activePetId?: string
+  desktopPet?: {
+    petId: string
+    running: boolean
+  }
   downloadedPetIds: string[]
   favoritePetIds: string[]
   transfers: Record<string, PetTransferState>
@@ -721,6 +727,8 @@ export interface LauncherApi {
   downloadPet(petId: string): Promise<LauncherSnapshot>
   previewPet(petId: string): Promise<PetPreviewResult>
   applyPet(petId: string): Promise<LauncherSnapshot>
+  applyPetToDesktop(petId: string): Promise<LauncherSnapshot>
+  stopDesktopPet(): Promise<LauncherSnapshot>
   removePet(petId: string): Promise<LauncherSnapshot>
   togglePetFavorite(petId: string): Promise<LauncherSnapshot>
   clearPet(): Promise<LauncherSnapshot>

@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.16',
+  launcherVersion: '0.10.22',
   platform: 'win32-x64',
   distributionMode: 'offline',
   runStatus: 'stopped',
@@ -44,7 +44,11 @@ export const mockSnapshot: LauncherSnapshot = {
     { version: '0.1.1-rc.2', channel: 'stable', installed: true, active: true, rollbackReady: false, sizeMb: 75, publishedAt: '2026-08-22', notes: ['同步 DeepSeek 官方 dsh-v0.1.1-rc.2', '支持 DeepSeek 官方视觉模型图片输入'] },
     { version: '0.1.0-rc.3', channel: 'preview', installed: true, active: false, rollbackReady: true, sizeMb: 73, publishedAt: '2026-07-28', notes: ['历史候选版本'] }
   ],
-  plugins: [],
+  plugins: [
+    { id: 'dsh-task-board', name: '任务看板', packageSpec: '@linxin666/dsh-client-ui-task-board@latest', description: '把任务按状态组织，并交给真实 DSH 会话执行。', author: 'dsh-web-ui contributors', version: 'latest', installed: false, updateAvailable: false, featured: true, tags: ['任务', '看板'], repositoryUrl: 'https://github.com/zhu1090093659/dsh-web-ui', permissionLevel: 'standard' },
+    { id: 'dsh-chat-recovery', name: '会话恢复', packageSpec: '@linxin666/dsh-chat-recovery@latest', description: '失败轮次重试与历史消息分叉编辑。', author: 'dsh-web-ui contributors', version: 'latest', installed: false, updateAvailable: false, featured: true, tags: ['会话', '恢复'], repositoryUrl: 'https://github.com/zhu1090093659/dsh-web-ui', permissionLevel: 'standard' },
+    { id: 'dsh-remote-web', name: '手机 / PC 远程配对', packageSpec: '@linxin666/dsh-remote-web-ui@latest', description: '使用一次性令牌远程连接当前 DSH。', author: 'dsh-web-ui contributors', version: 'latest', installed: false, updateAvailable: false, featured: false, tags: ['远程', '配对'], repositoryUrl: 'https://github.com/zhu1090093659/dsh-web-ui', permissionLevel: 'network' }
+  ],
   models: [
     { id: 'deepseek-v4-flash', provider: 'DeepSeek', model: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash', description: '面向高频对话、工具调用与代码任务的快速模型。模型调用需要用户自己的 API Key。', context: '以官方当前配置为准', capabilities: ['对话', '工具调用', '代码'], status: 'available', configured: false, docsUrl: 'https://api-docs.deepseek.com/' },
     { id: 'deepseek-v4-pro', provider: 'DeepSeek', model: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro', description: '适合复杂推理、规划和需要更充分分析的任务。', context: '以官方当前配置为准', capabilities: ['推理', '规划', '代码'], status: 'available', configured: false, docsUrl: 'https://api-docs.deepseek.com/' },
@@ -140,6 +144,7 @@ export const mockSnapshot: LauncherSnapshot = {
     source: 'remote',
     generatedAt: petCatalog.generatedAt,
     activePetId: 'sd2-cloud-cat-luna',
+    desktopPet: { petId: 'sd2-cloud-cat-luna', running: true },
     downloadedPetIds: ['sd2-cloud-cat-luna'],
     favoritePetIds: ['sd2-cloud-cat-luna'],
     transfers: {},

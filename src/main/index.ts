@@ -59,7 +59,10 @@ function showMainWindow(): void {
   mainWindow.focus()
 }
 
-function syncDynamicWallpaperTray(active: boolean): void {
+function syncDesktopTray(): void {
+  const wallpaperActive = controller?.isDynamicDesktopActive() === true
+  const petActive = controller?.isDesktopPetActive() === true
+  const active = wallpaperActive || petActive
   if (!active) {
     tray?.destroy()
     tray = undefined
@@ -67,20 +70,29 @@ function syncDynamicWallpaperTray(active: boolean): void {
   }
   if (!tray) {
     tray = new Tray(appIconPath())
-    tray.setToolTip('深蓝 DeepSeek Harness · 动态桌面运行中')
     tray.on('double-click', showMainWindow)
   }
+  tray.setToolTip(`深蓝 DeepSeek Harness · ${wallpaperActive && petActive ? '动态桌面与宠物运行中' : petActive ? '桌面宠物运行中' : '动态桌面运行中'}`)
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开启动器', click: showMainWindow },
-    {
+    ...(wallpaperActive ? [{
       label: '停止动态桌面',
       click: () => {
         void controller?.stopDynamicDesktop().then(() => {
-          syncDynamicWallpaperTray(false)
+          syncDesktopTray()
           showMainWindow()
         })
       }
-    },
+    }] : []),
+    ...(petActive ? [{
+      label: '停止桌面宠物',
+      click: () => {
+        void controller?.stopDesktopPet().then(() => {
+          syncDesktopTray()
+          showMainWindow()
+        })
+      }
+    }] : []),
     { type: 'separator' },
     {
       label: '退出',
@@ -114,10 +126,10 @@ function createWindow(): BrowserWindow {
   })
   window.once('ready-to-show', () => window.show())
   window.on('close', (event) => {
-    if (!quitting && controller?.isDynamicDesktopActive()) {
+    if (!quitting && controller?.isDesktopExperienceActive()) {
       event.preventDefault()
       window.hide()
-      syncDynamicWallpaperTray(true)
+      syncDesktopTray()
     }
   })
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -176,17 +188,17 @@ function registerIpc(): void {
   ipcMain.handle('launcher:apply-skin', (_event, skinId: string) => controller?.applySkin(skinId))
   ipcMain.handle('launcher:apply-skin-to-desktop', async (_event, skinId: string) => {
     const snapshot = await controller?.applySkinToDesktop(skinId)
-    syncDynamicWallpaperTray(controller?.isDynamicDesktopActive() === true)
+    syncDesktopTray()
     return snapshot
   })
   ipcMain.handle('launcher:stop-dynamic-desktop', async () => {
     const snapshot = await controller?.stopDynamicDesktop()
-    syncDynamicWallpaperTray(false)
+    syncDesktopTray()
     return snapshot
   })
   ipcMain.handle('launcher:remove-skin', async (_event, skinId: string) => {
     const snapshot = await controller?.removeSkin(skinId)
-    syncDynamicWallpaperTray(controller?.isDynamicDesktopActive() === true)
+    syncDesktopTray()
     return snapshot
   })
   ipcMain.handle('launcher:toggle-skin-favorite', (_event, skinId: string) => controller?.toggleSkinFavorite(skinId))
@@ -195,19 +207,37 @@ function registerIpc(): void {
   ipcMain.handle('launcher:download-pet', (_event, petId: string) => controller?.downloadPet(petId))
   ipcMain.handle('launcher:preview-pet', (_event, petId: string) => controller?.previewPet(petId))
   ipcMain.handle('launcher:apply-pet', (_event, petId: string) => controller?.applyPet(petId))
-  ipcMain.handle('launcher:remove-pet', (_event, petId: string) => controller?.removePet(petId))
+  ipcMain.handle('launcher:apply-pet-to-desktop', async (_event, petId: string) => {
+    const snapshot = await controller?.applyPetToDesktop(petId)
+    syncDesktopTray()
+    return snapshot
+  })
+  ipcMain.handle('launcher:stop-desktop-pet', async () => {
+    const snapshot = await controller?.stopDesktopPet()
+    syncDesktopTray()
+    return snapshot
+  })
+  ipcMain.handle('launcher:remove-pet', async (_event, petId: string) => {
+    const snapshot = await controller?.removePet(petId)
+    syncDesktopTray()
+    return snapshot
+  })
   ipcMain.handle('launcher:toggle-pet-favorite', (_event, petId: string) => controller?.togglePetFavorite(petId))
   ipcMain.handle('launcher:clear-pet', () => controller?.clearPet())
   ipcMain.handle('launcher:import-pet', () => controller?.importPet())
-  ipcMain.handle('launcher:remove-custom-pet', (_event, petId: string) => controller?.removeCustomPet(petId))
+  ipcMain.handle('launcher:remove-custom-pet', async (_event, petId: string) => {
+    const snapshot = await controller?.removeCustomPet(petId)
+    syncDesktopTray()
+    return snapshot
+  })
   ipcMain.handle('window:action', (_event, action: 'minimize' | 'maximize' | 'close') => {
     if (!mainWindow) return
     if (action === 'minimize') mainWindow.minimize()
     if (action === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
     if (action === 'close') {
-      if (controller?.isDynamicDesktopActive()) {
+      if (controller?.isDesktopExperienceActive()) {
         mainWindow.hide()
-        syncDynamicWallpaperTray(true)
+        syncDesktopTray()
       } else {
         mainWindow.close()
       }
@@ -235,7 +265,7 @@ if (!hasSingleInstanceLock) {
     mainWindow = createWindow()
     controller = new LauncherController(mainWindow)
     await controller.initialize()
-    syncDynamicWallpaperTray(controller.isDynamicDesktopActive())
+    syncDesktopTray()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
     })
@@ -243,7 +273,7 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin' && !controller?.isDynamicDesktopActive()) app.quit()
+  if (process.platform !== 'darwin' && !controller?.isDesktopExperienceActive()) app.quit()
 })
 
 app.on('before-quit', () => {

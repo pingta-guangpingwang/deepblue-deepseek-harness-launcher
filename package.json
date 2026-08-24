@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.21",
+  "version": "0.10.22",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -29,6 +29,7 @@
     "release:verify-public-downloads": "node scripts/verify-public-downloads.mjs",
     "qa:packaged:stores": "node scripts/qa-packaged-store-ui.mjs",
     "qa:desktop-wallpaper": "node scripts/qa-desktop-wallpaper.mjs",
+    "qa:desktop-pet": "node scripts/qa-desktop-pet.mjs",
     "qa:harness:skin-clarity": "node scripts/qa-harness-skin-clarity.mjs",
     "sign:manifest": "node scripts/sign-manifest.mjs",
     "sign:store-trust": "node scripts/sign-store-trust.mjs",

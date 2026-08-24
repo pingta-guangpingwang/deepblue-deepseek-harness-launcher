@@ -46,6 +46,12 @@ export interface PetDownloadProgress {
   message: string
 }
 
+export interface DesktopPetAsset {
+  state: PetStoreState
+  item: PetCatalogItem
+  mediaPath: string
+}
+
 type PetDownloadReporter = (progress: PetDownloadProgress) => void
 
 interface CustomPetRecord {
@@ -421,6 +427,15 @@ export class PetStore {
     this.item(petId)
     await writeFavoritePetIds(nextFavoritePetIds(await readFavoritePetIds(), petId))
     return this.snapshot('ready')
+  }
+
+  async desktopAsset(petId: string, onProgress?: PetDownloadReporter): Promise<DesktopPetAsset> {
+    const custom = (await readCustomRecords()).find(record => record.item.id === petId)
+    const item = custom?.item || this.payload.items.find(entry => entry.id === petId)
+    if (!item) throw new Error('所选宠物不在当前目录中')
+    if (item.packKind === 'live2d') throw new Error('Live2D 模型暂不支持电脑桌面应用')
+    const mediaPath = custom?.mediaPath || await downloadAsset(item.media, onProgress)
+    return { state: await this.snapshot('ready'), item: structuredClone(item), mediaPath }
   }
 
   async remove(petId: string): Promise<PetStoreState> {

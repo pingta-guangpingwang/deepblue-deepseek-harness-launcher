@@ -76,6 +76,7 @@ import {
   X
 } from 'lucide-react'
 import type {
+  CatalogPlugin,
   EnvironmentItem,
   LauncherSettings,
   LauncherSnapshot,
@@ -114,7 +115,8 @@ const navigation: Array<{ label: string; items: Array<{ id: PageId; label: strin
     { id: 'tools', label: 'AI 工具', icon: Wrench },
     { id: 'agents', label: '智能体', icon: Bot },
     { id: 'library', label: '安装列表', icon: PackageCheck },
-    { id: 'models', label: '模型连接', icon: Library }
+    { id: 'models', label: '模型连接', icon: Library },
+    { id: 'ecosystem', label: 'DSH 生态', icon: Plug }
   ] },
   { label: '发现', items: [{ id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
   { label: '个性化', items: [{ id: 'skins', label: '皮肤商店', icon: Palette }, { id: 'pets', label: '宠物商店', icon: PawPrint }] },
@@ -134,6 +136,7 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   agents: { title: '智能体', subtitle: '查看同类 Agent 的用途、限制、源码与真实评价。' },
   library: { title: '能力安装列表', subtitle: '集中确认待安装资源；Skill 原生安装，其他资料进入受控能力库。' },
   models: { title: '模型连接', subtitle: '连接主流平台或自定义接口；只有已添加的模型会进入全局切换器。' },
+  ecosystem: { title: 'DSH 开源生态', subtitle: '选择真正需要的插件能力，明确权限后安装到当前 Web profile。' },
   news: { title: 'AI 新闻', subtitle: '免费浏览最新 10 条与热门排行；登录后继续在启动器内展开。' },
   games: { title: 'AI 游戏试玩', subtitle: '同步网站完整游戏与项目目录；本站作品可在启动器内登录试玩。' },
   careers: { title: '职场进化', subtitle: '直接读取网站 33 个职业及工作模块；只有长课程教学按需打开网页。' },
@@ -350,7 +353,7 @@ function EmptyState({ icon, title, text }: { icon: ReactNode; title: string; tex
   return <div className="empty-state"><span>{icon}</span><strong>{title}</strong><p>{text}</p></div>
 }
 
-function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSources }: {
+function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSources, onVersions, onPortSettings }: {
   snapshot: LauncherSnapshot
   busy: string
   onStart: () => void
@@ -358,6 +361,8 @@ function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSo
   onRepair: () => void
   onWorkspace: () => void
   onSources: () => void
+  onVersions: () => void
+  onPortSettings: () => void
 }): ReactNode {
   const ready = coreRuntimeReady(snapshot.environment)
   const running = snapshot.runStatus === 'running'
@@ -408,8 +413,8 @@ function HomePage({ snapshot, busy, onStart, onStop, onRepair, onWorkspace, onSo
       </Card>
 
       <Card className="configuration-card" title="当前配置">
-        <div className="config-row"><span><Box size={17} />Harness 版本</span><strong>{snapshot.activeHarnessVersion}</strong><button>更改</button></div>
-        <div className="config-row"><span><Globe2 size={17} />运行端口</span><strong>{snapshot.settings.port}</strong><button>更改</button></div>
+        <div className="config-row"><span><Box size={17} />Harness 版本</span><strong>{snapshot.activeHarnessVersion}</strong><button onClick={onVersions}>更改</button></div>
+        <div className="config-row"><span><Globe2 size={17} />运行端口</span><strong>{snapshot.settings.port}</strong><button onClick={onPortSettings}>更改</button></div>
         <div className="config-row"><span><Folder size={17} />工作区</span><strong title={snapshot.settings.workspace}>{snapshot.settings.workspace}</strong><button onClick={onWorkspace}>更改</button></div>
         <button className="secondary-wide" onClick={onWorkspace}><Folder size={16} />选择工作区</button>
       </Card>
@@ -1009,13 +1014,15 @@ function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactN
   return <canvas ref={canvasRef} aria-label={`${name}像素帧动画预览`} />
 }
 
-function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onClear, onImport, onRemove, onRemoveCustom, onToggleFavorite }: {
+function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onApplyDesktop, onStopDesktop, onClear, onImport, onRemove, onRemoveCustom, onToggleFavorite }: {
   snapshot: LauncherSnapshot
   busy: string
   onRefresh: () => void
   onDownload: (petId: string) => void
   onPreview: (petId: string) => Promise<PetPreview | undefined>
   onApply: (petId: string) => void
+  onApplyDesktop: (petId: string) => void
+  onStopDesktop: () => void
   onClear: () => void
   onImport: () => void
   onRemove: (petId: string) => void
@@ -1039,7 +1046,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
   const favorites = new Set(snapshot.pets.favoritePetIds)
   const downloaded = new Set(snapshot.pets.downloadedPetIds)
   const viewItems = snapshot.pets.items.filter((pet) => {
-    if (view === 'current') return snapshot.pets.activePetId === pet.id
+    if (view === 'current') return snapshot.pets.activePetId === pet.id || snapshot.pets.desktopPet?.petId === pet.id
     if (view === 'favorites') return favorites.has(pet.id)
     return true
   })
@@ -1087,7 +1094,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
       <Card className="skin-toolbar skin-library-toolbar pet-toolbar">
         <div className="skin-library-tabs" role="tablist" aria-label="宠物库视图">
           <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'active' : ''} onClick={() => chooseView('all')}><PawPrint size={15} /><span>全部商店</span><b>{snapshot.pets.items.length}</b></button>
-          <button role="tab" aria-selected={view === 'current'} className={view === 'current' ? 'active' : ''} onClick={() => chooseView('current')}><Pin size={15} /><span>正在使用</span><b>{snapshot.pets.activePetId ? 1 : 0}</b></button>
+          <button role="tab" aria-selected={view === 'current'} className={view === 'current' ? 'active' : ''} onClick={() => chooseView('current')}><Pin size={15} /><span>正在使用</span><b>{new Set([snapshot.pets.activePetId, snapshot.pets.desktopPet?.petId].filter(Boolean)).size}</b></button>
           <button role="tab" aria-selected={view === 'favorites'} className={view === 'favorites' ? 'active' : ''} onClick={() => chooseView('favorites')}><Heart size={15} /><span>我的收藏</span><b>{snapshot.pets.favoritePetIds.length}</b></button>
         </div>
         {view !== 'current' && <>
@@ -1111,6 +1118,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
       <div ref={viewportRef} className="catalog-grid-viewport">
       {items.length ? <div className={classNames('pet-grid', view !== 'all' && 'skin-library-grid')}>{items.map((pet) => {
         const active = snapshot.pets.activePetId === pet.id
+        const desktopActive = snapshot.pets.desktopPet?.petId === pet.id && snapshot.pets.desktopPet.running
         const cached = downloaded.has(pet.id)
         const favorite = favorites.has(pet.id)
         const custom = pet.origin === 'custom'
@@ -1119,14 +1127,14 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
         const transferring = transfer && ['queued', 'downloading', 'verifying', 'applying', 'removing'].includes(transfer.status)
         const kindLabel = live2d ? 'Live2D 模型' : pet.packKind === 'pixel-atlas' ? '像素帧动画' : pet.mediaKind === 'animated' ? '透明帧动画' : petSpeciesLabels[pet.species]
         return (
-          <article className={classNames('pet-card', active && 'active')} data-pet-id={pet.id} data-catalog-source={pet.catalogSource} data-pack-kind={pet.packKind || 'image'} key={pet.id}>
+          <article className={classNames('pet-card', (active || desktopActive) && 'active')} data-pet-id={pet.id} data-catalog-source={pet.catalogSource} data-pack-kind={pet.packKind || 'image'} key={pet.id}>
             <div className="pet-preview">
               <span className="pet-stage" />
               <img src={pet.previewDataUrl || pet.thumbnail.url} loading="lazy" alt={`${pet.name}宠物预览`} />
               <span className="skin-kind"><PawPrint size={13} />{kindLabel}</span>
               {pet.featured && <span className="skin-featured"><Sparkles size={13} />精选</span>}
               {custom && <span className="pet-custom"><Upload size={13} />本机</span>}
-              {active && <span className="skin-active"><Check size={14} />当前使用</span>}
+              {(active || desktopActive) && <span className="skin-active"><Check size={14} />{active && desktopActive ? 'Harness + 桌面' : desktopActive ? '电脑桌面' : 'Harness 使用'}</span>}
               {!custom && <button className={classNames('skin-favorite-button', favorite && 'active')} aria-label={favorite ? `取消收藏${pet.name}` : `收藏${pet.name}`} title={favorite ? '取消收藏' : '收藏宠物'} disabled={busy === `pet-favorite-${pet.id}`} onClick={() => onToggleFavorite(pet.id)}><Heart size={16} fill={favorite ? 'currentColor' : 'none'} /></button>}
             </div>
             <div className="skin-card-body">
@@ -1139,6 +1147,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
                 <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(pet.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
                 {!custom && <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(pet.id) : onDownload(pet.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>}
                 {custom && <button className="small-button danger" disabled={!!busy} onClick={() => onRemoveCustom(pet.id)}><Trash2 size={14} />删除</button>}
+                <button className={classNames('small-button', desktopActive && 'danger')} title={live2d ? 'Live2D 模型暂不执行未逐文件签名的模型运行库' : desktopActive ? '停止电脑桌面宠物' : '下载校验后显示在 Windows 桌面，可点击互动和拖动'} disabled={Boolean(transferring) || live2d} onClick={() => desktopActive ? onStopDesktop() : onApplyDesktop(pet.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : desktopActive ? <CircleStop size={14} /> : <Monitor size={14} />}{desktopActive ? '停止桌面宠物' : live2d ? '桌面运行库待接入' : '应用到桌面'}</button>
                 <button className={active ? 'small-button' : 'primary-button'} title={live2d ? 'Live2D 模型先支持安全下载、收藏和静态预览，暂不把未校验运行库注入 Harness' : undefined} disabled={Boolean(transferring) || active || live2d} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : live2d ? <><ShieldCheck size={14} />安全运行库待接入</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
               </div>
             </div>
@@ -1147,8 +1156,8 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
       })}</div> : <Card className="skin-empty-card"><EmptyState icon={view === 'favorites' ? <Heart /> : <PawPrint />} title={emptyCopy.title} text={emptyCopy.text} />{view !== 'all' && <button className="primary-button skin-empty-action" onClick={() => chooseView('all')}>去商店挑选</button>}</Card>}
       </div>
 
-      <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={snapshot.pets.activePetId ? <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button> : undefined} />
-      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '当前显示签名目录中的安全静态预览；不会执行模型包内脚本' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span>{preview.packKind !== 'live2d' && <button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button>}</footer></section></div>}
+      <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={(snapshot.pets.activePetId || snapshot.pets.desktopPet?.running) ? <div className="catalog-inline-actions">{snapshot.pets.activePetId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button>}{snapshot.pets.desktopPet?.running && <button className="text-button danger" disabled={!!busy} onClick={onStopDesktop}>停止桌面宠物</button>}</div> : undefined} />
+      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '当前显示签名目录中的安全静态预览；不会执行模型包内脚本' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span>{preview.packKind !== 'live2d' && <div className="skin-preview-actions"><button className={classNames('small-button', snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running && 'danger')} onClick={() => snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? onStopDesktop() : onApplyDesktop(preview.petId)}>{snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? <><CircleStop size={15} />停止桌面宠物</> : <><Monitor size={15} />应用到电脑桌面</>}</button><button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button></div>}</footer></section></div>}
     </div>
   )
 }
@@ -1626,6 +1635,48 @@ function StorageSetupDialog({ snapshot, busy, error, onConfirm, onChoose }: {
   </div>
 }
 
+const ecosystemPermissionCopy: Record<NonNullable<CatalogPlugin['permissionLevel']>, { label: string; detail: string }> = {
+  standard: { label: '常规界面权限', detail: '只扩展当前 Web profile 的界面或会话功能。' },
+  network: { label: '需要网络权限', detail: '会访问视觉端点或远程配对通道，安装后仍需用户主动配置。' },
+  system: { label: '较高本机权限', detail: '可能读取工作区文件、打开终端或连接远程主机，请确认用途后安装。' }
+}
+
+function EcosystemPage({ plugins, busy, onAction }: {
+  plugins: CatalogPlugin[]
+  busy: string
+  onAction: (action: 'install' | 'update' | 'remove', packageSpec: string) => void
+}): ReactNode {
+  const [tab, setTab] = useState<'recommended' | 'advanced' | 'installed'>('recommended')
+  const visible = plugins.filter(plugin => tab === 'installed'
+    ? plugin.installed
+    : tab === 'advanced'
+      ? plugin.permissionLevel !== 'standard'
+      : plugin.featured && plugin.permissionLevel !== 'system')
+  return <div className="ecosystem-layout">
+    <section className="ecosystem-intro">
+      <div><h2>把成熟能力装进 DSH，不复制一套新外壳</h2><p>启动器通过 Harness 原生插件命令安装到当前 Web profile。每项都由用户主动选择，安装完成后重启 Harness 生效。</p></div>
+      <div className="ecosystem-sources"><a href="https://github.com/zhu1090093659/dsh-web-ui" onClick={(event) => { event.preventDefault(); void window.launcher?.openExternal(event.currentTarget.href) }}><Github size={15} />dsh-web-ui · Apache-2.0</a><a href="https://github.com/anywhere-labs/deepseek-harness-desktop" onClick={(event) => { event.preventDefault(); void window.launcher?.openExternal(event.currentTarget.href) }}><Github size={15} />DSH Desktop · MIT</a></div>
+    </section>
+    <div className="section-tabs" role="tablist" aria-label="DSH 生态插件分类">
+      <button role="tab" aria-selected={tab === 'recommended'} className={tab === 'recommended' ? 'active' : ''} onClick={() => setTab('recommended')}>推荐增强</button>
+      <button role="tab" aria-selected={tab === 'advanced'} className={tab === 'advanced' ? 'active' : ''} onClick={() => setTab('advanced')}>高级能力</button>
+      <button role="tab" aria-selected={tab === 'installed'} className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}>已安装 {plugins.filter(plugin => plugin.installed).length}</button>
+    </div>
+    <div className="ecosystem-grid">
+      {visible.map(plugin => {
+        const permission = ecosystemPermissionCopy[plugin.permissionLevel || 'standard']
+        return <article className="ecosystem-row" data-permission={plugin.permissionLevel || 'standard'} key={plugin.id}>
+          <span className={classNames('ecosystem-icon', `level-${plugin.permissionLevel || 'standard'}`)}><Plug size={18} /></span>
+          <div className="ecosystem-copy"><div><h2>{plugin.name}</h2><span>{permission.label}</span></div><p>{plugin.description}</p><small>{permission.detail}</small><code>{plugin.packageSpec}</code></div>
+          <div className="ecosystem-actions"><button className="quiet-button" onClick={() => void window.launcher?.openExternal(plugin.repositoryUrl || 'https://github.com/zhu1090093659/dsh-web-ui')}><Github size={14} />源码</button><button className={plugin.installed ? 'small-button danger' : 'primary-button'} disabled={Boolean(busy)} onClick={() => onAction(plugin.installed ? 'remove' : 'install', plugin.packageSpec)}>{plugin.installed ? <><Trash2 size={14} />卸载</> : <><Download size={14} />安装</>}</button></div>
+        </article>
+      })}
+      {!visible.length && <Card><EmptyState icon={<Plug />} title={tab === 'installed' ? '当前没有生态插件' : '没有符合条件的插件'} text={tab === 'installed' ? '从推荐增强或高级能力中选择，安装完成后会出现在这里。' : '签名目录刷新后再试。'} /></Card>}
+    </div>
+    <p className="ecosystem-boundary"><ShieldCheck size={15} />没有把两个项目的桌面壳复制进启动器；只复用其公开插件接口和产品经验，避免与现有热更新、模型同步及资源商店形成第二套状态。</p>
+  </div>
+}
+
 function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLater }: {
   snapshot: LauncherSnapshot
   busy: boolean
@@ -1713,7 +1764,12 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
   onCreateShortcuts: () => void
 }): ReactNode {
   const [draft, setDraft] = useState(snapshot.settings)
-  useEffect(() => setDraft(snapshot.settings), [snapshot.settings])
+  const [portText, setPortText] = useState(String(snapshot.settings.port))
+  useEffect(() => { setDraft(snapshot.settings); setPortText(String(snapshot.settings.port)) }, [snapshot.settings])
+  const parsedPort = Number(portText)
+  const portError = !/^\d{4,5}$/.test(portText) || !Number.isSafeInteger(parsedPort) || parsedPort < 1024 || parsedPort > 65535
+    ? '请输入 1024—65535 之间的整数端口'
+    : ''
   const updateSource = (index: number, patch: Partial<LauncherSettings['sources'][number]>): void => {
     setDraft((current) => ({ ...current, sources: current.sources.map((source, sourceIndex) => sourceIndex === index ? { ...source, ...patch } : source) }))
   }
@@ -1737,12 +1793,13 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
           <span className={classNames(snapshot.installation.startMenuShortcutReady && 'ready')}>{snapshot.installation.startMenuShortcutReady ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}开始菜单快捷方式</span>
           <button className="quiet-button" onClick={onCreateShortcuts}><Wrench size={15} />修复快捷方式</button>
         </div>
-        {actionMessage && <p className="installation-message" role="alert">{actionMessage}</p>}
       </Card>
       <Card title="启动行为">
-        <label className="field-label"><span>默认端口<small>Harness Web 服务监听的本地端口</small></span><input type="number" min={1024} max={65535} value={draft.port} onChange={(event) => setDraft({ ...draft, port: Number(event.target.value) })} /></label>
+        <label className="field-label"><span>Harness 端口<small>仅监听 127.0.0.1；运行中修改会先检测占用，再自动重启</small></span><input id="harness-port-setting" type="number" inputMode="numeric" min={1024} max={65535} value={portText} aria-invalid={Boolean(portError)} aria-describedby="harness-port-hint" onChange={(event) => setPortText(event.target.value)} /></label>
+        <p id="harness-port-hint" className={classNames('field-hint', portError && 'error')}>{portError || `保存后访问 http://127.0.0.1:${parsedPort}`}</p>
         <label className="field-label"><span>启动后自动打开<small>服务就绪后使用系统默认浏览器打开</small></span><Toggle checked={draft.autoOpen} onChange={(autoOpen) => setDraft({ ...draft, autoOpen })} /></label>
         <label className="field-label"><span>安装方式<small>小白推荐 npm 发布包；源码模式需要 Git</small></span><select value={draft.installMode} onChange={(event) => setDraft({ ...draft, installMode: event.target.value as LauncherSettings['installMode'] })}><option value="package">整合包 / npm（推荐）</option><option value="source">Git 源码模式（高级）</option></select></label>
+        {actionMessage && <p className="installation-message" role="alert">{actionMessage}</p>}
       </Card>
       <Card title="更新保护">
         <label className="field-label"><span>更新前备份用户数据<small>DeepSeek Harness 预发行阶段不承诺旧格式兼容</small></span><Toggle checked={draft.backupBeforeUpdate} onChange={(backupBeforeUpdate) => setDraft({ ...draft, backupBeforeUpdate })} /></label>
@@ -1759,7 +1816,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
             <input value={source.baseUrl} onChange={(event) => updateSource(index, { baseUrl: event.target.value })} placeholder={`${source.name} 地址，后续可填写`} />
           </div>
         ))}
-        <div className="settings-actions"><span>设置存储在本机用户目录，不会提交到项目仓库。</span><button className="primary-button" onClick={() => onSave(draft)}><Check size={16} />保存设置</button></div>
+        <div className="settings-actions"><span>设置存储在本机用户目录，不会提交到项目仓库。</span><button className="primary-button" disabled={Boolean(portError)} onClick={() => onSave({ ...draft, port: parsedPort })}><Check size={16} />保存设置</button></div>
       </Card>
       <Card className="source-settings" title="皮肤商店源">
         <label className="field-label"><span>签名皮肤目录<small>固定使用 Gitee 主仓目录，并索引 skins 与 skins-video 两个仓库；签名不通过时回退内置目录。</small></span><input value={draft.skinCatalogUrl} readOnly aria-readonly="true" /></label>
@@ -1778,6 +1835,7 @@ export default function App(): ReactNode {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [storageError, setStorageError] = useState('')
+  const [settingsMessage, setSettingsMessage] = useState('')
   const [dismissedRuntimeUpdate, setDismissedRuntimeUpdate] = useState('')
 
   useEffect(() => {
@@ -1997,6 +2055,14 @@ export default function App(): ReactNode {
     if (window.launcher) void window.launcher.applyPet(petId).then(setSnapshot)
     else setSnapshot((current) => ({ ...current, pets: { ...current.pets, activePetId: petId, downloadedPetIds: [...new Set([...current.pets.downloadedPetIds, petId])], transfers: { ...current.pets.transfers, [petId]: { operation: 'apply', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '宠物已保存，下次启动 Harness 自动出现' } } } }))
   }
+  const applyPetToDesktop = (petId: string): void => {
+    if (window.launcher) void window.launcher.applyPetToDesktop(petId).then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, desktopPet: { petId, running: true }, downloadedPetIds: [...new Set([...current.pets.downloadedPetIds, petId])], transfers: { ...current.pets.transfers, [petId]: { operation: 'desktop', status: 'completed', progress: 100, receivedBytes: 1, totalBytes: 1, message: '电脑桌面宠物已启动' } } } }))
+  }
+  const stopDesktopPet = (): void => {
+    if (window.launcher) void window.launcher.stopDesktopPet().then(setSnapshot)
+    else setSnapshot((current) => ({ ...current, pets: { ...current.pets, desktopPet: undefined } }))
+  }
   const removePet = (petId: string): void => {
     if (window.launcher) void window.launcher.removePet(petId).then(setSnapshot)
     else setSnapshot((current) => ({ ...current, pets: { ...current.pets, activePetId: current.pets.activePetId === petId ? undefined : current.pets.activePetId, downloadedPetIds: current.pets.downloadedPetIds.filter(id => id !== petId), transfers: { ...current.pets.transfers, [petId]: { operation: 'remove', status: 'completed', progress: 100, receivedBytes: 0, totalBytes: 0, message: '已从本机删除' } } } }))
@@ -2009,8 +2075,21 @@ export default function App(): ReactNode {
   const importPet = (): void => { if (window.launcher) void run('pet-import', () => window.launcher!.importPet()) }
   const removeCustomPet = (petId: string): void => { if (window.launcher) void run(`pet-remove-${petId}`, () => window.launcher!.removeCustomPet(petId)) }
   const saveSettings = (settings: LauncherSettings): void => {
-    if (window.launcher) void run('settings', () => window.launcher!.saveSettings(settings))
-    else setSnapshot((current) => ({ ...current, settings, sources: settings.sources.map((source) => ({ ...source, status: source.enabled && source.baseUrl ? 'checking' : 'unconfigured' })) }))
+    if (busy) return
+    setBusy('settings')
+    setSettingsMessage('')
+    const action = window.launcher
+      ? window.launcher.saveSettings(settings)
+      : Promise.resolve({ ...snapshot, settings, sources: settings.sources.map((source) => ({ ...source, status: source.enabled && source.baseUrl ? 'checking' as const : 'unconfigured' as const })) })
+    void action.then((result) => {
+      setSnapshot(result)
+      setSettingsMessage(result.runStatus === 'running' ? `设置已保存，Harness 正在端口 ${result.settings.port} 运行。` : `设置已保存，下次启动将使用端口 ${result.settings.port}。`)
+    }).catch((error: unknown) => setSettingsMessage(error instanceof Error ? error.message : String(error))).finally(() => setBusy(''))
+  }
+  const openPortSettings = (): void => {
+    setSettingsMessage('')
+    setPage('settings')
+    window.setTimeout(() => document.getElementById('harness-port-setting')?.focus(), 0)
   }
   const activatePage = (nextPage: PageId): void => {
     setPage(nextPage)
@@ -2056,19 +2135,20 @@ export default function App(): ReactNode {
         </header>
 
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
-          {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} />}
+          {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} onVersions={() => setPage('versions')} onPortSettings={openPortSettings} />}
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
-          {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
+          {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
+          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} busy={busy} onAction={pluginAction} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}
           {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
           {page === 'workspaces' && <WorkspacesPage snapshot={snapshot} onChoose={chooseWorkspace} onOpen={(path) => void window.launcher?.openPath(path)} />}
           {page === 'diagnostics' && <DiagnosticsPage snapshot={snapshot} busy={busy} onRefresh={refresh} onRepair={repair} onSources={checkSources} />}
-          {page === 'settings' && <SettingsPage snapshot={snapshot} actionMessage={storageError} onSave={saveSettings} onChooseStorage={chooseStorageRoot} onOpen={(target) => void window.launcher?.openPath(target)} onCreateShortcuts={createShortcuts} />}
+          {page === 'settings' && <SettingsPage snapshot={snapshot} actionMessage={settingsMessage} onSave={saveSettings} onChooseStorage={chooseStorageRoot} onOpen={(target) => void window.launcher?.openPath(target)} onCreateShortcuts={createShortcuts} />}
         </div>
       </main>
       {snapshot.installation.setupRequired && <StorageSetupDialog snapshot={snapshot} busy={busy.startsWith('storage-')} error={storageError} onConfirm={confirmStorageSetup} onChoose={chooseStorageRoot} />}

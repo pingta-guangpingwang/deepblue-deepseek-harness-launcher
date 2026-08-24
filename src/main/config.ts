@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { LauncherLibraryEntry, LauncherSettings, ModelProviderDraft, SourceConfig, WorkspaceEntry } from '../shared/types'
+import { validateHarnessPort } from './port-settings'
 
 const defaultSources: SourceConfig[] = [
   {
@@ -157,6 +158,7 @@ export async function readConfig(): Promise<PersistedConfig> {
         ...savedSettings,
         storageRoot,
         storageSetupCompleted,
+        port: (() => { try { return validateHarnessPort(savedSettings.port) } catch { return fallback.settings.port } })(),
         skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
         petCatalogUrl: FIXED_PET_CATALOG_URL,
         sources: fallback.settings.sources.map((defaultSource) => {
@@ -192,7 +194,7 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
   await rename(temporary, target)
 }
 
-export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string; petFavorites: string } {
+export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string; petFavorites: string; petDesktopState: string } {
   const root = configuredStorageRoot || app.getPath('userData')
   return {
     root,
@@ -205,6 +207,7 @@ export function launcherDataPaths(): { root: string; runtime: string; dshHome: s
     skinFavorites: path.join(root, 'skins', 'favorites.json'),
     pets: path.join(root, 'pets'),
     petConfig: path.join(root, 'pets', 'active.json'),
-    petFavorites: path.join(root, 'pets', 'favorites.json')
+    petFavorites: path.join(root, 'pets', 'favorites.json'),
+    petDesktopState: path.join(root, 'pets', 'desktop-state.json')
   }
 }

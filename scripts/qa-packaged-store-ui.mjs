@@ -141,7 +141,7 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
   if (label.includes('pets')) {
     const petState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets)
     check(`${label} 合并三个固定宠物目录`, petState.sources.length === 3 && petState.items.length >= 50, `sources=${petState.sources.map(source => `${source.id}:${source.itemCount}`).join(',')}`)
-    check(`${label} 提供预览、下载和应用入口`, await page.getByRole('button', { name: '预览', exact: true }).count() > 0 && await page.getByRole('button', { name: /^(下载|删除)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到 Harness|Harness 已应用|安全运行库待接入)$/ }).count() > 0)
+    check(`${label} 提供预览、下载、Harness 与电脑桌面入口`, await page.getByRole('button', { name: '预览', exact: true }).count() > 0 && await page.getByRole('button', { name: /^(下载|删除)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到 Harness|Harness 已应用|安全运行库待接入)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到桌面|停止桌面宠物|桌面运行库待接入)$/ }).count() > 0)
     const petActionsVisible = await page.locator('.pet-card').evaluateAll(cards => cards.every(card => {
       const cardRect = card.getBoundingClientRect()
       const actions = card.querySelector('.pet-card-actions')
@@ -182,6 +182,12 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
       await page.evaluate(async () => { const pet = (await window.launcher.getSnapshot()).pets.items.find(item => item.catalogSource === 'pixel'); if (pet) await window.launcher.applyPet(pet.id) })
       const activePixel = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets.activePetId)
       check(`${label} 像素帧动画可应用到 Harness`, Boolean(activePixel?.startsWith('px-')), `active=${activePixel}`)
+      await page.evaluate(async () => { const pet = (await window.launcher.getSnapshot()).pets.items.find(item => item.catalogSource === 'pixel'); if (pet) await window.launcher.applyPetToDesktop(pet.id) })
+      const desktopPixel = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets.desktopPet)
+      check(`${label} 像素帧动画可应用到电脑桌面`, Boolean(desktopPixel?.running && desktopPixel.petId.startsWith('px-')), `desktop=${JSON.stringify(desktopPixel)}`)
+      const desktopWindows = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(window => !window.isDestroyed()).length)
+      check(`${label} 桌面宠物使用独立透明安全层`, desktopWindows === 2, `windows=${desktopWindows}`)
+      await page.evaluate(() => window.launcher.stopDesktopPet())
 
       await page.getByRole('button', { name: /Live2D 230/ }).evaluate(button => button.click())
       const live2dCard = page.locator('.pet-card[data-catalog-source="live2d"]').first()
@@ -236,6 +242,29 @@ try {
   await page.waitForTimeout(800)
   await inspectStore(page, { button: '皮肤商店', card: '.skin-card', label: 'compact-skins', expectedWidth: 1100, expectedHeight: 720 })
   await inspectStore(page, { button: '宠物商店', card: '.pet-card', label: 'compact-pets', expectedWidth: 1100, expectedHeight: 720 })
+
+  await page.getByRole('button', { name: 'DSH 生态', exact: true }).click()
+  await page.getByRole('heading', { name: '把成熟能力装进 DSH，不复制一套新外壳' }).waitFor({ state: 'visible' })
+  check('DSH 生态页只展示明确权限的可选插件', await page.locator('.ecosystem-row').count() >= 4 && await page.locator('.ecosystem-row code').count() >= 4)
+  check('DSH 生态页保留两个上游开源来源', await page.locator('.ecosystem-sources a').count() === 2)
+  await page.getByRole('tab', { name: '高级能力' }).click()
+  check('网络与系统级插件不默认安装', await page.locator('.ecosystem-row[data-permission="network"], .ecosystem-row[data-permission="system"]').count() > 0)
+  await page.screenshot({ path: path.join(outputRoot, 'compact-ecosystem.png') })
+
+  await page.getByRole('button', { name: '首页', exact: true }).click()
+  await page.locator('.configuration-card .config-row').filter({ hasText: '运行端口' }).getByRole('button', { name: '更改' }).click()
+  const portInput = page.locator('#harness-port-setting')
+  await portInput.waitFor({ state: 'visible' })
+  check('首页端口更改直达设置并聚焦输入框', await portInput.evaluate(input => document.activeElement === input))
+  await portInput.fill('1023')
+  check('非法端口不允许保存', await page.getByRole('button', { name: '保存设置' }).isDisabled())
+  await portInput.fill('3180')
+  check('合法端口可保存', !(await page.getByRole('button', { name: '保存设置' }).isDisabled()))
+  await page.getByRole('button', { name: '保存设置' }).click()
+  await page.getByText('设置已保存，下次启动将使用端口 3180。').waitFor({ state: 'visible' })
+  const savedPort = await page.evaluate(async () => (await window.launcher.getSnapshot()).settings.port)
+  check('手动端口通过主进程校验并真实持久化', savedPort === 3180, `port=${savedPort}`)
+  await page.screenshot({ path: path.join(outputRoot, 'compact-port-settings.png') })
 
   check('真实打包应用没有控制台错误', consoleErrors.length === 0, consoleErrors.join(' | '))
 } finally {

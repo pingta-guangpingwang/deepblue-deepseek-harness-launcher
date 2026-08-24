@@ -48,7 +48,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000}#wallp
 </style></head><body>${media}<script>${startup}</script></body></html>`
 }
 
-function attachBehindDesktopIcons(window: BrowserWindow): void {
+export function attachToWindowsDesktop(window: BrowserWindow, layer: 'wallpaper' | 'pet' = 'wallpaper'): void {
   if (process.platform !== 'win32') throw new Error('动态桌面目前支持 Windows 10/11')
   const user32 = load('user32.dll')
   try {
@@ -121,7 +121,7 @@ function attachBehindDesktopIcons(window: BrowserWindow): void {
     const height = Math.max(1, windowRect.bottom - windowRect.top)
     const x = windowRect.left - parentRect.left
     const y = windowRect.top - parentRect.top
-    const zOrder = raisedDesktop && shellView ? shellView : 1
+    const zOrder = layer === 'pet' ? 0 : raisedDesktop && shellView ? shellView : 1
     if (!setWindowPos(hwnd, zOrder, x, y, width, height, swpNoActivate | swpShowWindow)) {
       throw new Error('Windows 未能定位动态桌面画面')
     }
@@ -252,7 +252,7 @@ export class DynamicWallpaperManager {
         await window.loadFile(hostFile)
         window.setBounds(display.bounds)
         window.showInactive()
-        attachBehindDesktopIcons(window)
+        attachToWindowsDesktop(window, 'wallpaper')
         this.windows.push(window)
       }
       if (!this.windows.length) throw new Error('没有找到可用显示器')

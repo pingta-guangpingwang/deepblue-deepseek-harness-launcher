@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { modelProviderTemplates } from '../src/shared/model-provider-catalog.ts'
-import { bundledVersions } from '../src/main/catalog.ts'
+import { bundledPlugins, bundledVersions } from '../src/main/catalog.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 const release = path.join(root, 'release')
@@ -25,9 +25,15 @@ payload.harness = bundledVersions.map((entry) => ({
   installed: false,
   active: false
 }))
+payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, updateAvailable: false }))
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '宠物商店新增“应用到电脑桌面”：静态图、GIF、动态 WebP 与像素精灵表都可作为可点击、可拖动的 Windows 桌面伙伴，状态会持久化并可从卡片、预览或托盘停止',
+    '宠物卡片同步显示 Harness 与电脑桌面的使用状态；删除正在使用的资源会先安全停止对应桌面宠物，Live2D 继续等待完整模型文件和运行库逐项签名后再开放执行',
+    'Harness 端口支持在首页直接进入设置手动修改；保存前检查 1024—65535 范围与端口占用，运行中修改会有序停止并按新端口自动重启',
+    '新增 DSH 开源生态页，参考 dsh-web-ui 与 DSH Desktop，通过 Harness 原生 web profile 机制按需安装任务看板、会话恢复、Skill 管理、Git 图谱、视觉工具等能力',
+    '远程配对、SSH 与开发右侧面板按网络/系统权限明确分级，不默认安装，也不把第三方桌面壳和状态管理复制进启动器',
     '宠物商店新增两个固定 Gitee 签名源：800 只像素精灵与 230 个 Live2D 模型包；与原创动图仓合并后共 1080 项，任一目录失败不会拖垮其余来源',
     '宠物商店同步皮肤商店的全部、正在使用、我的收藏视图，并提供来源筛选、数字分页、预览、下载/删除、卡片内进度与失败原因',
     '像素精灵表会按 8 列及 9/11 行结构逐帧播放，应用到 Harness 后仍可点击互动、拖动和记忆位置；Live2D 暂只开放签名资源下载、收藏与安全静态预览，不注入未校验运行库',

@@ -15,6 +15,8 @@ import { SkinStore, type SkinDownloadProgress } from './skins'
 import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-wallpaper'
 import { DynamicWallpaperManager } from './dynamic-wallpaper'
 import { PetStore, type PetDownloadProgress } from './pets'
+import { DesktopPetManager } from './desktop-pet'
+import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
@@ -82,6 +84,12 @@ function runtimeSourceLabel(source?: string): string {
   return source === 'github' ? 'GitHub 最终备用' : source === 'gitee' ? 'Gitee' : source === 'oss' ? 'OSS 国内镜像' : '下载渠道'
 }
 
+function pluginPackageName(packageSpec: string): string {
+  return packageSpec.startsWith('@')
+    ? packageSpec.split('@').slice(0, 2).join('@')
+    : packageSpec.split('@', 1)[0]!
+}
+
 export class LauncherController {
   private config!: PersistedConfig
   private snapshot!: LauncherSnapshot
@@ -90,6 +98,7 @@ export class LauncherController {
   private distributionMode: 'online' | 'offline' = 'offline'
   private readonly skinStore = new SkinStore()
   private dynamicWallpaper!: DynamicWallpaperManager
+  private desktopPet!: DesktopPetManager
   private readonly petStore = new PetStore()
   private readonly accountService = new AccountService()
   private modelStore!: ModelStore
@@ -110,6 +119,12 @@ export class LauncherController {
       path.join(launcherDataPaths().skins, 'desktop-host')
     )
     await this.dynamicWallpaper.initialize()
+    this.desktopPet = new DesktopPetManager(
+      launcherDataPaths().petDesktopState,
+      path.join(launcherDataPaths().pets, 'desktop-host'),
+      launcherDataPaths().pets
+    )
+    await this.desktopPet.initialize()
     this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
     // Rewrite the sanitized shape once so legacy device-local favorites cannot linger
     // in launcher.json and be mistaken for AI历史书 account data.
@@ -162,6 +177,7 @@ export class LauncherController {
         status: 'loading',
         source: 'bundled',
         generatedAt: '',
+        desktopPet: this.desktopPet.state(),
         downloadedPetIds: [],
         favoritePetIds: [],
         transfers: {},
@@ -201,8 +217,17 @@ export class LauncherController {
     return this.dynamicWallpaper?.isRunning() === true
   }
 
+  isDesktopPetActive(): boolean {
+    return this.desktopPet?.isRunning() === true
+  }
+
+  isDesktopExperienceActive(): boolean {
+    return this.isDynamicDesktopActive() || this.isDesktopPetActive()
+  }
+
   async dispose(): Promise<void> {
     await this.dynamicWallpaper?.dispose()
+    await this.desktopPet?.dispose()
   }
 
   async refreshEnvironment(): Promise<LauncherSnapshot> {
@@ -322,6 +347,7 @@ export class LauncherController {
       this.emit()
       const modelEnvironment = await this.modelStore.environment()
       this.updateLaunchProgress('starting', 70, '正在启动 Harness 本地服务')
+      await assertHarnessPortAvailable(this.config.settings.port)
       const child = spawnNode(runtime, [runtime.dsh, 'web', '--patch', noBrowserPatch, '--port', String(this.config.settings.port), '--no-open'], {
         cwd: this.config.settings.workspace,
         dshHome: paths.dshHome,
@@ -583,8 +609,9 @@ export class LauncherController {
         items: requested,
         taskId: task.id,
         message: '更新安装完成，启动器即将自动重启'
-      }
-      await this.refreshEnvironment()
+    }
+    await this.refreshInstalledPlugins()
+    await this.refreshEnvironment()
       this.log('INFO', '模块更新安装完成，准备重启启动器')
       this.emit()
       if (app.isPackaged) {
@@ -855,17 +882,27 @@ export class LauncherController {
       petCatalogUrl: _petCatalogUrl,
       ...safePatch
     } = patch
+    const nextPort = safePatch.port === undefined ? this.config.settings.port : validateHarnessPort(safePatch.port)
+    const portChanged = nextPort !== this.config.settings.port
+    if (portChanged) await assertHarnessPortAvailable(nextPort)
+    const shouldRestart = portChanged && Boolean(this.service) && (this.snapshot.runStatus === 'running' || this.snapshot.runStatus === 'starting')
+    if (shouldRestart) await this.stopHarness()
     this.config.settings = {
       ...this.config.settings,
       ...safePatch,
+      port: nextPort,
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
       petCatalogUrl: FIXED_PET_CATALOG_URL
     }
     await writeConfig(this.config)
     this.snapshot.settings = this.config.settings
     if (safePatch.sources) this.snapshot.sources = safePatch.sources.map((source) => this.initialSourceHealth(source))
-    this.log('INFO', '启动器设置已保存')
+    this.log('INFO', portChanged ? `启动器设置已保存，Harness 端口改为 ${nextPort}` : '启动器设置已保存')
     this.emit()
+    if (shouldRestart) {
+      this.log('INFO', '端口已更改，正在按新端口重启 Harness')
+      return this.startHarness()
+    }
     return this.getSnapshot()
   }
 
@@ -879,7 +916,8 @@ export class LauncherController {
     this.emit()
     const verb = action === 'install' ? 'add' : action
     const args = [runtime.dsh, 'plugin', '--profile', 'web', verb]
-    if (action !== 'update' || packageSpec) args.push(packageSpec)
+    const packageName = pluginPackageName(packageSpec)
+    if (action !== 'update' || packageSpec) args.push(action === 'remove' ? packageName : packageSpec)
     const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
     const child = spawnNode(runtime, args, {
       cwd: this.config.settings.workspace,
@@ -1383,6 +1421,46 @@ export class LauncherController {
     return this.getSnapshot()
   }
 
+  async applyPetToDesktop(petId: string): Promise<LauncherSnapshot> {
+    const item = this.snapshot.pets.items.find(entry => entry.id === petId)
+    if (!item || this.petTransferBusy(petId)) return this.getSnapshot()
+    if (item.packKind === 'live2d') {
+      this.failPetTransfer(petId, 'desktop', new Error('Live2D 模型暂不显示电脑桌面按钮；完整模型包和运行库逐文件签名后再开放'))
+      this.emit()
+      return this.getSnapshot()
+    }
+    this.updatePetTransfer(petId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size, message: '准备下载并应用到电脑桌面' })
+    this.emit()
+    try {
+      const downloaded = await this.petStore.desktopAsset(petId, progress => this.updatePetTransfer(petId, 'desktop', progress))
+      this.replacePetState(downloaded.state)
+      await this.desktopPet.apply({
+        petId: downloaded.item.id,
+        name: downloaded.item.name,
+        mediaKind: downloaded.item.mediaKind,
+        packKind: downloaded.item.packKind || 'image',
+        mediaPath: downloaded.mediaPath,
+        behavior: downloaded.item.behavior
+      })
+      this.snapshot.pets.desktopPet = this.desktopPet.state()
+      this.finishPetTransfer(petId, 'desktop', '电脑桌面宠物已启动，可点击互动并拖动位置')
+      this.log('INFO', `宠物「${item.name}」已应用到电脑桌面`)
+    } catch (error) {
+      this.failPetTransfer(petId, 'desktop', error)
+      this.log('ERROR', `应用电脑桌面宠物失败：${this.snapshot.pets.transfers[petId]?.message || '未知错误'}`)
+    }
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async stopDesktopPet(): Promise<LauncherSnapshot> {
+    await this.desktopPet.clear()
+    this.snapshot.pets.desktopPet = undefined
+    this.log('INFO', '电脑桌面宠物已停止')
+    this.emit()
+    return this.getSnapshot()
+  }
+
   async removePet(petId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.pets.items.find(entry => entry.id === petId)
     if (!item || item.origin === 'custom' || this.petTransferBusy(petId)) return this.getSnapshot()
@@ -1390,8 +1468,10 @@ export class LauncherController {
     this.emit()
     try {
       const wasActive = this.snapshot.pets.activePetId === petId
+      const wasDesktop = this.snapshot.pets.desktopPet?.petId === petId
+      if (wasDesktop) await this.desktopPet.clear()
       this.replacePetState(await this.petStore.remove(petId))
-      this.finishPetTransfer(petId, 'remove', wasActive ? '已删除并关闭当前宠物' : '已从本机删除')
+      this.finishPetTransfer(petId, 'remove', wasActive || wasDesktop ? '已删除并关闭正在使用的宠物' : '已从本机删除')
       this.log('INFO', `已删除宠物「${item.name}」的本机资源`)
     } catch (error) {
       this.failPetTransfer(petId, 'remove', error)
@@ -1436,6 +1516,7 @@ export class LauncherController {
 
   async removeCustomPet(petId: string): Promise<LauncherSnapshot> {
     try {
+      if (this.snapshot.pets.desktopPet?.petId === petId) await this.desktopPet.clear()
       this.replacePetState(await this.petStore.removeCustom(petId))
       this.log('INFO', '已删除本地自定义宠物')
     } catch (error) {
@@ -1649,7 +1730,9 @@ export class LauncherController {
         active: entry.version === this.snapshot.activeHarnessVersion,
         installed: entry.installed || this.snapshot.versions.some((local) => local.version === entry.version && local.installed)
       }))
-      this.snapshot.plugins = signedCatalog.plugins
+      const signedIds = new Set(signedCatalog.plugins.map(plugin => plugin.id))
+      this.snapshot.plugins = [...signedCatalog.plugins, ...bundledPlugins.filter(plugin => !signedIds.has(plugin.id))]
+      await this.refreshInstalledPlugins()
       this.snapshot.models = signedCatalog.models
       if (signedCatalog.modelTemplates?.length) this.snapshot.modelHub = this.modelStore.syncTemplates(signedCatalog.modelTemplates)
       await this.detectRuntimeUpdates()
@@ -1797,6 +1880,20 @@ export class LauncherController {
     this.emit()
   }
 
+  private async refreshInstalledPlugins(): Promise<void> {
+    let dependencies: Record<string, unknown> = {}
+    try {
+      const profile = JSON.parse(await readFile(path.join(launcherDataPaths().dshHome, 'profiles', 'web', 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown> }
+      dependencies = profile.dependencies || {}
+    } catch {
+      // A fresh installation has no web profile until the first Harness start.
+    }
+    this.snapshot.plugins = this.snapshot.plugins.map(plugin => ({
+      ...plugin,
+      installed: Object.hasOwn(dependencies, pluginPackageName(plugin.packageSpec))
+    }))
+  }
+
   private replaceSkinState(next: SkinStoreState): void {
     this.snapshot.skins = {
       ...next,
@@ -1808,6 +1905,7 @@ export class LauncherController {
   private replacePetState(next: PetStoreState): void {
     this.snapshot.pets = {
       ...next,
+      desktopPet: this.desktopPet.state(),
       transfers: this.snapshot.pets.transfers
     }
   }
@@ -1823,13 +1921,18 @@ export class LauncherController {
     const previousProgress = previousIsActive ? previous.progress : 0
     const ratio = progress.totalBytes > 0 ? progress.receivedBytes / progress.totalBytes : 0
     const completedDownload = progress.status === 'completed'
-    const status = completedDownload && operation === 'apply' ? 'applying' : progress.status
+    const appliesAfterDownload = operation === 'apply' || operation === 'desktop'
+    const status = completedDownload && appliesAfterDownload ? 'applying' : progress.status
     const percent = progress.status === 'verifying'
       ? Math.max(previousProgress, progress.receivedBytes > 0 ? 94 : 3)
       : completedDownload
-        ? operation === 'apply' ? 97 : 100
+        ? appliesAfterDownload ? 97 : 100
         : Math.max(previousProgress, 2, Math.min(92, Math.round(ratio * 92)))
-    const message = completedDownload && operation === 'apply' ? '资源已就绪，正在写入 Harness 宠物配置' : progress.message
+    const message = completedDownload && operation === 'apply'
+      ? '资源已就绪，正在写入 Harness 宠物配置'
+      : completedDownload && operation === 'desktop'
+        ? '资源已就绪，正在启动电脑桌面宠物'
+        : progress.message
     this.snapshot.pets.transfers[petId] = {
       operation,
       status,
