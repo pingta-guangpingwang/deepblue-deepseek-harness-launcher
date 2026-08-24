@@ -2,6 +2,7 @@
 
 import { _electron as electron } from 'playwright'
 import { mkdir, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -16,6 +17,19 @@ const appDataRoot = path.join(qaRoot, 'appdata')
 const localAppDataRoot = path.join(qaRoot, 'localappdata')
 const storageRoot = path.join(qaRoot, 'fresh-storage')
 const workspace = path.join(qaRoot, 'workspace')
+const qaPort = await new Promise((resolve, reject) => {
+  const server = createServer()
+  server.once('error', reject)
+  server.listen({ host: '127.0.0.1', port: 0 }, () => {
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      server.close()
+      reject(new Error('Unable to reserve a free Harness QA port'))
+      return
+    }
+    server.close((error) => error ? reject(error) : resolve(address.port))
+  })
+})
 await Promise.all([userDataRoot, appDataRoot, localAppDataRoot, storageRoot, workspace, outputRoot].map((target) => mkdir(target, { recursive: true })))
 await writeFile(path.join(userDataRoot, 'launcher.json'), `${JSON.stringify({
   settings: {
@@ -23,7 +37,8 @@ await writeFile(path.join(userDataRoot, 'launcher.json'), `${JSON.stringify({
     storageRoot,
     storageSetupCompleted: true,
     autoOpen: false,
-    theme: 'dark'
+    theme: 'dark',
+    port: qaPort
   }
 }, null, 2)}\n`, 'utf8')
 
@@ -80,6 +95,7 @@ try {
     elapsedMs: Date.now() - startedAt,
     launcherVersion: finalSnapshot.launcherVersion,
     harnessVersion: finalSnapshot.activeHarnessVersion,
+    requestedPort: qaPort,
     serviceUrl: finalSnapshot.serviceUrl,
     observedSources: [...observedSources],
     environment,
