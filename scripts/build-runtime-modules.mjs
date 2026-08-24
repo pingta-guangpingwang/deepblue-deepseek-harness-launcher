@@ -89,7 +89,6 @@ async function pack({ id, version, cwd, entries }) {
   return { id, version, fileName, file: target, sha256: digest, size: (await stat(target)).size, unpackedSize }
 }
 
-const launcher = await json(path.join(root, 'package.json'))
 const nodePackageRoot = path.join(appRoot, 'node_modules', 'node')
 const pnpmPackageRoot = path.join(appRoot, 'node_modules', 'pnpm')
 const harnessPackageRoot = path.join(appRoot, 'node_modules', '@deepseek-ai', 'dsh')
@@ -114,19 +113,19 @@ const [nodeArtifact, harnessArtifact, packageManagerArtifact] = await Promise.al
   pack({ id: 'package-manager', version: pnpmPackage.version, cwd: appRoot, entries: ['node_modules/pnpm'] })
 ])
 
-const tag = `runtime-v${launcher.version}`
-const giteePartsRoot = path.join(root, 'release', 'gitee-parts', tag)
-await rm(giteePartsRoot, { recursive: true, force: true })
-await mkdir(giteePartsRoot, { recursive: true })
 for (const artifact of [nodeArtifact, harnessArtifact, packageManagerArtifact]) {
-  artifact.giteeParts = await splitForGitee(artifact.file, artifact.fileName, tag)
+  artifact.tag = `runtime-module-${artifact.id}-${artifact.version.replace(/[^0-9A-Za-z._-]/gu, '-')}-${artifact.sha256.slice(0, 16)}`
+  const giteePartsRoot = path.join(root, 'release', 'gitee-parts', artifact.tag)
+  await rm(giteePartsRoot, { recursive: true, force: true })
+  await mkdir(giteePartsRoot, { recursive: true })
+  artifact.giteeParts = await splitForGitee(artifact.file, artifact.fileName, artifact.tag)
 }
 
 function mirrors(artifact) {
   return [
     { id: 'gitee', url: artifact.giteeParts[0].url, parts: artifact.giteeParts },
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${artifact.fileName}` },
-    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${artifact.fileName}` }
+    { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${artifact.tag}/${artifact.fileName}` }
   ]
 }
 

@@ -11,6 +11,8 @@
 
 GitHub 保存源码和最终备用的 Release 附件；Gitee 视频资源仓的 `runtime-assets` 独立分支是国内首选模块镜像，与皮肤目录所在的 `master` 分支隔离；OSS/CDN 是国内第二线路，并发布不到 1 MB 的联网引导器、内容寻址模块和 `release-v2/launcher-manifest.json`。完整离线包仍只放百度网盘兜底。
 
+Node、Harness 与包管理器分别发布到 `runtime-module-<id>-<version>-<hash>` 永久标签，禁止以 `runtime-v<launcherVersion>` 重复上传未变化模块。Electron 基础内核仍使用低频 `runtime-v<launcherVersion>` 标签，`launcher-ui` 使用独立内容哈希标签。
+
 ## 2. 生成签名密钥
 
 运行时 schema-2 清单使用独立 Ed25519 密钥。私钥不能进入仓库，也不能覆盖旧的 `update-public-key.pem` 商店信任根。
