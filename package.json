@@ -30,6 +30,7 @@
     "bootstrap:build": "powershell.exe -NoProfile -File scripts/build-bootstrap-installer.ps1",
     "bootstrap:smoke-local-artifact": "powershell.exe -NoProfile -File scripts/smoke-bootstrap-installer.ps1",
     "release:smoke-public-fresh-install": "powershell.exe -NoProfile -File scripts/smoke-public-fresh-install.ps1",
+    "release:qa-public-ui-hot-update": "node scripts/qa-public-launcher-ui-hot-update.mjs",
     "release:verify-public-downloads": "node scripts/verify-public-downloads.mjs",
     "qa:packaged:stores": "node scripts/qa-packaged-store-ui.mjs",
     "qa:desktop-wallpaper": "node scripts/qa-desktop-wallpaper.mjs",

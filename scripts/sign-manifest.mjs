@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { sign } from 'node:crypto'
+import { createPublicKey, sign } from 'node:crypto'
 import path from 'node:path'
 
 const [input, output] = process.argv.slice(2)
@@ -12,9 +12,17 @@ if (!input || !output || !keyPath) {
 
 const payload = JSON.parse(await readFile(path.resolve(input), 'utf8'))
 const privateKey = await readFile(path.resolve(keyPath), 'utf8')
+const trustedPublicKey = createPublicKey(await readFile(path.resolve('resources/runtime-update-public-key.pem'), 'utf8')).export({ type: 'spki', format: 'der' })
+const signingPublicKey = createPublicKey(privateKey).export({ type: 'spki', format: 'der' })
+if (!signingPublicKey.equals(trustedPublicKey)) throw new Error('Signing key does not match resources/runtime-update-public-key.pem')
+const keyId = process.env.LAUNCHER_SIGNING_KEY_ID || 'runtime-production-v2-1'
+if (keyId !== 'runtime-production-v2-1') throw new Error(`Unsupported runtime catalog key id: ${keyId}`)
 const signature = sign(null, Buffer.from(JSON.stringify(payload), 'utf8'), privateKey).toString('base64')
 const manifest = {
-  keyId: process.env.LAUNCHER_SIGNING_KEY_ID || 'production-1',
+  // Schema-2 runtime catalogs have an independent trust root. Keeping the
+  // production key id as the default prevents a correctly signed catalog from
+  // being silently rejected by every launcher after a release.
+  keyId,
   algorithm: 'ed25519',
   payload,
   signature

@@ -34,7 +34,8 @@ export function runtimeModulePlan(
  * Compares the trusted signed catalog with active local modules. Missing optional
  * modules stay on-demand. The Electron kernel remains on its separate bootstrap
  * path, while the renderer-only launcher-ui module is installed atomically and
- * becomes active after one controlled relaunch.
+ * becomes active by reloading the existing BrowserWindow without relaunching
+ * Electron or stopping Harness.
  */
 export function planRuntimeModuleUpdates(
   catalog: RuntimeModuleRelease[],

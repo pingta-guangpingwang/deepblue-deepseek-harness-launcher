@@ -83,7 +83,9 @@ npm run hot-update:ui
 
 该命令只生成 `launcher-ui-ui-<hash>-win-x64-<sha>.tar.gz`、独立 Gitee 分片和更新后的运行模块目录。把这一个模块上传至 Gitee `runtime-assets/launcher-ui-ui-<hash>/`、OSS `modules/` 与同名 GitHub Release，保留 Node/Harness/包管理器原地址；随后运行 `catalog:prepare`、使用生产私钥重新签署并原子覆盖 `release-v2/launcher-manifest.json`。不得修改清单中的 `launcher.version` 和稳定 EXE 地址。
 
-发布门禁必须从上一 UI 哈希启动：点击“检查更新”后只能出现 `launcher-ui` 一项，下载量应低于 2 MiB；安装后当前窗口自动刷新、Harness 进程和端口保持不变、`runtime/modules/state.json` 的 active 指针切换到新哈希。失败必须恢复 previous 指针。只有新增/修改 IPC、Electron 权限、安全协议、主进程原生能力或基础内核依赖时，才允许提升 `launcher.version` 并覆盖网页安装器。
+发布门禁必须从上一 UI 哈希启动，执行 `npm run release:qa-public-ui-hot-update`：点击“检查更新”后只能出现 `launcher-ui` 一项，下载量应低于 2 MiB；安装后当前窗口自动刷新、Electron 内核 PID、Harness 进程和端口保持不变、`runtime/modules/state.json` 的 active 指针切换到新哈希。失败必须恢复 previous 指针。只有新增/修改 IPC、Electron 权限、安全协议、主进程原生能力或基础内核依赖时，才允许提升 `launcher.version` 并覆盖网页安装器。
+
+签名脚本默认并只面向 schema-2 运行目录，默认 Key ID 为 `runtime-production-v2-1`。发布后必须匿名读取线上清单并核对该值；旧的 `production-1` 会被启动器安全拒绝，不能进入生产。
 
 ## 5. 灰度和回滚
 
