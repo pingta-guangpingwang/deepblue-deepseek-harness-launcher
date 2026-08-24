@@ -568,6 +568,8 @@ export interface PetStoreState {
 
 export interface LauncherSnapshot {
   launcherVersion: string
+  launcherUiVersion?: string
+  launcherUiSource?: 'bundled' | 'updated'
   platform: string
   distributionMode: DistributionMode
   runStatus: RunStatus
@@ -630,6 +632,7 @@ export interface RuntimeUpdateState {
   items: RuntimeModuleUpdateItem[]
   taskId?: string
   message?: string
+  checkedAt?: string
 }
 
 export type RuntimeModuleId =

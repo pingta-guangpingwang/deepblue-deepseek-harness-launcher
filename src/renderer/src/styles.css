@@ -90,6 +90,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .distribution-badge.offline { color: var(--mint); border-color: #b9dfd1; background: var(--mint-soft); }
 .title-actions button, .mobile-menu { height: 34px; padding: 0 11px; display: flex; align-items: center; gap: 7px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .title-actions button:hover, .mobile-menu:hover { background: var(--surface-strong); color: var(--text); }
+.title-actions button:disabled { opacity: .62; cursor: wait; }
+.update-check-feedback { min-height: 30px; flex: 0 0 30px; padding: 0 26px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid color-mix(in srgb, var(--mint) 22%, var(--border)); color: var(--mint); background: color-mix(in srgb, var(--surface) 95%, var(--mint-soft)); font-size: 10px; }
+.update-check-feedback.failed { border-bottom-color: color-mix(in srgb, var(--red) 22%, var(--border)); color: var(--red); background: color-mix(in srgb, var(--surface) 96%, var(--red-soft)); }
+.update-check-feedback span { min-width: 0; flex: 1; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.update-check-feedback time { color: var(--text-tertiary); font-family: var(--font-mono); }
 .window-controls { align-self: stretch; margin: -16px -20px -16px 8px; display: flex; -webkit-app-region: no-drag; }
 .window-controls button { width: 46px; border: 0; display: grid; place-items: center; color: var(--text-secondary); background: transparent; cursor: pointer; }
 .window-controls button:hover { background: var(--surface-strong); color: var(--text); }

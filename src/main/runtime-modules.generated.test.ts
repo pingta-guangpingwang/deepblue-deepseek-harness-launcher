@@ -59,8 +59,9 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     installationRoots.push(installationRoot)
     vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => {
       const parsed = new URL(String(url))
-      const file = parsed.hostname === 'gitee.com'
-        ? path.join(releaseRoot, 'gitee-parts', `runtime-v${JSON.parse(await readFile(path.resolve('package.json'), 'utf8')).version}`, path.basename(parsed.pathname))
+      const giteeAsset = parsed.pathname.match(/\/raw\/runtime-assets\/([^/]+)\/([^/]+)$/u)
+      const file = parsed.hostname === 'gitee.com' && giteeAsset
+        ? path.join(releaseRoot, 'gitee-parts', giteeAsset[1]!, giteeAsset[2]!)
         : path.join(releaseRoot, 'modules', path.basename(parsed.pathname))
       const bytes = await readFile(file)
       return new Response(Uint8Array.from(bytes).buffer, { status: 200 })
@@ -68,9 +69,12 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     const store = new RuntimeModuleStore(installationRoot)
     const harness = generated.modules.find((module) => module.id === 'harness-core')
     const packageManager = generated.modules.find((module) => module.id === 'package-manager')
-    if (!harness || !packageManager) throw new Error('Generated catalog is missing required modules')
+    const launcherUi = generated.modules.find((module) => module.id === 'launcher-ui')
+    if (!harness || !packageManager || !launcherUi) throw new Error('Generated catalog is missing required modules')
     const harnessResult = await store.install(harness, generated.modules, 'win32', 'x64')
     const packageManagerResult = await store.install(packageManager, generated.modules, 'win32', 'x64')
+    const launcherUiResult = await store.install(launcherUi, generated.modules, 'win32', 'x64')
+    expect(await readFile(path.join(launcherUiResult.root, 'renderer', 'index.html'), 'utf8')).toContain('<div id="root"></div>')
     const nodeRoot = await store.activeRoot('node-runtime')
     if (!nodeRoot) throw new Error('Node module was not activated')
     const node = path.join(nodeRoot, 'bin', 'node.exe')

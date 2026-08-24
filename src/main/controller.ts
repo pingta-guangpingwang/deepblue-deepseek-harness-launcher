@@ -16,6 +16,7 @@ import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-
 import { DynamicWallpaperManager } from './dynamic-wallpaper'
 import { PetStore, type PetDownloadProgress } from './pets'
 import { DesktopPetManager } from './desktop-pet'
+import { bundledLauncherUiVersion, type LauncherUiSelection } from './launcher-ui'
 import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { prepareAppearanceProfile } from './appearance-profile'
@@ -105,11 +106,12 @@ export class LauncherController {
   private moduleStore!: RuntimeModuleStore
   private runtimeModules: RuntimeModuleRelease[] = []
   private bundledRuntimeModules: RuntimeModuleRelease[] = []
+  private lastVerifiedCatalogAt?: string
   private onlinePreparationStarted = false
   private startHarnessPromise?: Promise<LauncherSnapshot>
   private readonly browserHandoff = new HarnessBrowserHandoff()
 
-  constructor(private readonly window: BrowserWindow) {}
+  constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection) {}
 
   async initialize(): Promise<void> {
     this.config = await readConfig()
@@ -138,6 +140,8 @@ export class LauncherController {
     const sources = this.config.settings.sources.map((source) => this.initialSourceHealth(source))
     this.snapshot = {
       launcherVersion: app.getVersion(),
+      launcherUiVersion: this.launcherUi?.version || await bundledLauncherUiVersion(),
+      launcherUiSource: this.launcherUi?.source || 'bundled',
       platform: `${process.platform}-${process.arch}`,
       distributionMode: this.distributionMode,
       runStatus: 'stopped',
@@ -286,7 +290,20 @@ export class LauncherController {
     this.emit()
     const checked = await Promise.all(this.config.settings.sources.map((source) => this.checkSource(source)))
     this.snapshot.sources = checked
-    await this.syncOnlineCatalog()
+    const catalogSynced = await this.syncOnlineCatalog()
+    if (!catalogSynced && this.snapshot.runtimeUpdates.status !== 'installing' && this.snapshot.runtimeUpdates.status !== 'restarting') {
+      if (this.lastVerifiedCatalogAt) {
+        await this.detectRuntimeUpdates()
+        this.snapshot.runtimeUpdates.message = `本次联网刷新未取得新目录；继续使用 ${new Date(this.lastVerifiedCatalogAt).toLocaleString('zh-CN')} 已验签目录，当前版本不受影响`
+      } else {
+        this.snapshot.runtimeUpdates = {
+          status: 'failed',
+          items: [],
+          checkedAt: new Date().toISOString(),
+          message: '本次未取得通过签名校验的模块目录；已保留内置目录与当前版本'
+        }
+      }
+    }
     const network = this.snapshot.environment.find((item) => item.id === 'network')
     if (network) {
       network.status = checked.some((source) => source.status === 'available' || source.status === 'slow') ? 'ready' : 'warning'
@@ -580,7 +597,7 @@ export class LauncherController {
     const activated: RuntimeModuleId[] = []
     const previousActiveHarnessVersion = this.config.activeVersion
     try {
-      if (this.service) await this.stopHarness()
+      if (this.service && (requestedIds.has('harness-core') || requestedIds.has('node-runtime'))) await this.stopHarness()
       if (this.config.settings.backupBeforeUpdate && requestedIds.has('harness-core')) await this.backupUserData()
       for (const release of releases) {
         await this.moduleStore.install(
@@ -603,15 +620,39 @@ export class LauncherController {
       task.status = 'completed'
       task.progress = 100
       task.receivedBytes = task.totalBytes
-      task.detail = '全部模块已安装，正在安全重启启动器'
+      await this.refreshInstalledPlugins()
+      await this.refreshEnvironment()
+      const checkedAt = new Date().toISOString()
+      const requiresRelaunch = [...requestedIds].some((id) => !['launcher-ui', 'package-manager'].includes(id))
+      const launcherUiRelease = releases.find((release) => release.id === 'launcher-ui')
+      if (!requiresRelaunch) {
+        if (launcherUiRelease) {
+          const root = await this.moduleStore.activeRoot('launcher-ui')
+          const entry = root && path.join(root, 'renderer', 'index.html')
+          if (!entry || !await this.pathExists(entry)) throw new Error('启动器界面模块安装完成但入口文件不可用')
+          this.snapshot.launcherUiVersion = launcherUiRelease.version
+          this.snapshot.launcherUiSource = 'updated'
+          task.detail = '变化模块已启用；界面将在本窗口自动刷新'
+          this.snapshot.runtimeUpdates = { status: 'idle', items: [], checkedAt, message: '热更新完成：只替换了变化模块，无需重新下载安装器' }
+          this.log('INFO', `启动器 UI ${launcherUiRelease.version} 已热更新，正在刷新当前窗口`)
+          this.emit()
+          setTimeout(() => { void this.window.loadFile(entry) }, 450)
+          return this.getSnapshot()
+        }
+        task.detail = '变化模块已启用，无需重启启动器'
+        this.snapshot.runtimeUpdates = { status: 'idle', items: [], checkedAt, message: '热更新完成：只替换了变化模块，无需重启启动器' }
+        this.log('INFO', '模块热更新完成，无需重启启动器')
+        this.emit()
+        return this.getSnapshot()
+      }
+      task.detail = '运行时模块已安装，正在安全重启启动器'
       this.snapshot.runtimeUpdates = {
         status: 'restarting',
         items: requested,
         taskId: task.id,
-        message: '更新安装完成，启动器即将自动重启'
-    }
-    await this.refreshInstalledPlugins()
-    await this.refreshEnvironment()
+        checkedAt,
+        message: '运行时更新安装完成，启动器即将自动重启'
+      }
       this.log('INFO', '模块更新安装完成，准备重启启动器')
       this.emit()
       if (app.isPackaged) {
@@ -1690,7 +1731,7 @@ export class LauncherController {
     }
   }
 
-  private async syncOnlineCatalog(): Promise<void> {
+  private async syncOnlineCatalog(): Promise<boolean> {
     const registry = this.registryUrl()
     const [npmVersion, signedCatalog] = await Promise.all([
       fetchLatestNpmVersion(registry),
@@ -1710,6 +1751,7 @@ export class LauncherController {
       }
     }
     if (signedCatalog) {
+      this.lastVerifiedCatalogAt = signedCatalog.generatedAt
       this.runtimeModules = mergeBundledRuntimeMirrors(signedCatalog.runtimeModules || [], this.bundledRuntimeModules)
       const matchingArtifact = signedCatalog.launcher?.artifacts.find((artifact) =>
         artifact.platform === process.platform &&
@@ -1718,6 +1760,7 @@ export class LauncherController {
       ) || signedCatalog.launcher?.artifacts.find((artifact) =>
         artifact.platform === process.platform && artifact.arch === process.arch && !artifact.distribution
       )
+      this.snapshot.launcherUpdate = undefined
       if (matchingArtifact && signedCatalog.launcher && isNewerVersion(signedCatalog.launcher.version, app.getVersion())) {
         this.snapshot.launcherUpdate = {
           version: signedCatalog.launcher.version,
@@ -1737,7 +1780,9 @@ export class LauncherController {
       if (signedCatalog.modelTemplates?.length) this.snapshot.modelHub = this.modelStore.syncTemplates(signedCatalog.modelTemplates)
       await this.detectRuntimeUpdates()
       this.log('INFO', `已同步签名目录（${signedCatalog.generatedAt}，运行模块 ${this.runtimeModules.length} 个）`)
+      return true
     }
+    return false
   }
 
   private async detectRuntimeUpdates(): Promise<void> {
@@ -1750,10 +1795,12 @@ export class LauncherController {
     currentVersions['harness-core'] ||= this.snapshot.environment.find((item) => item.id === 'harness')?.version
     currentVersions['node-runtime'] ||= this.snapshot.environment.find((item) => item.id === 'node')?.version
     currentVersions['package-manager'] ||= this.snapshot.environment.find((item) => item.id === 'pnpm')?.version
+    currentVersions['launcher-ui'] ||= this.snapshot.launcherUiVersion || await bundledLauncherUiVersion()
     const items = planRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
+    const checkedAt = new Date().toISOString()
     this.snapshot.runtimeUpdates = items.length
-      ? { status: 'available', items, message: `检测到 ${items.length} 个独立模块可更新` }
-      : { status: 'idle', items: [] }
+      ? { status: 'available', items, checkedAt, message: `检测到 ${items.length} 个独立模块可更新，只会下载这些变化部分` }
+      : { status: 'idle', items: [], checkedAt, message: '检查完成：基础内核与所有已安装模块均为最新' }
   }
 
   private addTask(id: string, title: string, detail: string): LauncherTask {

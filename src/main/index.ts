@@ -2,13 +2,15 @@ import { app, BrowserWindow, ipcMain, Menu, net, protocol, shell, Tray } from 'e
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { LauncherController } from './controller'
-import { launcherDataPaths } from './config'
+import { launcherDataPaths, readConfig, setLauncherStorageRoot } from './config'
+import { selectLauncherUi, type LauncherUiSelection } from './launcher-ui'
 import type { LauncherSettings, ModelProviderDraft, MultimodalTestRequest } from '../shared/types'
 
 let mainWindow: BrowserWindow | undefined
 let controller: LauncherController | undefined
 let tray: Tray | undefined
 let quitting = false
+let launcherUi: LauncherUiSelection | undefined
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deepblue-skin',
@@ -104,7 +106,7 @@ function syncDesktopTray(): void {
   ]))
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(ui = launcherUi): BrowserWindow {
   const icon = appIconPath()
   const window = new BrowserWindow({
     width: 1440,
@@ -139,7 +141,7 @@ function createWindow(): BrowserWindow {
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
-    void window.loadFile(path.join(__dirname, '../renderer/index.html'))
+    void window.loadFile(ui?.entry || path.join(__dirname, '../renderer/index.html'))
   }
   return window
 }
@@ -259,11 +261,17 @@ if (!hasSingleInstanceLock) {
 
   app.whenReady().then(async () => {
     app.setAppUserModelId('org.deepseek-harness.launcher')
+    const startupConfig = await readConfig()
+    setLauncherStorageRoot(startupConfig.settings.storageRoot)
+    launcherUi = await selectLauncherUi(
+      launcherDataPaths().runtime,
+      path.join(__dirname, '../renderer/index.html')
+    )
     registerSkinPreviewProtocol()
     registerPetPreviewProtocol()
     registerIpc()
     mainWindow = createWindow()
-    controller = new LauncherController(mainWindow)
+    controller = new LauncherController(mainWindow, launcherUi)
     await controller.initialize()
     syncDesktopTray()
     app.on('activate', () => {

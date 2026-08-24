@@ -24,18 +24,18 @@ describe('signed runtime update planning', () => {
     release('launcher-ui', '0.10.4')
   ]
 
-  it('lists only installed modules whose signed version changed', () => {
+  it('lists only installed modules whose signed version changed, including the renderer UI', () => {
     const updates = planRuntimeModuleUpdates(catalog, {
       'node-runtime': '24.16.0',
       'harness-core': '0.1.0-rc.6',
       'launcher-ui': '0.10.3'
     }, 'win32', 'x64')
-    expect(updates.map((item) => item.id)).toEqual(['node-runtime', 'harness-core'])
+    expect(updates.map((item) => item.id)).toEqual(['node-runtime', 'harness-core', 'launcher-ui'])
     expect(updates[1]).toMatchObject({ currentVersion: '0.1.0-rc.6', nextVersion: '0.1.0-rc.7', size: 48_000_000 })
   })
 
-  it('keeps optional missing modules on demand and never hot-swaps the running UI shell', () => {
-    const updates = planRuntimeModuleUpdates(catalog, { 'launcher-ui': '0.10.3' }, 'win32', 'x64')
+  it('keeps every missing module on demand until a bundled or active version is known', () => {
+    const updates = planRuntimeModuleUpdates(catalog, {}, 'win32', 'x64')
     expect(updates).toEqual([])
   })
 

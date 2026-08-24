@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.22",
+  "version": "0.10.23",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:web": "vite --config vite.renderer.config.ts",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "npm run typecheck && electron-vite build && npm run launcher-ui:compile && npm run launcher-ui:prepare",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run && node scripts/smoke-appearance-runtime-cache.mjs && node scripts/smoke-appearance-media-routes.mjs && node scripts/validate-code-signing-readiness.mjs",
@@ -20,7 +20,11 @@
     "keys:generate": "node scripts/generate-signing-key.mjs",
     "catalog:prepare": "node scripts/update-release-payload.mjs",
     "plugin:pack": "node scripts/pack-appearance-plugin.mjs",
-    "modules:build": "node scripts/sync-runtime-peers.mjs && node scripts/build-runtime-modules.mjs",
+    "launcher-ui:compile": "vite build --config vite.renderer.config.ts",
+    "launcher-ui:prepare": "node scripts/prepare-launcher-ui.mjs",
+    "launcher-ui:build": "node scripts/build-launcher-ui-module.mjs",
+    "hot-update:ui": "npm run launcher-ui:compile && npm run launcher-ui:prepare && npm run launcher-ui:build",
+    "modules:build": "node scripts/sync-runtime-peers.mjs && node scripts/build-runtime-modules.mjs && node scripts/build-launcher-ui-module.mjs release/win-unpacked/resources/app/out/renderer",
     "modules:smoke": "node scripts/run-runtime-module-smoke.mjs",
     "shell:build": "node scripts/build-launcher-shell.mjs",
     "bootstrap:build": "powershell.exe -NoProfile -File scripts/build-bootstrap-installer.ps1",
@@ -98,6 +102,10 @@
       {
         "from": "pet-store/catalog.payload.json",
         "to": "pet-store/catalog.payload.json"
+      },
+      {
+        "from": "build-cache/generated/launcher-ui-version.json",
+        "to": "resources/launcher-ui-version.json"
       }
     ],
     "win": {

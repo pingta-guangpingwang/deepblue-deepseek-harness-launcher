@@ -32,8 +32,9 @@ export function runtimeModulePlan(
 
 /**
  * Compares the trusted signed catalog with active local modules. Missing optional
- * modules stay on-demand; the immutable launcher UI shell uses its separate
- * bootstrap update path and is never hot-swapped while running.
+ * modules stay on-demand. The Electron kernel remains on its separate bootstrap
+ * path, while the renderer-only launcher-ui module is installed atomically and
+ * becomes active after one controlled relaunch.
  */
 export function planRuntimeModuleUpdates(
   catalog: RuntimeModuleRelease[],
@@ -42,7 +43,6 @@ export function planRuntimeModuleUpdates(
   arch: string
 ): RuntimeModuleUpdateItem[] {
   return catalog.flatMap((release) => {
-    if (release.id === 'launcher-ui') return []
     const currentVersion = currentVersions[release.id]
     if (!currentVersion || currentVersion === release.version) return []
     const artifact = release.artifacts.find((candidate) => candidate.platform === platform && candidate.arch === arch)

@@ -234,6 +234,12 @@ try {
   await page.waitForLoadState('domcontentloaded')
   await page.getByRole('button', { name: '皮肤商店', exact: true }).waitFor({ timeout: 20_000 })
 
+  const updateCheck = page.getByRole('button', { name: '检查更新', exact: true })
+  await updateCheck.click()
+  await page.locator('.update-check-feedback[role="status"]').waitFor({ state: 'visible', timeout: 45_000 })
+  check('检查更新完成后保留明确的可见结果', Boolean((await page.locator('.update-check-feedback').textContent())?.trim()))
+  await page.screenshot({ path: path.join(outputRoot, 'update-check-feedback.png') })
+
   const launchedBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentBounds())
   check('启动时窗口尺寸符合桌面布局', launchedBounds.width === 1440 && launchedBounds.height === 900, `${launchedBounds.width}×${launchedBounds.height}`)
   await inspectStore(page, { button: '皮肤商店', card: '.skin-card', label: 'wide-skins', expectedWidth: launchedBounds.width, expectedHeight: launchedBounds.height })

@@ -29,6 +29,10 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.23 建立长期稳定基础内核：网页永久下载入口只在 Electron、安全边界或 IPC 协议必须升级时才替换，普通页面与交互不再发布 80 MB 整壳',
+    '启动器界面拆成约 0.2 MB 的 launcher-ui 内容寻址模块；检查更新只列出变化模块，按 Gitee、OSS、GitHub 下载校验后在当前窗口原子切换，无需退出 Harness',
+    '修复“检查更新点击后无反馈”：按钮显示检查中，完成后显示最新状态、检查时间或签名目录错误；模块更新呈现逐项和总进度、渠道、失败原因与回滚结果',
+    'Node、Harness、包管理器和 launcher-ui 各自独立版本；只有 Node/Harness 等底层更新需要安全重启，纯 UI 与包管理器更新可直接热启用',
     '宠物商店新增“应用到电脑桌面”：静态图、GIF、动态 WebP 与像素精灵表都可作为可点击、可拖动的 Windows 桌面伙伴，状态会持久化并可从卡片、预览或托盘停止',
     '宠物卡片同步显示 Harness 与电脑桌面的使用状态；删除正在使用的资源会先安全停止对应桌面宠物，Live2D 继续等待完整模型文件和运行库逐项签名后再开放执行',
     'Harness 端口支持在首页直接进入设置手动修改；保存前检查 1024—65535 范围与端口占用，运行中修改会有序停止并按新端口自动重启',

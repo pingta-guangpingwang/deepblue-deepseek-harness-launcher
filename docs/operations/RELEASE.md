@@ -71,6 +71,18 @@ npm run sign:manifest -- release/launcher-catalog-payload.json release/launcher-
 11. 将通过审核并重新签名的目录同步到三个固定公开 Gitee 仓库：皮肤主仓、皮肤视频分仓和宠物仓。皮肤主仓的 `catalog.json` 同时索引主仓与视频分仓媒体；`catalog.json`、`trust.json` 与资源地址均为固定 URL。安装包只携带目录正文作为离线浏览兜底，不携带商店媒体，也不得再接入任意外部来源目录。
 12. 商店签名密钥轮换时，在固定 `trust.json` 中同时保留旧、新公钥完成灰度，并使用长期启动器根私钥重新签署信任清单。目录切换到新 keyId 后再将旧钥匙标记为 retired；此过程不得修改目录 URL，也不要求发布新版启动器。
 
+### 仅发布启动器界面热更新（常规路径）
+
+普通页面、排版、文案和只使用现有 IPC 的功能不得重新构建 Electron 壳或覆盖网页安装器。执行：
+
+```sh
+npm run hot-update:ui
+```
+
+该命令只生成 `launcher-ui-ui-<hash>-win-x64-<sha>.tar.gz`、独立 Gitee 分片和更新后的运行模块目录。把这一个模块上传至 Gitee `runtime-assets/launcher-ui-ui-<hash>/`、OSS `modules/` 与同名 GitHub Release，保留 Node/Harness/包管理器原地址；随后运行 `catalog:prepare`、使用生产私钥重新签署并原子覆盖 `release-v2/launcher-manifest.json`。不得修改清单中的 `launcher.version` 和稳定 EXE 地址。
+
+发布门禁必须从上一 UI 哈希启动：点击“检查更新”后只能出现 `launcher-ui` 一项，下载量应低于 2 MiB；安装后当前窗口自动刷新、Harness 进程和端口保持不变、`runtime/modules/state.json` 的 active 指针切换到新哈希。失败必须恢复 previous 指针。只有新增/修改 IPC、Electron 权限、安全协议、主进程原生能力或基础内核依赖时，才允许提升 `launcher.version` 并覆盖网页安装器。
+
 ## 5. 灰度和回滚
 
 - 先只在签名清单中给少量测试用户提供新 URL。

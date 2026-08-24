@@ -448,11 +448,11 @@ function VersionsPage({ snapshot, busy, onInstall, onRollback, onSources, onLaun
       <Card className="version-summary">
         <div><span className="summary-icon"><Box /></span><p>当前已安装</p><strong>{snapshot.activeHarnessVersion}</strong><small>Harness</small></div>
         <div><span className="summary-icon"><Code2 /></span><p>内置 Node.js</p><strong>24.16.0</strong><small>{snapshot.platform}</small></div>
-        <div><span className="summary-icon"><Sparkles /></span><p>启动器版本</p><strong>v{snapshot.launcherVersion}</strong><small>当前版本</small></div>
+        <div><span className="summary-icon"><Sparkles /></span><p>稳定基础内核</p><strong>v{snapshot.launcherVersion}</strong><small>UI {snapshot.launcherUiVersion || '内置'} · {snapshot.launcherUiSource === 'updated' ? '热更新' : '随内核'}</small></div>
         <div><span className="summary-icon success"><ShieldCheck /></span><p>系统健康状态</p><strong className="success-text">完整</strong><small>核心组件正常</small></div>
       </Card>
 
-      {snapshot.launcherUpdate && <Card className="launcher-update-banner"><span className="catalog-icon"><AppWindow /></span><div><span>启动器更新</span><h2>深蓝DeepSeekHarness启动器 {snapshot.launcherUpdate.version}</h2><p>{snapshot.launcherUpdate.notes.join(' · ')}</p></div><button className="primary-button" onClick={onLauncherUpdate} disabled={!!busy}><HardDriveDownload size={16} />下载整合包</button></Card>}
+      {snapshot.launcherUpdate && <Card className="launcher-update-banner"><span className="catalog-icon"><AppWindow /></span><div><span>基础内核更新 · 极少发生</span><h2>深蓝DeepSeekHarness内核 {snapshot.launcherUpdate.version}</h2><p>{snapshot.launcherUpdate.notes.join(' · ')}</p></div><button className="primary-button" onClick={onLauncherUpdate} disabled={!!busy}><HardDriveDownload size={16} />下载内核安装器</button></Card>}
 
       <div className="version-main-column">
         <Card className="update-card">
@@ -2111,7 +2111,7 @@ export default function App(): ReactNode {
             : <button className="sidebar-login" disabled={busy === 'account-login'} onClick={accountLogin}><KeyRound size={17} /><span><strong>登录 AI历史书</strong><small>同步收藏，参与评论</small></span></button>}
         </div>
         <div className="sidebar-status"><span><StatusDot status={snapshot.runStatus === 'running' ? 'ready' : snapshot.runStatus === 'error' ? 'missing' : 'warning'} />{statusLabel}</span><strong>DeepSeek Harness</strong><small>{snapshot.activeHarnessVersion} · {snapshot.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}</small></div>
-        <div className="sidebar-version"><Info size={14} />v{snapshot.launcherVersion}<span>{snapshot.platform}</span></div>
+        <div className="sidebar-version"><Info size={14} />内核 v{snapshot.launcherVersion}<span>{snapshot.launcherUiSource === 'updated' ? 'UI 热更新' : snapshot.platform}</span></div>
       </aside>
 
       {sidebarOpen && <button className="sidebar-scrim" aria-label="关闭导航" onClick={() => setSidebarOpen(false)} />}
@@ -2127,12 +2127,18 @@ export default function App(): ReactNode {
           </div>
           <div className="title-actions">
             <span className={classNames('distribution-badge', snapshot.distributionMode)}>{snapshot.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}</span>
-            <button onClick={checkSources}><Bell size={18} /><span>检查更新</span></button>
+            <button onClick={checkSources} disabled={busy === 'sources'}>{busy === 'sources' ? <LoaderCircle className="spin" size={18} /> : <Bell size={18} />}<span>{busy === 'sources' ? '检查中…' : '检查更新'}</span></button>
             <button aria-label="切换主题" onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
             <button aria-label="打开设置" onClick={() => setPage('settings')}><Settings size={18} /></button>
           </div>
           <WindowControls />
         </header>
+
+        {snapshot.runtimeUpdates.checkedAt && ['idle', 'failed'].includes(snapshot.runtimeUpdates.status) && <div className={classNames('update-check-feedback', snapshot.runtimeUpdates.status)} role="status">
+          {snapshot.runtimeUpdates.status === 'failed' ? <CircleAlert size={15} /> : <CheckCircle2 size={15} />}
+          <span>{snapshot.runtimeUpdates.message}</span>
+          <time>{new Date(snapshot.runtimeUpdates.checkedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>
+        </div>}
 
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} onVersions={() => setPage('versions')} onPortSettings={openPortSettings} />}
