@@ -35,9 +35,18 @@ for (const source of sources) {
     throw new Error(`${source.id} first thumbnail failed signed size/hash validation`)
   }
   if (first.packKind) {
-    const entryUrl = new URL(`${first.packPath}${first.entry}`, source.catalogUrl).toString()
-    await fetchBytes(entryUrl)
+    if (first.packKind === 'live2d') {
+      const packManifestBytes = await fetchBytes(first.packManifest.url)
+      if (packManifestBytes.length !== first.packManifest.size || createHash('sha256').update(packManifestBytes).digest('hex') !== first.packManifest.sha256) throw new Error('live2d model manifest failed signed size/hash validation')
+      const packManifest = JSON.parse(packManifestBytes.toString('utf8'))
+      const entry = packManifest.files.find(file => file.path === first.entry)
+      if (!entry) throw new Error('live2d model manifest omits its entry file')
+      const entryBytes = await fetchBytes(new URL(first.entry.split('/').map(encodeURIComponent).join('/'), first.packManifest.url).toString())
+      if (entryBytes.length !== entry.size || createHash('sha256').update(entryBytes).digest('hex') !== entry.sha256) throw new Error('live2d entry failed model-manifest validation')
+    } else {
+      const entryUrl = new URL(`${first.packPath}${first.entry}`, source.catalogUrl).toString()
+      await fetchBytes(entryUrl)
+    }
   }
   process.stdout.write(`Verified ${source.id}: ${manifest.payload.items.length} entries, signed sample assets available.\n`)
 }
-

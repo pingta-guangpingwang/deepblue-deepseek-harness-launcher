@@ -75,23 +75,13 @@ try {
   await page.waitForTimeout(2_000)
   await page.screenshot({ path: path.join(outputRoot, 'harness-loaded.png'), fullPage: true })
   const toggle = page.locator('.deepblue-skin-clarity-toggle')
-  let toggleReady = await toggle.isVisible()
-  if (!toggleReady) {
-    // The session utility row (including Session log) is intentionally absent
-    // on the blank composer. Open the seeded existing session before asserting
-    // controls that belong to that row.
-    const existingSession = page.getByText('阅读下当前项目', { exact: true }).first()
-    if (await existingSession.count()) {
-      await existingSession.click()
-      toggleReady = await toggle.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false)
-    }
-  }
+  const toggleReady = await toggle.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false)
   const pluginState = await page.evaluate(async () => ({
     text: document.body.innerText.slice(0, 1200),
     wallpaper: Boolean(document.querySelector('.deepblue-skin-wallpaper')),
     configStatus: await fetch('/deepblue-skin/config').then(response => response.status, () => 0)
   }))
-  check('清透切换按钮已注入会话页头工具区', toggleReady && await toggle.count() === 1, JSON.stringify(pluginState))
+  check('清透切换按钮在空白首页右上角全局可见', toggleReady && await toggle.count() === 1, JSON.stringify(pluginState))
   if (!toggleReady) throw new Error(`Harness 外观插件未显示清透按钮：${JSON.stringify(pluginState)}；控制台：${consoleErrors.join(' | ')}`)
   check('按钮默认提供清透壁纸动作', (await toggle.textContent())?.trim() === '清透壁纸')
 
@@ -123,8 +113,11 @@ try {
   check('Harness 页面没有未处理的脚本错误', consoleErrors.length === 0, consoleErrors.join(' | '))
 
   const installedManifest = JSON.parse(await readFile(path.join(storageRoot, 'harness-data', 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json'), 'utf8'))
-  check('实际 web profile 已升级外观插件', installedManifest.version === '0.7.0', installedManifest.version)
-  await launcher.getByRole('button', { name: '停止 DeepSeek Harness', exact: true }).click()
+  check('实际 web profile 已升级外观插件', installedManifest.version === '0.8.1', installedManifest.version)
+  // A remote update notice may appear while the Harness page is under test;
+  // stop through the same trusted IPC instead of letting that modal block QA
+  // cleanup pointer input.
+  await launcher.evaluate(() => window.launcher.stopHarness())
   await launcher.getByRole('button', { name: '启动 DeepSeek Harness', exact: true }).waitFor({ timeout: 30_000 })
 } finally {
   await browser?.close()

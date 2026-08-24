@@ -483,6 +483,28 @@ export interface PetAsset {
   mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
 }
 
+export interface PetPackManifestAsset {
+  url: string
+  sha256: string
+  size: number
+  mime: 'application/json'
+}
+
+export interface PetPackFile {
+  path: string
+  sha256: string
+  size: number
+  mime: 'application/json' | 'application/octet-stream' | 'image/png' | 'image/jpeg' | 'image/webp' | 'audio/mpeg' | 'audio/ogg' | 'audio/flac' | 'text/plain'
+}
+
+export interface PetPackManifest {
+  schemaVersion: 1
+  petId: string
+  entry: string
+  totalSize: number
+  files: PetPackFile[]
+}
+
 export interface PetBehavior {
   widthPx: number
   idleMotion: 'float' | 'bounce' | 'none'
@@ -509,6 +531,7 @@ export interface PetCatalogItem {
   packKind?: Exclude<PetPackKind, 'image'>
   entry?: string
   packPath?: string
+  packManifest?: PetPackManifestAsset
   catalogSource?: PetCatalogSourceId
   origin?: 'catalog' | 'custom'
   previewDataUrl?: string
@@ -542,6 +565,8 @@ export interface PetPreview {
   packKind: PetPackKind
   mediaUrl: string
   mime: PetAsset['mime']
+  modelUrl?: string
+  runtimeUrl?: string
 }
 
 export interface PetPreviewResult {

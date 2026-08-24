@@ -982,8 +982,10 @@ const petStyleLabels: Record<PetStyle, string> = {
 
 function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [row, setRow] = useState(0)
   useEffect(() => {
     const image = new Image()
+    image.crossOrigin = 'anonymous'
     let timer = 0
     image.onload = () => {
       const canvas = canvasRef.current
@@ -996,13 +998,29 @@ function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactN
       const frameHeight = image.naturalHeight / rows
       canvas.width = frameWidth
       canvas.height = frameHeight
-      const frames = Array.from({ length: columns }, (_, frame) => frame)
+      const activeRow = Math.min(row, rows - 1)
+      const scratch = document.createElement('canvas')
+      scratch.width = frameWidth
+      scratch.height = frameHeight
+      const scratchContext = scratch.getContext('2d', { willReadFrequently: true })
+      const minimumPixels = Math.max(12, Math.floor(frameWidth * frameHeight * .002))
+      const frames = Array.from({ length: columns }, (_, frame) => frame).filter((frame) => {
+        if (!scratchContext) return true
+        scratchContext.clearRect(0, 0, frameWidth, frameHeight)
+        scratchContext.drawImage(image, frame * frameWidth, activeRow * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
+        const pixels = scratchContext.getImageData(0, 0, frameWidth, frameHeight).data
+        let visible = 0
+        for (let pixel = 3; pixel < pixels.length && visible < minimumPixels; pixel += 4) if ((pixels[pixel] ?? 0) > 8) visible += 1
+        return visible >= minimumPixels
+      })
+      if (!frames.length) frames.push(0)
       let index = 0
       const draw = (): void => {
         const frame = frames[index % frames.length] || 0
         context.clearRect(0, 0, frameWidth, frameHeight)
-        context.drawImage(image, frame * frameWidth, 0, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
+        context.drawImage(image, frame * frameWidth, activeRow * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
         canvas.dataset.frameIndex = String(frame)
+        canvas.dataset.animationRow = String(activeRow)
         index += 1
       }
       draw()
@@ -1010,8 +1028,64 @@ function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactN
     }
     image.src = src
     return () => { image.onload = null; if (timer) window.clearInterval(timer) }
-  }, [src])
-  return <canvas ref={canvasRef} aria-label={`${name}像素帧动画预览`} />
+  }, [src, row])
+  const interact = (): void => {
+    setRow(4)
+    window.setTimeout(() => setRow(0), 760)
+  }
+  return <button type="button" className="pixel-atlas-preview-button" aria-label={`点击${name}播放互动动画`} onClick={interact}><canvas ref={canvasRef} /><span>点击宠物互动</span></button>
+}
+
+interface Live2DPreviewInstance {
+  load(options: { path: string; scale?: number; volume?: number; logLevel?: 'error' | 'warn' | 'info' | 'trace' }): Promise<void>
+  getMotions(): Record<string, string[]>
+  playMotion(group: string, index?: number, priority?: number): void
+  setExpression(id?: string): void
+  destroy(): void
+  on(event: 'loaded', listener: () => void): Live2DPreviewInstance
+}
+
+function Live2DPreview({ preview }: { preview: PetPreview }): ReactNode {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const instanceRef = useRef<Live2DPreviewInstance | undefined>(undefined)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  useEffect(() => {
+    if (!preview.modelUrl || !preview.runtimeUrl || !canvasRef.current) return
+    let disposed = false
+    let instance: Live2DPreviewInstance | undefined
+    setStatus('loading')
+    void import(/* @vite-ignore */ preview.runtimeUrl).then(async (runtime: { init: (canvas: HTMLCanvasElement) => Live2DPreviewInstance | null }) => {
+      if (disposed || !canvasRef.current) return
+      instance = runtime.init(canvasRef.current) || undefined
+      if (!instance) throw new Error('Live2D Canvas 初始化失败')
+      instanceRef.current = instance
+      instance.on('loaded', () => { if (!disposed) setStatus('ready') })
+      await instance.load({ path: preview.modelUrl!, scale: 1, volume: 0, logLevel: 'warn' })
+      // l2d resolves load() only after the model is render-ready. Keep the
+      // event listener for progress compatibility, but do not rely on a single
+      // event delivery to leave the loading state.
+      if (!disposed) setStatus('ready')
+    }).catch(() => { if (!disposed) setStatus('error') })
+    return () => {
+      disposed = true
+      instanceRef.current = undefined
+      try { instance?.destroy() } catch { /* A failed WebGL initialization may already have disposed the model. */ }
+    }
+  }, [preview.modelUrl, preview.runtimeUrl])
+  const interact = (): void => {
+    const instance = instanceRef.current
+    if (!instance) return
+    const groups = Object.keys(instance.getMotions() || {})
+    const candidates = groups.filter(group => !/^idle$/i.test(group))
+    const group = candidates.find(value => /(tap|touch|flick|thank|body|head)/i.test(value)) || candidates[0] || groups[0]
+    if (group) instance.playMotion(group, undefined, 3)
+    else instance.setExpression()
+  }
+  return <button type="button" className="live2d-preview-player" data-status={status} aria-label={`点击${preview.name}播放 Live2D 互动动作`} onClick={interact}>
+    <canvas ref={canvasRef} width={640} height={640} />
+    {status !== 'ready' && <img src={preview.mediaUrl} alt={`${preview.name}静态备用预览`} />}
+    <span>{status === 'loading' ? '正在装载完整模型…' : status === 'error' ? '动态模型加载失败，已显示完整备用图' : 'Live2D 播放中 · 点击互动'}</span>
+  </button>
 }
 
 function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onApplyDesktop, onStopDesktop, onClear, onImport, onRemove, onRemoveCustom, onToggleFavorite }: {
@@ -1148,7 +1222,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
                 {!custom && <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(pet.id) : onDownload(pet.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>}
                 {custom && <button className="small-button danger" disabled={!!busy} onClick={() => onRemoveCustom(pet.id)}><Trash2 size={14} />删除</button>}
                 <button className={classNames('small-button', desktopActive && 'danger')} title={live2d ? 'Live2D 模型暂不执行未逐文件签名的模型运行库' : desktopActive ? '停止电脑桌面宠物' : '下载校验后显示在 Windows 桌面，可点击互动和拖动'} disabled={Boolean(transferring) || live2d} onClick={() => desktopActive ? onStopDesktop() : onApplyDesktop(pet.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : desktopActive ? <CircleStop size={14} /> : <Monitor size={14} />}{desktopActive ? '停止桌面宠物' : live2d ? '桌面运行库待接入' : '应用到桌面'}</button>
-                <button className={active ? 'small-button' : 'primary-button'} title={live2d ? 'Live2D 模型先支持安全下载、收藏和静态预览，暂不把未校验运行库注入 Harness' : undefined} disabled={Boolean(transferring) || active || live2d} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : live2d ? <><ShieldCheck size={14} />安全运行库待接入</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
+                <button className={active ? 'small-button' : 'primary-button'} title={live2d ? '下载并逐文件校验完整模型后，在 Harness 内播放待机和点击动作' : undefined} disabled={Boolean(transferring) || active} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
               </div>
             </div>
           </article>
@@ -1157,7 +1231,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
       </div>
 
       <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={(snapshot.pets.activePetId || snapshot.pets.desktopPet?.running) ? <div className="catalog-inline-actions">{snapshot.pets.activePetId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button>}{snapshot.pets.desktopPet?.running && <button className="text-button danger" disabled={!!busy} onClick={onStopDesktop}>停止桌面宠物</button>}</div> : undefined} />
-      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '当前显示签名目录中的安全静态预览；不会执行模型包内脚本' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span>{preview.packKind !== 'live2d' && <div className="skin-preview-actions"><button className={classNames('small-button', snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running && 'danger')} onClick={() => snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? onStopDesktop() : onApplyDesktop(preview.petId)}>{snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? <><CircleStop size={15} />停止桌面宠物</> : <><Monitor size={15} />应用到电脑桌面</>}</button><button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button></div>}</footer></section></div>}
+      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : preview.packKind === 'live2d' && preview.modelUrl && preview.runtimeUrl ? <Live2DPreview preview={preview} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '完整模型已逐文件校验；待机持续播放，点击角色可切换互动动作' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span><div className="skin-preview-actions">{preview.packKind !== 'live2d' && <button className={classNames('small-button', snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running && 'danger')} onClick={() => snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? onStopDesktop() : onApplyDesktop(preview.petId)}>{snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? <><CircleStop size={15} />停止桌面宠物</> : <><Monitor size={15} />应用到电脑桌面</>}</button>}<button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button></div></footer></section></div>}
     </div>
   )
 }

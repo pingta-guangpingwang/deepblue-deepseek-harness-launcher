@@ -78,6 +78,10 @@ try {
 
   await petPage.locator('#pet').click({ force: true })
   if (!(await petPage.locator('#bubble').evaluate(node => node.classList.contains('show')))) throw new Error('点击桌面宠物后没有触发交互')
+  if (pet.packKind === 'pixel-atlas') {
+    const interactionRow = await petPage.locator('canvas').getAttribute('data-animation-row')
+    if (!interactionRow || interactionRow === '0') throw new Error('点击像素宠物后没有切换到互动动作行')
+  }
   await petPage.screenshot({ path: path.join(outputRoot, 'desktop-pet-window.png'), omitBackground: true })
   process.stderr.write('ok  桌面宠物可点击交互\n')
 

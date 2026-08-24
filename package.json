@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.23",
+  "version": "0.10.24",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -36,6 +36,7 @@
     "qa:desktop-wallpaper": "node scripts/qa-desktop-wallpaper.mjs",
     "qa:desktop-pet": "node scripts/qa-desktop-pet.mjs",
     "qa:harness:skin-clarity": "node scripts/qa-harness-skin-clarity.mjs",
+    "qa:harness:pets": "node scripts/qa-harness-pet-runtime.mjs",
     "sign:manifest": "node scripts/sign-manifest.mjs",
     "sign:store-trust": "node scripts/sign-store-trust.mjs",
     "verify:skins": "node scripts/verify-skin-catalog.mjs",
@@ -63,6 +64,7 @@
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
+    "l2d": "^2.1.1",
     "lucide-react": "0.468.0",
     "playwright": "^1.57.0",
     "react": "19.2.0",

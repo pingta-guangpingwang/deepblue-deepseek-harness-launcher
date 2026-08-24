@@ -1625,7 +1625,7 @@ export class LauncherController {
     const paths = launcherDataPaths()
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
-    const expectedVersion = '0.7.0'
+    const expectedVersion = '0.8.1'
     const installedManifest = path.join(paths.dshHome, 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json')
     try {
       const manifest = JSON.parse(await readFile(installedManifest, 'utf8')) as { version?: string }

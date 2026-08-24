@@ -173,10 +173,15 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
       await pixelDialog.waitFor({ state: 'visible', timeout: 90_000 })
       const pixelCanvas = pixelDialog.locator('canvas')
       check(`${label} 像素目录可真实下载并打开帧动画预览`, await pixelCanvas.count() === 1)
-      const firstFrame = await pixelCanvas.getAttribute('data-frame-index')
-      await page.waitForTimeout(600)
-      const nextFrame = await pixelCanvas.getAttribute('data-frame-index')
-      check(`${label} 像素宠物预览帧持续变化`, firstFrame !== nextFrame)
+      const sampledFrames = []
+      for (let sample = 0; sample < 5; sample += 1) {
+        sampledFrames.push(await pixelCanvas.getAttribute('data-frame-index'))
+        await page.waitForTimeout(170)
+      }
+      check(`${label} 像素宠物预览帧持续变化`, new Set(sampledFrames).size > 1, sampledFrames.join('→'))
+      await pixelDialog.locator('.pixel-atlas-preview-button').click()
+      await page.waitForFunction(() => document.querySelector('.pixel-atlas-preview-button canvas')?.getAttribute('data-animation-row') === '4')
+      check(`${label} 点击像素宠物会切换互动动作`, await pixelCanvas.getAttribute('data-animation-row') === '4')
       await page.screenshot({ path: path.join(outputRoot, `${label}-pixel-preview.png`) })
       await pixelDialog.getByRole('button', { name: /关闭/ }).evaluate(button => button.click())
       await page.evaluate(async () => { const pet = (await window.launcher.getSnapshot()).pets.items.find(item => item.catalogSource === 'pixel'); if (pet) await window.launcher.applyPet(pet.id) })
@@ -192,12 +197,29 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
       await page.getByRole('button', { name: /Live2D 230/ }).evaluate(button => button.click())
       const live2dCard = page.locator('.pet-card[data-catalog-source="live2d"]').first()
       await live2dCard.waitFor({ state: 'visible', timeout: 30_000 })
-      check(`${label} Live2D 未引入未验证运行库`, await live2dCard.getByRole('button', { name: '安全运行库待接入', exact: true }).isDisabled())
+      check(`${label} Live2D 可下载完整签名模型并应用到 Harness`, await live2dCard.getByRole('button', { name: '应用到 Harness', exact: true }).isEnabled())
       await live2dCard.getByRole('button', { name: '预览', exact: true }).evaluate(button => button.click())
       const live2dDialog = page.locator('.pet-preview-modal[role="dialog"]')
       await live2dDialog.waitFor({ state: 'visible', timeout: 90_000 })
-      check(`${label} Live2D 签名资源可下载并安全预览`, await live2dDialog.locator('img').count() === 1)
+      const live2dPlayer = live2dDialog.locator('.live2d-preview-player')
+      await live2dPlayer.waitFor({ state: 'visible', timeout: 20_000 })
+      let live2dStatus = await live2dPlayer.getAttribute('data-status')
+      for (let attempt = 0; attempt < 45 && live2dStatus === 'loading'; attempt += 1) {
+        await page.waitForTimeout(2_000)
+        live2dStatus = await live2dPlayer.getAttribute('data-status')
+      }
+      check(`${label} Live2D 完整模型持续播放而非显示纹理碎图`, live2dStatus === 'ready' && await live2dPlayer.locator('canvas').count() === 1, `status=${live2dStatus}`)
+      if (live2dStatus !== 'ready') throw new Error(`Live2D 预览没有就绪：status=${live2dStatus}`)
+      await live2dPlayer.click()
       await page.screenshot({ path: path.join(outputRoot, `${label}-live2d-preview.png`) })
+      await live2dDialog.getByRole('button', { name: '应用到 Harness', exact: true }).click()
+      let activeLive2d
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        activeLive2d = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets.activePetId)
+        if (activeLive2d?.startsWith('l2d-')) break
+        await page.waitForTimeout(500)
+      }
+      check(`${label} Live2D 模型可应用到 Harness`, Boolean(activeLive2d?.startsWith('l2d-')), `active=${activeLive2d}`)
       await live2dDialog.getByRole('button', { name: /关闭/ }).evaluate(button => button.click())
       await page.getByRole('button', { name: /全部来源/ }).evaluate(button => button.click())
       await waitForCards(page, '.pet-card')
@@ -236,9 +258,17 @@ try {
 
   const updateCheck = page.getByRole('button', { name: '检查更新', exact: true })
   await updateCheck.click()
-  await page.locator('.update-check-feedback[role="status"]').waitFor({ state: 'visible', timeout: 45_000 })
-  check('检查更新完成后保留明确的可见结果', Boolean((await page.locator('.update-check-feedback').textContent())?.trim()))
+  const feedback = page.locator('.update-check-feedback[role="status"]')
+  const updateDialog = page.locator('.runtime-update-dialog[role="dialog"]')
+  await Promise.race([
+    feedback.waitFor({ state: 'visible', timeout: 45_000 }),
+    updateDialog.waitFor({ state: 'visible', timeout: 45_000 })
+  ])
+  const feedbackVisible = await feedback.isVisible().catch(() => false)
+  const dialogVisible = await updateDialog.isVisible().catch(() => false)
+  check('检查更新完成后保留明确的可见结果', feedbackVisible ? Boolean((await feedback.textContent())?.trim()) : dialogVisible)
   await page.screenshot({ path: path.join(outputRoot, 'update-check-feedback.png') })
+  if (dialogVisible) await updateDialog.getByRole('button', { name: '稍后更新' }).click()
 
   const launchedBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentBounds())
   check('启动时窗口尺寸符合桌面布局', launchedBounds.width === 1440 && launchedBounds.height === 900, `${launchedBounds.width}×${launchedBounds.height}`)

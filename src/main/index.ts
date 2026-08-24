@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, Menu, net, protocol, shell, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, protocol, shell, Tray } from 'electron'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { LauncherController } from './controller'
 import { launcherDataPaths, readConfig, setLauncherStorageRoot } from './config'
 import { selectLauncherUi, type LauncherUiSelection } from './launcher-ui'
@@ -14,14 +14,14 @@ let launcherUi: LauncherUiSelection | undefined
 
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deepblue-skin',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true }
 }, {
   scheme: 'deepblue-pet',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true }
 }])
 
 function registerSkinPreviewProtocol(): void {
-  protocol.handle('deepblue-skin', (request) => {
+  protocol.handle('deepblue-skin', async (request) => {
     const url = new URL(request.url)
     const fileName = decodeURIComponent(url.pathname).replace(/^\/+/, '')
     if (url.hostname !== 'cache' || !/^[a-f0-9]{64}\.(?:png|jpe?g|webp|gif|mp4|webm)$/i.test(fileName)) {
@@ -30,21 +30,85 @@ function registerSkinPreviewProtocol(): void {
     const root = path.resolve(launcherDataPaths().skins, 'cache')
     const target = path.resolve(root, fileName)
     if (path.dirname(target) !== root) return new Response('Invalid skin preview path', { status: 400 })
-    return net.fetch(pathToFileURL(target).toString())
+    return localAssetResponse(request, target)
   })
 }
 
+function localAssetMime(filename: string): string {
+  const extension = path.extname(filename).toLowerCase()
+  return ({
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
+    '.mp4': 'video/mp4', '.webm': 'video/webm', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+    '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.txt': 'text/plain; charset=utf-8'
+  } as Record<string, string>)[extension] || 'application/octet-stream'
+}
+
+async function localAssetResponse(request: Request, filename: string): Promise<Response> {
+  // Node's filesystem API handles Windows namespaced/long paths reliably;
+  // Chromium's file:// loader can return ERR_UNEXPECTED once nested Live2D
+  // pack paths exceed MAX_PATH, even though those files exist and hash-check.
+  let bytes: Buffer
+  try {
+    bytes = await readFile(path.toNamespacedPath(filename))
+  } catch {
+    return new Response('Local asset not found', { status: 404 })
+  }
+  const headers = new Headers({
+    'content-type': localAssetMime(filename),
+    'content-length': String(bytes.length),
+    'accept-ranges': 'bytes',
+    'cache-control': 'private, max-age=31536000, immutable'
+  })
+  // Launcher UI is loaded from file:// while previews use a locked custom
+  // protocol. Explicit CORS is required before Canvas can inspect sprite
+  // alpha data and before the Live2D ESM runtime can fetch model files.
+  headers.set('access-control-allow-origin', '*')
+  headers.set('cross-origin-resource-policy', 'cross-origin')
+  const range = request.headers.get('range')
+  if (range) {
+    const match = /^bytes=(\d+)-(\d*)$/.exec(range)
+    if (!match) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${bytes.length}` } })
+    const start = Number(match[1])
+    const end = match[2] ? Math.min(Number(match[2]), bytes.length - 1) : bytes.length - 1
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= bytes.length) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${bytes.length}` } })
+    const partial = bytes.subarray(start, end + 1)
+    headers.set('content-range', `bytes ${start}-${end}/${bytes.length}`)
+    headers.set('content-length', String(partial.length))
+    return new Response(request.method === 'HEAD' ? null : Uint8Array.from(partial).buffer, { status: 206, headers })
+  }
+  return new Response(request.method === 'HEAD' ? null : Uint8Array.from(bytes).buffer, { status: 200, headers })
+}
+
 function registerPetPreviewProtocol(): void {
-  protocol.handle('deepblue-pet', (request) => {
+  protocol.handle('deepblue-pet', async (request) => {
     const url = new URL(request.url)
     const fileName = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    if (url.hostname === 'runtime' && fileName === 'l2d.js') {
+      const runtime = app.isPackaged
+        ? path.join(process.resourcesPath, 'resources', 'pet-runtime', 'l2d.js')
+        : path.resolve('resources', 'pet-runtime', 'l2d.js')
+      return localAssetResponse(request, runtime)
+    }
+    if (url.hostname === 'model') {
+      const segments = fileName.split('/').map(segment => decodeURIComponent(segment))
+      const [petId, manifestSha, ...relative] = segments
+      if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(petId || '') || !/^[a-f0-9]{64}$/i.test(manifestSha || '') || !relative.length || relative.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('\\') || segment.includes(':'))) {
+        return new Response('Invalid Live2D model path', { status: 400 })
+      }
+      const root = path.resolve(launcherDataPaths().pets, 'packs', petId!, manifestSha!)
+      const target = path.resolve(root, ...relative)
+      if (!target.toLowerCase().startsWith(`${root}${path.sep}`.toLowerCase()) || !/\.(?:json|png|jpe?g|webp|moc3?|mtn|mp3|ogg|flac|txt)$/i.test(target)) {
+        return new Response('Invalid Live2D model path', { status: 400 })
+      }
+      return localAssetResponse(request, target)
+    }
     if (url.hostname !== 'cache' || !/^[a-f0-9]{64}\.(?:png|jpe?g|webp|gif)$/i.test(fileName)) {
       return new Response('Invalid pet preview path', { status: 400 })
     }
     const root = path.resolve(launcherDataPaths().pets, 'cache')
     const target = path.resolve(root, fileName)
     if (path.dirname(target) !== root) return new Response('Invalid pet preview path', { status: 400 })
-    return net.fetch(pathToFileURL(target).toString())
+    return localAssetResponse(request, target)
   })
 }
 

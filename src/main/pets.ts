@@ -1,7 +1,7 @@
 import { app, nativeImage } from 'electron'
 import { createHash, verify } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { access, copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
@@ -15,6 +15,9 @@ import type {
   PetCatalogSourceId,
   PetCatalogSourceState,
   PetMediaKind,
+  PetPackFile,
+  PetPackManifest,
+  PetPackManifestAsset,
   PetPreview,
   PetStoreState,
   SignedPetCatalogManifest
@@ -22,7 +25,12 @@ import type {
 
 const MAX_MEDIA_BYTES = 12 * 1024 * 1024
 const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
+const MAX_PACK_MANIFEST_BYTES = 1024 * 1024
+const MAX_PACK_BYTES = 16 * 1024 * 1024
+const MAX_PACK_FILES = 256
 const ALLOWED_MIME = new Set<PetAsset['mime']>(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+const ALLOWED_PACK_MIME = new Set<PetPackFile['mime']>(['application/json', 'application/octet-stream', 'image/png', 'image/jpeg', 'image/webp', 'audio/mpeg', 'audio/ogg', 'audio/flac', 'text/plain'])
+const ALLOWED_PACK_EXTENSION = /\.(?:json|png|jpe?g|webp|moc3?|mtn|mp3|ogg|flac|txt)$/i
 const GITEE_PET_ASSET_PREFIXES = FIXED_PET_CATALOG_SOURCES.map(source => `${source.repositoryUrl}/raw/master/`)
 
 interface ActivePetConfig {
@@ -31,6 +39,9 @@ interface ActivePetConfig {
   mediaKind: PetMediaKind
   mediaPath: string
   packKind?: PetCatalogItem['packKind']
+  modelRoot?: string
+  entry?: string
+  packManifestSha256?: string
   behavior: PetCatalogItem['behavior']
 }
 
@@ -97,6 +108,34 @@ function assertAsset(asset: PetAsset, thumbnail = false): void {
   if (!Number.isSafeInteger(asset.size) || asset.size <= 0 || asset.size > limit) throw new Error('宠物资源大小超出安全限制')
 }
 
+function assertPackManifestAsset(asset: PetPackManifestAsset): void {
+  const url = new URL(asset.url)
+  if (url.protocol !== 'https:' || !GITEE_PET_ASSET_PREFIXES.some(prefix => asset.url.startsWith(prefix))) throw new Error('Live2D 模型清单必须来自固定的 Gitee 宠物仓库')
+  if (!/^[a-f0-9]{64}$/i.test(asset.sha256) || asset.mime !== 'application/json') throw new Error('Live2D 模型清单完整性信息无效')
+  if (!Number.isSafeInteger(asset.size) || asset.size <= 0 || asset.size > MAX_PACK_MANIFEST_BYTES) throw new Error('Live2D 模型清单大小超出安全限制')
+}
+
+function safePackPath(value: string): boolean {
+  if (!value || value.length > 240 || value.includes('\\') || value.startsWith('/') || value.includes('\0')) return false
+  const segments = value.split('/')
+  return segments.every(segment => segment && segment !== '.' && segment !== '..' && !segment.includes(':')) && ALLOWED_PACK_EXTENSION.test(value)
+}
+
+function assertPackManifest(manifest: PetPackManifest, item: PetCatalogItem): void {
+  if (manifest.schemaVersion !== 1 || manifest.petId !== item.id || manifest.entry !== item.entry || !safePackPath(manifest.entry)) throw new Error('Live2D 模型清单与目录条目不匹配')
+  if (!Array.isArray(manifest.files) || manifest.files.length === 0 || manifest.files.length > MAX_PACK_FILES) throw new Error('Live2D 模型文件数量超出安全限制')
+  const paths = new Set<string>()
+  let totalSize = 0
+  for (const file of manifest.files) {
+    if (!safePackPath(file.path) || paths.has(file.path)) throw new Error(`Live2D 模型包含不安全或重复路径：${file.path}`)
+    paths.add(file.path)
+    if (!/^[a-f0-9]{64}$/i.test(file.sha256) || !ALLOWED_PACK_MIME.has(file.mime)) throw new Error(`Live2D 模型文件完整性信息无效：${file.path}`)
+    if (!Number.isSafeInteger(file.size) || file.size <= 0 || file.size > MAX_MEDIA_BYTES) throw new Error(`Live2D 模型文件大小超出安全限制：${file.path}`)
+    totalSize += file.size
+  }
+  if (!paths.has(manifest.entry) || totalSize !== manifest.totalSize || totalSize > MAX_PACK_BYTES) throw new Error('Live2D 模型总大小或入口无效')
+}
+
 function assertCatalog(payload: PetCatalogPayload): void {
   if (payload.schemaVersion !== 1 || payload.pageSize !== 20 || !Array.isArray(payload.items)) throw new Error('宠物目录版本不兼容')
   const ids = new Set<string>()
@@ -123,6 +162,10 @@ function assertCatalog(payload: PetCatalogPayload): void {
     if (item.packKind !== undefined && !['pixel-atlas', 'live2d'].includes(item.packKind)) throw new Error(`宠物 ${item.id} 的资源包类型无效`)
     if (item.packKind && (!item.entry || !/^[a-z0-9][a-z0-9._-]{1,63}$/i.test(item.entry) || !item.packPath || !/^packs\/[a-z0-9-]+\/$/.test(item.packPath))) {
       throw new Error(`宠物 ${item.id} 的资源包入口无效`)
+    }
+    if (item.packKind === 'live2d') {
+      if (!item.packManifest) throw new Error(`Live2D 宠物 ${item.id} 缺少完整模型清单`)
+      assertPackManifestAsset(item.packManifest)
     }
   }
 }
@@ -175,7 +218,7 @@ async function exists(target: string): Promise<boolean> {
   }
 }
 
-async function verifyCachedAsset(target: string, asset: PetAsset): Promise<boolean> {
+async function verifyCachedAsset(target: string, asset: Pick<PetAsset, 'size' | 'sha256'>): Promise<boolean> {
   try {
     const info = await stat(target)
     if (info.size !== asset.size) return false
@@ -250,6 +293,104 @@ async function downloadAsset(asset: PetAsset, onProgress?: PetDownloadReporter):
     }
   }
   throw new Error(`下载宠物失败，已尝试 ${candidates.length} 个渠道，最后一次 ${lastFailure}`)
+}
+
+function live2DPackRoot(item: PetCatalogItem): string {
+  if (!item.packManifest) throw new Error('Live2D 模型缺少签名模型清单')
+  return path.join(launcherDataPaths().pets, 'packs', item.id, item.packManifest.sha256.toLowerCase())
+}
+
+function live2DReadyPath(item: PetCatalogItem): string {
+  return path.join(live2DPackRoot(item), '.verified.json')
+}
+
+function encodedPackFileUrl(manifestUrl: string, relative: string): string {
+  return new URL(relative.split('/').map(encodeURIComponent).join('/'), manifestUrl).toString()
+}
+
+async function fetchVerifiedPackFile(asset: Pick<PetPackFile, 'sha256' | 'size' | 'mime'> & { url: string }, target: string, onChunk?: (receivedBytes: number, source: string) => void): Promise<void> {
+  const candidates = mirrorCandidates(asset.url, asset.size)
+  if (!candidates.length) throw new Error('Live2D 模型资源地址不可用')
+  const temporary = `${target}.part`
+  let lastFailure = '未知错误'
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate.url, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(downloadTimeoutMs(asset.size)),
+        headers: { 'User-Agent': 'DeepSeek-Harness-Launcher' }
+      })
+      if (!response.ok || response.body === null) throw new Error(`HTTP ${response.status}`)
+      const contentLength = Number(response.headers.get('content-length') || 0)
+      if (contentLength > asset.size) throw new Error('远程文件超过清单声明大小')
+      const responseType = response.headers.get('content-type')?.split(';', 1)[0]
+      // Gitee raw serves textual Live2D motion/model assets as text/plain even
+      // when the signed manifest classifies opaque .mtn/.moc bytes as octet
+      // streams. The strict size + SHA-256 verification below remains the
+      // authority, so accepting that transport MIME does not weaken integrity.
+      const compatibleType = !responseType
+        || responseType === asset.mime
+        || responseType === 'application/octet-stream'
+        || (responseType === 'text/plain' && ['application/json', 'application/octet-stream', 'text/plain'].includes(asset.mime))
+      if (!compatibleType) throw new Error(`资源类型与清单不一致：${responseType}`)
+      await mkdir(path.dirname(target), { recursive: true })
+      await unlink(temporary).catch(() => undefined)
+      try {
+        await pipeline(cappedStream(Readable.fromWeb(response.body as never), asset.size, received => onChunk?.(received, candidate.id.toUpperCase())), createWriteStream(temporary, { flags: 'wx' }))
+        if (!(await verifyCachedAsset(temporary, asset))) throw new Error('完整性校验失败')
+        await unlink(target).catch(() => undefined)
+        await rename(temporary, target)
+        return
+      } catch (error) {
+        await unlink(temporary).catch(() => undefined)
+        throw error
+      }
+    } catch (error) {
+      lastFailure = `${candidate.id}：${error instanceof Error ? error.message : String(error)}`
+    }
+  }
+  throw new Error(`Live2D 文件下载失败，最后一次 ${lastFailure}`)
+}
+
+async function downloadLive2DPack(item: PetCatalogItem, onProgress?: PetDownloadReporter): Promise<{ root: string; entry: string; totalBytes: number }> {
+  if (item.packKind !== 'live2d' || !item.packManifest || !item.entry) throw new Error('所选宠物不是完整 Live2D 模型')
+  assertPackManifestAsset(item.packManifest)
+  const root = live2DPackRoot(item)
+  const manifestPath = path.join(root, 'manifest.json')
+  const manifestAsset = item.packManifest
+  if (!(await verifyCachedAsset(manifestPath, manifestAsset))) {
+    onProgress?.({ status: 'downloading', receivedBytes: 0, totalBytes: manifestAsset.size, message: '正在下载签名模型清单' })
+    await fetchVerifiedPackFile(manifestAsset, manifestPath, (receivedBytes, source) => onProgress?.({ status: 'downloading', receivedBytes, totalBytes: manifestAsset.size, message: `正在从 ${source} 下载模型清单` }))
+  }
+  let manifest: PetPackManifest
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as PetPackManifest
+  } catch {
+    await unlink(manifestPath).catch(() => undefined)
+    throw new Error('Live2D 模型清单不是有效 JSON')
+  }
+  assertPackManifest(manifest, item)
+  const totalBytes = manifestAsset.size + manifest.totalSize
+  let completed = manifestAsset.size
+  onProgress?.({ status: 'verifying', receivedBytes: completed, totalBytes, message: `正在校验 ${manifest.files.length} 个模型文件` })
+  for (const file of manifest.files) {
+    const target = path.resolve(root, ...file.path.split('/'))
+    if (!target.toLowerCase().startsWith(`${path.resolve(root)}${path.sep}`.toLowerCase())) throw new Error(`Live2D 模型路径越界：${file.path}`)
+    if (!(await verifyCachedAsset(target, file))) {
+      const url = encodedPackFileUrl(manifestAsset.url, file.path)
+      await fetchVerifiedPackFile({ ...file, url }, target, (receivedBytes, source) => onProgress?.({
+        status: 'downloading',
+        receivedBytes: Math.min(totalBytes, completed + receivedBytes),
+        totalBytes,
+        message: `正在从 ${source} 下载模型文件 ${manifest.files.indexOf(file) + 1}/${manifest.files.length}`
+      }))
+    }
+    completed += file.size
+    onProgress?.({ status: 'verifying', receivedBytes: completed, totalBytes, message: `已校验模型文件 ${manifest.files.indexOf(file) + 1}/${manifest.files.length}` })
+  }
+  await writeFile(live2DReadyPath(item), `${JSON.stringify({ schemaVersion: 1, petId: item.id, manifestSha256: manifestAsset.sha256, entry: manifest.entry })}\n`, 'utf8')
+  onProgress?.({ status: 'completed', receivedBytes: totalBytes, totalBytes, message: 'Live2D 完整模型已校验并就绪' })
+  return { root, entry: manifest.entry, totalBytes }
 }
 
 async function readBundledCatalog(): Promise<PetCatalogPayload | undefined> {
@@ -371,14 +512,35 @@ export class PetStore {
   }
 
   async download(petId: string, onProgress?: PetDownloadReporter): Promise<PetStoreState> {
-    await downloadAsset(this.item(petId).media, onProgress)
+    const item = this.item(petId)
+    if (item.packKind === 'live2d') await downloadLive2DPack(item, onProgress)
+    else await downloadAsset(item.media, onProgress)
     return this.snapshot('ready')
   }
 
   async preview(petId: string, onProgress?: PetDownloadReporter): Promise<{ state: PetStoreState; preview: PetPreview }> {
     const item = this.item(petId)
-    const previewAsset = item.packKind === 'live2d' ? item.thumbnail : item.media
-    const assets = previewAsset === item.media ? [item.media] : [item.media, previewAsset]
+    if (item.packKind === 'live2d') {
+      const pack = await downloadLive2DPack(item, onProgress)
+      const previewPath = await downloadAsset(item.thumbnail)
+      const manifestSha = item.packManifest!.sha256.toLowerCase()
+      const modelPath = [item.id, manifestSha, ...pack.entry.split('/')].map(encodeURIComponent).join('/')
+      return {
+        state: await this.snapshot('ready'),
+        preview: {
+          petId,
+          name: item.name,
+          mediaKind: item.mediaKind,
+          packKind: 'live2d',
+          mediaUrl: `deepblue-pet://cache/${path.basename(previewPath)}`,
+          mime: item.thumbnail.mime,
+          modelUrl: `deepblue-pet://model/${modelPath}`,
+          runtimeUrl: 'deepblue-pet://runtime/l2d.js'
+        }
+      }
+    }
+    const previewAsset = item.media
+    const assets = [item.media]
     const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0)
     let completedBytes = 0
     const paths: string[] = []
@@ -408,9 +570,16 @@ export class PetStore {
     const custom = (await readCustomRecords()).find(record => record.item.id === petId)
     const item = custom?.item || this.payload.items.find(entry => entry.id === petId)
     if (!item) throw new Error('所选宠物不在当前目录中')
-    if (item.packKind === 'live2d') throw new Error('Live2D 模型包已支持下载、收藏与预览；安全运行库接入后才可应用到 Harness')
-    const mediaPath = custom?.mediaPath || await downloadAsset(item.media, onProgress)
-    const config: ActivePetConfig = { schemaVersion: 1, petId: item.id, mediaKind: item.mediaKind, mediaPath, ...(item.packKind ? { packKind: item.packKind } : {}), behavior: item.behavior }
+    let mediaPath: string
+    let model: Pick<ActivePetConfig, 'modelRoot' | 'entry' | 'packManifestSha256'> = {}
+    if (item.packKind === 'live2d') {
+      const pack = await downloadLive2DPack(item, onProgress)
+      mediaPath = await downloadAsset(item.thumbnail)
+      model = { modelRoot: pack.root, entry: pack.entry, packManifestSha256: item.packManifest!.sha256.toLowerCase() }
+    } else {
+      mediaPath = custom?.mediaPath || await downloadAsset(item.media, onProgress)
+    }
+    const config: ActivePetConfig = { schemaVersion: 1, petId: item.id, mediaKind: item.mediaKind, mediaPath, ...(item.packKind ? { packKind: item.packKind } : {}), ...model, behavior: item.behavior }
     const target = launcherDataPaths().petConfig
     await mkdir(path.dirname(target), { recursive: true })
     await writeFile(`${target}.next`, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
@@ -449,6 +618,7 @@ export class PetStore {
     if (activePetId === petId) await unlink(launcherDataPaths().petConfig).catch(() => undefined)
     const targets = [...new Set([item.media, ...(item.packKind === 'live2d' ? [item.thumbnail] : [])].map(cachePath))]
     await Promise.all(targets.flatMap(target => [unlink(target).catch(() => undefined), unlink(`${target}.part`).catch(() => undefined)]))
+    if (item.packKind === 'live2d') await rm(path.join(launcherDataPaths().pets, 'packs', item.id), { recursive: true, force: true })
     return this.snapshot('ready')
   }
 
@@ -519,7 +689,10 @@ export class PetStore {
       // No active pet is the normal initial state.
     }
     const downloadedPetIds: string[] = []
-    for (const item of this.payload.items) if (await exists(cachePath(item.media))) downloadedPetIds.push(item.id)
+    for (const item of this.payload.items) {
+      const downloaded = item.packKind === 'live2d' ? await exists(live2DReadyPath(item)) : await exists(cachePath(item.media))
+      if (downloaded) downloadedPetIds.push(item.id)
+    }
     const customItems = (await readCustomRecords()).map(withPreview)
     downloadedPetIds.push(...customItems.map(item => item.id))
     const itemIds = new Set(this.payload.items.map(item => item.id))
