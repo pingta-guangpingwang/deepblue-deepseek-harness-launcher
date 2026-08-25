@@ -23,6 +23,7 @@ import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
+import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
@@ -45,6 +46,7 @@ import type {
   PetPreviewResult,
   PetStoreState,
   PetTransferOperation,
+  PluginOperationState,
   RuntimeModuleId,
   RuntimeModuleRelease,
   SkinPreviewResult,
@@ -112,6 +114,7 @@ export class LauncherController {
   private lastVerifiedCatalogAt?: string
   private onlinePreparationStarted = false
   private startHarnessPromise?: Promise<LauncherSnapshot>
+  private pluginActionPromise?: Promise<LauncherSnapshot>
   private readonly browserHandoff = new HarnessBrowserHandoff()
 
   constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection) {}
@@ -165,6 +168,7 @@ export class LauncherController {
         rollbackReady: false
       })),
       plugins: structuredClone(bundledPlugins),
+      pluginOperation: { status: 'idle', progress: 0, message: '等待插件操作', files: [], restartRequired: false },
       models: structuredClone(bundledModels),
       modelHub: this.modelStore.state(),
       account: { status: 'checking', sessionRemembered: false },
@@ -460,6 +464,13 @@ export class LauncherController {
     }
     await Promise.race([stopped, new Promise<void>((resolve) => setTimeout(resolve, 5_000))])
     return this.getSnapshot()
+  }
+
+  async restartHarness(): Promise<LauncherSnapshot> {
+    const running = Boolean(this.service) || this.snapshot.runStatus === 'running' || this.snapshot.runStatus === 'starting'
+    if (running) await this.stopHarness()
+    this.log('INFO', running ? '插件变更完成，正在重启 Harness' : '插件变更完成，正在启动 Harness')
+    return this.startHarness()
   }
 
   async installHarness(version = this.snapshot.latestHarnessVersion): Promise<LauncherSnapshot> {
@@ -999,44 +1010,14 @@ export class LauncherController {
   }
 
   async pluginAction(action: 'install' | 'update' | 'remove', packageSpec: string): Promise<LauncherSnapshot> {
-    const paths = launcherDataPaths()
-    const runtime = await this.ensurePackageManager()
-    const shimDirectory = await this.ensurePnpmShim(paths.runtime, runtime.node, runtime.pnpm)
-    const pathKey = process.platform === 'win32' ? 'Path' : 'PATH'
-    const commandPath = `${shimDirectory}${path.delimiter}${path.join(runtime.appRoot, 'node_modules', '.bin')}${path.delimiter}${sanitizedProcessEnvironment()[pathKey] || ''}`
-    const task = this.addTask(`plugin-${Date.now()}`, `${action === 'remove' ? '卸载' : action === 'update' ? '更新' : '安装'}插件 ${packageSpec}`, '通过 web profile 执行')
-    this.emit()
-    const verb = action === 'install' ? 'add' : action
-    const args = [runtime.dsh, 'plugin', '--profile', 'web', verb]
-    const packageName = pluginPackageName(packageSpec)
-    if (action !== 'update' || packageSpec) args.push(action === 'remove' ? packageName : packageSpec)
-    const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
-    const child = spawnNode(runtime, args, {
-      cwd: this.config.settings.workspace,
-      dshHome: paths.dshHome,
-      env: { npm_config_registry: this.registryUrl(), ...profileEnvironment, [pathKey]: commandPath }
-    })
-    child.stdout.on('data', (chunk: Buffer) => {
-      task.progress = Math.min(90, task.progress + 4)
-      this.consumeProcessOutput(chunk.toString(), 'INFO')
-    })
-    child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
-    let spawnError: Error | undefined
-    const code = await new Promise<number | null>((resolve) => {
-      child.once('error', (error) => {
-        spawnError = error
-        resolve(null)
-      })
-      child.once('exit', resolve)
-    })
-    task.status = code === 0 ? 'completed' : 'failed'
-    task.progress = code === 0 ? 100 : task.progress
-    task.detail = code === 0 ? '插件操作完成，重启 Harness 后生效' : spawnError?.message || `插件操作失败（退出码 ${code ?? 'unknown'}）`
-    const plugin = this.snapshot.plugins.find((item) => item.packageSpec === packageSpec)
-    if (plugin && code === 0) plugin.installed = action !== 'remove'
-    this.log(code === 0 ? 'INFO' : 'ERROR', task.detail)
-    this.emit()
-    return this.getSnapshot()
+    if (this.pluginActionPromise) throw new Error('已有插件操作正在进行，请在安装进度窗口查看')
+    const operation = this.performPluginAction(action, packageSpec)
+    this.pluginActionPromise = operation
+    try {
+      return await operation
+    } finally {
+      this.pluginActionPromise = undefined
+    }
   }
 
   async refreshDiscovery(): Promise<LauncherSnapshot> {
@@ -1967,6 +1948,195 @@ export class LauncherController {
       await chmod(target, 0o755)
     }
     return directory
+  }
+
+  private async performPluginAction(action: 'install' | 'update' | 'remove', packageSpec: string): Promise<LauncherSnapshot> {
+    const paths = launcherDataPaths()
+    const packageName = pluginPackageName(packageSpec)
+    const catalogEntry = this.snapshot.plugins.find((item) => pluginPackageName(item.packageSpec) === packageName)
+    const actionLabel = pluginActionLabel(action)
+    const task = this.addTask(`plugin-${Date.now()}`, `${actionLabel}插件 ${catalogEntry?.name || packageName}`, '正在准备 web profile')
+    const startedAt = new Date().toISOString()
+    const wasRunning = Boolean(this.service) || this.snapshot.runStatus === 'running' || this.snapshot.runStatus === 'starting'
+    const verifiablePackage = /^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(packageName)
+    const initiallyInstalled = verifiablePackage ? await this.isPluginInstalled(packageName, false) : false
+    let lastOutputAt = Date.now()
+
+    this.snapshot.pluginOperation = {
+      action,
+      packageSpec,
+      packageName,
+      displayName: catalogEntry?.name || packageName,
+      status: 'preparing',
+      progress: 5,
+      message: `正在准备${actionLabel}环境`,
+      currentFile: 'profiles/web/package.json',
+      files: ['检查 profiles/web/package.json', '准备 pnpm 插件环境'],
+      taskId: task.id,
+      restartRequired: false,
+      startedAt
+    }
+    this.log('INFO', `开始${actionLabel}插件：${packageSpec}`)
+    this.emit()
+
+    try {
+      const runtime = await this.ensurePackageManager()
+      const shimDirectory = await this.ensurePnpmShim(paths.runtime, runtime.node, runtime.pnpm)
+      const pathKey = process.platform === 'win32' ? 'Path' : 'PATH'
+      const commandPath = `${shimDirectory}${path.delimiter}${path.join(runtime.appRoot, 'node_modules', '.bin')}${path.delimiter}${sanitizedProcessEnvironment()[pathKey] || ''}`
+      this.patchPluginOperation({ status: 'resolving', progress: 18, message: '正在解析插件版本与依赖', currentFile: packageSpec })
+      task.progress = 18
+      task.detail = `解析 ${packageSpec}`
+      this.emit()
+
+      const verb = action === 'install' ? 'add' : action
+      const args = [runtime.dsh, 'plugin', '--profile', 'web', verb]
+      if (action !== 'update' || packageSpec) args.push(action === 'remove' ? packageName : packageSpec)
+      const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
+      const child = spawnNode(runtime, args, {
+        cwd: this.config.settings.workspace,
+        dshHome: paths.dshHome,
+        env: { npm_config_registry: this.registryUrl(), ...profileEnvironment, [pathKey]: commandPath }
+      })
+      const consume = (chunk: Buffer, level: LogLine['level']): void => {
+        lastOutputAt = Date.now()
+        for (const line of cleanPluginOutput(chunk.toString())) {
+          const current = this.snapshot.pluginOperation
+          if (!current || current.startedAt !== startedAt) continue
+          this.snapshot.pluginOperation = updatePluginProgress(current, line)
+          task.progress = this.snapshot.pluginOperation.progress
+          task.detail = this.snapshot.pluginOperation.message
+        }
+        this.consumeProcessOutput(chunk.toString(), level)
+      }
+      child.stdout.on('data', (chunk: Buffer) => consume(chunk, 'INFO'))
+      child.stderr.on('data', (chunk: Buffer) => consume(chunk, 'WARN'))
+      const result = await this.waitForPluginProcess(child, action, packageName, initiallyInstalled, verifiablePackage, () => lastOutputAt)
+      if (result.code !== 0) throw result.error || new Error(`插件${actionLabel}失败（退出码 ${result.code ?? 'unknown'}）`)
+      if (verifiablePackage && !await this.pluginActionApplied(action, packageName)) throw new Error(`插件${actionLabel}进程已结束，但 web profile 校验未通过`)
+
+      await this.refreshInstalledPlugins()
+      const finalLine = action === 'remove'
+        ? `已从 profiles/web/node_modules 移除 ${packageName}`
+        : `已写入 profiles/web/node_modules/${packageName}`
+      const current = this.snapshot.pluginOperation!
+      const files = [...current.files, finalLine].slice(-120)
+      this.snapshot.pluginOperation = {
+        ...current,
+        status: 'completed',
+        progress: 100,
+        message: wasRunning ? `插件${actionLabel}完成，是否现在重启 Harness？` : `插件${actionLabel}完成，下次启动 Harness 自动生效`,
+        currentFile: finalLine,
+        files,
+        restartRequired: wasRunning,
+        completedAt: new Date().toISOString()
+      }
+      task.status = 'completed'
+      task.progress = 100
+      task.detail = this.snapshot.pluginOperation.message
+      this.log('INFO', result.recovered ? `${task.detail}（已自动回收未退出的包管理器进程）` : task.detail)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const current = this.snapshot.pluginOperation || {
+        status: 'failed' as const,
+        progress: task.progress,
+        message,
+        files: [],
+        restartRequired: false
+      }
+      this.snapshot.pluginOperation = {
+        ...current,
+        status: 'failed',
+        message,
+        restartRequired: false,
+        completedAt: new Date().toISOString()
+      }
+      task.status = 'failed'
+      task.detail = message
+      this.log('ERROR', `插件${actionLabel}失败：${message}`)
+      await this.refreshInstalledPlugins()
+    } finally {
+      this.emit()
+    }
+    return this.getSnapshot()
+  }
+
+  private patchPluginOperation(patch: Partial<PluginOperationState>): void {
+    const current = this.snapshot.pluginOperation || { status: 'idle', progress: 0, message: '等待插件操作', files: [], restartRequired: false }
+    this.snapshot.pluginOperation = { ...current, ...patch }
+  }
+
+  private async isPluginInstalled(packageName: string, requireFiles: boolean): Promise<boolean> {
+    try {
+      const profileRoot = path.join(launcherDataPaths().dshHome, 'profiles', 'web')
+      const profile = JSON.parse(await readFile(path.join(profileRoot, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown> }
+      if (!Object.hasOwn(profile.dependencies || {}, packageName)) return false
+      if (!requireFiles) return true
+      await access(path.join(profileRoot, 'node_modules', ...packageName.split('/'), 'package.json'))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private async pluginActionApplied(action: 'install' | 'update' | 'remove', packageName: string): Promise<boolean> {
+    if (action === 'remove') return !await this.isPluginInstalled(packageName, false)
+    return this.isPluginInstalled(packageName, true)
+  }
+
+  private async terminatePluginProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
+    if (child.exitCode !== null || !child.pid) return
+    if (process.platform === 'win32') {
+      const killer = spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true, env: sanitizedProcessEnvironment() })
+      await Promise.race([
+        new Promise<void>((resolve) => killer.once('exit', () => resolve())),
+        new Promise<void>((resolve) => setTimeout(resolve, 3_000))
+      ])
+      return
+    }
+    child.kill('SIGTERM')
+  }
+
+  private waitForPluginProcess(
+    child: ChildProcessWithoutNullStreams,
+    action: 'install' | 'update' | 'remove',
+    packageName: string,
+    initiallyInstalled: boolean,
+    verifiablePackage: boolean,
+    lastOutputAt: () => number
+  ): Promise<{ code: number | null; error?: Error; recovered?: boolean }> {
+    const startedAt = Date.now()
+    return new Promise((resolve) => {
+      let settled = false
+      let checking = false
+      const cleanup = (): void => {
+        clearInterval(recoveryTimer)
+        clearTimeout(hardTimeout)
+      }
+      const finish = (result: { code: number | null; error?: Error; recovered?: boolean }): void => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve(result)
+      }
+      const recoveryTimer = setInterval(() => {
+        if (settled || checking || action === 'update' || !verifiablePackage || Date.now() - startedAt < 8_000 || Date.now() - lastOutputAt() < 6_000) return
+        checking = true
+        void this.pluginActionApplied(action, packageName).then((applied) => {
+          const expectedChange = action === 'remove' ? initiallyInstalled : !initiallyInstalled
+          if (applied && expectedChange) {
+            finish({ code: 0, recovered: true })
+            void this.terminatePluginProcess(child)
+          }
+        }).finally(() => { checking = false })
+      }, 1_000)
+      const hardTimeout = setTimeout(() => {
+        finish({ code: null, error: new Error('插件操作超过 5 分钟未结束，已自动终止；请检查网络后重试') })
+        void this.terminatePluginProcess(child)
+      }, 5 * 60_000)
+      child.once('error', (error) => finish({ code: null, error }))
+      child.once('exit', (code) => finish({ code }))
+    })
   }
 
   private consumeProcessOutput(output: string, fallback: LogLine['level'], browserCycle?: number): void {

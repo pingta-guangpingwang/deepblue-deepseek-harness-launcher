@@ -7,6 +7,7 @@ const api: LauncherApi = {
   checkSources: () => ipcRenderer.invoke('launcher:check-sources'),
   startHarness: () => ipcRenderer.invoke('launcher:start'),
   stopHarness: () => ipcRenderer.invoke('launcher:stop'),
+  restartHarness: () => ipcRenderer.invoke('launcher:restart'),
   installHarness: (version?: string) => ipcRenderer.invoke('launcher:install', version),
   applyRuntimeUpdates: () => ipcRenderer.invoke('launcher:apply-runtime-updates'),
   downloadLauncherUpdate: () => ipcRenderer.invoke('launcher:download-update'),

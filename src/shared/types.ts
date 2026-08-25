@@ -90,6 +90,31 @@ export interface CatalogPlugin {
   permissionLevel?: 'standard' | 'network' | 'system'
 }
 
+export type PluginOperationStatus =
+  | 'idle'
+  | 'preparing'
+  | 'resolving'
+  | 'downloading'
+  | 'installing'
+  | 'completed'
+  | 'failed'
+
+export interface PluginOperationState {
+  action?: 'install' | 'update' | 'remove'
+  packageSpec?: string
+  packageName?: string
+  displayName?: string
+  status: PluginOperationStatus
+  progress: number
+  message: string
+  currentFile?: string
+  files: string[]
+  taskId?: string
+  restartRequired: boolean
+  startedAt?: string
+  completedAt?: string
+}
+
 export interface ModelCatalogItem {
   id: string
   provider: string
@@ -594,6 +619,8 @@ export interface LauncherSnapshot {
   logs: LogLine[]
   versions: HarnessVersion[]
   plugins: CatalogPlugin[]
+  /** Optional so a hot-updated renderer can still run on an older launcher kernel. */
+  pluginOperation?: PluginOperationState
   models: ModelCatalogItem[]
   modelHub: ModelHubState
   account: LauncherAccountState
@@ -708,6 +735,7 @@ export interface LauncherApi {
   checkSources(): Promise<LauncherSnapshot>
   startHarness(): Promise<LauncherSnapshot>
   stopHarness(): Promise<LauncherSnapshot>
+  restartHarness?(): Promise<LauncherSnapshot>
   installHarness(version?: string): Promise<LauncherSnapshot>
   applyRuntimeUpdates(): Promise<LauncherSnapshot>
   downloadLauncherUpdate(): Promise<LauncherSnapshot>

@@ -204,6 +204,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:check-sources', () => controller?.checkSources())
   ipcMain.handle('launcher:start', () => controller?.startHarness())
   ipcMain.handle('launcher:stop', () => controller?.stopHarness())
+  ipcMain.handle('launcher:restart', () => controller?.restartHarness())
   ipcMain.handle('launcher:install', (_event, version?: string) => controller?.installHarness(version))
   ipcMain.handle('launcher:apply-runtime-updates', () => controller?.applyRuntimeUpdates())
   ipcMain.handle('launcher:download-update', () => controller?.downloadLauncherUpdate())

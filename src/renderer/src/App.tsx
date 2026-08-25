@@ -93,6 +93,7 @@ import type {
   PetPreview,
   PetSpecies,
   PetStyle,
+  PluginOperationState,
   SkinMediaKind,
   SkinPreview,
   SkinStyle,
@@ -1673,12 +1674,23 @@ const ecosystemPermissionCopy: Record<NonNullable<CatalogPlugin['permissionLevel
   system: { label: '较高本机权限', detail: '可能读取工作区文件、打开终端或连接远程主机，请确认用途后安装。' }
 }
 
-function EcosystemPage({ plugins, busy, onAction }: {
+const pluginOperationActiveStatuses = new Set<PluginOperationState['status']>(['preparing', 'resolving', 'downloading', 'installing'])
+
+const idlePluginOperation: PluginOperationState = {
+  status: 'idle',
+  progress: 0,
+  message: '等待插件操作',
+  files: [],
+  restartRequired: false
+}
+
+function EcosystemPage({ plugins, operation, onAction }: {
   plugins: CatalogPlugin[]
-  busy: string
+  operation: PluginOperationState
   onAction: (action: 'install' | 'update' | 'remove', packageSpec: string) => void
 }): ReactNode {
   const [tab, setTab] = useState<'recommended' | 'advanced' | 'installed'>('recommended')
+  const operationActive = pluginOperationActiveStatuses.has(operation.status)
   const visible = plugins.filter(plugin => tab === 'installed'
     ? plugin.installed
     : tab === 'advanced'
@@ -1697,15 +1709,89 @@ function EcosystemPage({ plugins, busy, onAction }: {
     <div className="ecosystem-grid">
       {visible.map(plugin => {
         const permission = ecosystemPermissionCopy[plugin.permissionLevel || 'standard']
+        const currentTarget = operationActive && operation.packageSpec === plugin.packageSpec
         return <article className="ecosystem-row" data-permission={plugin.permissionLevel || 'standard'} key={plugin.id}>
           <span className={classNames('ecosystem-icon', `level-${plugin.permissionLevel || 'standard'}`)}><Plug size={18} /></span>
           <div className="ecosystem-copy"><div><h2>{plugin.name}</h2><span>{permission.label}</span></div><p>{plugin.description}</p><small>{permission.detail}</small><code>{plugin.packageSpec}</code></div>
-          <div className="ecosystem-actions"><button className="quiet-button" onClick={() => void window.launcher?.openExternal(plugin.repositoryUrl || 'https://github.com/zhu1090093659/dsh-web-ui')}><Github size={14} />源码</button><button className={plugin.installed ? 'small-button danger' : 'primary-button'} disabled={Boolean(busy)} onClick={() => onAction(plugin.installed ? 'remove' : 'install', plugin.packageSpec)}>{plugin.installed ? <><Trash2 size={14} />卸载</> : <><Download size={14} />安装</>}</button></div>
+          <div className="ecosystem-actions"><button className="quiet-button" onClick={() => void window.launcher?.openExternal(plugin.repositoryUrl || 'https://github.com/zhu1090093659/dsh-web-ui')}><Github size={14} />源码</button><button className={operationActive && !currentTarget ? 'quiet-button' : plugin.installed ? 'small-button danger' : 'primary-button'} disabled={currentTarget} onClick={() => onAction(plugin.installed ? 'remove' : 'install', plugin.packageSpec)}>{currentTarget ? <><LoaderCircle className="spin" size={14} />{operation.progress}%</> : operationActive ? <><Activity size={14} />查看进度</> : plugin.installed ? <><Trash2 size={14} />卸载</> : <><Download size={14} />安装</>}</button></div>
         </article>
       })}
       {!visible.length && <Card><EmptyState icon={<Plug />} title={tab === 'installed' ? '当前没有生态插件' : '没有符合条件的插件'} text={tab === 'installed' ? '从推荐增强或高级能力中选择，安装完成后会出现在这里。' : '签名目录刷新后再试。'} /></Card>}
     </div>
     <p className="ecosystem-boundary"><ShieldCheck size={15} />没有把两个项目的桌面壳复制进启动器；只复用其公开插件接口和产品经验，避免与现有热更新、模型同步及资源商店形成第二套状态。</p>
+  </div>
+}
+
+function PluginOperationDialog({ operation, harnessRunning, restartBusy, onRestart, onCollapse }: {
+  operation: PluginOperationState
+  harnessRunning: boolean
+  restartBusy: boolean
+  onRestart: () => void
+  onCollapse: () => void
+}): ReactNode {
+  const dialogRef = useRef<HTMLElement>(null)
+  const outputRef = useRef<HTMLDivElement>(null)
+  const active = pluginOperationActiveStatuses.has(operation.status)
+  const completed = operation.status === 'completed'
+  const failed = operation.status === 'failed'
+  const actionLabel = operation.action === 'remove' ? '卸载' : operation.action === 'update' ? '更新' : '安装'
+  const phaseLabel = operation.status === 'preparing'
+    ? '准备环境'
+    : operation.status === 'resolving'
+      ? '解析依赖'
+      : operation.status === 'downloading'
+        ? '下载组件'
+        : operation.status === 'installing'
+          ? '写入文件'
+          : completed
+            ? `${actionLabel}完成`
+            : failed
+              ? `${actionLabel}失败`
+              : '等待开始'
+
+  useEffect(() => {
+    outputRef.current?.scrollTo({ top: outputRef.current.scrollHeight, behavior: 'smooth' })
+  }, [operation.currentFile, operation.files.length])
+
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+    const keydown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') onCollapse()
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [onCollapse])
+
+  return <div className="plugin-operation-backdrop" role="presentation">
+    <section ref={dialogRef} tabIndex={-1} className="plugin-operation-dialog" role="dialog" aria-modal="true" aria-labelledby="pluginOperationTitle" aria-describedby="pluginOperationDescription">
+      <header className="plugin-operation-heading">
+        <span className={classNames('plugin-operation-icon', completed && 'completed', failed && 'failed')}>{failed ? <CircleAlert size={24} /> : completed ? <PackageCheck size={24} /> : <CloudDownload size={24} />}</span>
+        <div><span>DSH WEB PROFILE</span><h2 id="pluginOperationTitle">{active ? `正在${actionLabel} ${operation.displayName || operation.packageName || '插件'}` : completed ? `${operation.displayName || operation.packageName || '插件'}${actionLabel}完成` : `${operation.displayName || operation.packageName || '插件'}${actionLabel}未完成`}</h2><p id="pluginOperationDescription">{operation.message}</p></div>
+        <button className="icon-button" aria-label={active ? '收起到后台' : '关闭'} onClick={onCollapse}><X size={17} /></button>
+      </header>
+
+      <div className={classNames('plugin-operation-progress', failed && 'failed', completed && 'completed')}>
+        <div><span>{phaseLabel}</span><strong>{operation.progress}%</strong></div>
+        <div className="plugin-operation-progress-track" role="progressbar" aria-label="插件下载与安装进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={operation.progress}><span style={{ width: `${operation.progress}%` }} /></div>
+        <small title={operation.currentFile}>{operation.currentFile || operation.packageSpec || '等待包管理器输出'}</small>
+      </div>
+
+      <section className="plugin-file-panel" aria-label="安装文件与组件">
+        <header><span>安装文件与组件</span><small>{operation.files.length} 条</small></header>
+        <div ref={outputRef} className="plugin-file-scroll" aria-live="polite" aria-atomic="false">
+          {operation.files.map((line, index) => <div key={`${index}-${line}`} className={index === operation.files.length - 1 ? 'current' : ''}><span>{String(index + 1).padStart(2, '0')}</span><code title={line}>{line}</code>{index === operation.files.length - 1 && active ? <LoaderCircle className="spin" size={12} /> : <Check size={12} />}</div>)}
+          {!operation.files.length && <p>包管理器开始输出后，会在这里滚动显示正在处理的文件和组件。</p>}
+        </div>
+      </section>
+
+      {completed && <div className="plugin-restart-prompt"><RotateCcw size={18} /><div><strong>{operation.restartRequired && harnessRunning ? '现在重启 Harness 让插件生效吗？' : '插件已安全写入 Web profile'}</strong><p>{operation.restartRequired && harnessRunning ? '只重启本地 Harness 服务，启动器和其他下载任务不会退出。' : 'Harness 当前未运行，下次启动时会自动加载本次变更。'}</p></div></div>}
+      {failed && <div className="plugin-operation-error" role="alert"><CircleAlert size={17} /><span>{operation.message}</span></div>}
+
+      <footer className="plugin-operation-actions">
+        <button className="quiet-button" onClick={onCollapse}>{active ? '收起，后台继续' : '关闭'}</button>
+        {completed && operation.restartRequired && harnessRunning && <button className="primary-button" disabled={restartBusy} onClick={onRestart}>{restartBusy ? <LoaderCircle className="spin" size={17} /> : <RotateCcw size={17} />}{restartBusy ? '正在重启…' : '立即重启 Harness'}</button>}
+      </footer>
+    </section>
   </div>
 }
 
@@ -1895,7 +1981,11 @@ export default function App(): ReactNode {
   const [storageError, setStorageError] = useState('')
   const [settingsMessage, setSettingsMessage] = useState('')
   const [updateCenterOpen, setUpdateCenterOpen] = useState(false)
+  const [pluginOperationOpen, setPluginOperationOpen] = useState(false)
+  const [pluginRestartBusy, setPluginRestartBusy] = useState(false)
   const [announcedUpdateSignature, setAnnouncedUpdateSignature] = useState('')
+  const pluginRequestInFlight = useRef(false)
+  const previousPluginOperation = useRef<{ startedAt?: string; status: PluginOperationState['status'] }>({ status: 'idle' })
 
   useEffect(() => {
     if (!window.launcher) return
@@ -1913,6 +2003,8 @@ export default function App(): ReactNode {
 
   const currentPage = pageTitles[page]
   const statusLabel = useMemo(() => snapshot.runStatus === 'running' ? '运行中' : snapshot.runStatus === 'starting' ? '启动中' : snapshot.runStatus === 'error' ? '需要处理' : '未运行', [snapshot.runStatus])
+  const pluginOperation = snapshot.pluginOperation || idlePluginOperation
+  const pluginOperationActive = pluginOperationActiveStatuses.has(pluginOperation.status)
   const runtimeUpdateSignature = [snapshot.launcherUpdate?.version || '', ...snapshot.runtimeUpdates.items.map((item) => `${item.id}:${item.nextVersion}`)].filter(Boolean).join('|')
   const updateOperationActive = snapshot.runtimeUpdates.status === 'installing' || snapshot.runtimeUpdates.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update'
 
@@ -1922,6 +2014,15 @@ export default function App(): ReactNode {
       setUpdateCenterOpen(true)
     }
   }, [announcedUpdateSignature, runtimeUpdateSignature, snapshot.installation.setupRequired])
+
+  useEffect(() => {
+    const previous = previousPluginOperation.current
+    const isNewOperation = Boolean(pluginOperation.startedAt && pluginOperation.startedAt !== previous.startedAt)
+    const reachedTerminalState = pluginOperation.status === 'completed' || pluginOperation.status === 'failed'
+    const wasActive = pluginOperationActiveStatuses.has(previous.status)
+    if (isNewOperation || (wasActive && reachedTerminalState)) setPluginOperationOpen(true)
+    previousPluginOperation.current = { startedAt: pluginOperation.startedAt, status: pluginOperation.status }
+  }, [pluginOperation.startedAt, pluginOperation.status])
 
   const run = async (name: string, action?: () => Promise<LauncherSnapshot | void>, demo?: () => void): Promise<boolean> => {
     if (busy) return false
@@ -2019,7 +2120,47 @@ export default function App(): ReactNode {
   }
   const downloadLauncherUpdate = (): void => { if (window.launcher) void run('launcher-update', () => window.launcher!.downloadLauncherUpdate()) }
   const rollback = (version: string): void => { if (window.launcher) void run('rollback', () => window.launcher!.rollbackHarness(version)) }
-  const pluginAction = (action: 'install' | 'update' | 'remove', spec: string): void => { if (window.launcher) void run('plugin', () => window.launcher!.pluginAction(action, spec)) }
+  const pluginAction = (action: 'install' | 'update' | 'remove', spec: string): void => {
+    setPluginOperationOpen(true)
+    if (pluginOperationActive || pluginRequestInFlight.current) return
+    pluginRequestInFlight.current = true
+    if (window.launcher) {
+      void window.launcher.pluginAction(action, spec)
+        .then(setSnapshot)
+        .catch((error: unknown) => setSnapshot((current) => ({
+          ...current,
+          pluginOperation: {
+            ...(current.pluginOperation || idlePluginOperation),
+            action,
+            packageSpec: spec,
+            status: 'failed',
+            message: error instanceof Error ? error.message : String(error),
+            restartRequired: false,
+            completedAt: new Date().toISOString()
+          }
+        })))
+        .finally(() => { pluginRequestInFlight.current = false })
+      return
+    }
+    const startedAt = new Date().toISOString()
+    setSnapshot((current) => ({ ...current, pluginOperation: { action, packageSpec: spec, packageName: spec, displayName: spec, status: 'preparing', progress: 6, message: '正在准备安装环境', currentFile: 'profiles/web/package.json', files: ['检查 profiles/web/package.json'], taskId: `demo-plugin-${Date.now()}`, restartRequired: false, startedAt } }))
+    window.setTimeout(() => setSnapshot((current) => ({ ...current, pluginOperation: { ...(current.pluginOperation || idlePluginOperation), status: 'downloading', progress: 48, message: '正在下载插件与依赖', currentFile: `${spec}/dist/index.js`, files: [...(current.pluginOperation?.files || []), '解析插件版本', `下载 ${spec}`, `${spec}/dist/index.js`] } })), 500)
+    window.setTimeout(() => {
+      setSnapshot((current) => ({ ...current, plugins: current.plugins.map((plugin) => plugin.packageSpec === spec ? { ...plugin, installed: action !== 'remove' } : plugin), pluginOperation: { ...(current.pluginOperation || idlePluginOperation), status: 'completed', progress: 100, message: current.runStatus === 'running' ? `插件${action === 'remove' ? '卸载' : '安装'}完成，是否现在重启 Harness？` : '插件操作完成，下次启动 Harness 自动生效', currentFile: `profiles/web/node_modules/${spec}`, files: [...(current.pluginOperation?.files || []), `写入 profiles/web/node_modules/${spec}`], restartRequired: current.runStatus === 'running', completedAt: new Date().toISOString() } }))
+      pluginRequestInFlight.current = false
+    }, 1_150)
+  }
+  const restartAfterPlugin = (): void => {
+    if (pluginRestartBusy || !window.launcher) return
+    setPluginRestartBusy(true)
+    const action = window.launcher.restartHarness
+      ? window.launcher.restartHarness()
+      : window.launcher.stopHarness().then(() => window.launcher!.startHarness())
+    void action.then((result) => {
+      setSnapshot(result)
+      setPluginOperationOpen(false)
+    }).finally(() => setPluginRestartBusy(false))
+  }
   const refreshDiscovery = (): void => {
     if (window.launcher) void run('discovery', () => window.launcher!.refreshDiscovery())
   }
@@ -2219,7 +2360,7 @@ export default function App(): ReactNode {
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
-          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} busy={busy} onAction={pluginAction} />}
+          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} operation={pluginOperation} onAction={pluginAction} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}
           {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
@@ -2230,6 +2371,7 @@ export default function App(): ReactNode {
       </main>
       {snapshot.installation.setupRequired && <StorageSetupDialog snapshot={snapshot} busy={busy.startsWith('storage-')} error={storageError} onConfirm={confirmStorageSetup} onChoose={chooseStorageRoot} />}
       {updateCenterOpen && !snapshot.installation.setupRequired && <RuntimeUpdateDialog snapshot={snapshot} busy={busy} onConfirm={applyRuntimeUpdates} onLauncherUpdate={downloadLauncherUpdate} onCheck={checkSources} onCollapse={() => setUpdateCenterOpen(false)} />}
+      {pluginOperationOpen && pluginOperation.status !== 'idle' && !snapshot.installation.setupRequired && <PluginOperationDialog operation={pluginOperation} harnessRunning={snapshot.runStatus === 'running' || snapshot.runStatus === 'starting'} restartBusy={pluginRestartBusy} onRestart={restartAfterPlugin} onCollapse={() => setPluginOperationOpen(false)} />}
     </div>
   )
 }

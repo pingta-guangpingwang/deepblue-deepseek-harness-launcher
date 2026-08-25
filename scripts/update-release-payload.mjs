@@ -29,6 +29,10 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.30 为 DSH 插件安装、更新与卸载新增独立进度中心：按真实 pnpm 输出显示解析、下载、写入阶段和持续滚动的文件/组件明细',
+    '插件操作不再占用启动器全局 busy 锁；操作成功、失败、进程异常或 5 分钟硬超时都会进入明确终态并立即恢复全部安装/卸载按钮',
+    '若包管理器已完成 profile 写入却没有正常退出，启动器会校验 package.json 与 node_modules 后安全回收残留进程，避免必须重启启动器才能继续操作',
+    '插件变更完成时会根据 Harness 运行状态提示立即重启或下次启动生效；立即重启只重启本地 Harness 服务，不退出启动器和其他下载任务',
     '0.10.29 宠物商店默认进入像素精灵来源，像素精灵在合并目录中也固定优先排序，打开页面即可先看 800 只签名像素宠物',
     '桌面宠物与 Harness 网页宠物统一为前两次点击随机对话、第 3 次必定显示 DeepSeek 账号余额状态，后续每 3 次一个循环',
     '余额由启动器主进程调用 DeepSeek 官方 /user/balance 接口，API Key 只在 Windows 安全存储中解密使用，不会传入宠物窗口或 Harness 网页',

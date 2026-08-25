@@ -558,6 +558,50 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 .ecosystem-boundary { margin: 0; padding: 10px 12px; display: flex; align-items: flex-start; gap: 8px; border-radius: 10px; color: var(--text-secondary); background: var(--surface-soft); font-size: 10px; line-height: 1.55; }
 .ecosystem-boundary svg { flex: 0 0 auto; color: var(--green); }
 
+.plugin-operation-backdrop { position: fixed; z-index: 132; inset: 0; padding: 24px; display: grid; place-items: center; background: rgba(8,16,28,.72); backdrop-filter: blur(10px); -webkit-app-region: no-drag; }
+.plugin-operation-dialog { width: min(720px,100%); max-height: calc(100vh - 48px); padding: 24px; overflow-y: auto; border: 1px solid color-mix(in srgb, var(--border) 78%, white); border-radius: 17px; color: var(--text); background: var(--surface); box-shadow: 0 24px 76px rgba(3,9,18,.36); outline: none; }
+.plugin-operation-heading { display: grid; grid-template-columns: 46px minmax(0,1fr) 34px; align-items: start; gap: 13px; }
+.plugin-operation-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: var(--blue); }
+.plugin-operation-icon.completed { background: var(--mint); }
+.plugin-operation-icon.failed { background: var(--red); }
+.plugin-operation-heading > div { min-width: 0; }
+.plugin-operation-heading > div > span { color: var(--blue); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.plugin-operation-heading h2 { margin: 3px 0 5px; overflow: hidden; font-size: 20px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-operation-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
+.plugin-operation-progress { margin-top: 18px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--blue) 23%, var(--border)); border-radius: 11px; background: color-mix(in srgb, var(--blue-soft) 64%, var(--surface)); }
+.plugin-operation-progress > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.plugin-operation-progress > div:first-child span { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.plugin-operation-progress > div:first-child strong { color: var(--blue); font-family: var(--font-mono); font-size: 13px; }
+.plugin-operation-progress-track { height: 7px; margin: 8px 0 7px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--blue) 12%, var(--surface)); }
+.plugin-operation-progress-track > span { height: 100%; display: block; border-radius: inherit; background: linear-gradient(90deg,#3f6df5,#20a7d8); transition: width .18s ease; }
+.plugin-operation-progress small { display: block; overflow: hidden; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-operation-progress.completed { border-color: color-mix(in srgb, var(--mint) 32%, var(--border)); background: var(--mint-soft); }
+.plugin-operation-progress.completed .plugin-operation-progress-track > span { background: var(--mint); }
+.plugin-operation-progress.completed > div:first-child strong { color: var(--mint); }
+.plugin-operation-progress.failed { border-color: color-mix(in srgb, var(--red) 35%, var(--border)); background: var(--red-soft); }
+.plugin-operation-progress.failed .plugin-operation-progress-track > span { background: var(--red); }
+.plugin-operation-progress.failed > div:first-child strong { color: var(--red); }
+.plugin-file-panel { margin-top: 12px; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-soft); }
+.plugin-file-panel > header { min-height: 38px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); }
+.plugin-file-panel > header span { font-size: 12px; font-weight: 750; }
+.plugin-file-panel > header small { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; }
+.plugin-file-scroll { height: 188px; padding: 7px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.plugin-file-scroll > div { min-height: 27px; padding: 4px 7px; display: grid; grid-template-columns: 24px minmax(0,1fr) 14px; align-items: center; gap: 7px; border-radius: 6px; color: var(--text-tertiary); }
+.plugin-file-scroll > div.current { color: var(--blue); background: var(--blue-soft); }
+.plugin-file-scroll > div > span { font-family: var(--font-mono); font-size: 9px; }
+.plugin-file-scroll code { overflow: hidden; color: inherit; font-family: var(--font-mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-file-scroll svg { color: var(--mint); }
+.plugin-file-scroll > div.current svg { color: var(--blue); }
+.plugin-file-scroll > p { margin: 56px auto 0; color: var(--text-tertiary); font-size: 11px; text-align: center; }
+.plugin-restart-prompt { margin-top: 12px; padding: 12px 13px; display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 9px; border-radius: 10px; color: var(--text); background: var(--blue-soft); }
+.plugin-restart-prompt > svg { margin-top: 2px; color: var(--blue); }
+.plugin-restart-prompt strong { font-size: 13px; }
+.plugin-restart-prompt p { margin: 3px 0 0; color: var(--text-secondary); font-size: 11px; line-height: 1.55; }
+.plugin-operation-error { margin-top: 12px; padding: 11px 12px; display: flex; align-items: flex-start; gap: 8px; border-radius: 9px; color: var(--red); background: var(--red-soft); font-size: 12px; line-height: 1.5; }
+.plugin-operation-error svg { flex: 0 0 auto; margin-top: 1px; }
+.plugin-operation-actions { min-height: 44px; margin-top: 18px; display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.plugin-operation-actions button { min-height: 42px; padding-inline: 15px; }
+
 @media (max-width: 1240px) {
   .page-scroll { padding: 16px; }
   .update-card { grid-template-columns: 82px minmax(0,1fr) 180px; gap: 14px; }
@@ -1312,6 +1356,21 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 
 @media (prefers-reduced-motion: reduce) {
   .runtime-update-item-progress span, .runtime-update-total-track span { transition: none; }
+}
+
+@media (max-width: 540px) {
+  .plugin-operation-backdrop { padding: 10px; }
+  .plugin-operation-dialog { max-height: calc(100vh - 20px); padding: 18px; border-radius: 13px; }
+  .plugin-operation-heading { grid-template-columns: 40px minmax(0,1fr) 32px; gap: 10px; }
+  .plugin-operation-icon { width: 40px; height: 40px; }
+  .plugin-operation-heading h2 { font-size: 17px; }
+  .plugin-file-scroll { height: 154px; }
+  .plugin-operation-actions { display: grid; grid-template-columns: 1fr; }
+  .plugin-operation-actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-operation-progress-track > span { transition: none; }
 }
 
 @media (max-height: 760px) {
