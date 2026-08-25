@@ -146,46 +146,22 @@ try {
   assert.equal(petMedia.status, 200, 'pet media route status')
   assert.equal(petMedia.headers['content-type'], 'image/webp', 'animated pet served as image/webp')
 
-  const live2dRoot = path.join(temporary, 'live2d-model')
-  const live2dEntry = 'model/index.model3.json'
-  await mkdir(path.join(live2dRoot, 'model'), { recursive: true })
-  await writeFile(path.join(live2dRoot, live2dEntry), JSON.stringify({ Version: 3, FileReferences: { Moc: 'character.moc3' } }))
-  await writeFile(path.join(live2dRoot, 'model', 'character.moc3'), Buffer.from('MOC3-SMOKE'))
   await writeFile(petConfig, JSON.stringify({
     schemaVersion: 1,
-    petId: 'live2d-route-check',
+    petId: 'pixel-route-check',
     mediaKind: 'animated',
-    packKind: 'live2d',
-    mediaPath: path.join(temporary, 'asset.png'),
-    modelRoot: live2dRoot,
-    entry: live2dEntry,
-    packManifestSha256: 'a'.repeat(64),
+    packKind: 'pixel-atlas',
+    mediaPath: path.join(temporary, 'asset.webp'),
     behavior: { widthPx: 180, idleMotion: 'none', clickMotion: 'heart', speechLines: [] }
   }))
-
-  const live2dConfig = await request('/deepblue-pet/config')
-  assert.equal(live2dConfig.status, 200, 'Live2D config route status')
-  const live2dParsed = JSON.parse(live2dConfig.body().toString('utf8'))
-  assert.equal(live2dParsed.modelUrl, `/deepblue-pet/model/model/index.model3.json?v=${'a'.repeat(64)}`, 'Live2D config carries complete model entry')
-  assert.equal(live2dParsed.runtimeUrl, '/deepblue-pet/runtime.js?v=2.1.1', 'Live2D config carries runtime URL')
-
-  const live2dModel = await request('/deepblue-pet/model/model/index.model3.json')
-  assert.equal(live2dModel.status, 200, 'Live2D model route status')
-  assert.equal(live2dModel.headers['content-type'], 'application/json; charset=utf-8', 'Live2D model served as JSON')
-  assert.match(live2dModel.body().toString('utf8'), /character\.moc3/, 'Live2D model bytes served intact')
-
-  const live2dRuntime = await request('/deepblue-pet/runtime.js')
-  assert.equal(live2dRuntime.status, 200, 'Live2D runtime route status')
-  assert.equal(live2dRuntime.headers['content-type'], 'text/javascript; charset=utf-8', 'Live2D runtime served as JavaScript')
-  assert.match(live2dRuntime.body().toString('utf8'), /export \{ .* as init \};/, 'Live2D runtime exposes the ESM init export')
-
-  const live2dTraversal = await request('/deepblue-pet/model/..%2fsecret.json')
-  assert.equal(live2dTraversal.status, 400, 'Live2D model route rejects path traversal')
+  const pixelConfig = await request('/deepblue-pet/config')
+  assert.equal(pixelConfig.status, 200, 'pixel pet config route status')
+  assert.equal(JSON.parse(pixelConfig.body().toString('utf8')).packKind, 'pixel-atlas', 'pixel pet config keeps the atlas contract')
 
   const rejected = await request('/deepblue-skin/media', {}, 'POST')
   assert.equal(rejected.status, 405, 'media route rejects writes')
 
-  console.log('Appearance media route smoke passed: gif, webp, mp4, png and complete Live2D runtime/model routes')
+  console.log('Appearance media route smoke passed: gif, webp, mp4, png and pixel-atlas routes')
 } finally {
   delete process.env.DEEPBLUE_DSH_SKIN_CONFIG
   delete process.env.DEEPBLUE_DSH_PET_CONFIG

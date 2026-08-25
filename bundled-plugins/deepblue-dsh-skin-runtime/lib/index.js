@@ -1,16 +1,12 @@
 import { createReadStream } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const CONFIG_PATH = '/deepblue-skin/config'
 const MEDIA_PATH = '/deepblue-skin/media'
 const POSTER_PATH = '/deepblue-skin/poster'
 const PET_CONFIG_PATH = '/deepblue-pet/config'
 const PET_MEDIA_PATH = '/deepblue-pet/media'
-const PET_MODEL_PATH = '/deepblue-pet/model'
-const PET_RUNTIME_PATH = '/deepblue-pet/runtime.js'
-const LIVE2D_RUNTIME_FILE = fileURLToPath(new URL('./live2d-runtime.js', import.meta.url))
 
 function versionedMediaUrl(route, filename) {
   return `${route}?v=${encodeURIComponent(path.basename(filename))}`
@@ -47,11 +43,7 @@ async function readPetConfig() {
   try {
     const value = JSON.parse(await readFile(filename, 'utf8'))
     if (value?.schemaVersion !== 1 || typeof value.petId !== 'string' || !['static', 'animated'].includes(value.mediaKind) || typeof value.mediaPath !== 'string') return undefined
-    if (value.packKind !== undefined && !['pixel-atlas', 'live2d'].includes(value.packKind)) return undefined
-    if (value.packKind === 'live2d') {
-      if (typeof value.modelRoot !== 'string' || typeof value.entry !== 'string' || !/^[a-f0-9]{64}$/i.test(value.packManifestSha256 || '')) return undefined
-      if (!safeModelRelativePath(value.entry)) return undefined
-    }
+    if (value.packKind !== undefined && value.packKind !== 'pixel-atlas') return undefined
     return value
   } catch {
     return undefined
@@ -72,11 +64,6 @@ function mimeFor(filename) {
   if (lower.endsWith('.ogg')) return 'audio/ogg'
   if (lower.endsWith('.flac')) return 'audio/flac'
   return 'application/octet-stream'
-}
-
-function safeModelRelativePath(value) {
-  if (typeof value !== 'string' || !value || value.length > 240 || value.includes('\\') || value.startsWith('/') || value.includes('\0') || !/\.(?:json|png|jpe?g|webp|moc3?|mtn|mp3|ogg|flac|txt)$/i.test(value)) return false
-  return value.split('/').every(segment => segment && segment !== '.' && segment !== '..' && !segment.includes(':'))
 }
 
 async function serveFile(req, res, filename) {
@@ -197,10 +184,6 @@ export function apply(ctx) {
         mediaKind: config.mediaKind,
         packKind: config.packKind || 'image',
         mediaUrl: versionedMediaUrl(PET_MEDIA_PATH, config.mediaPath),
-        ...(config.packKind === 'live2d' ? {
-          modelUrl: `${PET_MODEL_PATH}/${config.entry.split('/').map(encodeURIComponent).join('/')}?v=${encodeURIComponent(config.packManifestSha256)}`,
-          runtimeUrl: `${PET_RUNTIME_PATH}?v=2.1.1`
-        } : {}),
         behavior: config.behavior
       })
     }
@@ -218,40 +201,4 @@ export function apply(ctx) {
       await serveFile(req, res, config.mediaPath)
     }
   }), 'deepblue pet media route')
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
-    path: PET_RUNTIME_PATH,
-    handler: async (req, res) => {
-      await serveFile(req, res, LIVE2D_RUNTIME_FILE)
-    }
-  }), 'deepblue Live2D runtime route')
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: PET_MODEL_PATH,
-    handler: async (req, res) => {
-      const config = await readPetConfig()
-      if (!config || config.packKind !== 'live2d') {
-        res.writeHead(404)
-        res.end()
-        return
-      }
-      const pathname = new URL(req.url || '/', 'http://localhost').pathname
-      const encoded = pathname.slice(PET_MODEL_PATH.length).replace(/^\/+/, '')
-      let relative
-      try { relative = encoded.split('/').map(decodeURIComponent).join('/') } catch { relative = '' }
-      if (!safeModelRelativePath(relative)) {
-        res.writeHead(400)
-        res.end()
-        return
-      }
-      const root = path.resolve(config.modelRoot)
-      const target = path.resolve(root, ...relative.split('/'))
-      if (!target.toLowerCase().startsWith(`${root}${path.sep}`.toLowerCase())) {
-        res.writeHead(400)
-        res.end()
-        return
-      }
-      await serveFile(req, res, target)
-    }
-  }), 'deepblue Live2D model route')
 }

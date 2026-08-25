@@ -56,7 +56,7 @@ try {
   await page.waitForFunction(() => Boolean(window.launcher), undefined, { timeout: 20_000 })
   const catalog = await page.evaluate(() => window.launcher.refreshPets())
   const pet = catalog.pets.items.find(item => item.catalogSource === 'pixel' && item.packKind === 'pixel-atlas')
-    || catalog.pets.items.find(item => item.packKind !== 'live2d')
+    || catalog.pets.items[0]
   if (!pet) throw new Error('签名宠物目录中没有可运行的桌面宠物')
 
   const result = await page.evaluate(petId => window.launcher.applyPetToDesktop(petId), pet.id)
@@ -76,14 +76,40 @@ try {
   if (pet.packKind === 'pixel-atlas' && (!firstFrame || firstFrame === nextFrame)) throw new Error('桌面像素宠物帧动画没有播放')
   process.stderr.write('ok  桌面宠物帧动画正在播放\n')
 
-  await petPage.locator('#pet').click({ force: true })
+  const interactionRows = []
+  for (let interaction = 0; interaction < 4; interaction += 1) {
+    await petPage.evaluate(() => window.__deepbluePetDebug?.triggerClick())
+    await petPage.waitForFunction(() => Number(document.querySelector('#pet')?.getAttribute('data-interaction-row')) > 0)
+    interactionRows.push(Number(await petPage.locator('#pet').getAttribute('data-interaction-row')))
+    await petPage.waitForTimeout(1_180)
+  }
   if (!(await petPage.locator('#bubble').evaluate(node => node.classList.contains('show')))) throw new Error('点击桌面宠物后没有触发交互')
   if (pet.packKind === 'pixel-atlas') {
-    const interactionRow = await petPage.locator('canvas').getAttribute('data-animation-row')
-    if (!interactionRow || interactionRow === '0') throw new Error('点击像素宠物后没有切换到互动动作行')
+    if (!interactionRows.every((row, index) => row > 0 && (index === 0 || row !== interactionRows[index - 1]))) throw new Error(`桌面像素宠物随机动作重复或无效：${interactionRows.join('→')}`)
   }
   await petPage.screenshot({ path: path.join(outputRoot, 'desktop-pet-window.png'), omitBackground: true })
-  process.stderr.write('ok  桌面宠物可点击交互\n')
+  process.stderr.write(`ok  桌面宠物随机点击动作不连续重复：${interactionRows.join('→')}\n`)
+
+  await petPage.evaluate(() => window.__deepbluePetDebug?.triggerPresence())
+  await petPage.waitForFunction(() => document.querySelector('#pet')?.getAttribute('data-interaction-source') === 'presence')
+  process.stderr.write('ok  桌面宠物待机后可主动随机展示存在感动作\n')
+  await petPage.waitForTimeout(1_180)
+
+  const beforeDrag = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('desktop-pet-host.html'))?.getBounds())
+  if (!beforeDrag) throw new Error('拖拽前无法读取桌面宠物窗口位置')
+  await petPage.evaluate(() => {
+    const target = document.querySelector('#pet')
+    target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 71, clientX: 90, clientY: 120, screenX: 900, screenY: 600 }))
+    target.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, button: 0, pointerId: 71, clientX: 170, clientY: 180, screenX: 980, screenY: 660 }))
+    target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 71, clientX: 170, clientY: 180, screenX: 980, screenY: 660 }))
+  })
+  await petPage.waitForTimeout(500)
+  const afterDrag = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('desktop-pet-host.html'))?.getBounds())
+  if (!afterDrag || (afterDrag.x === beforeDrag.x && afterDrag.y === beforeDrag.y)) throw new Error(`桌面宠物拖拽未移动窗口：${JSON.stringify(beforeDrag)} -> ${JSON.stringify(afterDrag)}`)
+  if (await petPage.locator('#pet').getAttribute('data-interaction-source') !== 'idle') throw new Error('拖拽桌面宠物被误判成单击互动')
+  const persistedPosition = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(launcherDataRoot, 'pets', 'desktop-state.json'), 'utf8')).position
+  if (persistedPosition?.x !== afterDrag.x || persistedPosition?.y !== afterDrag.y) throw new Error(`桌面宠物位置未持久化：${JSON.stringify(persistedPosition)} != ${JSON.stringify(afterDrag)}`)
+  process.stderr.write(`ok  桌面宠物按住拖拽、单击区分与位置持久化：(${afterDrag.x}, ${afterDrag.y})\n`)
 
   const applied = captureDesktop('desktop-pet-applied.png', baseline, 0.0005)
   await page.evaluate(() => window.launcher.windowAction('close'))

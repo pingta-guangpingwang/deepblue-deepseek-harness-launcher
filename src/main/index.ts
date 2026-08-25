@@ -44,9 +44,6 @@ function localAssetMime(filename: string): string {
 }
 
 async function localAssetResponse(request: Request, filename: string): Promise<Response> {
-  // Node's filesystem API handles Windows namespaced/long paths reliably;
-  // Chromium's file:// loader can return ERR_UNEXPECTED once nested Live2D
-  // pack paths exceed MAX_PATH, even though those files exist and hash-check.
   let bytes: Buffer
   try {
     bytes = await readFile(path.toNamespacedPath(filename))
@@ -60,8 +57,7 @@ async function localAssetResponse(request: Request, filename: string): Promise<R
     'cache-control': 'private, max-age=31536000, immutable'
   })
   // Launcher UI is loaded from file:// while previews use a locked custom
-  // protocol. Explicit CORS is required before Canvas can inspect sprite
-  // alpha data and before the Live2D ESM runtime can fetch model files.
+  // protocol. Explicit CORS is required before Canvas can inspect sprite alpha.
   headers.set('access-control-allow-origin', '*')
   headers.set('cross-origin-resource-policy', 'cross-origin')
   const range = request.headers.get('range')
@@ -83,25 +79,6 @@ function registerPetPreviewProtocol(): void {
   protocol.handle('deepblue-pet', async (request) => {
     const url = new URL(request.url)
     const fileName = decodeURIComponent(url.pathname).replace(/^\/+/, '')
-    if (url.hostname === 'runtime' && fileName === 'l2d.js') {
-      const runtime = app.isPackaged
-        ? path.join(process.resourcesPath, 'resources', 'pet-runtime', 'l2d.js')
-        : path.resolve('resources', 'pet-runtime', 'l2d.js')
-      return localAssetResponse(request, runtime)
-    }
-    if (url.hostname === 'model') {
-      const segments = fileName.split('/').map(segment => decodeURIComponent(segment))
-      const [petId, manifestSha, ...relative] = segments
-      if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(petId || '') || !/^[a-f0-9]{64}$/i.test(manifestSha || '') || !relative.length || relative.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('\\') || segment.includes(':'))) {
-        return new Response('Invalid Live2D model path', { status: 400 })
-      }
-      const root = path.resolve(launcherDataPaths().pets, 'packs', petId!, manifestSha!)
-      const target = path.resolve(root, ...relative)
-      if (!target.toLowerCase().startsWith(`${root}${path.sep}`.toLowerCase()) || !/\.(?:json|png|jpe?g|webp|moc3?|mtn|mp3|ogg|flac|txt)$/i.test(target)) {
-        return new Response('Invalid Live2D model path', { status: 400 })
-      }
-      return localAssetResponse(request, target)
-    }
     if (url.hostname !== 'cache' || !/^[a-f0-9]{64}\.(?:png|jpe?g|webp|gif)$/i.test(fileName)) {
       return new Response('Invalid pet preview path', { status: 400 })
     }
@@ -211,6 +188,9 @@ function createWindow(ui = launcherUi): BrowserWindow {
 }
 
 function registerIpc(): void {
+  ipcMain.on('desktop-pet:drag-start', (event, position: unknown) => controller?.beginDesktopPetDrag(event.sender.id, position))
+  ipcMain.on('desktop-pet:drag-move', (event, position: unknown) => controller?.moveDesktopPetDrag(event.sender.id, position))
+  ipcMain.handle('desktop-pet:drag-end', (event, position: unknown) => controller?.endDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('launcher:get-snapshot', () => controller?.getSnapshot())
   ipcMain.handle('launcher:refresh-environment', () => controller?.refreshEnvironment())
   ipcMain.handle('launcher:check-sources', () => controller?.checkSources())

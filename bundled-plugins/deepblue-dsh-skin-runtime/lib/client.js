@@ -36,11 +36,6 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       .deepblue-pet[data-held='true'] .deepblue-pet-visual > img { display: none; }
       .deepblue-pet[data-pack-kind='pixel-atlas'] .deepblue-pet-visual > canvas { display: block; image-rendering: pixelated; }
       .deepblue-pet[data-pack-kind='pixel-atlas'] .deepblue-pet-visual > img { position: absolute; width: 1px; height: 1px; opacity: 0; }
-      .deepblue-pet[data-pack-kind='live2d'] .deepblue-pet-visual > canvas { display: block; width: 100%; aspect-ratio: 1; }
-      .deepblue-pet[data-pack-kind='live2d'] .deepblue-pet-visual > img { display: none; }
-      .deepblue-pet[data-pack-kind='live2d'][data-live2d='error'] .deepblue-pet-visual > canvas { display: none; }
-      .deepblue-pet[data-pack-kind='live2d'][data-live2d='error'] .deepblue-pet-visual > img { display: block; }
-      .deepblue-pet-live-status { position: absolute; left: 50%; bottom: 12%; padding: 5px 8px; border-radius: 8px; color: #23334a; background: rgba(255,255,255,.9); font: 600 11px/1 system-ui,sans-serif; transform: translateX(-50%); white-space: nowrap; }
       .deepblue-pet[data-pack-kind='pixel-atlas'] .deepblue-pet-visual { animation: none !important; }
       .deepblue-pet[data-idle='float'] .deepblue-pet-visual { animation: deepblue-pet-float 4.8s ease-in-out infinite; }
       .deepblue-pet[data-idle='bounce'] .deepblue-pet-visual { animation: deepblue-pet-bounce 3.6s ease-in-out infinite; }
@@ -204,15 +199,6 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     return fallback
   }
 
-  function atlasRowFor(state, clickMotion, rows) {
-    const row = state === 'drag-right' ? 1
-      : state === 'drag-left' ? 2
-        : state === 'click' ? (clickMotion === 'hop' ? 4 : 3)
-          : state === 'hover' ? 6
-            : 0
-    return Math.max(0, Math.min(rows - 1, row))
-  }
-
   function visibleAtlasFrames(image, columns, rows, row) {
     const frameWidth = image.naturalWidth / columns
     const frameHeight = image.naturalHeight / rows
@@ -220,7 +206,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     scratch.width = frameWidth
     scratch.height = frameHeight
     const context = scratch.getContext('2d', { willReadFrequently: true })
-    if (!context) return [0]
+    if (!context) return []
     const frames = []
     const minimumPixels = Math.max(12, Math.floor(frameWidth * frameHeight * .002))
     for (let frame = 0; frame < columns; frame += 1) {
@@ -231,24 +217,26 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       for (let index = 3; index < pixels.length && visible < minimumPixels; index += 4) if (pixels[index] > 8) visible += 1
       if (visible >= minimumPixels) frames.push(frame)
     }
-    return frames.length ? frames : [0]
+    return frames
   }
 
   function Pet({ config }) {
     const [position, setPosition] = React.useState(() => initialPetPosition(config))
     const [bubble, setBubble] = React.useState('')
     const [reaction, setReaction] = React.useState('')
-    const [atlasState, setAtlasState] = React.useState('idle')
-    const [live2dStatus, setLive2dStatus] = React.useState('idle')
+    const [atlasRow, setAtlasRow] = React.useState(0)
+    const [atlasInfo, setAtlasInfo] = React.useState(null)
+    const [interactionSource, setInteractionSource] = React.useState('idle')
+    const [interactionActive, setInteractionActive] = React.useState(false)
     const positionRef = React.useRef(position)
     const drag = React.useRef(null)
     const imageRef = React.useRef(null)
     const canvasRef = React.useRef(null)
-    const live2dRef = React.useRef(null)
-    const [atlasReady, setAtlasReady] = React.useState(0)
+    const lastInteractionRow = React.useRef(-1)
+    const lastCssReaction = React.useRef('')
+    const interactRef = React.useRef(null)
     const pixelAtlas = config.packKind === 'pixel-atlas'
-    const live2d = config.packKind === 'live2d'
-    const animated = config.mediaKind === 'animated' && !pixelAtlas && !live2d
+    const animated = config.mediaKind === 'animated' && !pixelAtlas
     const held = useAnimationHold(animated)
     React.useEffect(() => {
       if (!held) return
@@ -261,20 +249,17 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       if (context) context.drawImage(image, 0, 0)
     }, [held, config.mediaUrl])
     React.useEffect(() => {
-      if (!pixelAtlas || !atlasReady) return undefined
+      if (!pixelAtlas || !atlasInfo) return undefined
       const image = imageRef.current
       const canvas = canvasRef.current
       if (!image || !canvas || !image.naturalWidth || !image.naturalHeight) return undefined
       const context = canvas.getContext('2d', { willReadFrequently: true })
       if (!context) return undefined
-      const columns = 8
-      const rows = image.naturalHeight % 11 === 0 ? 11 : image.naturalHeight % 9 === 0 ? 9 : 1
-      const frameWidth = image.naturalWidth / columns
-      const frameHeight = image.naturalHeight / rows
-      const row = atlasRowFor(atlasState, config.behavior.clickMotion, rows)
+      const { columns, frameWidth, frameHeight, rowFrames } = atlasInfo
+      const row = rowFrames[atlasRow]?.length ? atlasRow : 0
       canvas.width = frameWidth
       canvas.height = frameHeight
-      const frames = visibleAtlasFrames(image, columns, rows, row)
+      const frames = rowFrames[row] || []
       let index = 0
       const draw = () => {
         const frame = frames[index % frames.length]
@@ -287,39 +272,10 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       draw()
       const timer = setInterval(draw, 150)
       return () => clearInterval(timer)
-    }, [pixelAtlas, atlasReady, atlasState, config.mediaUrl, config.behavior.clickMotion])
-    React.useEffect(() => {
-      if (!live2d || !config.modelUrl || !config.runtimeUrl) return undefined
-      let disposed = false
-      let instance
-      setLive2dStatus('loading')
-      void import(config.runtimeUrl).then(async runtime => {
-        if (disposed || !canvasRef.current) return
-        instance = runtime.init(canvasRef.current)
-        if (!instance) throw new Error('Live2D Canvas 初始化失败')
-        live2dRef.current = instance
-        instance.on('loaded', () => { if (!disposed) setLive2dStatus('ready') })
-        instance.on('motionstart', group => {
-          const canvas = instance.getCanvas?.() || canvasRef.current
-          const pet = canvas?.closest?.('.deepblue-pet')
-          if (!disposed && pet) pet.dataset.live2dMotion = String(group || 'unknown')
-        })
-        await instance.load({ path: config.modelUrl, scale: 1, volume: 0, logLevel: 'warn' })
-        if (!disposed) setLive2dStatus('ready')
-      }).catch(error => {
-        if (!disposed) {
-          console.error('[deepblue-pet] Live2D load failed', error)
-          setLive2dStatus('error')
-        }
-      })
-      return () => {
-        disposed = true
-        live2dRef.current = null
-        try { instance?.destroy() } catch { /* A partially initialized model may already be disposed. */ }
-      }
-    }, [live2d, config.modelUrl, config.runtimeUrl])
+    }, [pixelAtlas, atlasInfo, atlasRow, config.mediaUrl])
     const bubbleTimer = React.useRef(null)
     const reactionTimer = React.useRef(null)
+    const presenceTimer = React.useRef(null)
     const clamp = React.useCallback(point => ({ x: Math.max(6, Math.min(window.innerWidth - 90, point.x)), y: Math.max(6, Math.min(window.innerHeight - 90, point.y)) }), [])
     React.useEffect(() => {
       const onResize = () => setPosition(current => clamp(current))
@@ -329,37 +285,56 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     React.useEffect(() => () => {
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
       if (reactionTimer.current) clearTimeout(reactionTimer.current)
+      if (presenceTimer.current) clearTimeout(presenceTimer.current)
     }, [])
-    const interact = () => {
+    const chooseDifferent = (values, last) => {
+      const available = values.filter(value => value !== last)
+      const pool = available.length ? available : values
+      return pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined
+    }
+    const interact = (source = 'click') => {
+      if (drag.current?.moved) return
       const lines = config.behavior.speechLines || []
       if (lines.length) setBubble(lines[Math.floor(Math.random() * lines.length)])
-      setReaction(config.behavior.clickMotion)
-      setAtlasState('click')
-      const model = live2dRef.current
-      if (model) {
-        const groups = Object.keys(model.getMotions?.() || {})
-        const interactive = groups.filter(group => !/^idle$/i.test(group))
-        const preferred = interactive.find(group => /(tap|touch|flick|thank|body|head)/i.test(group)) || interactive[0] || groups[0]
-        if (preferred) model.playMotion(preferred, undefined, 3)
-        else model.setExpression?.()
+      setInteractionActive(true)
+      setInteractionSource(source)
+      if (pixelAtlas && atlasInfo) {
+        const rows = Object.keys(atlasInfo.rowFrames).map(Number).filter(row => row > 0 && atlasInfo.rowFrames[row].length)
+        const next = chooseDifferent(rows, lastInteractionRow.current)
+        if (next !== undefined) {
+          lastInteractionRow.current = next
+          setAtlasRow(next)
+        }
+      } else {
+        const next = chooseDifferent(['hop', 'spin', 'heart'], lastCssReaction.current) || 'heart'
+        lastCssReaction.current = next
+        setReaction(next)
       }
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
       if (reactionTimer.current) clearTimeout(reactionTimer.current)
       bubbleTimer.current = setTimeout(() => setBubble(''), 2600)
-      reactionTimer.current = setTimeout(() => { setReaction(''); setAtlasState('idle') }, 760)
+      reactionTimer.current = setTimeout(() => { setReaction(''); setAtlasRow(0); setInteractionActive(false); setInteractionSource('idle') }, 1100)
     }
+    interactRef.current = interact
     React.useEffect(() => {
-      const seconds = Number(config.behavior.autoSpeakIntervalSec)
-      const lines = config.behavior.speechLines || []
-      if (!Number.isFinite(seconds) || seconds < 30 || !lines.length) return undefined
-      const timer = setInterval(() => {
-        if (document.hidden || drag.current) return
-        setBubble(lines[Math.floor(Math.random() * lines.length)])
-        if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
-        bubbleTimer.current = setTimeout(() => setBubble(''), 3200)
-      }, seconds * 1000)
-      return () => clearInterval(timer)
-    }, [config.petId, config.behavior.autoSpeakIntervalSec])
+      const configured = Number(config.behavior.autoSpeakIntervalSec)
+      const seconds = Number.isFinite(configured) && configured >= 30 ? configured : 38
+      let disposed = false
+      const schedule = () => {
+        if (disposed) return
+        const delay = Math.round(seconds * (.78 + Math.random() * .44) * 1000)
+        presenceTimer.current = setTimeout(() => {
+          if (!document.hidden && !drag.current && !interactionActive) interactRef.current?.('presence')
+          schedule()
+        }, delay)
+      }
+      schedule()
+      return () => { disposed = true; if (presenceTimer.current) clearTimeout(presenceTimer.current) }
+    }, [config.petId, config.behavior.autoSpeakIntervalSec, interactionActive])
+    React.useEffect(() => {
+      window.__deepblueWebPetDebug = { triggerPresence: () => interactRef.current?.('presence'), triggerClick: () => interactRef.current?.('click') }
+      return () => { delete window.__deepblueWebPetDebug }
+    }, [config.petId])
     const onPointerDown = event => {
       event.currentTarget.setPointerCapture(event.pointerId)
       drag.current = { dx: event.clientX - position.x, dy: event.clientY - position.y, startX: event.clientX, startY: event.clientY, lastX: event.clientX, moved: false }
@@ -367,31 +342,46 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     const onPointerMove = event => {
       if (!drag.current) return
       if (Math.abs(event.clientX - drag.current.startX) + Math.abs(event.clientY - drag.current.startY) > 5) drag.current.moved = true
-      if (drag.current.moved) setAtlasState(event.clientX < drag.current.lastX ? 'drag-left' : 'drag-right')
+      if (drag.current.moved) {
+        if (reactionTimer.current) clearTimeout(reactionTimer.current)
+        setReaction('')
+        setInteractionActive(false)
+        const directionRow = event.clientX < drag.current.lastX ? 2 : 1
+        if (atlasInfo?.rowFrames[directionRow]?.length) setAtlasRow(directionRow)
+      }
       drag.current.lastX = event.clientX
       const nextPosition = clamp({ x: event.clientX - drag.current.dx, y: event.clientY - drag.current.dy })
       positionRef.current = nextPosition
       setPosition(nextPosition)
     }
-    const onPointerUp = event => {
+    const finishPointer = (event, cancelled = false) => {
       if (!drag.current) return
       const moved = drag.current.moved
       drag.current = null
-      event.currentTarget.releasePointerCapture(event.pointerId)
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
       try { localStorage.setItem(`deepblue-pet-position:${config.petId}`, JSON.stringify(positionRef.current)) } catch { /* Private browsing may reject local storage writes. */ }
-      if (!moved) interact()
-      else setAtlasState('idle')
+      if (!moved && !cancelled) interact('click')
+      else { setAtlasRow(0); setInteractionSource('idle') }
+    }
+    const onPointerUp = event => finishPointer(event)
+    const onPointerCancel = event => finishPointer(event, true)
+    const onAtlasLoad = () => {
+      if (!pixelAtlas || !imageRef.current) return
+      const image = imageRef.current
+      const columns = 8
+      const rows = image.naturalHeight % 11 === 0 ? 11 : image.naturalHeight % 9 === 0 ? 9 : 1
+      const rowFrames = {}
+      for (let row = 0; row < rows; row += 1) rowFrames[row] = visibleAtlasFrames(image, columns, rows, row)
+      setAtlasInfo({ columns, rows, frameWidth: image.naturalWidth / columns, frameHeight: image.naturalHeight / rows, rowFrames })
     }
     const style = { left: position.x, top: position.y, '--deepblue-pet-width': `${config.behavior.widthPx}px` }
     return ReactDOM.createPortal(React.createElement('div', { className: 'deepblue-pet-host' },
-      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': pixelAtlas || live2d ? 'none' : config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'data-pack-kind': config.packKind || 'image', 'data-live2d': live2dStatus, 'aria-label': '网页宠物，可拖动位置，点击互动，双击表达喜欢', onDoubleClick: () => { setReaction('heart'); setAtlasState('click'); if (reactionTimer.current) clearTimeout(reactionTimer.current); reactionTimer.current = setTimeout(() => { setReaction(''); setAtlasState('idle') }, 760) }, onMouseEnter: () => { if (!drag.current && !reaction) setAtlasState('hover') }, onMouseLeave: () => { if (!drag.current && !reaction) setAtlasState('idle') }, onPointerDown, onPointerMove, onPointerUp },
+      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': pixelAtlas ? 'none' : config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'data-pack-kind': config.packKind || 'image', 'data-interaction-row': String(atlasRow), 'data-interaction-source': interactionSource, 'data-dragging': String(Boolean(drag.current?.moved)), 'aria-label': '网页宠物，可拖动位置，单击随机互动', onMouseEnter: () => { if (!drag.current && !interactionActive && atlasInfo?.rowFrames[6]?.length) setAtlasRow(6) }, onMouseLeave: () => { if (!drag.current && !interactionActive) setAtlasRow(0) }, onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
         React.createElement('span', { className: 'deepblue-pet-visual' },
           bubble ? React.createElement('span', { className: 'deepblue-pet-bubble', role: 'status' }, bubble) : null,
           React.createElement('span', { className: 'deepblue-pet-sparks' }),
-          React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false, onLoad: () => { if (pixelAtlas) setAtlasReady(value => value + 1) } }),
-          animated || pixelAtlas || live2d ? React.createElement('canvas', { ref: canvasRef, width: 512, height: 512, 'aria-label': live2d ? 'Live2D 动态宠物' : undefined, 'aria-hidden': live2d ? undefined : 'true' }) : null,
-          live2dStatus === 'loading' ? React.createElement('span', { className: 'deepblue-pet-live-status', role: 'status' }, '模型加载中…') : null,
-          live2dStatus === 'error' ? React.createElement('span', { className: 'deepblue-pet-live-status', role: 'status' }, '动态模型加载失败') : null
+          React.createElement('img', { ref: imageRef, src: config.mediaUrl, alt: '', draggable: false, onLoad: onAtlasLoad }),
+          animated || pixelAtlas ? React.createElement('canvas', { ref: canvasRef, width: 512, height: 512, 'aria-hidden': 'true' }) : null
         )
       )
     ), document.body)
@@ -412,7 +402,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'deepblue-skin-wallpaper', order: -1000, inject: () => ({ config: skin }) }, Wallpaper))
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'deepblue-skin-clarity-toggle', order: 900, inject: () => ({ config: skin }) }, SkinClarityToggle))
     }
-    if (pet?.schemaVersion === 1 && ['static', 'animated'].includes(pet.mediaKind) && typeof pet.mediaUrl === 'string' && pet.behavior && (pet.packKind !== 'live2d' || (pet.modelUrl && pet.runtimeUrl))) {
+    if (pet?.schemaVersion === 1 && ['static', 'animated'].includes(pet.mediaKind) && typeof pet.mediaUrl === 'string' && pet.behavior && (!pet.packKind || ['image', 'pixel-atlas'].includes(pet.packKind))) {
       ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'deepblue-web-pet', order: 1000, inject: () => ({ config: pet }) }, Pet))
     }
   }

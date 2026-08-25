@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.25",
+  "version": "0.10.26",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -64,7 +64,6 @@
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "l2d": "^2.1.1",
     "lucide-react": "0.468.0",
     "playwright": "^1.57.0",
     "react": "19.2.0",

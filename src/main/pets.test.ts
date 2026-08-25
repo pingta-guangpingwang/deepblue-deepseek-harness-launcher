@@ -33,7 +33,7 @@ describe('pet catalog signature verification', () => {
 
 describe('pet favorites', () => {
   it('adds newest first, removes on a second click and eliminates duplicates', () => {
-    expect(nextFavoritePetIds(['px-0001', 'px-0001'], 'l2d-0001')).toEqual(['l2d-0001', 'px-0001'])
-    expect(nextFavoritePetIds(['l2d-0001', 'px-0001'], 'l2d-0001')).toEqual(['px-0001'])
+    expect(nextFavoritePetIds(['px-0001', 'px-0001'], 'pet-0001')).toEqual(['pet-0001', 'px-0001'])
+    expect(nextFavoritePetIds(['pet-0001', 'px-0001'], 'pet-0001')).toEqual(['px-0001'])
   })
 })

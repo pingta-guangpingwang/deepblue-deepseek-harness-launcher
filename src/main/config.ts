@@ -49,12 +49,6 @@ export const FIXED_PET_CATALOG_SOURCES = [
     name: '像素精灵',
     repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel',
     catalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel/raw/master/catalog.json'
-  },
-  {
-    id: 'live2d',
-    name: 'Live2D',
-    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d',
-    catalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d/raw/master/catalog.json'
   }
 ] as const
 

@@ -70,14 +70,15 @@ describe('wallpaper clarity control', () => {
     expect(client).toContain("image.naturalHeight % 11 === 0")
     expect(client).toContain("data-pack-kind='pixel-atlas'")
     expect(client).toContain('visibleAtlasFrames')
-    expect(client).toContain("state === 'click'")
+    expect(client).toContain('chooseDifferent(rows, lastInteractionRow.current)')
+    expect(client).toContain("interactRef.current?.('presence')")
   })
 
-  it('loads verified Live2D model packs and switches to an interaction motion on click', async () => {
+  it('keeps pet execution limited to images and verified pixel atlases', async () => {
     const client = await readFile(CLIENT, 'utf8')
-    expect(client).toContain("config.packKind === 'live2d'")
-    expect(client).toContain('import(config.runtimeUrl)')
-    expect(client).toContain('model.playMotion')
+    expect(client).toContain("['image', 'pixel-atlas'].includes(pet.packKind)")
+    expect(client).not.toContain('import(config.runtimeUrl)')
+    expect(client).not.toContain('model.playMotion')
   })
 
   it('removes both the wallpaper overlay and opaque content surfaces in clear mode', async () => {

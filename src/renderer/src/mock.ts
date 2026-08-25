@@ -152,8 +152,7 @@ export const mockSnapshot: LauncherSnapshot = {
     transfers: {},
     sources: [
       { id: 'official', name: '原创动图', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets', status: 'ready', itemCount: petCatalog.items.length },
-      { id: 'pixel', name: '像素精灵', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel', status: 'ready', itemCount: 800 },
-      { id: 'live2d', name: 'Live2D', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d', status: 'ready', itemCount: 230 }
+      { id: 'pixel', name: '像素精灵', repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel', status: 'ready', itemCount: 800 }
     ],
     items: petCatalog.items as LauncherSnapshot['pets']['items']
   },

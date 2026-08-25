@@ -5,7 +5,6 @@ import { access, mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { createHash } from 'node:crypto'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const launcherExecutable = process.env.QA_LAUNCHER_EXE || path.join(root, 'release', 'win-unpacked', '深蓝DeepSeekHarness启动器.exe')
@@ -60,10 +59,6 @@ function check(label, condition, detail = '') {
   if (!condition) failures.push(label)
 }
 
-function screenshotDigest(bytes) {
-  return createHash('sha256').update(bytes).digest('hex')
-}
-
 const app = await electron.launch({
   executablePath: launcherExecutable,
   args: [`--user-data-dir=${qaLauncherData}`],
@@ -74,10 +69,18 @@ let launcher
 try {
   launcher = await app.firstWindow()
   await launcher.getByRole('button', { name: '启动 DeepSeek Harness', exact: true }).waitFor({ timeout: 30_000 })
-  const refreshed = await launcher.evaluate(() => window.launcher.refreshPets())
+  await launcher.waitForFunction(async () => {
+    const snapshot = await window.launcher.getSnapshot()
+    return snapshot?.pets?.status && snapshot.pets.status !== 'loading' && snapshot.pets.items.length > 0
+  }, undefined, { timeout: 45_000 })
+  let refreshed = await launcher.evaluate(() => window.launcher.getSnapshot())
+  for (let attempt = 0; attempt < 4 && !refreshed.pets.items.some(item => item.catalogSource === 'pixel'); attempt += 1) {
+    await launcher.waitForTimeout(1_500)
+    refreshed = await launcher.evaluate(() => window.launcher.refreshPets())
+  }
   const pixel = refreshed.pets.items.find(item => item.catalogSource === 'pixel')
-  const live2d = refreshed.pets.items.find(item => item.catalogSource === 'live2d')
-  if (!pixel || !live2d) throw new Error(`真实目录缺少测试宠物：pixel=${Boolean(pixel)}, live2d=${Boolean(live2d)}`)
+  if (!pixel) throw new Error('真实目录缺少像素宠物')
+  check('启动器目录已彻底移除 Live2D 来源和条目', !refreshed.pets.sources.some(source => source.id === 'live2d') && !refreshed.pets.items.some(item => item.packKind === 'live2d'))
 
   const browserExecutable = await installedBrowser()
   browser = await chromium.launch({ headless: true, ...(browserExecutable ? { executablePath: browserExecutable } : {}) })
@@ -108,44 +111,38 @@ try {
     await current.page.waitForTimeout(170)
   }
   check('DSH 像素宠物持续循环待机帧', new Set(idleFrames).size > 1 && await pixelCanvas.getAttribute('data-animation-row') === '0', idleFrames.join('→'))
-  await pixelPet.click()
-  await current.page.waitForFunction(() => {
-    const row = document.querySelector('.deepblue-pet[data-pack-kind="pixel-atlas"] canvas')?.getAttribute('data-animation-row')
-    return row === '3' || row === '4'
-  }, undefined, { timeout: 5_000 })
-  check('DSH 像素宠物单击后切换互动动作', ['3', '4'].includes(await pixelCanvas.getAttribute('data-animation-row')))
+  const interactionRows = []
+  for (let interaction = 0; interaction < 4; interaction += 1) {
+    await pixelPet.click()
+    await current.page.waitForFunction(() => Number(document.querySelector('.deepblue-pet[data-pack-kind="pixel-atlas"]')?.getAttribute('data-interaction-row')) > 0, undefined, { timeout: 5_000 })
+    interactionRows.push(Number(await pixelPet.getAttribute('data-interaction-row')))
+    await current.page.waitForTimeout(1_180)
+  }
+  check('DSH 像素宠物单击从全部有效非待机动作随机播放', interactionRows.every(row => row > 0) && new Set(interactionRows).size > 1, interactionRows.join('→'))
+  check('DSH 像素宠物不会连续重复同一互动动作', interactionRows.every((row, index) => index === 0 || row !== interactionRows[index - 1]), interactionRows.join('→'))
+
+  await current.page.evaluate(() => window.__deepblueWebPetDebug?.triggerPresence())
+  await current.page.waitForFunction(() => document.querySelector('.deepblue-pet')?.getAttribute('data-interaction-source') === 'presence')
+  check('DSH 网页宠物待机后会主动随机展示存在感动作', Number(await pixelPet.getAttribute('data-interaction-row')) > 0)
+
+  await current.page.waitForTimeout(1_180)
+  const beforeDrag = await pixelPet.boundingBox()
+  if (!beforeDrag) throw new Error('无法读取网页宠物位置')
+  await current.page.mouse.move(beforeDrag.x + beforeDrag.width / 2, beforeDrag.y + beforeDrag.height / 2)
+  await current.page.mouse.down()
+  await current.page.mouse.move(beforeDrag.x - 130, beforeDrag.y - 90, { steps: 8 })
+  await current.page.mouse.up()
+  const draggedPosition = await pixelPet.evaluate(node => ({ left: Number.parseFloat(node.style.left), top: Number.parseFloat(node.style.top), source: node.getAttribute('data-interaction-source') }))
+  check('DSH 网页宠物支持拖拽且不会误触单击互动', draggedPosition.left < beforeDrag.x && draggedPosition.top < beforeDrag.y && draggedPosition.source === 'idle', JSON.stringify(draggedPosition))
+  const savedPosition = await current.page.evaluate(petId => JSON.parse(localStorage.getItem(`deepblue-pet-position:${petId}`) || 'null'), pixel.id)
+  check('DSH 网页宠物释放后持久保存位置', Number.isFinite(savedPosition?.x) && Number.isFinite(savedPosition?.y), JSON.stringify(savedPosition))
+  await current.page.reload({ waitUntil: 'domcontentloaded' })
+  const reloadedPet = current.page.locator('.deepblue-pet[data-pack-kind="pixel-atlas"]')
+  await reloadedPet.waitFor({ state: 'visible', timeout: 30_000 })
+  const restoredPosition = await reloadedPet.evaluate(node => ({ left: Number.parseFloat(node.style.left), top: Number.parseFloat(node.style.top) }))
+  check('DSH 网页宠物刷新后恢复拖拽位置', Math.abs(restoredPosition.left - savedPosition.x) < 2 && Math.abs(restoredPosition.top - savedPosition.y) < 2, `${JSON.stringify(savedPosition)} -> ${JSON.stringify(restoredPosition)}`)
   await current.page.screenshot({ path: path.join(outputRoot, 'harness-pixel-click.png'), fullPage: true })
   check('DSH 像素宠物页面没有脚本错误', current.errors.length === 0, current.errors.join(' | '))
-  await current.page.close()
-  await launcher.evaluate(() => window.launcher.stopHarness())
-
-  await launcher.evaluate(petId => window.launcher.applyPet(petId), live2d.id)
-  current = await startHarnessPage()
-  const live2dPet = current.page.locator('.deepblue-pet[data-pack-kind="live2d"]')
-  await live2dPet.waitFor({ state: 'visible', timeout: 30_000 })
-  await current.page.waitForFunction(() => document.querySelector('.deepblue-pet[data-pack-kind="live2d"]')?.getAttribute('data-live2d') === 'ready', undefined, { timeout: 90_000 })
-  check('DSH Live2D 加载完整动态模型而非纹理碎图', await live2dPet.getAttribute('data-live2d') === 'ready' && await live2dPet.locator('canvas').count() === 1)
-  const live2dCanvas = live2dPet.locator('canvas')
-  const idleDigests = []
-  for (let sample = 0; sample < 8; sample += 1) {
-    idleDigests.push(screenshotDigest(await live2dCanvas.screenshot()))
-    await current.page.waitForTimeout(260)
-  }
-  check('DSH Live2D 待机动画持续产生不同画面', new Set(idleDigests).size >= 3, `uniqueFrames=${new Set(idleDigests).size}`)
-  await live2dCanvas.screenshot({ path: path.join(outputRoot, 'harness-live2d-idle-before-click.png') })
-  const beforeMotion = await live2dPet.getAttribute('data-live2d-motion')
-  await live2dPet.click()
-  await current.page.waitForFunction(previous => {
-    const motion = document.querySelector('.deepblue-pet[data-pack-kind="live2d"]')?.getAttribute('data-live2d-motion')
-    return Boolean(motion && motion !== previous)
-  }, beforeMotion, { timeout: 10_000 })
-  const clickedMotion = await live2dPet.getAttribute('data-live2d-motion')
-  check('DSH Live2D 单击后真实播放模型互动动作', Boolean(clickedMotion), clickedMotion || '')
-  await current.page.waitForTimeout(420)
-  const clickFrame = await live2dCanvas.screenshot({ path: path.join(outputRoot, 'harness-live2d-click-frame.png') })
-  check('DSH Live2D 点击动作产生可见画面变化', !idleDigests.includes(screenshotDigest(clickFrame)))
-  await current.page.screenshot({ path: path.join(outputRoot, 'harness-live2d-click.png'), fullPage: true })
-  check('DSH Live2D 页面没有脚本错误', current.errors.length === 0, current.errors.join(' | '))
   await current.page.close()
   await launcher.evaluate(() => window.launcher.stopHarness())
 } finally {
@@ -159,4 +156,4 @@ try {
 
 process.stderr.write(`\n截图写入 ${path.relative(root, outputRoot)}\n`)
 if (failures.length) process.exit(1)
-process.stderr.write('Harness 像素/Live2D 宠物待机与点击互动验收通过\n')
+process.stderr.write('Harness 像素宠物待机、随机互动、拖拽与位置持久化验收通过\n')

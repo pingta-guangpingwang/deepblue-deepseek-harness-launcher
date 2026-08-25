@@ -226,6 +226,18 @@ export class LauncherController {
     return this.desktopPet?.isRunning() === true
   }
 
+  beginDesktopPetDrag(senderId: number, position: unknown): void {
+    this.desktopPet?.beginDrag(senderId, position)
+  }
+
+  moveDesktopPetDrag(senderId: number, position: unknown): void {
+    this.desktopPet?.moveDrag(senderId, position)
+  }
+
+  async endDesktopPetDrag(senderId: number, position: unknown): Promise<void> {
+    await this.desktopPet?.endDrag(senderId, position)
+  }
+
   isDesktopExperienceActive(): boolean {
     return this.isDynamicDesktopActive() || this.isDesktopPetActive()
   }
@@ -1439,8 +1451,7 @@ export class LauncherController {
   async previewPet(petId: string): Promise<PetPreviewResult> {
     const item = this.snapshot.pets.items.find(entry => entry.id === petId)
     if (!item || item.origin === 'custom' || this.petTransferBusy(petId)) return { snapshot: this.getSnapshot() }
-    const previewBytes = item.media.size + (item.packKind === 'live2d' ? item.thumbnail.size : 0)
-    this.updatePetTransfer(petId, 'preview', { status: 'downloading', receivedBytes: 0, totalBytes: previewBytes, message: '准备宠物预览' })
+    this.updatePetTransfer(petId, 'preview', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size, message: '准备宠物预览' })
     try {
       const result = await this.petStore.preview(petId, progress => this.updatePetTransfer(petId, 'preview', progress))
       this.replacePetState(result.state)
@@ -1482,11 +1493,6 @@ export class LauncherController {
   async applyPetToDesktop(petId: string): Promise<LauncherSnapshot> {
     const item = this.snapshot.pets.items.find(entry => entry.id === petId)
     if (!item || this.petTransferBusy(petId)) return this.getSnapshot()
-    if (item.packKind === 'live2d') {
-      this.failPetTransfer(petId, 'desktop', new Error('Live2D 模型暂不显示电脑桌面按钮；完整模型包和运行库逐文件签名后再开放'))
-      this.emit()
-      return this.getSnapshot()
-    }
     this.updatePetTransfer(petId, 'desktop', { status: 'downloading', receivedBytes: 0, totalBytes: item.media.size, message: '准备下载并应用到电脑桌面' })
     this.emit()
     try {
@@ -1642,7 +1648,7 @@ export class LauncherController {
     const paths = launcherDataPaths()
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
-    const expectedVersion = '0.8.1'
+    const expectedVersion = '0.8.2'
     const installedManifest = path.join(paths.dshHome, 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json')
     try {
       const manifest = JSON.parse(await readFile(installedManifest, 'utf8')) as { version?: string }

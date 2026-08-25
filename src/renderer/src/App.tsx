@@ -149,7 +149,6 @@ const SKIN_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-
 const SKIN_VIDEO_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-skins-video'
 const PET_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets'
 const PET_PIXEL_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel'
-const PET_LIVE2D_STORE_REPOSITORY_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets-live2d'
 
 function useAdaptiveCatalogCapacity(): { viewportRef: RefObject<HTMLDivElement | null>; pageSize: number } {
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -983,6 +982,9 @@ const petStyleLabels: Record<PetStyle, string> = {
 function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactNode {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [row, setRow] = useState(0)
+  const validRowsRef = useRef<number[]>([])
+  const lastInteractionRowRef = useRef(-1)
+  const resetTimerRef = useRef(0)
   useEffect(() => {
     const image = new Image()
     image.crossOrigin = 'anonymous'
@@ -998,22 +1000,25 @@ function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactN
       const frameHeight = image.naturalHeight / rows
       canvas.width = frameWidth
       canvas.height = frameHeight
-      const activeRow = Math.min(row, rows - 1)
       const scratch = document.createElement('canvas')
       scratch.width = frameWidth
       scratch.height = frameHeight
       const scratchContext = scratch.getContext('2d', { willReadFrequently: true })
       const minimumPixels = Math.max(12, Math.floor(frameWidth * frameHeight * .002))
-      const frames = Array.from({ length: columns }, (_, frame) => frame).filter((frame) => {
-        if (!scratchContext) return true
+      const framesFor = (targetRow: number): number[] => Array.from({ length: columns }, (_, frame) => frame).filter((frame) => {
+        if (!scratchContext) return false
         scratchContext.clearRect(0, 0, frameWidth, frameHeight)
-        scratchContext.drawImage(image, frame * frameWidth, activeRow * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
+        scratchContext.drawImage(image, frame * frameWidth, targetRow * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight)
         const pixels = scratchContext.getImageData(0, 0, frameWidth, frameHeight).data
         let visible = 0
         for (let pixel = 3; pixel < pixels.length && visible < minimumPixels; pixel += 4) if ((pixels[pixel] ?? 0) > 8) visible += 1
         return visible >= minimumPixels
       })
-      if (!frames.length) frames.push(0)
+      const rowFrames = Array.from({ length: rows }, (_, targetRow) => framesFor(targetRow))
+      validRowsRef.current = rowFrames.map((frames, index) => ({ frames, index })).filter(entry => entry.index > 0 && entry.frames.length).map(entry => entry.index)
+      const activeRow = Math.min(row, rows - 1)
+      const frames = rowFrames[activeRow]?.length ? rowFrames[activeRow] : rowFrames[0]
+      if (!frames?.length) return
       let index = 0
       const draw = (): void => {
         const frame = frames[index % frames.length] || 0
@@ -1029,63 +1034,18 @@ function PixelAtlasPreview({ src, name }: { src: string; name: string }): ReactN
     image.src = src
     return () => { image.onload = null; if (timer) window.clearInterval(timer) }
   }, [src, row])
+  useEffect(() => () => { if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current) }, [])
   const interact = (): void => {
-    setRow(4)
-    window.setTimeout(() => setRow(0), 760)
+    const alternatives = validRowsRef.current.filter(value => value !== lastInteractionRowRef.current)
+    const pool = alternatives.length ? alternatives : validRowsRef.current
+    const next = pool[Math.floor(Math.random() * pool.length)]
+    if (next === undefined) return
+    lastInteractionRowRef.current = next
+    setRow(next)
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+    resetTimerRef.current = window.setTimeout(() => setRow(0), 1100)
   }
-  return <button type="button" className="pixel-atlas-preview-button" aria-label={`点击${name}播放互动动画`} onClick={interact}><canvas ref={canvasRef} /><span>点击宠物互动</span></button>
-}
-
-interface Live2DPreviewInstance {
-  load(options: { path: string; scale?: number; volume?: number; logLevel?: 'error' | 'warn' | 'info' | 'trace' }): Promise<void>
-  getMotions(): Record<string, string[]>
-  playMotion(group: string, index?: number, priority?: number): void
-  setExpression(id?: string): void
-  destroy(): void
-  on(event: 'loaded', listener: () => void): Live2DPreviewInstance
-}
-
-function Live2DPreview({ preview }: { preview: PetPreview }): ReactNode {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const instanceRef = useRef<Live2DPreviewInstance | undefined>(undefined)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-  useEffect(() => {
-    if (!preview.modelUrl || !preview.runtimeUrl || !canvasRef.current) return
-    let disposed = false
-    let instance: Live2DPreviewInstance | undefined
-    setStatus('loading')
-    void import(/* @vite-ignore */ preview.runtimeUrl).then(async (runtime: { init: (canvas: HTMLCanvasElement) => Live2DPreviewInstance | null }) => {
-      if (disposed || !canvasRef.current) return
-      instance = runtime.init(canvasRef.current) || undefined
-      if (!instance) throw new Error('Live2D Canvas 初始化失败')
-      instanceRef.current = instance
-      instance.on('loaded', () => { if (!disposed) setStatus('ready') })
-      await instance.load({ path: preview.modelUrl!, scale: 1, volume: 0, logLevel: 'warn' })
-      // l2d resolves load() only after the model is render-ready. Keep the
-      // event listener for progress compatibility, but do not rely on a single
-      // event delivery to leave the loading state.
-      if (!disposed) setStatus('ready')
-    }).catch(() => { if (!disposed) setStatus('error') })
-    return () => {
-      disposed = true
-      instanceRef.current = undefined
-      try { instance?.destroy() } catch { /* A failed WebGL initialization may already have disposed the model. */ }
-    }
-  }, [preview.modelUrl, preview.runtimeUrl])
-  const interact = (): void => {
-    const instance = instanceRef.current
-    if (!instance) return
-    const groups = Object.keys(instance.getMotions() || {})
-    const candidates = groups.filter(group => !/^idle$/i.test(group))
-    const group = candidates.find(value => /(tap|touch|flick|thank|body|head)/i.test(value)) || candidates[0] || groups[0]
-    if (group) instance.playMotion(group, undefined, 3)
-    else instance.setExpression()
-  }
-  return <button type="button" className="live2d-preview-player" data-status={status} aria-label={`点击${preview.name}播放 Live2D 互动动作`} onClick={interact}>
-    <canvas ref={canvasRef} width={640} height={640} />
-    {status !== 'ready' && <img src={preview.mediaUrl} alt={`${preview.name}静态备用预览`} />}
-    <span>{status === 'loading' ? '正在装载完整模型…' : status === 'error' ? '动态模型加载失败，已显示完整备用图' : 'Live2D 播放中 · 点击互动'}</span>
-  </button>
+  return <button type="button" className="pixel-atlas-preview-button" data-animation-row={row} aria-label={`点击${name}随机播放互动动画`} onClick={interact}><canvas ref={canvasRef} /><span>点击随机互动</span></button>
 }
 
 function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onApply, onApplyDesktop, onStopDesktop, onClear, onImport, onRemove, onRemoveCustom, onToggleFavorite }: {
@@ -1105,7 +1065,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
 }): ReactNode {
   const [preview, setPreview] = useState<PetPreview>()
   const [view, setView] = useState<'all' | 'current' | 'favorites'>('all')
-  const [source, setSource] = useState<'all' | 'official' | 'pixel' | 'live2d' | 'custom'>('all')
+  const [source, setSource] = useState<'all' | 'official' | 'pixel' | 'custom'>('all')
   const [query, setQuery] = useState('')
   const [species, setSpecies] = useState<PetSpecies | 'all'>('all')
   const [style, setStyle] = useState<PetStyle | 'all'>('all')
@@ -1145,7 +1105,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
     const result = await onPreview(petId)
     if (result) setPreview(result)
   }
-  const sourceCount = (id: 'official' | 'pixel' | 'live2d'): number => snapshot.pets.sources.find(entry => entry.id === id)?.itemCount || 0
+  const sourceCount = (id: 'official' | 'pixel'): number => snapshot.pets.sources.find(entry => entry.id === id)?.itemCount || 0
   const emptyCopy = view === 'current'
     ? { title: '还没有正在使用的宠物', text: '从商店挑一个伙伴，应用后会出现在这里。' }
     : view === 'favorites'
@@ -1155,10 +1115,10 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
     <div className="pet-store-layout catalog-store-layout">
       <Card className="pet-store-hero">
         <div className="pet-hero-icon"><PawPrint /></div>
-        <div><h2>给工作台找一个小伙伴</h2><p>{snapshot.pets.items.length} 只宠物来自三个固定的 Gitee 签名目录；缩略图用于浏览，只有下载、预览或应用时才获取原资源。</p><div className="store-repository-links"><OpenSourceInvite name="原创动图仓" url={PET_STORE_REPOSITORY_URL} /><OpenSourceInvite name="像素宠物仓" url={PET_PIXEL_STORE_REPOSITORY_URL} /><OpenSourceInvite name="Live2D 仓" url={PET_LIVE2D_STORE_REPOSITORY_URL} /></div></div>
+        <div><h2>给工作台找一个小伙伴</h2><p>{snapshot.pets.items.length} 只宠物来自两个固定的 Gitee 签名目录；缩略图用于浏览，只有下载、预览或应用时才获取原资源。</p><div className="store-repository-links"><OpenSourceInvite name="原创动图仓" url={PET_STORE_REPOSITORY_URL} /><OpenSourceInvite name="像素宠物仓" url={PET_PIXEL_STORE_REPOSITORY_URL} /></div></div>
         <div className="pet-hero-actions">
           <span className={classNames('soft-badge', snapshot.pets.source === 'remote' ? 'green' : 'blue')}>{snapshot.pets.source === 'remote' ? 'Gitee 多源目录' : '内置离线目录'}</span>
-          <button className="quiet-button" disabled={busy === 'pets'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'pets' ? 'spin' : ''} />同步三个目录</button>
+          <button className="quiet-button" disabled={busy === 'pets'} onClick={onRefresh}><RefreshCw size={15} className={busy === 'pets' ? 'spin' : ''} />同步两个目录</button>
           <button className="quiet-button" disabled={!!busy} onClick={onImport}><Upload size={15} />添加本地宠物</button>
         </div>
       </Card>
@@ -1177,7 +1137,6 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
             <button className={source === 'all' ? 'active' : ''} onClick={() => chooseSource('all')}>全部来源</button>
             <button className={source === 'official' ? 'active' : ''} onClick={() => chooseSource('official')}>原创动图 {sourceCount('official')}</button>
             <button className={source === 'pixel' ? 'active' : ''} onClick={() => chooseSource('pixel')}>像素精灵 {sourceCount('pixel')}</button>
-            <button className={source === 'live2d' ? 'active' : ''} onClick={() => chooseSource('live2d')}>Live2D {sourceCount('live2d')}</button>
             <button className={source === 'custom' ? 'active' : ''} onClick={() => chooseSource('custom')}>本机导入</button>
           </div>
           <div className="skin-filter-row" aria-label="宠物分类">
@@ -1196,10 +1155,9 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
         const cached = downloaded.has(pet.id)
         const favorite = favorites.has(pet.id)
         const custom = pet.origin === 'custom'
-        const live2d = pet.packKind === 'live2d'
         const transfer = snapshot.pets.transfers[pet.id]
         const transferring = transfer && ['queued', 'downloading', 'verifying', 'applying', 'removing'].includes(transfer.status)
-        const kindLabel = live2d ? 'Live2D 模型' : pet.packKind === 'pixel-atlas' ? '像素帧动画' : pet.mediaKind === 'animated' ? '透明帧动画' : petSpeciesLabels[pet.species]
+        const kindLabel = pet.packKind === 'pixel-atlas' ? '像素帧动画' : pet.mediaKind === 'animated' ? '透明帧动画' : petSpeciesLabels[pet.species]
         return (
           <article className={classNames('pet-card', (active || desktopActive) && 'active')} data-pet-id={pet.id} data-catalog-source={pet.catalogSource} data-pack-kind={pet.packKind || 'image'} key={pet.id}>
             <div className="pet-preview">
@@ -1214,15 +1172,15 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
             <div className="skin-card-body">
               <div className="skin-title-row"><div><h2>{pet.name}</h2><p>{pet.description}</p></div></div>
               <div className="tag-row">{pet.styles.map((entry) => <span key={entry}>{petStyleLabels[entry]}</span>)}{pet.tags.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <div className="pet-behavior"><span>点击：{pet.behavior.clickMotion === 'hop' ? '跳一跳' : pet.behavior.clickMotion === 'spin' ? '转圈' : '冒爱心'}</span><span>可拖动</span>{pet.packKind === 'pixel-atlas' && <span>精灵表播放</span>}{pet.mediaKind === 'animated' && <span>帧动画</span>}{pet.behavior.autoSpeakIntervalSec && <span>主动问候</span>}</div>
+              <div className="pet-behavior"><span>点击随机互动</span><span>可拖动并记忆位置</span>{pet.packKind === 'pixel-atlas' && <span>全部有效动作随机</span>}{pet.mediaKind === 'animated' && <span>帧动画</span>}<span>待机主动互动</span></div>
               <div className="skin-license"><ShieldCheck size={14} /><span>{custom ? '仅保存在本机' : `${pet.license.name} · ${pet.license.author}`}</span>{!custom && <button onClick={() => void window.launcher?.openExternal(pet.license.sourceUrl)}><ExternalLink size={12} /></button>}</div>
               {transfer && <div className={classNames('skin-transfer-progress', transfer.status)} title={transfer.message} aria-live="polite"><span className="skin-transfer-fill" style={{ width: `${Math.max(3, transfer.progress)}%` }} /><div role="progressbar" aria-label={`${pet.name}${transfer.message}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={transfer.progress}><span>{transfer.message}</span><strong>{transfer.status === 'failed' ? '失败' : `${transfer.progress}%`}</strong></div></div>}
               <div className="skin-card-actions pet-card-actions">
                 <button className="small-button" disabled={Boolean(transferring)} onClick={() => void openPreview(pet.id)}>{transfer?.operation === 'preview' && transferring ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}预览</button>
                 {!custom && <button className={classNames('small-button', cached && 'danger')} disabled={Boolean(transferring)} onClick={() => cached ? onRemove(pet.id) : onDownload(pet.id)}>{transferring && transfer.operation === (cached ? 'remove' : 'download') ? <LoaderCircle className="spin" size={14} /> : cached ? <Trash2 size={14} /> : <Download size={14} />}{cached ? '删除' : '下载'}</button>}
                 {custom && <button className="small-button danger" disabled={!!busy} onClick={() => onRemoveCustom(pet.id)}><Trash2 size={14} />删除</button>}
-                <button className={classNames('small-button', desktopActive && 'danger')} title={live2d ? 'Live2D 模型暂不执行未逐文件签名的模型运行库' : desktopActive ? '停止电脑桌面宠物' : '下载校验后显示在 Windows 桌面，可点击互动和拖动'} disabled={Boolean(transferring) || live2d} onClick={() => desktopActive ? onStopDesktop() : onApplyDesktop(pet.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : desktopActive ? <CircleStop size={14} /> : <Monitor size={14} />}{desktopActive ? '停止桌面宠物' : live2d ? '桌面运行库待接入' : '应用到桌面'}</button>
-                <button className={active ? 'small-button' : 'primary-button'} title={live2d ? '下载并逐文件校验完整模型后，在 Harness 内播放待机和点击动作' : undefined} disabled={Boolean(transferring) || active} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
+                <button className={classNames('small-button', desktopActive && 'danger')} title={desktopActive ? '停止电脑桌面宠物' : '下载校验后显示在 Windows 桌面，可随机互动、主动展示动作并拖动记忆位置'} disabled={Boolean(transferring)} onClick={() => desktopActive ? onStopDesktop() : onApplyDesktop(pet.id)}>{transfer?.operation === 'desktop' && transferring ? <LoaderCircle className="spin" size={14} /> : desktopActive ? <CircleStop size={14} /> : <Monitor size={14} />}{desktopActive ? '停止桌面宠物' : '应用到桌面'}</button>
+                <button className={active ? 'small-button' : 'primary-button'} disabled={Boolean(transferring) || active} onClick={() => onApply(pet.id)}>{active ? <><Check size={14} />Harness 已应用</> : transfer?.operation === 'apply' && transferring ? <><LoaderCircle className="spin" size={14} />应用中</> : <><PawPrint size={14} />应用到 Harness</>}</button>
               </div>
             </div>
           </article>
@@ -1231,7 +1189,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
       </div>
 
       <CatalogPagination currentPage={currentPage} pageCount={pageCount} pageSize={pageSize} totalItems={filtered.length} onChange={setPage} action={(snapshot.pets.activePetId || snapshot.pets.desktopPet?.running) ? <div className="catalog-inline-actions">{snapshot.pets.activePetId && <button className="text-button danger" disabled={!!busy} onClick={onClear}>关闭网页宠物</button>}{snapshot.pets.desktopPet?.running && <button className="text-button danger" disabled={!!busy} onClick={onStopDesktop}>停止桌面宠物</button>}</div> : undefined} />
-      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : preview.packKind === 'live2d' && preview.modelUrl && preview.runtimeUrl ? <Live2DPreview preview={preview} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />{preview.packKind === 'live2d' ? '完整模型已逐文件校验；待机持续播放，点击角色可切换互动动作' : '已从本机校验缓存读取，关闭后仍可离线预览'}</span><div className="skin-preview-actions">{preview.packKind !== 'live2d' && <button className={classNames('small-button', snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running && 'danger')} onClick={() => snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? onStopDesktop() : onApplyDesktop(preview.petId)}>{snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? <><CircleStop size={15} />停止桌面宠物</> : <><Monitor size={15} />应用到电脑桌面</>}</button>}<button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button></div></footer></section></div>}
+      {preview && <div className="skin-preview-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setPreview(undefined) }}><section className="skin-preview-modal pet-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pet-preview-title"><header><div><span>本机宠物预览</span><h2 id="pet-preview-title">{preview.name}</h2></div><button className="icon-button" aria-label="关闭宠物预览" onClick={() => setPreview(undefined)}><X size={18} /></button></header><div className="skin-preview-stage pet-preview-stage">{preview.packKind === 'pixel-atlas' ? <PixelAtlasPreview src={preview.mediaUrl} name={preview.name} /> : <img src={preview.mediaUrl} alt={`${preview.name}预览`} />}</div><footer><span><ShieldCheck size={14} />已从本机校验缓存读取，关闭后仍可离线预览</span><div className="skin-preview-actions"><button className={classNames('small-button', snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running && 'danger')} onClick={() => snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? onStopDesktop() : onApplyDesktop(preview.petId)}>{snapshot.pets.desktopPet?.petId === preview.petId && snapshot.pets.desktopPet.running ? <><CircleStop size={15} />停止桌面宠物</> : <><Monitor size={15} />应用到电脑桌面</>}</button><button className="primary-button" disabled={snapshot.pets.activePetId === preview.petId} onClick={() => onApply(preview.petId)}>{snapshot.pets.activePetId === preview.petId ? <><Check size={15} />Harness 正在使用</> : <><PawPrint size={15} />应用到 Harness</>}</button></div></footer></section></div>}
     </div>
   )
 }
@@ -1896,7 +1854,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
         <label className="field-label"><span>签名皮肤目录<small>固定使用 Gitee 主仓目录，并索引 skins 与 skins-video 两个仓库；签名不通过时回退内置目录。</small></span><input value={draft.skinCatalogUrl} readOnly aria-readonly="true" /></label>
       </Card>
       <Card className="source-settings" title="宠物商店源">
-        <label className="field-label"><span>三个签名宠物目录<small>固定合并原创动图、像素精灵与 Live2D 三个 Gitee 仓；任一来源不可用时其余目录仍可浏览。</small></span><input value={`${draft.petCatalogUrl} · pets-pixel/catalog.json · pets-live2d/catalog.json`} readOnly aria-readonly="true" /></label>
+        <label className="field-label"><span>两个签名宠物目录<small>固定合并原创动图与像素精灵两个 Gitee 仓；任一来源不可用时其余目录仍可浏览。</small></span><input value={`${draft.petCatalogUrl} · pets-pixel/catalog.json`} readOnly aria-readonly="true" /></label>
       </Card>
     </div>
   )
