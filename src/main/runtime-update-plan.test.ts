@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
+import { describeRuntimeModuleUpdates, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
 import type { RuntimeModuleRelease } from '../shared/types'
 
 function release(id: RuntimeModuleRelease['id'], version: string, dependencies: RuntimeModuleRelease['dependencies'] = []): RuntimeModuleRelease {
@@ -37,6 +37,19 @@ describe('signed runtime update planning', () => {
   it('keeps every missing module on demand until a bundled or active version is known', () => {
     const updates = planRuntimeModuleUpdates(catalog, {}, 'win32', 'x64')
     expect(updates).toEqual([])
+  })
+
+  it('describes current, automatic, missing required, and on-demand modules for the update center', () => {
+    const states = describeRuntimeModuleUpdates(catalog, {
+      'node-runtime': '24.17.0',
+      'harness-core': '0.1.0-rc.6'
+    }, 'win32', 'x64')
+    expect(states.map((item) => [item.id, item.disposition])).toEqual([
+      ['node-runtime', 'current'],
+      ['harness-core', 'automatic'],
+      ['terminal-native', 'on-demand'],
+      ['launcher-ui', 'manual']
+    ])
   })
 
   it('orders dependencies before the target in an install plan', () => {

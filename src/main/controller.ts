@@ -10,7 +10,7 @@ import { FIXED_PET_CATALOG_URL, FIXED_SKIN_CATALOG_URL, launcherDataPaths, readC
 import { fetchLatestNpmVersion, fetchSignedCatalog, isNewerVersion, mergeBundledRuntimeMirrors, readBundledRuntimeModules } from './manifest'
 import { ensureRuntimeDirectory, hasBundledHarness, isExecutable, readPackageVersion, resolveRuntime, sanitizedProcessEnvironment, spawnNode } from './runtime'
 import { RuntimeModuleStore, type RuntimeModuleInstallProgress } from './runtime-modules'
-import { RUNTIME_MODULE_LABELS, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
+import { RUNTIME_MODULE_LABELS, describeRuntimeModuleUpdates, planRuntimeModuleUpdates, runtimeModulePlan } from './runtime-update-plan'
 import { SkinStore, type SkinDownloadProgress } from './skins'
 import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-wallpaper'
 import { DynamicWallpaperManager } from './dynamic-wallpaper'
@@ -149,7 +149,7 @@ export class LauncherController {
       launchProgress: { status: 'idle', progress: 0, message: '等待启动' },
       activeHarnessVersion: this.config.activeVersion,
       latestHarnessVersion: '0.1.1-rc.2',
-      runtimeUpdates: { status: 'idle', items: [] },
+      runtimeUpdates: { status: 'idle', items: [], modules: [] },
       environment: this.checkingEnvironment(),
       sources,
       tasks: [],
@@ -312,6 +312,7 @@ export class LauncherController {
         this.snapshot.runtimeUpdates = {
           status: 'failed',
           items: [],
+          modules: this.snapshot.runtimeUpdates.modules,
           checkedAt: new Date().toISOString(),
           message: '本次未取得通过签名校验的模块目录；已保留内置目录与当前版本'
         }
@@ -599,6 +600,7 @@ export class LauncherController {
     task.receivedBytes = 0
     task.progress = 0
     this.snapshot.runtimeUpdates = {
+      ...this.snapshot.runtimeUpdates,
       status: 'installing',
       items: requested,
       taskId: task.id,
@@ -636,6 +638,9 @@ export class LauncherController {
       await this.refreshInstalledPlugins()
       await this.refreshEnvironment()
       const checkedAt = new Date().toISOString()
+      const updatedModules = this.snapshot.runtimeUpdates.modules.map((item) => requestedIds.has(item.id)
+        ? { ...item, currentVersion: item.nextVersion, disposition: 'current' as const, message: '本轮更新已安装并通过校验' }
+        : item)
       const requiresRelaunch = [...requestedIds].some((id) => !['launcher-ui', 'package-manager'].includes(id))
       const launcherUiRelease = releases.find((release) => release.id === 'launcher-ui')
       if (!requiresRelaunch) {
@@ -646,14 +651,14 @@ export class LauncherController {
           this.snapshot.launcherUiVersion = launcherUiRelease.version
           this.snapshot.launcherUiSource = 'updated'
           task.detail = '变化模块已启用；界面将在本窗口自动刷新'
-          this.snapshot.runtimeUpdates = { status: 'idle', items: [], checkedAt, message: '热更新完成：只替换了变化模块，无需重新下载安装器' }
+          this.snapshot.runtimeUpdates = { status: 'idle', items: [], modules: updatedModules, checkedAt, message: '热更新完成：只替换了变化模块，无需重新下载安装器' }
           this.log('INFO', `启动器 UI ${launcherUiRelease.version} 已热更新，正在刷新当前窗口`)
           this.emit()
           setTimeout(() => { void this.window.loadFile(entry) }, 450)
           return this.getSnapshot()
         }
         task.detail = '变化模块已启用，无需重启启动器'
-        this.snapshot.runtimeUpdates = { status: 'idle', items: [], checkedAt, message: '热更新完成：只替换了变化模块，无需重启启动器' }
+        this.snapshot.runtimeUpdates = { status: 'idle', items: [], modules: updatedModules, checkedAt, message: '热更新完成：只替换了变化模块，无需重启启动器' }
         this.log('INFO', '模块热更新完成，无需重启启动器')
         this.emit()
         return this.getSnapshot()
@@ -662,6 +667,7 @@ export class LauncherController {
       this.snapshot.runtimeUpdates = {
         status: 'restarting',
         items: requested,
+        modules: updatedModules,
         taskId: task.id,
         checkedAt,
         message: '运行时更新安装完成，启动器即将自动重启'
@@ -694,7 +700,7 @@ export class LauncherController {
         activeStep.status = 'failed'
         activeStep.message = message
       }
-      this.snapshot.runtimeUpdates = { status: 'failed', items: requested, taskId: task.id, message: task.detail }
+      this.snapshot.runtimeUpdates = { ...this.snapshot.runtimeUpdates, status: 'failed', items: requested, taskId: task.id, message: task.detail }
       this.log('ERROR', `模块更新失败：${task.detail}`)
       this.emit()
     }
@@ -1820,10 +1826,11 @@ export class LauncherController {
     currentVersions['package-manager'] ||= this.snapshot.environment.find((item) => item.id === 'pnpm')?.version
     currentVersions['launcher-ui'] ||= this.snapshot.launcherUiVersion || await bundledLauncherUiVersion()
     const items = planRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
+    const modules = describeRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
     const checkedAt = new Date().toISOString()
     this.snapshot.runtimeUpdates = items.length
-      ? { status: 'available', items, checkedAt, message: `检测到 ${items.length} 个独立模块可更新，只会下载这些变化部分` }
-      : { status: 'idle', items: [], checkedAt, message: '检查完成：基础内核与所有已安装模块均为最新' }
+      ? { status: 'available', items, modules, checkedAt, message: `检测到 ${items.length} 个独立模块可更新，只会下载这些变化部分` }
+      : { status: 'idle', items: [], modules, checkedAt, message: '检查完成：基础内核与所有已安装模块均为最新' }
   }
 
   private addTask(id: string, title: string, detail: string): LauncherTask {

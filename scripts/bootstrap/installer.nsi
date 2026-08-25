@@ -34,6 +34,8 @@ Var DownloadStatus
 Var FinalShell
 Var StagingShell
 Var AutoStart
+Var LegacyInstallRoot
+Var LegacyUninstall
 
 !macro DownloadMirror URL LABEL
   ${If} $DownloadStatus != "OK"
@@ -45,6 +47,30 @@ Var AutoStart
 
 Function .onInit
   ${GetParameters} $0
+  ; InstallDirRegKey covers current bootstrap installs. Only consult legacy
+  ; electron-builder records while NSIS is still on the default destination,
+  ; so an explicit final /D= argument always wins during automatic updates.
+  ${If} $INSTDIR == "$LOCALAPPDATA\Programs\DeepBlueDeepSeekHarness"
+    ReadRegStr $LegacyInstallRoot HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "InstallLocation"
+    ${If} $LegacyInstallRoot == ""
+      ReadRegStr $LegacyInstallRoot HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\078eda7a-bb67-538c-a4c8-0b0ff5470883" "InstallLocation"
+    ${EndIf}
+    ${If} $LegacyInstallRoot == ""
+      ReadRegStr $LegacyUninstall HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\078eda7a-bb67-538c-a4c8-0b0ff5470883" "UninstallString"
+      ${If} $LegacyUninstall != ""
+        ${GetParent} "$LegacyUninstall" $LegacyInstallRoot
+        StrCpy $1 $LegacyInstallRoot 1
+        ${If} $1 == '$\"'
+          StrCpy $LegacyInstallRoot $LegacyInstallRoot "" 1
+        ${EndIf}
+      ${EndIf}
+    ${EndIf}
+    ${If} $LegacyInstallRoot != ""
+      ${If} ${FileExists} "$LegacyInstallRoot\*.*"
+        StrCpy $INSTDIR $LegacyInstallRoot
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
   ${GetOptions} $0 "/LOCAL_SHELL=" $LocalShell
   StrCpy $QaMode "0"
   StrCpy $AutoStart "0"
@@ -129,6 +155,7 @@ Section "安装启动器" SEC_MAIN
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "DisplayVersion" "${SHELL_VERSION}"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "Publisher" "DeepBlue / AI历史书"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "UninstallString" '"$INSTDIR\卸载深蓝DeepSeekHarness启动器.exe"'
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "InstallLocation" "$INSTDIR"
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "NoModify" 1
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "NoRepair" 1
     CreateDirectory "$SMPROGRAMS\深蓝DeepSeekHarness启动器"

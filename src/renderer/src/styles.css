@@ -1241,24 +1241,42 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 
 /* Signed runtime update flow stays last so legacy dialog rules cannot shrink it. */
 .runtime-update-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(8,16,28,.74); backdrop-filter: blur(10px); -webkit-app-region: no-drag; }
-.runtime-update-dialog { width: min(660px,100%); max-height: calc(100vh - 48px); padding: 26px; overflow-y: auto; border: 1px solid color-mix(in srgb, var(--border) 78%, white); border-radius: 18px; color: var(--text); background: var(--surface); box-shadow: 0 28px 84px rgba(3,9,18,.38); outline: none; }
+.runtime-update-dialog { width: min(760px,100%); max-height: calc(100vh - 48px); padding: 26px; overflow-y: auto; border: 1px solid color-mix(in srgb, var(--border) 78%, white); border-radius: 18px; color: var(--text); background: var(--surface); box-shadow: 0 28px 84px rgba(3,9,18,.38); outline: none; }
 .runtime-update-heading { display: grid; grid-template-columns: 50px minmax(0,1fr); gap: 15px; align-items: start; }
 .runtime-update-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 13px; color: #fff; background: var(--blue); }
 .runtime-update-icon.failed { background: var(--red); }
 .runtime-update-icon.restarting { background: var(--mint); }
+.runtime-update-icon.checking { background: var(--blue); }
 .runtime-update-heading > div > span { color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
 .runtime-update-heading h2 { margin: 3px 0 6px; font-size: 21px; line-height: 1.3; }
 .runtime-update-heading p { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
-.runtime-update-list { margin-top: 20px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.runtime-update-summary { margin-top: 18px; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.runtime-update-summary span { min-width: 0; min-height: 48px; padding: 9px 11px; display: flex; align-items: center; gap: 8px; border-radius: 10px; color: var(--text-secondary); background: var(--surface-soft); font-size: 12px; line-height: 1.35; }
+.runtime-update-summary strong { flex: 0 0 auto; color: var(--text); font-size: 18px; }
+.runtime-update-summary .needs-update strong { color: var(--blue); }
+.runtime-update-summary .is-current strong { color: var(--mint); }
+.runtime-update-summary .is-manual strong { color: var(--amber); }
+.runtime-update-list { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .runtime-update-item { position: relative; min-height: 70px; padding: 12px 13px; display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); background: var(--surface-soft); }
 .runtime-update-item:last-child { border-bottom: 0; }
 .runtime-update-state { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: var(--blue); background: var(--blue-soft); }
 .runtime-update-state.completed { color: var(--mint); background: var(--mint-soft); }
 .runtime-update-state.failed { color: var(--red); background: var(--red-soft); }
+.runtime-update-state.current { color: var(--mint); background: var(--mint-soft); }
+.runtime-update-state.manual { color: var(--amber); background: color-mix(in srgb, var(--amber) 13%, var(--surface)); }
+.runtime-update-state.on-demand { color: var(--text-secondary); background: var(--surface-strong); }
 .runtime-update-item > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
 .runtime-update-item strong { font-size: 14px; }
-.runtime-update-item small { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 12px; }
+.runtime-update-item small { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--text-secondary); font-size: 12px; }
+.runtime-update-item small em { min-width: 0; margin-inline-start: 5px; overflow: hidden; color: var(--text-tertiary); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-update-item > b { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+.runtime-update-badge { padding: 4px 8px; border-radius: 999px; font-family: var(--font-sans) !important; font-size: 11px !important; font-weight: 700; white-space: nowrap; }
+.runtime-update-badge.automatic { color: var(--blue); background: var(--blue-soft); }
+.runtime-update-badge.current { color: var(--mint); background: var(--mint-soft); }
+.runtime-update-badge.manual { color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, var(--surface)); }
+.runtime-update-badge.on-demand { color: var(--text-secondary); background: var(--surface-strong); }
+.runtime-update-empty { min-height: 78px; padding: 18px; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--text-secondary); font-size: 13px; }
+.runtime-update-empty svg { color: var(--blue); }
 .runtime-update-item-progress { grid-column: 2 / -1; height: 5px; overflow: hidden; border-radius: 999px; background: var(--surface-strong); }
 .runtime-update-item-progress span { height: 100%; display: block; border-radius: inherit; background: var(--blue); transition: width .16s ease; }
 .runtime-update-item-detail { grid-column: 2 / -1; margin-top: -3px; color: var(--text-tertiary) !important; }
@@ -1280,9 +1298,13 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
   .runtime-update-heading { grid-template-columns: 42px minmax(0,1fr); gap: 12px; }
   .runtime-update-icon { width: 42px; height: 42px; }
   .runtime-update-heading h2 { font-size: 18px; }
+  .runtime-update-summary { grid-template-columns: 1fr; }
+  .runtime-update-summary span { min-height: 38px; }
   .runtime-update-list { margin-top: 16px; }
   .runtime-update-item { grid-template-columns: 32px minmax(0,1fr); }
   .runtime-update-item > b { grid-column: 2; justify-self: start; }
+  .runtime-update-item small { align-items: flex-start; flex-wrap: wrap; }
+  .runtime-update-item small em { flex-basis: 100%; margin-inline-start: 0; white-space: normal; }
   .runtime-update-item-progress, .runtime-update-item-detail { grid-column: 1 / -1; }
   .runtime-update-actions { display: grid; grid-template-columns: 1fr; }
   .runtime-update-actions button { width: 100%; }

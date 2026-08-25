@@ -3,7 +3,6 @@ import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/prom
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { PetBehavior, PetMediaKind, PetPackKind, PetStoreState } from '../shared/types'
-import { attachToWindowsDesktop } from './dynamic-wallpaper'
 
 interface DesktopPetPosition {
   x: number
@@ -202,6 +201,7 @@ export class DesktopPetManager {
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
+      alwaysOnTop: true,
       hasShadow: false,
       backgroundColor: '#00000000',
       webPreferences: {
@@ -215,8 +215,12 @@ export class DesktopPetManager {
     try {
       this.window = window
       await window.loadFile(hostFile)
+      window.setAlwaysOnTop(true, 'screen-saver')
+      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
       window.showInactive()
-      attachToWindowsDesktop(window, 'pet')
+      window.on('blur', () => {
+        if (!window.isDestroyed()) window.setAlwaysOnTop(true, 'screen-saver')
+      })
     } catch (error) {
       this.window = undefined
       window.destroy()

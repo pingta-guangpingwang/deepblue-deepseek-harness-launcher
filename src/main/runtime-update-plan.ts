@@ -1,4 +1,4 @@
-import type { RuntimeModuleId, RuntimeModuleRelease, RuntimeModuleUpdateItem } from '../shared/types'
+import type { RuntimeModuleId, RuntimeModuleRelease, RuntimeModuleUpdateItem, RuntimeModuleUpdateStatusItem } from '../shared/types'
 
 export const RUNTIME_MODULE_LABELS: Record<RuntimeModuleId, string> = {
   'node-runtime': 'Node.js 运行环境',
@@ -56,5 +56,50 @@ export function planRuntimeModuleUpdates(
       size: artifact.size,
       required: release.required
     }]
+  })
+}
+
+export function describeRuntimeModuleUpdates(
+  catalog: RuntimeModuleRelease[],
+  currentVersions: Partial<Record<RuntimeModuleId, string>>,
+  platform: string,
+  arch: string
+): RuntimeModuleUpdateStatusItem[] {
+  return catalog.map((release) => {
+    const currentVersion = currentVersions[release.id]
+    const artifact = release.artifacts.find((candidate) => candidate.platform === platform && candidate.arch === arch)
+    if (!currentVersion) {
+      return {
+        id: release.id,
+        label: RUNTIME_MODULE_LABELS[release.id],
+        nextVersion: release.version,
+        size: artifact?.size,
+        required: release.required,
+        disposition: release.required ? 'manual' : 'on-demand',
+        message: release.required ? '本机未检测到该必需模块，请执行快速修复' : '未安装，使用相关功能时再按需获取'
+      }
+    }
+    if (currentVersion === release.version) {
+      return {
+        id: release.id,
+        label: RUNTIME_MODULE_LABELS[release.id],
+        currentVersion,
+        nextVersion: release.version,
+        size: artifact?.size,
+        required: release.required,
+        disposition: 'current',
+        message: '已是签名目录中的最新版本'
+      }
+    }
+    return {
+      id: release.id,
+      label: RUNTIME_MODULE_LABELS[release.id],
+      currentVersion,
+      nextVersion: release.version,
+      size: artifact?.size,
+      required: release.required,
+      disposition: artifact ? 'automatic' : 'manual',
+      message: artifact ? '可由启动器独立下载并热更新' : '签名目录没有适用于当前系统的模块包'
+    }
   })
 }

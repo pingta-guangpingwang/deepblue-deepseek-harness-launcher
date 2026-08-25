@@ -627,9 +627,23 @@ export interface RuntimeModuleUpdateItem {
   required: boolean
 }
 
+export type RuntimeModuleUpdateDisposition = 'automatic' | 'current' | 'manual' | 'on-demand'
+
+export interface RuntimeModuleUpdateStatusItem {
+  id: RuntimeModuleId
+  label: string
+  currentVersion?: string
+  nextVersion: string
+  size?: number
+  required: boolean
+  disposition: RuntimeModuleUpdateDisposition
+  message: string
+}
+
 export interface RuntimeUpdateState {
   status: 'idle' | 'available' | 'installing' | 'restarting' | 'failed'
   items: RuntimeModuleUpdateItem[]
+  modules: RuntimeModuleUpdateStatusItem[]
   taskId?: string
   message?: string
   checkedAt?: string

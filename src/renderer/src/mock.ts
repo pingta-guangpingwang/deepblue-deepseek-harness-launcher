@@ -15,6 +15,13 @@ export const mockSnapshot: LauncherSnapshot = {
   runtimeUpdates: {
     status: 'available',
     message: '检测到 2 个独立模块可更新',
+    modules: [
+      { id: 'node-runtime', label: 'Node.js 运行环境', currentVersion: '24.16.0', nextVersion: '24.16.0', required: true, disposition: 'current', message: '已是签名目录中的最新版本' },
+      { id: 'harness-core', label: 'DeepSeek Harness 核心', currentVersion: '0.1.0-rc.8', nextVersion: '0.1.1-rc.2', size: 48_600_000, required: true, disposition: 'automatic', message: '可由启动器独立下载并热更新' },
+      { id: 'package-manager', label: 'pnpm 插件环境', currentVersion: '11.22.0', nextVersion: '11.23.0', size: 6_900_000, required: true, disposition: 'automatic', message: '可由启动器独立下载并热更新' },
+      { id: 'terminal-native', label: '终端原生组件', nextVersion: '1.0.0', required: false, disposition: 'on-demand', message: '未安装，使用相关功能时再按需获取' },
+      { id: 'launcher-ui', label: '启动器 UI 壳', currentVersion: 'ui-demo-latest', nextVersion: 'ui-demo-latest', required: true, disposition: 'current', message: '已是签名目录中的最新版本' }
+    ],
     items: [
       { id: 'harness-core', label: 'DeepSeek Harness 核心', currentVersion: '0.1.0-rc.8', nextVersion: '0.1.1-rc.2', size: 48_600_000, required: true },
       { id: 'package-manager', label: 'pnpm 插件环境', currentVersion: '11.22.0', nextVersion: '11.23.0', size: 6_900_000, required: true }

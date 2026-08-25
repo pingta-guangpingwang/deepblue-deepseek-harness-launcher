@@ -1709,27 +1709,36 @@ function EcosystemPage({ plugins, busy, onAction }: {
   </div>
 }
 
-function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLater }: {
+function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLauncherUpdate, onCheck, onCollapse }: {
   snapshot: LauncherSnapshot
-  busy: boolean
+  busy: string
   onConfirm: () => void
-  onLater: () => void
+  onLauncherUpdate: () => void
+  onCheck: () => void
+  onCollapse: () => void
 }): ReactNode {
   const dialogRef = useRef<HTMLElement>(null)
   const update = snapshot.runtimeUpdates
-  const task = update.taskId ? snapshot.tasks.find((item) => item.id === update.taskId) : undefined
-  const locked = update.status === 'installing' || update.status === 'restarting'
+  const runtimeTask = update.taskId ? snapshot.tasks.find((item) => item.id === update.taskId) : undefined
+  const launcherTask = snapshot.tasks.find((item) => item.title.startsWith('下载启动器'))
+  const task = runtimeTask || (busy === 'launcher-update' ? launcherTask : undefined)
+  const installing = update.status === 'installing' || update.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update'
+  const checking = busy === 'sources'
   const totalBytes = update.items.reduce((sum, item) => sum + item.size, 0)
+  const modules = update.modules || update.items.map((item) => ({ ...item, disposition: 'automatic' as const, message: '可由启动器独立下载并热更新' }))
+  const automaticCount = modules.filter((item) => item.disposition === 'automatic').length
+  const currentCount = modules.filter((item) => item.disposition === 'current' || item.disposition === 'on-demand').length
+  const manualCount = modules.filter((item) => item.disposition === 'manual').length + (snapshot.launcherUpdate ? 1 : 0)
 
   useEffect(() => {
     const preferred = dialogRef.current?.querySelector<HTMLButtonElement>('.primary-button:not(:disabled), .quiet-button:not(:disabled)')
     preferred?.focus()
     const keydown = (event: globalThis.KeyboardEvent): void => {
-      if (event.key === 'Escape' && !locked) onLater()
+      if (event.key === 'Escape') onCollapse()
     }
     window.addEventListener('keydown', keydown)
     return () => window.removeEventListener('keydown', keydown)
-  }, [locked, onLater])
+  }, [onCollapse])
 
   const keepFocusInside = (event: ReactKeyboardEvent<HTMLElement>): void => {
     if (event.key !== 'Tab') return
@@ -1754,21 +1763,34 @@ function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLater }: {
   return <div className="runtime-update-backdrop" role="presentation">
     <section ref={dialogRef} tabIndex={-1} className="runtime-update-dialog" role="dialog" aria-modal="true" aria-labelledby="runtimeUpdateTitle" aria-describedby="runtimeUpdateDescription" onKeyDown={keepFocusInside}>
       <div className="runtime-update-heading">
-        <span className={classNames('runtime-update-icon', update.status)}>{update.status === 'failed' ? <CircleAlert size={25} /> : update.status === 'restarting' ? <RotateCcw size={25} /> : <PackageCheck size={25} />}</span>
-        <div><span>签名模块更新</span><h2 id="runtimeUpdateTitle">{update.status === 'available' ? `发现 ${update.items.length} 个模块可更新` : update.status === 'failed' ? '更新未完成' : update.status === 'restarting' ? '安装完成，准备重启' : '正在安装更新'}</h2><p id="runtimeUpdateDescription">{update.message || '只下载有变化的模块，不会重新获取整套启动器。'}</p></div>
+        <span className={classNames('runtime-update-icon', update.status, checking && 'checking')}>{update.status === 'failed' ? <CircleAlert size={25} /> : update.status === 'restarting' ? <RotateCcw size={25} /> : checking ? <LoaderCircle className="spin" size={25} /> : <PackageCheck size={25} />}</span>
+        <div><h2 id="runtimeUpdateTitle">{checking ? '正在检测全部组件' : installing ? '正在更新，已转入后台任务' : update.status === 'failed' ? '部分更新未完成' : automaticCount || manualCount ? '检测到可处理的更新' : '当前已是最新状态'}</h2><p id="runtimeUpdateDescription">{checking ? '正在获取并验签在线目录，现有组件不会受到影响。' : update.message || '逐项核对启动器内核、运行环境、Harness 与界面模块。'}</p></div>
       </div>
 
-      <div className="runtime-update-list" aria-label="本次更新模块">
-        {update.items.map((item) => {
-          const step = task?.steps?.find((candidate) => candidate.id === item.id)
-          return <div className="runtime-update-item" key={item.id}>
-            <span className={classNames('runtime-update-state', step?.status || 'queued')}>{step?.status === 'completed' ? <Check size={16} /> : step?.status === 'failed' ? <X size={16} /> : <Package size={16} />}</span>
-            <span><strong>{item.label}</strong><small>{item.currentVersion} <ArrowRight size={12} /> {item.nextVersion}</small></span>
-            <b>{compactBytes(item.size)}</b>
+      <div className="runtime-update-summary" aria-label="更新状态汇总">
+        <span className="needs-update"><strong>{automaticCount}</strong>可自动更新</span>
+        <span className="is-current"><strong>{currentCount}</strong>无需更新</span>
+        <span className="is-manual"><strong>{manualCount}</strong>需安装器或手动处理</span>
+      </div>
+
+      <div className="runtime-update-list" aria-label="全部组件更新状态">
+        {modules.map((item) => {
+          const step = runtimeTask?.steps?.find((candidate) => candidate.id === item.id)
+          const state = step?.status === 'completed' ? 'completed' : step?.status === 'failed' ? 'failed' : item.disposition
+          return <div className={classNames('runtime-update-item', item.disposition)} key={item.id}>
+            <span className={classNames('runtime-update-state', state)}>{state === 'completed' || item.disposition === 'current' ? <Check size={16} /> : state === 'failed' || item.disposition === 'manual' ? <CircleAlert size={16} /> : <Package size={16} />}</span>
+            <span><strong>{item.label}</strong><small>{item.currentVersion ? <>{item.currentVersion} <ArrowRight size={12} /> {item.nextVersion}</> : item.nextVersion}<em>{item.message}</em></small></span>
+            <b className={classNames('runtime-update-badge', item.disposition)}>{item.disposition === 'automatic' ? '可自动更新' : item.disposition === 'current' ? '无需更新' : item.disposition === 'on-demand' ? '按需安装' : '手动处理'}</b>
             {step && <div className="runtime-update-item-progress"><span style={{ width: `${step.progress}%` }} /></div>}
             {step && <small className="runtime-update-item-detail">{moduleSourceLabel(step.source)}{step.source ? ' · ' : ''}{modulePhaseLabel(step.phase)} · {step.progress}%</small>}
           </div>
         })}
+        {snapshot.launcherUpdate && <div className="runtime-update-item manual launcher-kernel">
+          <span className="runtime-update-state manual"><CircleAlert size={16} /></span>
+          <span><strong>启动器基础内核</strong><small>v{snapshot.launcherVersion} <ArrowRight size={12} /> v{snapshot.launcherUpdate.version}<em>需要运行安装器；会沿用当前安装目录并自动重启</em></small></span>
+          <b className="runtime-update-badge manual">需安装器更新</b>
+        </div>}
+        {!modules.length && !snapshot.launcherUpdate && <div className="runtime-update-empty"><PackageCheck size={20} /><span>{checking ? '正在读取组件版本…' : '暂时没有可核对的签名模块；可重新检测在线目录。'}</span></div>}
       </div>
 
       {task && <div className="runtime-update-total">
@@ -1779,9 +1801,13 @@ function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLater }: {
 
       <div className="runtime-update-note"><ShieldCheck size={17} /><span>每个模块都会校验大小和 SHA-256，并先安装到临时目录；任一模块失败会恢复本轮已切换的版本。</span></div>
       <div className="runtime-update-actions">
-        {!locked && <button className="quiet-button" disabled={busy} onClick={onLater}>{update.status === 'failed' ? '关闭' : '稍后更新'}</button>}
-        {!locked && <button className="primary-button" disabled={busy} onClick={onConfirm}>{busy ? <LoaderCircle className="spin" size={17} /> : <Download size={17} />}{update.status === 'failed' ? '重新下载' : `下载并安装 · ${compactBytes(totalBytes)}`}</button>}
-        {locked && <span className="runtime-update-locked"><LoaderCircle className="spin" size={17} />{update.status === 'restarting' ? '正在重启，请稍候…' : '更新期间请勿关闭启动器'}</span>}
+        <button className="quiet-button" onClick={onCollapse}>{installing ? '收起，后台更新' : '关闭'}</button>
+        {!installing && !checking && snapshot.launcherUpdate && update.items.length > 0 && <button className="quiet-button" onClick={onLauncherUpdate}><HardDriveDownload size={17} />安装基础内核</button>}
+        {checking && <button className="primary-button" disabled><LoaderCircle className="spin" size={17} />正在检测…</button>}
+        {!installing && !checking && update.items.length > 0 && <button className="primary-button" onClick={onConfirm}><Download size={17} />{update.status === 'failed' ? '重试模块更新' : `更新 ${update.items.length} 个模块 · ${compactBytes(totalBytes)}`}</button>}
+        {!installing && !checking && !update.items.length && snapshot.launcherUpdate && <button className="primary-button" onClick={onLauncherUpdate}><HardDriveDownload size={17} />安装基础内核 · {compactBytes(snapshot.launcherUpdate.artifact.size)}</button>}
+        {!installing && !checking && !update.items.length && !snapshot.launcherUpdate && <button className="primary-button" onClick={onCheck}><RefreshCw size={17} />重新检测</button>}
+        {installing && <span className="runtime-update-locked"><LoaderCircle className="spin" size={17} />{update.status === 'restarting' ? '正在重启，请稍候…' : '更新继续在后台执行，可随时重新打开查看'}</span>}
       </div>
     </section>
   </div>
@@ -1868,7 +1894,8 @@ export default function App(): ReactNode {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [storageError, setStorageError] = useState('')
   const [settingsMessage, setSettingsMessage] = useState('')
-  const [dismissedRuntimeUpdate, setDismissedRuntimeUpdate] = useState('')
+  const [updateCenterOpen, setUpdateCenterOpen] = useState(false)
+  const [announcedUpdateSignature, setAnnouncedUpdateSignature] = useState('')
 
   useEffect(() => {
     if (!window.launcher) return
@@ -1882,8 +1909,15 @@ export default function App(): ReactNode {
 
   const currentPage = pageTitles[page]
   const statusLabel = useMemo(() => snapshot.runStatus === 'running' ? '运行中' : snapshot.runStatus === 'starting' ? '启动中' : snapshot.runStatus === 'error' ? '需要处理' : '未运行', [snapshot.runStatus])
-  const runtimeUpdateSignature = snapshot.runtimeUpdates.items.map((item) => `${item.id}:${item.nextVersion}`).join('|')
-  const showRuntimeUpdate = !snapshot.installation.setupRequired && snapshot.runtimeUpdates.items.length > 0 && snapshot.runtimeUpdates.status !== 'idle' && (snapshot.runtimeUpdates.status !== 'available' || dismissedRuntimeUpdate !== runtimeUpdateSignature)
+  const runtimeUpdateSignature = [snapshot.launcherUpdate?.version || '', ...snapshot.runtimeUpdates.items.map((item) => `${item.id}:${item.nextVersion}`)].filter(Boolean).join('|')
+  const updateOperationActive = snapshot.runtimeUpdates.status === 'installing' || snapshot.runtimeUpdates.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update'
+
+  useEffect(() => {
+    if (!snapshot.installation.setupRequired && runtimeUpdateSignature && runtimeUpdateSignature !== announcedUpdateSignature) {
+      setAnnouncedUpdateSignature(runtimeUpdateSignature)
+      setUpdateCenterOpen(true)
+    }
+  }, [announcedUpdateSignature, runtimeUpdateSignature, snapshot.installation.setupRequired])
 
   const run = async (name: string, action?: () => Promise<LauncherSnapshot | void>, demo?: () => void): Promise<boolean> => {
     if (busy) return false
@@ -1940,7 +1974,8 @@ export default function App(): ReactNode {
     void storageAction('shortcuts', () => window.launcher!.createShortcuts(), () => ({ ...snapshot, installation: { ...snapshot.installation, desktopShortcutReady: true, startMenuShortcutReady: true } }))
   }
   const checkSources = (): void => {
-    setDismissedRuntimeUpdate('')
+    setUpdateCenterOpen(true)
+    if (updateOperationActive || busy === 'sources') return
     if (window.launcher) void run('sources', () => window.launcher!.checkSources())
     else setSnapshot((current) => ({ ...current, sources: current.sources.map((source) => source.enabled ? { ...source, status: 'available', latencyMs: source.latencyMs || 68 } : source) }))
   }
@@ -1966,16 +2001,16 @@ export default function App(): ReactNode {
       createdAt: new Date().toISOString(),
       steps: items.map((item) => ({ id: item.id, label: item.label, status: 'downloading' as const, phase: 'download' as const, progress: 8, receivedBytes: 0, totalBytes: item.size, source: 'github' as const }))
     }
-    setSnapshot((current) => ({ ...current, tasks: [task, ...current.tasks], runtimeUpdates: { status: 'installing', items, taskId, message: '正在下载并校验签名模块，请保持启动器运行' } }))
+    setSnapshot((current) => ({ ...current, tasks: [task, ...current.tasks], runtimeUpdates: { ...current.runtimeUpdates, status: 'installing', items, taskId, message: '正在下载并校验签名模块，请保持启动器运行' } }))
     window.setTimeout(() => setSnapshot((current) => ({
       ...current,
       tasks: current.tasks.map((entry) => entry.id === taskId ? { ...entry, progress: 56, receivedBytes: Math.round(totalBytes * .56), detail: '下载完成，正在校验并解压', steps: entry.steps?.map((step, index) => ({ ...step, progress: index === 0 ? 100 : 38, receivedBytes: index === 0 ? step.totalBytes : Math.round(step.totalBytes * .38), phase: index === 0 ? 'completed' as const : 'download' as const, status: index === 0 ? 'completed' as const : 'downloading' as const })) } : entry),
-      runtimeUpdates: { status: 'installing', items, taskId, message: '正在校验并安装模块' }
+      runtimeUpdates: { ...current.runtimeUpdates, status: 'installing', items, taskId, message: '正在校验并安装模块' }
     })), 650)
     window.setTimeout(() => setSnapshot((current) => ({
       ...current,
       tasks: current.tasks.map((entry) => entry.id === taskId ? { ...entry, progress: 100, receivedBytes: totalBytes, detail: '全部模块已安装，准备重启', status: 'completed', steps: entry.steps?.map((step) => ({ ...step, progress: 100, receivedBytes: step.totalBytes, phase: 'completed', status: 'completed' })) } : entry),
-      runtimeUpdates: { status: 'restarting', items, taskId, message: '更新安装完成，启动器即将自动重启' }
+      runtimeUpdates: { ...current.runtimeUpdates, status: 'restarting', items, taskId, message: '更新安装完成，启动器即将自动重启' }
     })), 1_400)
   }
   const downloadLauncherUpdate = (): void => { if (window.launcher) void run('launcher-update', () => window.launcher!.downloadLauncherUpdate()) }
@@ -2159,7 +2194,7 @@ export default function App(): ReactNode {
           </div>
           <div className="title-actions">
             <span className={classNames('distribution-badge', snapshot.distributionMode)}>{snapshot.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}</span>
-            <button onClick={checkSources} disabled={busy === 'sources'}>{busy === 'sources' ? <LoaderCircle className="spin" size={18} /> : <Bell size={18} />}<span>{busy === 'sources' ? '检查中…' : '检查更新'}</span></button>
+            <button onClick={checkSources}>{busy === 'sources' || updateOperationActive ? <LoaderCircle className="spin" size={18} /> : <Bell size={18} />}<span>{busy === 'sources' ? '检查中…' : updateOperationActive ? '更新进度' : '检查更新'}</span></button>
             <button aria-label="切换主题" onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
             <button aria-label="打开设置" onClick={() => setPage('settings')}><Settings size={18} /></button>
           </div>
@@ -2190,7 +2225,7 @@ export default function App(): ReactNode {
         </div>
       </main>
       {snapshot.installation.setupRequired && <StorageSetupDialog snapshot={snapshot} busy={busy.startsWith('storage-')} error={storageError} onConfirm={confirmStorageSetup} onChoose={chooseStorageRoot} />}
-      {showRuntimeUpdate && <RuntimeUpdateDialog snapshot={snapshot} busy={busy === 'runtime-updates'} onConfirm={applyRuntimeUpdates} onLater={() => setDismissedRuntimeUpdate(runtimeUpdateSignature)} />}
+      {updateCenterOpen && !snapshot.installation.setupRequired && <RuntimeUpdateDialog snapshot={snapshot} busy={busy} onConfirm={applyRuntimeUpdates} onLauncherUpdate={downloadLauncherUpdate} onCheck={checkSources} onCollapse={() => setUpdateCenterOpen(false)} />}
     </div>
   )
 }

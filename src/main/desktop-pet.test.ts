@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFile } from 'node:fs/promises'
 import { desktopPetDocument } from './desktop-pet'
 
 const base = {
@@ -37,5 +38,12 @@ describe('desktop pet host', () => {
     const document = desktopPetDocument({ ...base, behavior: { ...base.behavior, speechLines: ['</script><script>alert(1)</script>'] } })
     expect(document).not.toContain('</script><script>alert(1)</script>')
     expect(document).toContain('\\u003c/script>')
+  })
+
+  it('keeps the desktop pet above regular windows instead of parenting it behind desktop icons', async () => {
+    const source = await readFile(new URL('./desktop-pet.ts', import.meta.url), 'utf8')
+    expect(source).toContain("window.setAlwaysOnTop(true, 'screen-saver')")
+    expect(source).toContain('visibleOnFullScreen: true')
+    expect(source).not.toContain("attachToWindowsDesktop(window, 'pet')")
   })
 })

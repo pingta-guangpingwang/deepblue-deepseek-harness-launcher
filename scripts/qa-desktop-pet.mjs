@@ -66,9 +66,11 @@ try {
   if (!petPage) throw new Error('桌面宠物状态已启动，但没有找到独立渲染窗口')
   await petPage.waitForLoadState('domcontentloaded')
   await petPage.locator('#pet').waitFor({ state: 'visible', timeout: 20_000 })
-  const windowState = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(window => !window.isDestroyed()).map(window => ({ visible: window.isVisible(), transparent: window.isFocusable(), bounds: window.getBounds() })))
+  const windowState = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(window => !window.isDestroyed()).map(window => ({ visible: window.isVisible(), focusable: window.isFocusable(), alwaysOnTop: window.isAlwaysOnTop(), bounds: window.getBounds(), url: window.webContents.getURL() })))
   if (windowState.length !== 2 || !windowState.every(window => window.visible)) throw new Error(`桌面宠物未创建独立可见层：${JSON.stringify(windowState)}`)
-  process.stderr.write(`ok  独立桌面宠物窗口已创建：${pet.name}\n`)
+  const petWindowState = windowState.find(window => window.url.includes('desktop-pet-host.html'))
+  if (!petWindowState?.alwaysOnTop) throw new Error(`桌面宠物没有保持系统最上层：${JSON.stringify(windowState)}`)
+  process.stderr.write(`ok  独立桌面宠物窗口已创建并保持系统最上层：${pet.name}\n`)
 
   const firstFrame = await petPage.locator('canvas').getAttribute('data-frame-index')
   await petPage.waitForTimeout(500)
