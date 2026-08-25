@@ -1899,7 +1899,11 @@ export default function App(): ReactNode {
 
   useEffect(() => {
     if (!window.launcher) return
-    void window.launcher.getSnapshot().then(setSnapshot)
+    // Keep the bundled snapshot visible if an older kernel briefly answers
+    // before its controller is ready. A later snapshot event replaces it.
+    void window.launcher.getSnapshot().then((next) => {
+      if (next) setSnapshot(next)
+    }).catch(() => undefined)
     return window.launcher.onSnapshot(setSnapshot)
   }, [])
 

@@ -204,8 +204,13 @@ describe('catalog signature verification', () => {
     expect(packageJson.scripts['release:smoke-public-fresh-install']).toBeTruthy()
     expect(packageJson.scripts['bootstrap:smoke']).toBeUndefined()
     expect(windowsBuilder).toContain('bootstrap:smoke-local-artifact')
+    expect(windowsBuilder).toContain('qa:packaged:cold-start')
     expect(publicGate).toContain('deepblue-deepseek-harness-launcher-win-x64-online.exe')
     expect(publicGate).not.toContain('LOCAL_SHELL')
+    expect(packageJson.scripts['qa:packaged:cold-start']).toContain('qa-packaged-cold-start.mjs')
+    const bootstrapInstaller = readFileSync(path.resolve('scripts/bootstrap/installer.nsi'), 'utf8')
+    expect(bootstrapInstaller).toContain('SetOutPath "$FinalShell"')
+    expect(bootstrapInstaller.indexOf('SetOutPath "$FinalShell"')).toBeLessThan(bootstrapInstaller.indexOf('CreateShortcut "$DESKTOP'))
   })
 
   it('keeps the modular catalog on an isolated v2 trust root and endpoint', () => {

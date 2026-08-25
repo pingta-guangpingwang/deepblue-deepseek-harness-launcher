@@ -147,7 +147,18 @@ function syncDesktopTray(): void {
   ]))
 }
 
-function createWindow(ui = launcherUi): BrowserWindow {
+function loadWindowContents(window: BrowserWindow, ui = launcherUi): void {
+  setImmediate(() => {
+    if (window.isDestroyed()) return
+    if (process.env.ELECTRON_RENDERER_URL) {
+      void window.loadURL(process.env.ELECTRON_RENDERER_URL)
+    } else {
+      void window.loadFile(ui?.entry || path.join(__dirname, '../renderer/index.html'))
+    }
+  })
+}
+
+function createWindow(ui = launcherUi, loadContents = true): BrowserWindow {
   const icon = appIconPath()
   const window = new BrowserWindow({
     width: 1440,
@@ -179,11 +190,7 @@ function createWindow(ui = launcherUi): BrowserWindow {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void window.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    void window.loadFile(ui?.entry || path.join(__dirname, '../renderer/index.html'))
-  }
+  if (loadContents) loadWindowContents(window, ui)
   return window
 }
 
@@ -314,9 +321,13 @@ if (!hasSingleInstanceLock) {
     registerSkinPreviewProtocol()
     registerPetPreviewProtocol()
     registerIpc()
-    mainWindow = createWindow()
+    // Keep the renderer hidden and unloaded until initialize() has created a
+    // complete snapshot. Existing content-addressed UI modules can execute
+    // immediately from disk and must never observe an undefined controller state.
+    mainWindow = createWindow(launcherUi, false)
     controller = new LauncherController(mainWindow, launcherUi)
     await controller.initialize()
+    loadWindowContents(mainWindow, launcherUi)
     syncDesktopTray()
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()

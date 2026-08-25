@@ -63,6 +63,12 @@ if ($LASTEXITCODE -ne 0) {
   throw "Launcher shell packaging failed (exit code $LASTEXITCODE)."
 }
 
+Write-Host 'Verifying packaged cold start without a renderer reload...'
+& npm run qa:packaged:cold-start
+if ($LASTEXITCODE -ne 0) {
+  throw "Packaged cold-start QA failed (exit code $LASTEXITCODE)."
+}
+
 Write-Host 'Building and testing the sub-megabyte online bootstrap...'
 & npm run bootstrap:build
 if ($LASTEXITCODE -ne 0) {

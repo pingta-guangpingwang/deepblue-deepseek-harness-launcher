@@ -60,18 +60,24 @@ try {
   # only a GUID uninstall record, often without InstallLocation. The bootstrap
   # must recover the custom root from UninstallString and must not fall back to C:.
   $currentKey = 'HKCU:\Software\DeepBlue\DeepSeekHarnessLauncher'
+  $bootstrapUninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher'
   $legacyKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\078eda7a-bb67-538c-a4c8-0b0ff5470883'
   $currentItem = Get-ItemProperty -LiteralPath $currentKey -ErrorAction SilentlyContinue
+  $bootstrapUninstallItem = Get-ItemProperty -LiteralPath $bootstrapUninstallKey -ErrorAction SilentlyContinue
   $legacyItem = Get-ItemProperty -LiteralPath $legacyKey -ErrorAction SilentlyContinue
   $currentHadInstallRoot = $null -ne $currentItem -and $currentItem.PSObject.Properties.Name -contains 'InstallRoot'
+  $bootstrapHadInstallLocation = $null -ne $bootstrapUninstallItem -and $bootstrapUninstallItem.PSObject.Properties.Name -contains 'InstallLocation'
   $legacyHadInstallLocation = $null -ne $legacyItem -and $legacyItem.PSObject.Properties.Name -contains 'InstallLocation'
   $legacyHadUninstall = $null -ne $legacyItem -and $legacyItem.PSObject.Properties.Name -contains 'UninstallString'
   $savedInstallRoot = if ($currentHadInstallRoot) { [string]$currentItem.InstallRoot } else { $null }
+  $savedBootstrapInstallLocation = if ($bootstrapHadInstallLocation) { [string]$bootstrapUninstallItem.InstallLocation } else { $null }
   $savedInstallLocation = if ($legacyHadInstallLocation) { [string]$legacyItem.InstallLocation } else { $null }
   $savedUninstall = if ($legacyHadUninstall) { [string]$legacyItem.UninstallString } else { $null }
   try {
     New-Item -ItemType Directory -Path $currentKey -Force | Out-Null
     Remove-ItemProperty -LiteralPath $currentKey -Name InstallRoot -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $bootstrapUninstallKey -Force | Out-Null
+    Remove-ItemProperty -LiteralPath $bootstrapUninstallKey -Name InstallLocation -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $legacyKey -Force | Out-Null
     Set-ItemProperty -LiteralPath $legacyKey -Name InstallLocation -Value ''
     New-Item -ItemType Directory -Path $legacyQaRoot -Force | Out-Null
@@ -87,6 +93,8 @@ try {
   } finally {
     if ($currentHadInstallRoot) { Set-ItemProperty -LiteralPath $currentKey -Name InstallRoot -Value $savedInstallRoot }
     else { Remove-ItemProperty -LiteralPath $currentKey -Name InstallRoot -ErrorAction SilentlyContinue }
+    if ($bootstrapHadInstallLocation) { Set-ItemProperty -LiteralPath $bootstrapUninstallKey -Name InstallLocation -Value $savedBootstrapInstallLocation }
+    else { Remove-ItemProperty -LiteralPath $bootstrapUninstallKey -Name InstallLocation -ErrorAction SilentlyContinue }
     if ($legacyHadInstallLocation) { Set-ItemProperty -LiteralPath $legacyKey -Name InstallLocation -Value $savedInstallLocation }
     else { Remove-ItemProperty -LiteralPath $legacyKey -Name InstallLocation -ErrorAction SilentlyContinue }
     if ($legacyHadUninstall) { Set-ItemProperty -LiteralPath $legacyKey -Name UninstallString -Value $savedUninstall }

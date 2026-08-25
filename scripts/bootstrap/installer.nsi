@@ -159,6 +159,9 @@ Section "安装启动器" SEC_MAIN
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "NoModify" 1
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "NoRepair" 1
     CreateDirectory "$SMPROGRAMS\深蓝DeepSeekHarness启动器"
+    ; CreateShortcut records the current output directory as WorkingDirectory.
+    ; Never leave it pointing at the temporary NSIS plugin directory.
+    SetOutPath "$FinalShell"
     CreateShortcut "$SMPROGRAMS\深蓝DeepSeekHarness启动器\深蓝DeepSeekHarness启动器.lnk" "$FinalShell\${SHELL_EXECUTABLE}"
     CreateShortcut "$DESKTOP\深蓝DeepSeekHarness启动器.lnk" "$FinalShell\${SHELL_EXECUTABLE}"
   ${EndIf}
