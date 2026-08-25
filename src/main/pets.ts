@@ -132,6 +132,16 @@ export function nextFavoritePetIds(current: string[], petId: string): string[] {
   return unique.includes(petId) ? unique.filter(id => id !== petId) : [petId, ...unique]
 }
 
+export function sortPetCatalogItems(items: PetCatalogItem[]): PetCatalogItem[] {
+  const priority: Record<PetCatalogSourceId, number> = { pixel: 0, official: 1, custom: 2 }
+  return [...items].sort((left, right) => {
+    const source = (priority[left.catalogSource || 'official'] ?? 9) - (priority[right.catalogSource || 'official'] ?? 9)
+    if (source !== 0) return source
+    if (left.featured !== right.featured) return left.featured ? -1 : 1
+    return left.name.localeCompare(right.name, 'zh-CN', { numeric: true })
+  })
+}
+
 async function readFavoritePetIds(): Promise<string[]> {
   try {
     const parsed = JSON.parse(await readFile(launcherDataPaths().petFavorites, 'utf8')) as Partial<FavoritePetFile>
@@ -356,7 +366,7 @@ export class PetStore {
       schemaVersion: 1,
       generatedAt: generatedAt.sort().at(-1) || '',
       pageSize: 20,
-      items: [...merged.values()]
+      items: sortPetCatalogItems([...merged.values()])
     }
     const failures = this.sources.filter(source => source.status !== 'ready')
     this.message = failures.length ? `${failures.map(source => source.name).join('、')}目录暂不可用，其余来源已正常加载。` : undefined
@@ -536,7 +546,7 @@ export class PetStore {
       favoritePetIds,
       transfers: {},
       sources: structuredClone(this.sources),
-      items: [...customItems.map(item => ({ ...item, catalogSource: 'custom' as const })), ...structuredClone(this.payload.items)].map(item => ({ ...item, origin: item.origin || 'catalog' })),
+      items: sortPetCatalogItems([...customItems.map(item => ({ ...item, catalogSource: 'custom' as const })), ...structuredClone(this.payload.items)]).map(item => ({ ...item, origin: item.origin || 'catalog' })),
       ...(this.message ? { message: this.message } : {})
     }
   }

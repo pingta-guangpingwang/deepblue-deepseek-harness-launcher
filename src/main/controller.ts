@@ -16,10 +16,11 @@ import { applyWindowsDesktopWallpaper, desktopWallpaperSource } from './desktop-
 import { DynamicWallpaperManager } from './dynamic-wallpaper'
 import { PetStore, type PetDownloadProgress } from './pets'
 import { DesktopPetManager } from './desktop-pet'
+import { PetBalanceBridge } from './pet-balance-bridge'
 import { bundledLauncherUiVersion, type LauncherUiSelection } from './launcher-ui'
 import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings'
 import { readPnpmProfileEnvironment } from './pnpm-profile'
-import { prepareAppearanceProfile } from './appearance-profile'
+import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
 import { ModelStore } from './model-store'
@@ -101,6 +102,7 @@ export class LauncherController {
   private readonly skinStore = new SkinStore()
   private dynamicWallpaper!: DynamicWallpaperManager
   private desktopPet!: DesktopPetManager
+  private petBalanceBridge!: PetBalanceBridge
   private readonly petStore = new PetStore()
   private readonly accountService = new AccountService()
   private modelStore!: ModelStore
@@ -122,12 +124,6 @@ export class LauncherController {
       path.join(launcherDataPaths().skins, 'desktop-host')
     )
     await this.dynamicWallpaper.initialize()
-    this.desktopPet = new DesktopPetManager(
-      launcherDataPaths().petDesktopState,
-      path.join(launcherDataPaths().pets, 'desktop-host'),
-      launcherDataPaths().pets
-    )
-    await this.desktopPet.initialize()
     this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
     // Rewrite the sanitized shape once so legacy device-local favorites cannot linger
     // in launcher.json and be mistaken for AI历史书 account data.
@@ -137,6 +133,14 @@ export class LauncherController {
       this.log('INFO', state.message || 'Harness 网页模型配置已同步')
       this.emit()
     })
+    this.desktopPet = new DesktopPetManager(
+      launcherDataPaths().petDesktopState,
+      path.join(launcherDataPaths().pets, 'desktop-host'),
+      launcherDataPaths().pets,
+      () => this.modelStore.deepSeekBalance()
+    )
+    await this.desktopPet.initialize()
+    this.petBalanceBridge = new PetBalanceBridge(() => this.modelStore.deepSeekBalance())
     this.distributionMode = await hasBundledHarness() ? 'offline' : 'online'
     const sources = this.config.settings.sources.map((source) => this.initialSourceHealth(source))
     this.snapshot = {
@@ -206,6 +210,12 @@ export class LauncherController {
       this.snapshot.modelHub = this.modelStore.state('模型配置读取失败，可在模型目录重新保存')
       this.log('WARN', `模型配置初始化失败：${error instanceof Error ? error.message : String(error)}`)
     }
+    try {
+      await this.petBalanceBridge.start()
+      this.log('INFO', '宠物 DeepSeek 余额桥接已就绪（仅本机访问）')
+    } catch (error) {
+      this.log('WARN', `宠物余额桥接启动失败：${error instanceof Error ? error.message : String(error)}`)
+    }
     await this.refreshEnvironment()
     this.snapshot.account = await this.accountService.refresh()
     if (this.snapshot.account.status === 'signed_in') await this.refreshFavorites()
@@ -238,6 +248,10 @@ export class LauncherController {
     await this.desktopPet?.endDrag(senderId, position)
   }
 
+  async desktopPetDeepSeekBalance(senderId: number) {
+    return this.desktopPet?.deepSeekBalance(senderId)
+  }
+
   isDesktopExperienceActive(): boolean {
     return this.isDynamicDesktopActive() || this.isDesktopPetActive()
   }
@@ -245,6 +259,7 @@ export class LauncherController {
   async dispose(): Promise<void> {
     await this.dynamicWallpaper?.dispose()
     await this.desktopPet?.dispose()
+    await this.petBalanceBridge?.dispose()
   }
 
   async refreshEnvironment(): Promise<LauncherSnapshot> {
@@ -384,6 +399,7 @@ export class LauncherController {
         dshHome: paths.dshHome,
         env: {
           ...modelEnvironment,
+          ...this.petBalanceBridge.environment(),
           DEEPBLUE_DSH_SKIN_CONFIG: paths.skinConfig,
           DEEPBLUE_DSH_PET_CONFIG: paths.petConfig
         }
@@ -1654,11 +1670,13 @@ export class LauncherController {
     const paths = launcherDataPaths()
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
-    const expectedVersion = '0.8.2'
+    const expectedVersion = '0.8.3'
     const installedManifest = path.join(paths.dshHome, 'profiles', 'web', 'node_modules', '@deepblue', 'dsh-skin-runtime', 'package.json')
+    let hasPreviousManagedRuntime = false
     try {
       const manifest = JSON.parse(await readFile(installedManifest, 'utf8')) as { version?: string }
       if (manifest.version === expectedVersion) return
+      hasPreviousManagedRuntime = Boolean(manifest.version)
     } catch {
       // The profile is initialized by the plugin command below on first launch.
     }
@@ -1671,12 +1689,18 @@ export class LauncherController {
       this.log('WARN', '外观运行插件缺失，Harness 将使用默认皮肤且不显示宠物')
       return
     }
+    await prepareAppearanceProfile(paths.dshHome, archive)
+    if (hasPreviousManagedRuntime) {
+      this.log('INFO', `正在原子更新皮肤与宠物运行插件 ${expectedVersion}`)
+      await installAppearanceRuntimeAtomically(paths.dshHome, archive, expectedVersion)
+      this.log('INFO', `皮肤与宠物运行插件已更新至 ${expectedVersion}`)
+      return
+    }
     const runtimeWithPackageManager = await this.ensurePackageManager(runtime)
     const shimDirectory = await this.ensurePnpmShim(paths.runtime, runtimeWithPackageManager.node, runtimeWithPackageManager.pnpm)
     const pathKey = process.platform === 'win32' ? 'Path' : 'PATH'
     const commandPath = `${shimDirectory}${path.delimiter}${path.join(runtimeWithPackageManager.appRoot, 'node_modules', '.bin')}${path.delimiter}${sanitizedProcessEnvironment()[pathKey] || ''}`
     this.log('INFO', '正在配置皮肤与宠物运行插件')
-    await prepareAppearanceProfile(paths.dshHome, archive)
     const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
     const child = spawnNode(runtimeWithPackageManager, [runtimeWithPackageManager.dsh, 'plugin', '--profile', 'web', 'add', archive, '--offline'], {
       cwd: this.config.settings.workspace,

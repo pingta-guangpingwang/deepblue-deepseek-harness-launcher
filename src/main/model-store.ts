@@ -9,10 +9,12 @@ import { parseModelUsageLine } from './model-usage'
 import { mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
 import { mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 import { runMultimodalApi } from './multimodal'
+import { queryDeepSeekBalance } from './deepseek-balance'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
 export { modelProviderTemplates } from '../shared/model-provider-catalog'
 import type {
   ModelHubState,
+  DeepSeekBalanceSummary,
   ModelProviderConnection,
   ModelProviderDraft,
   ModelProviderTemplate,
@@ -126,6 +128,8 @@ export class ModelStore {
   private usage: Record<string, ModelUsageSummary> = {}
   private readonly watchTargets: string[] = []
   private syncQueue: Promise<void> = Promise.resolve()
+  private deepSeekBalanceCache?: { encryptedKey: string; expiresAt: number; value: DeepSeekBalanceSummary }
+  private deepSeekBalanceRequest?: Promise<DeepSeekBalanceSummary>
 
   constructor(
     private readonly config: PersistedConfig,
@@ -279,6 +283,41 @@ export class ModelStore {
     }
     this.usage = totals
     return this.state('已从 Harness 本地会话日志重新统计 Token 用量')
+  }
+
+  async deepSeekBalance(): Promise<DeepSeekBalanceSummary> {
+    const checkedAt = new Date().toISOString()
+    const provider = this.config.modelRouting.providers.find(item => item.id === DEEPSEEK_PROVIDER)
+    if (!provider) return { status: 'unconfigured', message: '请先在模型连接中添加 DeepSeek 官方连接', checkedAt }
+    if (!safeStorage.isEncryptionAvailable()) return { status: 'error', message: 'Windows 安全存储不可用，暂时无法读取 DeepSeek API Key', checkedAt }
+    const encryptedKey = this.secrets.values[providerEnvName(provider)]
+    if (!encryptedKey) return { status: 'unconfigured', message: '请先在模型连接中设置 DeepSeek API Key', checkedAt }
+    if (this.deepSeekBalanceCache?.encryptedKey === encryptedKey && this.deepSeekBalanceCache.expiresAt > Date.now()) {
+      return structuredClone(this.deepSeekBalanceCache.value)
+    }
+    if (this.deepSeekBalanceRequest) return this.deepSeekBalanceRequest
+    let apiKey: string
+    try {
+      apiKey = safeStorage.decryptString(Buffer.from(encryptedKey, 'base64'))
+    } catch {
+      return { status: 'error', message: 'DeepSeek API Key 无法解密，请在模型连接中重新保存', checkedAt }
+    }
+    const request = queryDeepSeekBalance(apiKey).catch((error): DeepSeekBalanceSummary => ({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'DeepSeek 余额暂时查询失败，请稍后再点我',
+      checkedAt: new Date().toISOString()
+    })).then((value) => {
+      this.deepSeekBalanceCache = {
+        encryptedKey,
+        expiresAt: Date.now() + (value.status === 'available' || value.status === 'unavailable' ? 60_000 : 15_000),
+        value
+      }
+      return structuredClone(value)
+    }).finally(() => {
+      if (this.deepSeekBalanceRequest === request) this.deepSeekBalanceRequest = undefined
+    })
+    this.deepSeekBalanceRequest = request
+    return request
   }
 
   async testMultimodal(request: MultimodalTestRequest): Promise<MultimodalTestResult> {

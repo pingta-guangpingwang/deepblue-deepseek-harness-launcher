@@ -7,6 +7,7 @@ const MEDIA_PATH = '/deepblue-skin/media'
 const POSTER_PATH = '/deepblue-skin/poster'
 const PET_CONFIG_PATH = '/deepblue-pet/config'
 const PET_MEDIA_PATH = '/deepblue-pet/media'
+const PET_BALANCE_PATH = '/deepblue-pet/balance'
 
 function versionedMediaUrl(route, filename) {
   return `${route}?v=${encodeURIComponent(path.basename(filename))}`
@@ -64,6 +65,34 @@ function mimeFor(filename) {
   if (lower.endsWith('.ogg')) return 'audio/ogg'
   if (lower.endsWith('.flac')) return 'audio/flac'
   return 'application/octet-stream'
+}
+
+async function readPetBalance() {
+  const url = process.env.DEEPBLUE_DSH_PET_BALANCE_URL
+  const token = process.env.DEEPBLUE_DSH_PET_BALANCE_TOKEN
+  if (!url || !token) return { status: 'error', message: '启动器余额服务尚未就绪，请稍后再点我', checkedAt: new Date().toISOString() }
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10_000),
+      headers: { accept: 'application/json', authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const value = await response.json()
+    if (!value || !['available', 'unavailable', 'unconfigured', 'error'].includes(value.status) || typeof value.message !== 'string' || value.message.length > 120) {
+      throw new Error('invalid balance response')
+    }
+    return {
+      status: value.status,
+      message: value.message,
+      checkedAt: typeof value.checkedAt === 'string' ? value.checkedAt : new Date().toISOString(),
+      ...(typeof value.isAvailable === 'boolean' ? { isAvailable: value.isAvailable } : {}),
+      ...(value.currency === 'CNY' || value.currency === 'USD' ? { currency: value.currency } : {}),
+      ...(typeof value.totalBalance === 'string' ? { totalBalance: value.totalBalance } : {})
+    }
+  } catch {
+    return { status: 'error', message: 'DeepSeek 余额暂时查询失败，请稍后再点我', checkedAt: new Date().toISOString() }
+  }
 }
 
 async function serveFile(req, res, filename) {
@@ -188,6 +217,18 @@ export function apply(ctx) {
       })
     }
   }), 'deepblue pet config route')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: PET_BALANCE_PATH,
+    handler: async (req, res) => {
+      if (req.method !== 'GET') {
+        res.writeHead(405, { allow: 'GET' })
+        res.end()
+        return
+      }
+      json(res, 200, await readPetBalance())
+    }
+  }), 'deepblue pet balance route')
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: PET_MEDIA_PATH,

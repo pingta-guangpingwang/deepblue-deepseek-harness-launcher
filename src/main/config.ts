@@ -39,16 +39,16 @@ export const FIXED_SKIN_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harn
 export const FIXED_PET_CATALOG_URL = 'https://gitee.com/wanggp123/deepseek-harness-pets/raw/master/catalog.json'
 export const FIXED_PET_CATALOG_SOURCES = [
   {
-    id: 'official',
-    name: '原创动图',
-    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets',
-    catalogUrl: FIXED_PET_CATALOG_URL
-  },
-  {
     id: 'pixel',
     name: '像素精灵',
     repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel',
     catalogUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets-pixel/raw/master/catalog.json'
+  },
+  {
+    id: 'official',
+    name: '原创动图',
+    repositoryUrl: 'https://gitee.com/wanggp123/deepseek-harness-pets',
+    catalogUrl: FIXED_PET_CATALOG_URL
   }
 ] as const
 

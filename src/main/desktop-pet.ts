@@ -2,7 +2,7 @@ import { BrowserWindow, screen } from 'electron'
 import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { PetBehavior, PetMediaKind, PetPackKind, PetStoreState } from '../shared/types'
+import type { DeepSeekBalanceSummary, PetBehavior, PetMediaKind, PetPackKind, PetStoreState } from '../shared/types'
 
 interface DesktopPetPosition {
   x: number
@@ -38,21 +38,22 @@ export function desktopPetDocument(config: DesktopPetConfig): string {
 <html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"><style>
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent;font-family:'Microsoft YaHei UI',sans-serif;user-select:none}
 .stage{position:relative;width:100%;height:100%;display:grid;place-items:end center;padding:48px 12px 28px;box-sizing:border-box}
-.bubble{position:absolute;z-index:3;top:8px;left:50%;max-width:210px;padding:8px 11px;border:1px solid rgba(52,83,123,.16);border-radius:12px;background:rgba(255,255,255,.94);color:#23334a;font-size:12px;line-height:1.45;box-shadow:0 8px 22px rgba(17,45,78,.14);transform:translateX(-50%);opacity:0;transition:opacity .16s ease}.bubble.show{opacity:1}
+.bubble{position:absolute;z-index:3;top:8px;left:50%;width:max-content;max-width:230px;padding:8px 11px;border:1px solid rgba(52,83,123,.16);border-radius:12px;background:rgba(255,255,255,.94);color:#23334a;font-size:12px;line-height:1.45;text-align:center;box-shadow:0 8px 22px rgba(17,45,78,.14);transform:translateX(-50%);opacity:0;transition:opacity .16s ease}.bubble.show{opacity:1}
 .pet{position:relative;width:min(var(--pet-width),calc(100vw - 20px));height:min(var(--pet-width),calc(100vh - 76px));display:grid;place-items:center;border:0;background:transparent;padding:0;cursor:grab;touch-action:none;-webkit-app-region:no-drag}.pet[data-dragging='true']{cursor:grabbing}
 .pet img,.pet canvas{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 10px 10px rgba(20,43,68,.24));pointer-events:none;-webkit-user-drag:none}.pet canvas{display:none;image-rendering:pixelated}.pet.pixel img{position:absolute;width:1px;height:1px;opacity:0}.pet.pixel canvas{display:block}
 .pet.float{animation:float 3.4s ease-in-out infinite}.pet.bounce{animation:bounce 2.1s ease-in-out infinite}.pet.hop{animation:hop .56s cubic-bezier(.2,.8,.25,1)}.pet.spin{animation:spin .64s ease}.pet.heart::after{content:'♥';position:absolute;top:4%;right:10%;color:#f04d78;font-size:26px;animation:heart .7s ease both}
 .hint{position:absolute;bottom:4px;left:50%;height:20px;min-width:112px;padding:0 10px;border:1px solid rgba(54,84,119,.14);border-radius:8px;background:rgba(255,255,255,.78);color:#52657b;font-size:10px;line-height:20px;text-align:center;transform:translateX(-50%);pointer-events:none}
 @keyframes float{50%{transform:translateY(-9px)}}@keyframes bounce{45%{transform:translateY(-7px) scale(1.02)}}@keyframes hop{45%{transform:translateY(-20px) scale(1.04)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes heart{from{opacity:0;transform:translateY(8px) scale(.6)}50%{opacity:1}to{opacity:0;transform:translateY(-18px) scale(1.2)}}
 @media(prefers-reduced-motion:reduce){.pet{animation:none!important}}
-</style></head><body><main class="stage"><div id="bubble" class="bubble" role="status"></div><button id="pet" class="pet" type="button" aria-label="电脑桌面宠物，可拖动位置，单击随机互动"><img id="image" alt=""><canvas id="canvas" aria-hidden="true"></canvas></button><div class="hint">按住拖动 · 单击互动</div></main><script>
-const config=${behavior};const pet=document.getElementById('pet');const image=document.getElementById('image');const canvas=document.getElementById('canvas');const bubble=document.getElementById('bubble');let bubbleTimer=0,reactionTimer=0,frameTimer=0,presenceTimer=0,atlasRow=0,atlasReady=false,interactionActive=false,lastInteractionRow=-1,lastCssReaction='',drag=null;
+</style></head><body><main class="stage"><div id="bubble" class="bubble" role="status"></div><button id="pet" class="pet" type="button" aria-label="电脑桌面宠物，可拖动位置，单击随机互动，每三次点击查看 DeepSeek 余额"><img id="image" alt=""><canvas id="canvas" aria-hidden="true"></canvas></button><div class="hint">拖动位置 · 三击看余额</div></main><script>
+const config=${behavior};const pet=document.getElementById('pet');const image=document.getElementById('image');const canvas=document.getElementById('canvas');const bubble=document.getElementById('bubble');let bubbleTimer=0,reactionTimer=0,frameTimer=0,presenceTimer=0,atlasRow=0,atlasReady=false,interactionActive=false,lastInteractionRow=-1,lastCssReaction='',drag=null,clickCount=0,speechGeneration=0;
 pet.classList.add(config.idleMotion==='none'?'':config.idleMotion);${pixelAtlas ? "pet.classList.add('pixel');pet.classList.remove('float','bounce');" : ''}
-function speak(){const lines=Array.isArray(config.speechLines)?config.speechLines:[];if(!lines.length)return;bubble.textContent=lines[Math.floor(Math.random()*lines.length)];bubble.classList.add('show');clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),2600)}
+function showBubble(text,duration=3000){bubble.textContent=text;bubble.classList.add('show');clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),duration)}
+async function speak(source){const generation=++speechGeneration;const direct=source==='click'||source==='keyboard';if(direct){clickCount=clickCount%3+1;if(clickCount===3){showBubble('正在查询 DeepSeek 余额…',8000);let result;try{result=await window.desktopPetHost?.getDeepSeekBalance()}catch{}if(generation!==speechGeneration)return;showBubble(result?.message||'DeepSeek 余额暂时查询失败，请稍后再点我',4200);return}}const lines=Array.isArray(config.speechLines)?config.speechLines:[];if(lines.length)showBubble(lines[Math.floor(Math.random()*lines.length)])}
 let validFrames=()=>[];
 function pickDifferent(values,last){const available=values.filter(value=>value!==last);const pool=available.length?available:values;return pool.length?pool[Math.floor(Math.random()*pool.length)]:undefined}
 function finishInteraction(){interactionActive=false;atlasRow=0;pet.dataset.interactionRow='0';pet.dataset.interactionSource='idle';pet.classList.remove('hop','spin','heart')}
-function playInteraction(source='click'){if(drag?.moved)return;interactionActive=true;speak();clearTimeout(reactionTimer);if(${pixelAtlas ? 'true' : 'false'}&&atlasReady){const rows=[];for(let row=1;row<12;row+=1)if(validFrames(row).length)rows.push(row);const next=pickDifferent(rows,lastInteractionRow);if(next!==undefined){lastInteractionRow=next;atlasRow=next;pet.dataset.interactionRow=String(next)}}else{const next=pickDifferent(['hop','spin','heart'],lastCssReaction)||'heart';lastCssReaction=next;pet.classList.remove('hop','spin','heart');void pet.offsetWidth;pet.classList.add(next)}pet.dataset.interactionSource=source;reactionTimer=setTimeout(finishInteraction,1100)}
+function playInteraction(source='click'){if(drag?.moved)return;interactionActive=true;void speak(source);clearTimeout(reactionTimer);if(${pixelAtlas ? 'true' : 'false'}&&atlasReady){const rows=[];for(let row=1;row<12;row+=1)if(validFrames(row).length)rows.push(row);const next=pickDifferent(rows,lastInteractionRow);if(next!==undefined){lastInteractionRow=next;atlasRow=next;pet.dataset.interactionRow=String(next)}}else{const next=pickDifferent(['hop','spin','heart'],lastCssReaction)||'heart';lastCssReaction=next;pet.classList.remove('hop','spin','heart');void pet.offsetWidth;pet.classList.add(next)}pet.dataset.interactionSource=source;reactionTimer=setTimeout(finishInteraction,1100)}
 function schedulePresence(){clearTimeout(presenceTimer);const base=Number(config.autoSpeakIntervalSec);const seconds=Number.isFinite(base)&&base>=30?base:38;const delay=Math.round(seconds*(.78+Math.random()*.44)*1000);presenceTimer=setTimeout(()=>{if(!document.hidden&&!drag&&!interactionActive)playInteraction('presence');schedulePresence()},delay)}
 function pointerPoint(event){return {x:Number(event.screenX),y:Number(event.screenY)}}
 pet.addEventListener('pointerdown',event=>{if(event.button!==0)return;try{pet.setPointerCapture(event.pointerId)}catch{}drag={pointerId:event.pointerId,start:pointerPoint(event),moved:false};pet.dataset.dragging='false'})
@@ -61,7 +62,7 @@ async function endPointer(event,cancelled=false){if(!drag||drag.pointerId!==even
 pet.addEventListener('pointerup',event=>void endPointer(event));pet.addEventListener('pointercancel',event=>void endPointer(event,true));pet.addEventListener('click',event=>{if(event.detail===0)playInteraction('keyboard')});
 pet.addEventListener('mouseenter',()=>{if(!interactionActive&&!drag&&validFrames(6).length)atlasRow=6});pet.addEventListener('mouseleave',()=>{if(!interactionActive&&!drag)atlasRow=0});image.src=${mediaUrl};
 ${pixelAtlas ? `image.addEventListener('load',()=>{const columns=8;const rows=image.naturalHeight%11===0?11:image.naturalHeight%9===0?9:1;const fw=image.naturalWidth/columns,fh=image.naturalHeight/rows;canvas.width=fw;canvas.height=fh;const ctx=canvas.getContext('2d',{willReadFrequently:true});const scratch=document.createElement('canvas');scratch.width=fw;scratch.height=fh;const scan=scratch.getContext('2d',{willReadFrequently:true});const cache=new Map();validFrames=row=>{if(row<0||row>=rows)return[];if(cache.has(row))return cache.get(row);const frames=[];const minimum=Math.max(12,Math.floor(fw*fh*.002));for(let frame=0;frame<columns;frame+=1){scan.clearRect(0,0,fw,fh);scan.drawImage(image,frame*fw,row*fh,fw,fh,0,0,fw,fh);const pixels=scan.getImageData(0,0,fw,fh).data;let visible=0;for(let pixel=3;pixel<pixels.length&&visible<minimum;pixel+=4)if(pixels[pixel]>8)visible+=1;if(visible>=minimum)frames.push(frame)}cache.set(row,frames);return frames};for(let row=0;row<rows;row+=1)validFrames(row);atlasReady=true;let index=0,lastRow=-1;const draw=()=>{const requested=Math.min(rows-1,Math.max(0,atlasRow));const row=validFrames(requested).length?requested:0;if(row!==lastRow){index=0;lastRow=row}const frames=validFrames(row);if(!frames.length)return;const frame=frames[index%frames.length];ctx.clearRect(0,0,fw,fh);ctx.drawImage(image,frame*fw,row*fh,fw,fh,0,0,fw,fh);canvas.dataset.frameIndex=String(frame);canvas.dataset.animationRow=String(row);index+=1};draw();frameTimer=setInterval(draw,150)});` : ''}
-window.__deepbluePetDebug={triggerPresence:()=>playInteraction('presence'),triggerClick:()=>playInteraction('click')};schedulePresence();
+window.__deepbluePetDebug={triggerPresence:()=>playInteraction('presence'),triggerClick:()=>playInteraction('click'),clickCount:()=>clickCount};schedulePresence();
 window.addEventListener('beforeunload',()=>{clearInterval(frameTimer);clearTimeout(bubbleTimer);clearTimeout(reactionTimer);clearTimeout(presenceTimer)});
 </script></body></html>`
 }
@@ -84,7 +85,8 @@ export class DesktopPetManager {
   constructor(
     private readonly statePath: string,
     private readonly hostDirectory: string,
-    private readonly allowedPetRoot: string
+    private readonly allowedPetRoot: string,
+    private readonly readDeepSeekBalance: () => Promise<DeepSeekBalanceSummary>
   ) {}
 
   state(): PetStoreState['desktopPet'] {
@@ -98,6 +100,17 @@ export class DesktopPetManager {
 
   ownsWebContents(senderId: number): boolean {
     return Boolean(this.window && !this.window.isDestroyed() && this.window.webContents.id === senderId)
+  }
+
+  async deepSeekBalance(senderId: number): Promise<DeepSeekBalanceSummary> {
+    if (!this.ownsWebContents(senderId)) {
+      return { status: 'error', message: '只有正在运行的桌面宠物可以查询余额', checkedAt: new Date().toISOString() }
+    }
+    try {
+      return await this.readDeepSeekBalance()
+    } catch {
+      return { status: 'error', message: 'DeepSeek 余额暂时查询失败，请稍后再点我', checkedAt: new Date().toISOString() }
+    }
   }
 
   beginDrag(senderId: number, pointer: unknown): void {

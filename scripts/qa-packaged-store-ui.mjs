@@ -141,6 +141,7 @@ async function inspectStore(page, { button, card, label, expectedWidth, expected
   if (label.includes('pets')) {
     const petState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pets)
     check(`${label} 合并两个固定宠物目录`, petState.sources.length === 2 && petState.items.length >= 50, `sources=${petState.sources.map(source => `${source.id}:${source.itemCount}`).join(',')}`)
+    check(`${label} 打开商店默认显示像素精灵`, await page.getByRole('button', { name: /像素精灵/ }).evaluate(button => button.classList.contains('active')) && await page.locator('.pet-card:not([data-catalog-source="pixel"])').count() === 0)
     check(`${label} 提供预览、下载、Harness 与电脑桌面入口`, await page.getByRole('button', { name: '预览', exact: true }).count() > 0 && await page.getByRole('button', { name: /^(下载|删除)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到 Harness|Harness 已应用)$/ }).count() > 0 && await page.getByRole('button', { name: /^(应用到桌面|停止桌面宠物)$/ }).count() > 0)
     const petActionsVisible = await page.locator('.pet-card').evaluateAll(cards => cards.every(card => {
       const cardRect = card.getBoundingClientRect()
@@ -242,7 +243,11 @@ try {
   const dialogVisible = await updateDialog.isVisible().catch(() => false)
   check('检查更新完成后保留明确的可见结果', feedbackVisible ? Boolean((await feedback.textContent())?.trim()) : dialogVisible)
   await page.screenshot({ path: path.join(outputRoot, 'update-check-feedback.png') })
-  if (dialogVisible) await updateDialog.getByRole('button', { name: '稍后更新' }).click()
+  if (dialogVisible) {
+    await page.waitForFunction(() => !document.querySelector('#runtimeUpdateTitle')?.textContent?.includes('正在检测'), undefined, { timeout: 45_000 })
+    await updateDialog.getByRole('button', { name: /^(关闭|稍后更新)$/ }).click()
+    await updateDialog.waitFor({ state: 'hidden' })
+  }
 
   const launchedBounds = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getContentBounds())
   check('启动时窗口尺寸符合桌面布局', launchedBounds.width === 1440 && launchedBounds.height === 900, `${launchedBounds.width}×${launchedBounds.height}`)

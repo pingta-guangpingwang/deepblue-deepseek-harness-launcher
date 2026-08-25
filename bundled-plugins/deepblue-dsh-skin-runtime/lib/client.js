@@ -43,7 +43,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       .deepblue-pet[data-reaction='spin'] .deepblue-pet-visual { animation: deepblue-pet-spin .65s cubic-bezier(.2,.8,.2,1); }
       .deepblue-pet[data-reaction='heart'] .deepblue-pet-visual { animation: deepblue-pet-pop .55s cubic-bezier(.2,.8,.2,1); }
       .deepblue-pet[data-hover='perk']:hover .deepblue-pet-visual { animation: deepblue-pet-perk .42s ease-out both; }
-      .deepblue-pet-bubble { position: absolute; left: 50%; bottom: calc(100% - 4px); max-width: 190px; padding: 9px 12px; border-radius: 13px 13px 13px 4px; background: rgba(255,255,255,.96); color: #202124; box-shadow: 0 8px 24px rgba(10,20,38,.18); font: 600 13px/1.45 system-ui, sans-serif; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
+      .deepblue-pet-bubble { position: absolute; left: 50%; bottom: calc(100% - 4px); width: max-content; max-width: 230px; padding: 9px 12px; border-radius: 13px 13px 13px 4px; background: rgba(255,255,255,.96); color: #202124; box-shadow: 0 8px 24px rgba(10,20,38,.18); font: 600 13px/1.45 system-ui, sans-serif; text-align: center; white-space: normal; transform: translateX(-50%); pointer-events: none; }
       .deepblue-pet-sparks { position: absolute; inset: -10px; pointer-events: none; opacity: 0; }
       .deepblue-pet[data-reaction='heart'] .deepblue-pet-sparks { opacity: 1; }
       .deepblue-pet-sparks::before, .deepblue-pet-sparks::after { content: ''; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #4d6bfe; box-shadow: 28px -10px 0 #7bdff2, 54px 8px 0 #8d7cff; animation: deepblue-pet-sparks .6s ease-out both; }
@@ -78,6 +78,16 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
   function readSkinClarity() {
     try { return localStorage.getItem(CLARITY_STORAGE_KEY) === 'clear' }
     catch { return false }
+  }
+
+  async function loadDeepSeekBalance() {
+    try {
+      const response = await fetch('/deepblue-pet/balance', { cache: 'no-store' })
+      const value = response.ok ? await response.json() : undefined
+      return typeof value?.message === 'string' ? value.message : 'DeepSeek 余额暂时查询失败，请稍后再点我'
+    } catch {
+      return 'DeepSeek 余额暂时查询失败，请稍后再点我'
+    }
   }
 
   function applySkinClarity(config, clear) {
@@ -234,6 +244,8 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     const canvasRef = React.useRef(null)
     const lastInteractionRow = React.useRef(-1)
     const lastCssReaction = React.useRef('')
+    const clickCount = React.useRef(0)
+    const speechGeneration = React.useRef(0)
     const interactRef = React.useRef(null)
     const pixelAtlas = config.packKind === 'pixel-atlas'
     const animated = config.mediaKind === 'animated' && !pixelAtlas
@@ -292,10 +304,28 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       const pool = available.length ? available : values
       return pool.length ? pool[Math.floor(Math.random() * pool.length)] : undefined
     }
+    const showBubble = React.useCallback((text, duration = 3000) => {
+      setBubble(text)
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+      bubbleTimer.current = setTimeout(() => setBubble(''), duration)
+    }, [])
+    const speak = React.useCallback(async source => {
+      const generation = ++speechGeneration.current
+      if (source === 'click' || source === 'keyboard') {
+        clickCount.current = clickCount.current % 3 + 1
+        if (clickCount.current === 3) {
+          showBubble('正在查询 DeepSeek 余额…', 8000)
+          const message = await loadDeepSeekBalance()
+          if (generation === speechGeneration.current) showBubble(message, 4200)
+          return
+        }
+      }
+      const lines = config.behavior.speechLines || []
+      if (lines.length) showBubble(lines[Math.floor(Math.random() * lines.length)])
+    }, [config.petId, config.behavior.speechLines, showBubble])
     const interact = (source = 'click') => {
       if (drag.current?.moved) return
-      const lines = config.behavior.speechLines || []
-      if (lines.length) setBubble(lines[Math.floor(Math.random() * lines.length)])
+      void speak(source)
       setInteractionActive(true)
       setInteractionSource(source)
       if (pixelAtlas && atlasInfo) {
@@ -310,9 +340,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
         lastCssReaction.current = next
         setReaction(next)
       }
-      if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
       if (reactionTimer.current) clearTimeout(reactionTimer.current)
-      bubbleTimer.current = setTimeout(() => setBubble(''), 2600)
       reactionTimer.current = setTimeout(() => { setReaction(''); setAtlasRow(0); setInteractionActive(false); setInteractionSource('idle') }, 1100)
     }
     interactRef.current = interact
@@ -332,7 +360,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
       return () => { disposed = true; if (presenceTimer.current) clearTimeout(presenceTimer.current) }
     }, [config.petId, config.behavior.autoSpeakIntervalSec, interactionActive])
     React.useEffect(() => {
-      window.__deepblueWebPetDebug = { triggerPresence: () => interactRef.current?.('presence'), triggerClick: () => interactRef.current?.('click') }
+      window.__deepblueWebPetDebug = { triggerPresence: () => interactRef.current?.('presence'), triggerClick: () => interactRef.current?.('click'), clickCount: () => clickCount.current }
       return () => { delete window.__deepblueWebPetDebug }
     }, [config.petId])
     const onPointerDown = event => {
@@ -376,7 +404,7 @@ window.__ModuleLoader__.load({ id: '@deepblue/dsh-skin-runtime', factory: (requi
     }
     const style = { left: position.x, top: position.y, '--deepblue-pet-width': `${config.behavior.widthPx}px` }
     return ReactDOM.createPortal(React.createElement('div', { className: 'deepblue-pet-host' },
-      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': pixelAtlas ? 'none' : config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'data-pack-kind': config.packKind || 'image', 'data-interaction-row': String(atlasRow), 'data-interaction-source': interactionSource, 'data-dragging': String(Boolean(drag.current?.moved)), 'aria-label': '网页宠物，可拖动位置，单击随机互动', onMouseEnter: () => { if (!drag.current && !interactionActive && atlasInfo?.rowFrames[6]?.length) setAtlasRow(6) }, onMouseLeave: () => { if (!drag.current && !interactionActive) setAtlasRow(0) }, onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
+      React.createElement('button', { type: 'button', className: 'deepblue-pet', style, 'data-idle': pixelAtlas ? 'none' : config.behavior.idleMotion, 'data-hover': config.behavior.hoverMotion || undefined, 'data-reaction': reaction || undefined, 'data-held': String(held), 'data-pack-kind': config.packKind || 'image', 'data-interaction-row': String(atlasRow), 'data-interaction-source': interactionSource, 'data-dragging': String(Boolean(drag.current?.moved)), 'aria-label': '网页宠物，可拖动位置，单击随机互动，每三次点击查看 DeepSeek 余额', onMouseEnter: () => { if (!drag.current && !interactionActive && atlasInfo?.rowFrames[6]?.length) setAtlasRow(6) }, onMouseLeave: () => { if (!drag.current && !interactionActive) setAtlasRow(0) }, onPointerDown, onPointerMove, onPointerUp, onPointerCancel },
         React.createElement('span', { className: 'deepblue-pet-visual' },
           bubble ? React.createElement('span', { className: 'deepblue-pet-bubble', role: 'status' }, bubble) : null,
           React.createElement('span', { className: 'deepblue-pet-sparks' }),

@@ -67,8 +67,24 @@ const app = await electron.launch({
 let browser
 let launcher
 try {
-  launcher = await app.firstWindow()
-  await launcher.getByRole('button', { name: '启动 DeepSeek Harness', exact: true }).waitFor({ timeout: 30_000 })
+  await app.firstWindow()
+  for (let attempt = 0; attempt < 120 && !launcher; attempt += 1) {
+    for (const candidate of app.windows()) {
+      if (await candidate.evaluate(() => Boolean(window.launcher)).catch(() => false)) {
+        launcher = candidate
+        break
+      }
+    }
+    if (!launcher) await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  if (!launcher) throw new Error('未找到带启动器 IPC 的主窗口')
+  try {
+    await launcher.getByRole('button', { name: '启动 DeepSeek Harness', exact: true }).waitFor({ timeout: 60_000 })
+  } catch (error) {
+    await launcher.screenshot({ path: path.join(outputRoot, 'launcher-startup-failure.png') }).catch(() => undefined)
+    const visibleText = (await launcher.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, 600)
+    throw new Error(`Harness 宠物验收未进入可启动首页：${visibleText || error.message}`)
+  }
   await launcher.waitForFunction(async () => {
     const snapshot = await window.launcher.getSnapshot()
     return snapshot?.pets?.status && snapshot.pets.status !== 'loading' && snapshot.pets.items.length > 0
@@ -112,14 +128,26 @@ try {
   }
   check('DSH 像素宠物持续循环待机帧', new Set(idleFrames).size > 1 && await pixelCanvas.getAttribute('data-animation-row') === '0', idleFrames.join('→'))
   const interactionRows = []
+  let thirdClickBubble = ''
   for (let interaction = 0; interaction < 4; interaction += 1) {
     await pixelPet.click()
     await current.page.waitForFunction(() => Number(document.querySelector('.deepblue-pet[data-pack-kind="pixel-atlas"]')?.getAttribute('data-interaction-row')) > 0, undefined, { timeout: 5_000 })
     interactionRows.push(Number(await pixelPet.getAttribute('data-interaction-row')))
+    if (interaction === 2) {
+      await current.page.waitForFunction(() => {
+        const text = document.querySelector('.deepblue-pet-bubble')?.textContent?.trim() || ''
+        return text !== '正在查询 DeepSeek 余额…' && /(DeepSeek|模型连接|余额)/.test(text)
+      }, undefined, { timeout: 15_000 })
+      thirdClickBubble = (await pixelPet.locator('.deepblue-pet-bubble').textContent())?.trim() || ''
+    }
     await current.page.waitForTimeout(1_180)
   }
   check('DSH 像素宠物单击从全部有效非待机动作随机播放', interactionRows.every(row => row > 0) && new Set(interactionRows).size > 1, interactionRows.join('→'))
   check('DSH 像素宠物不会连续重复同一互动动作', interactionRows.every((row, index) => index === 0 || row !== interactionRows[index - 1]), interactionRows.join('→'))
+  check('DSH 网页宠物前两次随机对话、第 3 次必定返回 DeepSeek 余额状态', Boolean(thirdClickBubble))
+  if (process.env.QA_REQUIRE_LIVE_DEEPSEEK_BALANCE === '1') {
+    check('DSH 网页宠物第 3 次真实调用官方接口返回金额', /^DeepSeek 余额：[\u00a5$]/.test(thirdClickBubble))
+  }
 
   await current.page.evaluate(() => window.__deepblueWebPetDebug?.triggerPresence())
   await current.page.waitForFunction(() => document.querySelector('.deepblue-pet')?.getAttribute('data-interaction-source') === 'presence')

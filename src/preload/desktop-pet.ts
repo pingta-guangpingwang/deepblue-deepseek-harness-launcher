@@ -8,5 +8,6 @@ interface PointerPosition {
 contextBridge.exposeInMainWorld('desktopPetHost', {
   beginDrag: (position: PointerPosition) => ipcRenderer.send('desktop-pet:drag-start', position),
   moveDrag: (position: PointerPosition) => ipcRenderer.send('desktop-pet:drag-move', position),
-  endDrag: (position: PointerPosition) => ipcRenderer.invoke('desktop-pet:drag-end', position)
+  endDrag: (position: PointerPosition) => ipcRenderer.invoke('desktop-pet:drag-end', position),
+  getDeepSeekBalance: () => ipcRenderer.invoke('desktop-pet:deepseek-balance')
 })

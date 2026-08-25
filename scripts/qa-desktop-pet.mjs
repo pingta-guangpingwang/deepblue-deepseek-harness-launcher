@@ -79,10 +79,18 @@ try {
   process.stderr.write('ok  桌面宠物帧动画正在播放\n')
 
   const interactionRows = []
+  let thirdClickBubble = ''
   for (let interaction = 0; interaction < 4; interaction += 1) {
     await petPage.evaluate(() => window.__deepbluePetDebug?.triggerClick())
     await petPage.waitForFunction(() => Number(document.querySelector('#pet')?.getAttribute('data-interaction-row')) > 0)
     interactionRows.push(Number(await petPage.locator('#pet').getAttribute('data-interaction-row')))
+    if (interaction === 2) {
+      await petPage.waitForFunction(() => {
+        const text = document.querySelector('#bubble')?.textContent?.trim() || ''
+        return text !== '正在查询 DeepSeek 余额…' && /(DeepSeek|模型连接|余额)/.test(text)
+      }, undefined, { timeout: 15_000 })
+      thirdClickBubble = (await petPage.locator('#bubble').textContent())?.trim() || ''
+    }
     await petPage.waitForTimeout(1_180)
   }
   if (!(await petPage.locator('#bubble').evaluate(node => node.classList.contains('show')))) throw new Error('点击桌面宠物后没有触发交互')
@@ -91,6 +99,8 @@ try {
   }
   await petPage.screenshot({ path: path.join(outputRoot, 'desktop-pet-window.png'), omitBackground: true })
   process.stderr.write(`ok  桌面宠物随机点击动作不连续重复：${interactionRows.join('→')}\n`)
+  if (!thirdClickBubble) throw new Error('桌面宠物第 3 次点击没有返回 DeepSeek 余额状态')
+  process.stderr.write('ok  桌面宠物前两次随机对话，第 3 次必定返回 DeepSeek 余额状态\n')
 
   await petPage.evaluate(() => window.__deepbluePetDebug?.triggerPresence())
   await petPage.waitForFunction(() => document.querySelector('#pet')?.getAttribute('data-interaction-source') === 'presence')

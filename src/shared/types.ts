@@ -492,6 +492,15 @@ export interface PetBehavior {
   hoverMotion?: 'perk' | 'none'
 }
 
+export interface DeepSeekBalanceSummary {
+  status: 'available' | 'unavailable' | 'unconfigured' | 'error'
+  message: string
+  checkedAt: string
+  isAvailable?: boolean
+  currency?: 'CNY' | 'USD'
+  totalBalance?: string
+}
+
 export interface PetCatalogItem {
   id: string
   name: string

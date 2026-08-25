@@ -1065,7 +1065,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
 }): ReactNode {
   const [preview, setPreview] = useState<PetPreview>()
   const [view, setView] = useState<'all' | 'current' | 'favorites'>('all')
-  const [source, setSource] = useState<'all' | 'official' | 'pixel' | 'custom'>('all')
+  const [source, setSource] = useState<'all' | 'official' | 'pixel' | 'custom'>('pixel')
   const [query, setQuery] = useState('')
   const [species, setSpecies] = useState<PetSpecies | 'all'>('all')
   const [style, setStyle] = useState<PetStyle | 'all'>('all')
@@ -1091,7 +1091,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const currentPage = Math.min(page, pageCount)
   const items = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const chooseView = (next: 'all' | 'current' | 'favorites'): void => { setView(next); setSource('all'); setQuery(''); setSpecies('all'); setStyle('all'); setPage(1) }
+  const chooseView = (next: 'all' | 'current' | 'favorites'): void => { setView(next); setSource(next === 'all' ? 'pixel' : 'all'); setQuery(''); setSpecies('all'); setStyle('all'); setPage(1) }
   const chooseSource = (next: typeof source): void => { setSource(next); setPage(1) }
   const chooseSpecies = (next: PetSpecies | 'all'): void => { setSpecies(next); setPage(1) }
   const chooseStyle = (next: PetStyle | 'all'): void => { setStyle(next); setPage(1) }
@@ -1134,9 +1134,9 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
         {view !== 'current' && <>
           <div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder={view === 'favorites' ? '搜索收藏宠物' : '搜索宠物、物种或画风'} /></div>
           <div className="skin-filter-row pet-source-filter" aria-label="宠物来源">
+            <button className={source === 'pixel' ? 'active' : ''} onClick={() => chooseSource('pixel')}>像素精灵 {sourceCount('pixel')}</button>
             <button className={source === 'all' ? 'active' : ''} onClick={() => chooseSource('all')}>全部来源</button>
             <button className={source === 'official' ? 'active' : ''} onClick={() => chooseSource('official')}>原创动图 {sourceCount('official')}</button>
-            <button className={source === 'pixel' ? 'active' : ''} onClick={() => chooseSource('pixel')}>像素精灵 {sourceCount('pixel')}</button>
             <button className={source === 'custom' ? 'active' : ''} onClick={() => chooseSource('custom')}>本机导入</button>
           </div>
           <div className="skin-filter-row" aria-label="宠物分类">
@@ -1172,7 +1172,7 @@ function PetStorePage({ snapshot, busy, onRefresh, onDownload, onPreview, onAppl
             <div className="skin-card-body">
               <div className="skin-title-row"><div><h2>{pet.name}</h2><p>{pet.description}</p></div></div>
               <div className="tag-row">{pet.styles.map((entry) => <span key={entry}>{petStyleLabels[entry]}</span>)}{pet.tags.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
-              <div className="pet-behavior"><span>点击随机互动</span><span>可拖动并记忆位置</span>{pet.packKind === 'pixel-atlas' && <span>全部有效动作随机</span>}{pet.mediaKind === 'animated' && <span>帧动画</span>}<span>待机主动互动</span></div>
+              <div className="pet-behavior"><span>前两次随机 · 第三次看余额</span><span>可拖动并记忆位置</span>{pet.packKind === 'pixel-atlas' && <span>全部有效动作随机</span>}{pet.mediaKind === 'animated' && <span>帧动画</span>}<span>待机主动互动</span></div>
               <div className="skin-license"><ShieldCheck size={14} /><span>{custom ? '仅保存在本机' : `${pet.license.name} · ${pet.license.author}`}</span>{!custom && <button onClick={() => void window.launcher?.openExternal(pet.license.sourceUrl)}><ExternalLink size={12} /></button>}</div>
               {transfer && <div className={classNames('skin-transfer-progress', transfer.status)} title={transfer.message} aria-live="polite"><span className="skin-transfer-fill" style={{ width: `${Math.max(3, transfer.progress)}%` }} /><div role="progressbar" aria-label={`${pet.name}${transfer.message}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={transfer.progress}><span>{transfer.message}</span><strong>{transfer.status === 'failed' ? '失败' : `${transfer.progress}%`}</strong></div></div>}
               <div className="skin-card-actions pet-card-actions">

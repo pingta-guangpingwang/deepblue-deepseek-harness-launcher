@@ -158,10 +158,16 @@ try {
   assert.equal(pixelConfig.status, 200, 'pixel pet config route status')
   assert.equal(JSON.parse(pixelConfig.body().toString('utf8')).packKind, 'pixel-atlas', 'pixel pet config keeps the atlas contract')
 
+  const balance = await request('/deepblue-pet/balance')
+  assert.equal(balance.status, 200, 'pet balance route status')
+  const balanceBody = JSON.parse(balance.body().toString('utf8'))
+  assert.equal(balanceBody.status, 'error', 'balance route degrades safely without a launcher bridge')
+  assert.match(balanceBody.message, /余额服务/, 'balance route explains that the launcher bridge is unavailable')
+
   const rejected = await request('/deepblue-skin/media', {}, 'POST')
   assert.equal(rejected.status, 405, 'media route rejects writes')
 
-  console.log('Appearance media route smoke passed: gif, webp, mp4, png and pixel-atlas routes')
+  console.log('Appearance media route smoke passed: gif, webp, mp4, png, pixel-atlas and balance routes')
 } finally {
   delete process.env.DEEPBLUE_DSH_SKIN_CONFIG
   delete process.env.DEEPBLUE_DSH_PET_CONFIG

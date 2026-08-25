@@ -198,6 +198,7 @@ function registerIpc(): void {
   ipcMain.on('desktop-pet:drag-start', (event, position: unknown) => controller?.beginDesktopPetDrag(event.sender.id, position))
   ipcMain.on('desktop-pet:drag-move', (event, position: unknown) => controller?.moveDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('desktop-pet:drag-end', (event, position: unknown) => controller?.endDesktopPetDrag(event.sender.id, position))
+  ipcMain.handle('desktop-pet:deepseek-balance', (event) => controller?.desktopPetDeepSeekBalance(event.sender.id))
   ipcMain.handle('launcher:get-snapshot', () => controller?.getSnapshot())
   ipcMain.handle('launcher:refresh-environment', () => controller?.refreshEnvironment())
   ipcMain.handle('launcher:check-sources', () => controller?.checkSources())
