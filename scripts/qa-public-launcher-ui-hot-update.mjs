@@ -103,10 +103,10 @@ try {
   if (available.runtimeUpdates.items[0].size !== expectedSize) {
     throw new Error(`Unexpected launcher-ui size: ${available.runtimeUpdates.items[0].size}, expected ${expectedSize}`)
   }
-  const dialog = page.getByRole('dialog', { name: /发现 1 个模块可更新/ })
+  const dialog = page.getByRole('dialog', { name: /检测到可处理的更新/ })
   await dialog.waitFor({ state: 'visible', timeout: 10_000 })
   await page.screenshot({ path: path.join(outputRoot, 'ui-update-available.png') })
-  await dialog.getByRole('button', { name: /^下载并安装/ }).click()
+  await dialog.getByRole('button', { name: /^更新 1 个模块/ }).click()
 
   const deadline = Date.now() + 120_000
   let finalSnapshot
