@@ -105,6 +105,7 @@ import deepseekLogo from './assets/deepseek-logo.svg'
 import { catalogCapacity, catalogPageTokens } from './catalog-pagination'
 import { onlinePageRefreshTarget } from './online-page-refresh'
 import { desktopWallpaperCapability } from '../../shared/desktop-wallpaper'
+import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature } from './launcher-analytics'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }] },
@@ -1299,7 +1300,7 @@ function MultimodalTestLab({ snapshot, onTest }: {
         <div className="prompt-presets" aria-label="测试任务模板">{multimodalPrompts.map((item) => <button type="button" className={prompt === item.value ? 'active' : ''} key={item.label} onClick={() => { setPrompt(item.value); setResult(undefined) }}>{item.label}</button>)}</div>
         <label className="test-prompt"><span>测试问题</span><textarea value={prompt} maxLength={4000} rows={5} onChange={(event) => { setPrompt(event.target.value); setResult(undefined) }} /></label>
         {localError && <div className="test-inline-error" role="alert"><CircleAlert size={16} />{localError}</div>}
-        <button className="primary-button run-vision-test" type="button" disabled={running || !options.length || !image || !prompt.trim()} onClick={() => void runTest()}>{running ? <><LoaderCircle className="spin" size={17} />正在等待模型识图</> : <><Play size={17} />发送一次真实测试</>}</button>
+        <button className="primary-button run-vision-test" type="button" data-analytics-feature="test_model" data-analytics-label="测试模型连接" disabled={running || !options.length || !image || !prompt.trim()} onClick={() => void runTest()}>{running ? <><LoaderCircle className="spin" size={17} />正在等待模型识图</> : <><Play size={17} />发送一次真实测试</>}</button>
         <small className="billing-warning">本操作会使用你自己的 API 额度；启动器不会自动重试或并发测试。</small>
       </div>
     </div>
@@ -1405,7 +1406,7 @@ function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onRefreshUs
     <div className="model-hub-layout model-hub-screen">
       <Card className="active-model-card">
         <div className="active-model-copy"><h2>{snapshot.modelHub.active.displayName}</h2><p>与 Harness 网页双向同步 · 切换只影响新会话</p></div>
-        <label className="model-switcher"><span>切换已保存模型</span><select value={`${snapshot.modelHub.active.provider}::${snapshot.modelHub.active.model}`} onChange={(event) => {
+        <label className="model-switcher"><span>切换已保存模型</span><select data-analytics-feature="activate_model" data-analytics-label="切换当前模型" value={`${snapshot.modelHub.active.provider}::${snapshot.modelHub.active.model}`} onChange={(event) => {
           const [provider, model] = event.target.value.split('::')
           if (provider && model) onSetActive(provider, model)
         }}>
@@ -1426,12 +1427,12 @@ function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onRefreshUs
         <Card className="model-connections-card" title="我的模型连接" action={<button className="primary-button add-model-button" onClick={openPicker}><Plus size={15} />添加模型</button>}>
           <p className="model-section-intro">这里只显示已保存的连接。已知平台从官方目录勾选模型，自定义服务才需要手填参数。</p>
           <div className="provider-connection-list">
-            {visibleProviders.map((provider) => <div className="provider-connection-row" key={provider.id}><div className="provider-monogram">{provider.name.slice(0, 2)}</div><div><h2>{provider.name}</h2><p>{provider.models.map((model) => model.name).join(' · ')}</p><small>{provider.configured ? `Key 已安全保存 · ${provider.models.length} 个模型` : `尚未保存 Key · ${provider.models.length} 个模型`}</small></div><div className="provider-actions"><button className="quiet-button" onClick={() => startEdit(templateForProvider(provider), 'edit')}>{provider.custom ? '设置参数' : '管理模型'}</button>{provider.id !== 'deepseek-official' && <button className="icon-danger" aria-label={`移除${provider.name}`} onClick={() => onRemove(provider.id)}><Trash2 size={15} /></button>}</div></div>)}
+            {visibleProviders.map((provider) => <div className="provider-connection-row" key={provider.id}><div className="provider-monogram">{provider.name.slice(0, 2)}</div><div><h2>{provider.name}</h2><p>{provider.models.map((model) => model.name).join(' · ')}</p><small>{provider.configured ? `Key 已安全保存 · ${provider.models.length} 个模型` : `尚未保存 Key · ${provider.models.length} 个模型`}</small></div><div className="provider-actions"><button className="quiet-button" data-analytics-feature="add_model" data-analytics-label="管理模型连接" onClick={() => startEdit(templateForProvider(provider), 'edit')}>{provider.custom ? '设置参数' : '管理模型'}</button>{provider.id !== 'deepseek-official' && <button className="icon-danger" data-analytics-feature="remove_model" data-analytics-label="移除模型连接" aria-label={`移除${provider.name}`} onClick={() => onRemove(provider.id)}><Trash2 size={15} /></button>}</div></div>)}
           </div>
           {connectionPageCount > 1 && <div className="compact-pagination" aria-label="模型连接分页"><button type="button" disabled={safeConnectionPage === 0} onClick={() => setConnectionPage(Math.max(0, safeConnectionPage - 1))}><ChevronLeft size={15} />上一页</button><span>{safeConnectionPage + 1} / {connectionPageCount}</span><button type="button" disabled={safeConnectionPage >= connectionPageCount - 1} onClick={() => setConnectionPage(Math.min(connectionPageCount - 1, safeConnectionPage + 1))}>下一页<ChevronRight size={15} /></button></div>}
         </Card>
 
-        <Card className="model-usage-card" title="当前模型用量" action={<button className="quiet-button" disabled={busy === 'model-usage'} onClick={onRefreshUsage}><RefreshCw size={14} className={busy === 'model-usage' ? 'spin' : ''} />刷新</button>}>
+        <Card className="model-usage-card" title="当前模型用量" action={<button className="quiet-button" data-analytics-feature="refresh_model_usage" data-analytics-label="查看模型用量" disabled={busy === 'model-usage'} onClick={onRefreshUsage}><RefreshCw size={14} className={busy === 'model-usage' ? 'spin' : ''} />刷新</button>}>
           <div className="usage-grid">
             <div><span>请求</span><strong>{activeUsage?.requests || 0}</strong></div>
             <div><span>输入 Token</span><strong>{formatTokens(activeUsage?.inputTokens || 0)}</strong></div>
@@ -1473,7 +1474,7 @@ function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onRefreshUs
                 return <label className={classNames('official-model-option', checked && 'is-selected')} key={model.id}><input type="checkbox" checked={checked} onChange={(event) => setDraft({ ...draft, models: event.target.checked ? [...draft.models.filter((selected) => selected.id !== model.id), { id: model.id, name: model.name }] : draft.models.filter((selected) => selected.id !== model.id) })} /><span><strong>{model.name}{model.recommended ? <em>推荐</em> : null}</strong><small>{model.description}</small><code>{model.id}</code></span></label>
               })}</div><p className="official-model-note"><ShieldCheck size={14} />模型 ID、接口地址与协议来自官方目录快照；实际可用范围仍以你的账号权限为准。</p></fieldset> : null}
             </div></div>
-            <footer className="model-dialog-footer provider-editor-actions"><span><ShieldCheck size={14} />Key 不回显；启动器与 Harness 网页共用。</span><div><button type="button" className="quiet-button" onClick={closeDialog}>取消</button><button type="submit" className="primary-button" disabled={!snapshot.modelHub.secureStorageAvailable || busy === 'model-provider'}>{busy === 'model-provider' ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}{editorOrigin === 'edit' ? '保存设置' : '保存并加入切换器'}</button></div></footer>
+            <footer className="model-dialog-footer provider-editor-actions"><span><ShieldCheck size={14} />Key 不回显；启动器与 Harness 网页共用。</span><div><button type="button" className="quiet-button" onClick={closeDialog}>取消</button><button type="submit" className="primary-button" data-analytics-feature="save_model" data-analytics-label="保存模型连接" disabled={!snapshot.modelHub.secureStorageAvailable || busy === 'model-provider'}>{busy === 'model-provider' ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}{editorOrigin === 'edit' ? '保存设置' : '保存并加入切换器'}</button></div></footer>
           </form> : null}
         </section>
       </div>}
@@ -1528,7 +1529,7 @@ function NewsPage({ snapshot, busy, onRefresh, onLogin }: { snapshot: LauncherSn
     <Card className="discovery-toolbar"><div><span className="eyebrow">PUBLIC READING · 免费阅读</span><h2>{signedIn ? `已在启动器内显示 ${visibleNews.length} 条` : '最新 10 条'}</h2><p>{signedIn ? '新闻摘要、正文线索与网站保持同源；原始链接只用于查证。' : '不登录也能在启动器内读摘要和公开正文线索；登录后继续展开更多条目。'}</p></div><button className="quiet-button" disabled={busy === 'discovery'} onClick={onRefresh}><RefreshCw size={14} className={busy === 'discovery' ? 'spin' : ''} />刷新</button></Card>
     {discovery.status === 'offline' && <div className="model-message"><CircleAlert size={15} />{discovery.message}</div>}
     <section className="news-feed" aria-label="最新新闻">
-      {visibleNews.map((item, index) => <article className="news-row" tabIndex={0} aria-label={`${item.title}，双击阅读`} key={item.id} onDoubleClick={() => setSelectedNews(item)} onKeyDown={(event) => { if (event.key === 'Enter') setSelectedNews(item) }}><span className="news-index">{String(index + 1).padStart(2, '0')}</span><span className="news-copy"><span><b>{item.category}</b><time>{item.publishedAt}</time></span><strong>{item.title}</strong><p>{item.summary}</p><small>{item.sourceName || '公开来源'} · {Math.max(1, item.sourceCount)} 个来源</small><em>双击在启动器内阅读</em></span><button className="news-source-button" aria-label={`使用默认浏览器查证${item.title}的来源`} title="用默认浏览器打开原始来源" onDoubleClick={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); openExternal(item.url) }}><ExternalLink size={16} /></button></article>)}
+      {visibleNews.map((item, index) => <article className="news-row" tabIndex={0} data-analytics-feature="view_detail" data-analytics-label="查看新闻详情" data-analytics-trigger="double-click" aria-label={`${item.title}，双击阅读`} key={item.id} onDoubleClick={() => setSelectedNews(item)} onKeyDown={(event) => { if (event.key === 'Enter') setSelectedNews(item) }}><span className="news-index">{String(index + 1).padStart(2, '0')}</span><span className="news-copy"><span><b>{item.category}</b><time>{item.publishedAt}</time></span><strong>{item.title}</strong><p>{item.summary}</p><small>{item.sourceName || '公开来源'} · {Math.max(1, item.sourceCount)} 个来源</small><em>双击在启动器内阅读</em></span><button className="news-source-button" aria-label={`使用默认浏览器查证${item.title}的来源`} title="用默认浏览器打开原始来源" onDoubleClick={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); openExternal(item.url) }}><ExternalLink size={16} /></button></article>)}
       {!discovery.news.length && <Card><EmptyState icon={<Bell />} title="新闻目录暂不可用" text="本地 Harness 功能不受影响，稍后重新刷新即可。" /></Card>}
       {!signedIn && discovery.news.length > 0 && <button className="login-more-card" onClick={onLogin}><span><KeyRound /></span><div><strong>在启动器内登录查看更多</strong><p>最新 10 条始终免费；登录后仍在当前新闻页继续阅读。</p></div><ArrowRight /></button>}
       {signedIn && visibleNews.length > 10 && <div className="signed-in-news-note"><CheckCircle2 size={15} />已登录，更多新闻已直接加载到启动器，没有跳转网页。</div>}
@@ -1585,7 +1586,7 @@ function CareersPage({ snapshot, onRefresh }: { snapshot: LauncherSnapshot; onRe
   useEffect(() => { if (!snapshot.discovery.careers.some((career) => career.id === selectedId)) setSelectedId(snapshot.discovery.careers[0]?.id || '') }, [snapshot.discovery.careers, selectedId])
   const selected = snapshot.discovery.careers.find((career) => career.id === selectedId) || careers[0]
   return <div className="career-directory-layout">
-    <aside className="career-role-panel"><div className="career-role-heading"><div><span className="eyebrow">职业目录</span><strong>{snapshot.discovery.careers.length} 个职业</strong></div><button className="icon-button" aria-label="刷新职业目录" onClick={onRefresh}><RefreshCw size={14} /></button></div><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索职业或模块" /></div><div className="career-role-list" role="tablist" aria-label="职业列表">{careers.map((career) => <button role="tab" aria-selected={selected?.id === career.id} key={career.id} onClick={() => setSelectedId(career.id)}><span>{career.title}</span><small>{career.industryName}</small></button>)}</div></aside>
+    <aside className="career-role-panel"><div className="career-role-heading"><div><span className="eyebrow">职业目录</span><strong>{snapshot.discovery.careers.length} 个职业</strong></div><button className="icon-button" aria-label="刷新职业目录" onClick={onRefresh}><RefreshCw size={14} /></button></div><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索职业或模块" /></div><div className="career-role-list" role="tablist" aria-label="职业列表">{careers.map((career) => <button role="tab" data-analytics-feature="select_career" data-analytics-label="切换职业地图" aria-selected={selected?.id === career.id} key={career.id} onClick={() => setSelectedId(career.id)}><span>{career.title}</span><small>{career.industryName}</small></button>)}</div></aside>
     <section className="career-workspace-panel">{selected ? <><header><div><span className="eyebrow">{selected.industryName}</span><h2>{selected.title}</h2><p>{selected.summary}</p></div><button className="quiet-button" title="教学属于长内容，将用电脑默认浏览器打开" onClick={() => openExternal(`https://ailishishu.com/careers/?role=${encodeURIComponent(selected.id)}`)}>用浏览器学习完整课程<ExternalLink size={13} /></button></header><div className="career-task-list">{selected.tasks.map((task, index) => <article key={task.id}><span>{String(index + 1).padStart(2, '0')}</span><div><h3>{task.title}</h3><p>{task.summary}</p><small>对应知识、工具、模型、Skill 与人工复核由在线职业目录持续更新</small></div></article>)}</div><div className="career-data-note"><RefreshCw size={15} /><span>职业与模块就在启动器内浏览；只有系统课程这种长内容才交给默认浏览器。</span></div></> : <EmptyState icon={<BriefcaseBusiness />} title="职业目录暂不可用" text="点击刷新重新读取网站职业数据。" />}</section>
   </div>
 }
@@ -1974,6 +1975,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
 
 export default function App(): ReactNode {
   const [snapshot, setSnapshot] = useState<LauncherSnapshot>(mockSnapshot)
+  const [snapshotReady, setSnapshotReady] = useState(false)
   const [page, setPage] = useState<PageId>('home')
   const [busy, setBusy] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -1992,14 +1994,30 @@ export default function App(): ReactNode {
     // Keep the bundled snapshot visible if an older kernel briefly answers
     // before its controller is ready. A later snapshot event replaces it.
     void window.launcher.getSnapshot().then((next) => {
-      if (next) setSnapshot(next)
+      if (next) {
+        setSnapshot(next)
+        setSnapshotReady(true)
+      }
     }).catch(() => undefined)
-    return window.launcher.onSnapshot(setSnapshot)
+    return window.launcher.onSnapshot((next) => {
+      setSnapshot(next)
+      setSnapshotReady(true)
+    })
   }, [])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    if (!window.launcher || !snapshotReady) return
+    trackLauncherAnalytics('session_started', page, snapshot)
+  }, [snapshotReady])
+
+  useEffect(() => {
+    if (!window.launcher || !snapshotReady) return
+    trackLauncherAnalytics('module_open', page, snapshot)
+  }, [page, snapshotReady])
 
   const currentPage = pageTitles[page]
   const statusLabel = useMemo(() => snapshot.runStatus === 'running' ? '运行中' : snapshot.runStatus === 'starting' ? '启动中' : snapshot.runStatus === 'error' ? '需要处理' : '未运行', [snapshot.runStatus])
@@ -2312,8 +2330,30 @@ export default function App(): ReactNode {
     else if (refreshTarget === 'pets') refreshPets()
   }
 
+  const captureFeatureClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!window.launcher || !snapshotReady) return
+    const target = event.target as HTMLElement
+    const action = target.closest<HTMLElement>('button,a,[role="button"],article[tabindex],[data-analytics-feature]')
+    if (!action || action.closest('.window-controls') || action.closest('.sidebar nav')) return
+    if (action.dataset.analyticsTrigger === 'double-click') return
+    const explicitId = action.dataset.analyticsFeature
+    const explicitLabel = action.dataset.analyticsLabel
+    const feature: LauncherFeature | undefined = explicitId && explicitLabel
+      ? { id: explicitId, label: explicitLabel }
+      : classifyLauncherFeature(action.getAttribute('aria-label') || action.getAttribute('title') || action.textContent || '')
+    if (feature) trackLauncherAnalytics('feature_click', page, snapshot, feature)
+  }
+
+  const captureFeatureDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!window.launcher || !snapshotReady) return
+    const action = (event.target as HTMLElement).closest<HTMLElement>('[data-analytics-trigger="double-click"]')
+    const id = action?.dataset.analyticsFeature
+    const label = action?.dataset.analyticsLabel
+    if (id && label) trackLauncherAnalytics('feature_click', page, snapshot, { id, label })
+  }
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" onClickCapture={captureFeatureClick} onDoubleClickCapture={captureFeatureDoubleClick}>
       <aside className={classNames('sidebar', sidebarOpen && 'sidebar-open')}>
         <div className="brand"><BrandMark /><div><strong>DeepSeek</strong><span>深蓝 Harness 启动器</span></div></div>
         <nav>{navigation.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => activatePage(item.id)}><Icon size={18} /><span>{item.label}</span>{page === item.id && <i />}</button> })}</div>)}</nav>
