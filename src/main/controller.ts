@@ -24,6 +24,7 @@ import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
 import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
+import { pluginOperationTimeoutMs, pluginPnpmArguments, profileHasActivePlugin, type WebProfileManifest } from './plugin-policy'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
@@ -2002,9 +2003,7 @@ export class LauncherController {
       task.detail = `解析 ${packageSpec}`
       this.emit()
 
-      const verb = action === 'install' ? 'add' : action
-      const args = [runtime.dsh, 'plugin', '--profile', 'web', verb]
-      if (action !== 'update' || packageSpec) args.push(action === 'remove' ? packageName : packageSpec)
+      const args = [runtime.dsh, 'plugin', '--profile', 'web', ...pluginPnpmArguments(action, packageSpec, packageName)]
       const profileEnvironment = await readPnpmProfileEnvironment(paths.dshHome)
       const child = spawnNode(runtime, args, {
         cwd: this.config.settings.workspace,
@@ -2082,11 +2081,11 @@ export class LauncherController {
   private async isPluginInstalled(packageName: string, requireFiles: boolean): Promise<boolean> {
     try {
       const profileRoot = path.join(launcherDataPaths().dshHome, 'profiles', 'web')
-      const profile = JSON.parse(await readFile(path.join(profileRoot, 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown> }
+      const profile = JSON.parse(await readFile(path.join(profileRoot, 'package.json'), 'utf8')) as WebProfileManifest
       if (!Object.hasOwn(profile.dependencies || {}, packageName)) return false
       if (!requireFiles) return true
       await access(path.join(profileRoot, 'node_modules', ...packageName.split('/'), 'package.json'))
-      return true
+      return profileHasActivePlugin(profile, packageName, true)
     } catch {
       return false
     }
@@ -2143,10 +2142,12 @@ export class LauncherController {
           }
         }).finally(() => { checking = false })
       }, 1_000)
+      const hardTimeoutMs = pluginOperationTimeoutMs(packageName)
       const hardTimeout = setTimeout(() => {
-        finish({ code: null, error: new Error('插件操作超过 5 分钟未结束，已自动终止；请检查网络后重试') })
+        const minutes = Math.round(hardTimeoutMs / 60_000)
+        finish({ code: null, error: new Error(`插件操作超过 ${minutes} 分钟未结束，已自动终止；请检查网络后重试`) })
         void this.terminatePluginProcess(child)
-      }, 5 * 60_000)
+      }, hardTimeoutMs)
       child.once('error', (error) => finish({ code: null, error }))
       child.once('exit', (code) => finish({ code }))
     })
@@ -2165,17 +2166,10 @@ export class LauncherController {
   }
 
   private async refreshInstalledPlugins(): Promise<void> {
-    let dependencies: Record<string, unknown> = {}
-    try {
-      const profile = JSON.parse(await readFile(path.join(launcherDataPaths().dshHome, 'profiles', 'web', 'package.json'), 'utf8')) as { dependencies?: Record<string, unknown> }
-      dependencies = profile.dependencies || {}
-    } catch {
-      // A fresh installation has no web profile until the first Harness start.
-    }
-    this.snapshot.plugins = this.snapshot.plugins.map(plugin => ({
+    this.snapshot.plugins = await Promise.all(this.snapshot.plugins.map(async (plugin) => ({
       ...plugin,
-      installed: Object.hasOwn(dependencies, pluginPackageName(plugin.packageSpec))
-    }))
+      installed: await this.isPluginInstalled(pluginPackageName(plugin.packageSpec), true)
+    })))
   }
 
   private replaceSkinState(next: SkinStoreState): void {

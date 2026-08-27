@@ -29,6 +29,9 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.32 修复 DSH WEB PROFILE 远程配对插件安装失败：仅为审核过的远程 Web 插件放行 cloudflared 构建脚本，其他插件继续保持默认供应链拦截',
+    '插件必须同时写入 profile 依赖、安装包文件并完成 DSH bundle 注册才会显示安装成功；历史半安装状态会恢复为可安装，不再误报已完成',
+    'Cloudflared 首次下载使用 12 分钟独立超时并持续显示组件进度；真实失败保持失败状态、恢复按钮且不弹出重启成功提示',
     '0.10.30 为 DSH 插件安装、更新与卸载新增独立进度中心：按真实 pnpm 输出显示解析、下载、写入阶段和持续滚动的文件/组件明细',
     '插件操作不再占用启动器全局 busy 锁；操作成功、失败、进程异常或 5 分钟硬超时都会进入明确终态并立即恢复全部安装/卸载按钮',
     '若包管理器已完成 profile 写入却没有正常退出，启动器会校验 package.json 与 node_modules 后安全回收残留进程，避免必须重启启动器才能继续操作',

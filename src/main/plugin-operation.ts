@@ -23,7 +23,11 @@ export function updatePluginProgress(current: PluginOperationState, line: string
   let nextProgress = current.progress
   let message = current.message
 
-  if (progress) {
+  if (/cloudflared.*postinstall|installing (?:the )?latest version of cloudflared/.test(lower)) {
+    status = 'installing'
+    nextProgress = boundedProgress(current.progress, 94, 96)
+    message = '正在下载 Cloudflare 远程连接组件，首次安装可能需要数分钟'
+  } else if (progress) {
     const resolved = Number(progress[1] || 0)
     const downloaded = Number(progress[3] || 0)
     const added = Number(progress[4] || 0)

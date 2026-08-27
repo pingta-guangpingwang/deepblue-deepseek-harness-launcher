@@ -15,9 +15,31 @@ const localAppDataRoot = path.join(profileRoot, 'localappdata')
 const launcherDataRoot = path.join(appDataRoot, 'deepseek-harness-launcher')
 const storageRoot = path.join(profileRoot, 'storage')
 const workspace = path.join(profileRoot, 'workspace')
+const webProfileRoot = path.join(storageRoot, 'harness-data', 'profiles', 'web')
+const partialRemotePackageRoot = path.join(webProfileRoot, 'node_modules', '@linxin666', 'dsh-remote-web-ui')
 
+const relativeOutputRoot = path.relative(root, outputRoot)
+if (!relativeOutputRoot || relativeOutputRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeOutputRoot)) {
+  throw new Error(`QA output must stay inside the launcher workspace: ${outputRoot}`)
+}
 await rm(outputRoot, { recursive: true, force: true })
-await Promise.all([launcherDataRoot, localAppDataRoot, storageRoot, workspace].map((target) => mkdir(target, { recursive: true })))
+await Promise.all([launcherDataRoot, localAppDataRoot, storageRoot, workspace, partialRemotePackageRoot].map((target) => mkdir(target, { recursive: true })))
+
+// Reproduce pnpm's failure shape: dependency files were written, but DSH did
+// not register the bundle because pnpm exited non-zero. The launcher must keep
+// showing Install instead of treating this half state as success.
+await writeFile(path.join(webProfileRoot, 'package.json'), `${JSON.stringify({
+  name: 'dsh-profile-web',
+  private: true,
+  dependencies: { '@linxin666/dsh-remote-web-ui': '0.3.5' },
+  dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } }
+}, null, 2)}\n`, 'utf8')
+await writeFile(path.join(webProfileRoot, 'pnpm-workspace.yaml'), 'allowBuilds: {}\n', 'utf8')
+await writeFile(path.join(partialRemotePackageRoot, 'package.json'), `${JSON.stringify({
+  name: '@linxin666/dsh-remote-web-ui',
+  version: '0.3.5',
+  dsh: { bundle: { patch: './cordis.patch.yml' } }
+}, null, 2)}\n`, 'utf8')
 
 await writeFile(path.join(launcherDataRoot, 'launcher.json'), `${JSON.stringify({
   activeVersion: '0.1.1-rc.2',
@@ -62,6 +84,21 @@ try {
   await page.waitForLoadState('domcontentloaded')
   await page.getByRole('button', { name: 'DSH 生态', exact: true }).waitFor({ timeout: 30_000 })
   await page.getByRole('button', { name: 'DSH 生态', exact: true }).click()
+  await page.getByRole('tab', { name: '高级能力', exact: true }).click()
+  const remoteRow = page.locator('.ecosystem-row').filter({ hasText: '手机 / PC 远程配对' })
+  await remoteRow.waitFor({ state: 'visible', timeout: 30_000 })
+  check('失败后只写入依赖文件不会误报插件已安装', await remoteRow.getByRole('button', { name: '安装', exact: true }).count() === 1)
+
+  // Return the profile to a clean baseline before exercising the normal
+  // install/remove/restart flow below.
+  await rm(path.join(webProfileRoot, 'node_modules'), { recursive: true, force: true })
+  await writeFile(path.join(webProfileRoot, 'package.json'), `${JSON.stringify({
+    name: 'dsh-profile-web',
+    private: true,
+    dependencies: {},
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } }
+  }, null, 2)}\n`, 'utf8')
+  await page.getByRole('tab', { name: '推荐增强', exact: true }).click()
   const targetRow = page.locator('.ecosystem-row').filter({ hasText: '任务看板' })
   await targetRow.waitFor({ state: 'visible', timeout: 30_000 })
 
@@ -115,6 +152,12 @@ try {
     await window.launcher.stopHarness()
     await window.launcher.pluginAction('remove', '@linxin666/dsh-client-ui-task-board@latest')
   })
+  await page.evaluate(() => window.launcher.pluginAction('install', '@linxin666/dsh-install-failure-probe@0.0.0'))
+  await dialog.locator('.plugin-operation-progress.failed').waitFor({ state: 'visible', timeout: 120_000 })
+  const failedState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pluginOperation)
+  check('包管理器非零退出码只进入失败终态', failedState?.status === 'failed' && failedState.progress < 100, `${failedState?.progress}% · ${failedState?.message}`)
+  check('失败弹窗不会显示安装成功提示', await dialog.locator('.plugin-operation-progress.completed, .plugin-restart-prompt').count() === 0)
+  await page.screenshot({ path: path.join(outputRoot, 'plugin-install-failed.png') })
   check('真实打包应用没有渲染错误', rendererErrors.length === 0, rendererErrors.join(' | '))
   await page.screenshot({ path: path.join(outputRoot, 'plugin-remove-completed.png') })
 } finally {

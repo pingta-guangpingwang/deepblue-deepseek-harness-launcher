@@ -31,4 +31,11 @@ describe('plugin operation progress', () => {
     expect(state.files[0]).toContain('package-20')
     expect(state.files.at(-1)).toContain('package-139')
   })
+
+  it('explains the long-running reviewed cloudflared build', () => {
+    const installing = updatePluginProgress(operation(), 'node_modules/cloudflared postinstall: Installing latest version of cloudflared')
+    expect(installing.status).toBe('installing')
+    expect(installing.message).toContain('首次安装可能需要数分钟')
+    expect(installing.progress).toBeGreaterThanOrEqual(94)
+  })
 })
