@@ -58,8 +58,8 @@ describe('online Ailishishu directories', () => {
       updatedAt: 'old',
       news: [], hotNews: [],
       games: [{ slug: 'kept', title: '保留游戏', summary: '缓存', category: 'game', tags: [], featured: false, loginRequired: false, url: 'https://ailishishu.com/games/', mode: 'source_only' as const }],
-      tools: [], extensions: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [],
-      totals: { games: 1, tools: 0, extensions: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 }
+      tools: [], extensions: [], plugins: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [],
+      totals: { games: 1, tools: 0, extensions: 0, plugins: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 }
     }))()
     const result = await fetchDiscovery(previous)
     expect(result.games[0]?.slug).toBe('kept')

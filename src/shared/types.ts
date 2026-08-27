@@ -278,7 +278,7 @@ export interface LauncherGameItem {
 
 export interface LauncherResourceItem {
   id: string
-  type: 'ai_native_tool' | 'software_tool' | 'workflow_platform' | 'skill' | 'workflow' | 'agent' | 'knowledge_base' | 'prompt' | string
+  type: 'ai_native_tool' | 'software_tool' | 'workflow_platform' | 'skill' | 'workflow' | 'agent' | 'knowledge_base' | 'prompt' | 'plugin' | string
   title: string
   author: string
   summary: string
@@ -312,6 +312,12 @@ export interface LauncherResourceItem {
   verifiedAt?: string
   sourceName?: string
   sourceUrl?: string
+  /** DSH plugin fields; only present when `type` is `plugin`. */
+  pluginPackage?: string
+  pluginVersion?: string
+  pluginSeam?: string
+  pluginBadges?: string[]
+  pluginProbe?: { status: string; note?: string }
 }
 
 export interface LauncherResourceComment {
@@ -381,13 +387,20 @@ export interface DiscoveryHubState {
   games: LauncherGameItem[]
   tools: LauncherResourceItem[]
   extensions: LauncherResourceItem[]
+  plugins: LauncherResourceItem[]
   prompts: LauncherResourceItem[]
   skills: LauncherResourceItem[]
   workflows: LauncherResourceItem[]
   knowledgeBases: LauncherResourceItem[]
   agents: LauncherResourceItem[]
   careers: LauncherCareerItem[]
-  totals: { games: number; tools: number; extensions: number; prompts: number; skills: number; workflows: number; knowledgeBases: number; agents: number; careers: number }
+  totals: { games: number; tools: number; extensions: number; plugins: number; prompts: number; skills: number; workflows: number; knowledgeBases: number; agents: number; careers: number }
+  /**
+   * Catalog-reported totals per resource type, which exceed what one page holds.
+   * The directory response carries these; without them the launcher can only
+   * show how many rows it happened to fetch.
+   */
+  catalogTotals?: Record<string, number>
   message?: string
 }
 

@@ -102,8 +102,10 @@ export const mockSnapshot: LauncherSnapshot = {
     workflows: [],
     knowledgeBases: [],
     agents: [],
+    plugins: [{ id: 'dsh-plugin-modlens', type: 'plugin', title: 'modlens 视觉外挂', author: 'liustack', summary: '为纯文本模型外挂视觉能力：粘贴图片即返回结构化 JSON 证据。', firstStep: '装入 web profile 后重启 Harness。', capabilities: ['视觉', 'OCR'], difficulty: '进阶', pricingMode: 'free', canonicalUrl: 'https://ailishishu.com/tools/?resource=dsh-plugin-modlens', editorialScore: 92, popularityScore: 89, rating: 0, ratingCount: 0, stars: 3703, repositoryUrl: 'https://github.com/liustack/modlens', pluginPackage: '@liustack/modlens', pluginSeam: 'tools', pluginBadges: ['dsh-bundle', 'dsh-client'], pluginProbe: { status: 'pending' } }],
     careers: [{ id: 'product-manager', industryId: 'internet', industryName: '互联网与软件', title: '产品经理', summary: '围绕真实工作任务选择 AI。', tasks: [{ id: 'product-research', title: '用户研究', summary: '从材料中找目标、痛点与证据。' }] }],
-    totals: { games: 2, tools: 1, extensions: 1, prompts: 1, skills: 1, workflows: 0, knowledgeBases: 0, agents: 0, careers: 1 }
+    totals: { games: 2, tools: 1, extensions: 1, plugins: 1, prompts: 1, skills: 1, workflows: 0, knowledgeBases: 0, agents: 0, careers: 1 },
+    catalogTotals: { plugin: 12 }
   },
   resourceLibrary: [],
   workspaces: [

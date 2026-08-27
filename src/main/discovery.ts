@@ -15,7 +15,7 @@ const SHOWCASE_URL = `${SITE}/games/data/global-ai-game-showcase.json`
 const CAREERS_URL = `${SITE}/ailishishu-stats/api/v1/careers.php?limit=80`
 const RESOURCE_URL = `${SITE}/ailishishu-stats/api/v1/resources.php?sort=heat&limit=100&type=`
 const TOOL_TYPES = ['ai_native_tool', 'software_tool', 'workflow_platform'] as const
-const RESOURCE_TYPES = ['prompt', 'skill', 'workflow', 'knowledge_base', 'agent'] as const
+const RESOURCE_TYPES = ['prompt', 'skill', 'workflow', 'knowledge_base', 'agent', 'plugin'] as const
 
 function text(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value.trim() : fallback
@@ -193,8 +193,20 @@ function resourceItem(value: unknown): LauncherResourceItem | undefined {
     workflowBlueprint: row.workflowBlueprint ?? undefined,
     verifiedAt: text(row.verifiedAt) || undefined,
     sourceName: text(source.name) || undefined,
-    sourceUrl: safeHttps(source.url) || undefined
+    sourceUrl: safeHttps(source.url) || undefined,
+    pluginPackage: text(row.pluginPackage) || undefined,
+    pluginVersion: text(row.pluginVersion) || undefined,
+    pluginSeam: text(row.pluginSeam) || undefined,
+    pluginBadges: stringList(row.pluginBadges, 6),
+    pluginProbe: probeState(row.pluginProbe)
   }
+}
+
+function probeState(value: unknown): LauncherResourceItem['pluginProbe'] {
+  const row = record(value)
+  const status = text(row.status)
+  if (!status) return undefined
+  return { status, note: text(row.note) || undefined }
 }
 
 function careerItem(value: unknown): LauncherCareerItem | undefined {
@@ -231,15 +243,18 @@ async function json(url: string, signal: AbortSignal, requireOk = true): Promise
 async function resourceDirectory(type: string, signal: AbortSignal): Promise<Record<string, unknown>> {
   const items: unknown[] = []
   let cursor = ''
+  let catalogTotal = 0
   for (let page = 0; page < 5; page += 1) {
     const payload = await json(`${RESOURCE_URL}${encodeURIComponent(type)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, signal)
     if (Array.isArray(payload.data)) items.push(...payload.data)
     const pagination = record(payload.pagination)
+    // The directory reports how many rows match, which is larger than one page.
+    if (page === 0) catalogTotal = number(pagination.total)
     const nextCursor = text(pagination.nextCursor)
     if (pagination.hasMore !== true || !nextCursor || nextCursor === cursor) break
     cursor = nextCursor
   }
-  return { ok: true, data: items }
+  return { ok: true, data: items, catalogTotal }
 }
 
 function unique<T>(items: T[], key: (item: T) => string): T[] {
@@ -248,7 +263,7 @@ function unique<T>(items: T[], key: (item: T) => string): T[] {
 }
 
 function previousOrEmpty(previous?: DiscoveryHubState): DiscoveryHubState {
-  return previous || { status: 'loading', updatedAt: '', news: [], hotNews: [], games: [], tools: [], extensions: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [], totals: { games: 0, tools: 0, extensions: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 } }
+  return previous || { status: 'loading', updatedAt: '', news: [], hotNews: [], games: [], tools: [], extensions: [], plugins: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [], totals: { games: 0, tools: 0, extensions: 0, plugins: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 }, catalogTotals: {} }
 }
 
 export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<DiscoveryHubState> {
@@ -295,11 +310,22 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
     const workflows = resourcesByType.get('workflow') || old.workflows
     const knowledgeBases = resourcesByType.get('knowledge_base') || old.knowledgeBases
     const agents = resourcesByType.get('agent') || old.agents
+    const plugins = resourcesByType.get('plugin') || old.plugins
     const extensions = unique([...skills, ...workflows, ...agents], (item) => item.id)
     const careers = careersPayload && Array.isArray(careersPayload.data) ? careersPayload.data.map(careerItem).filter((item): item is LauncherCareerItem => Boolean(item)) : old.careers
+    const catalogTotals: Record<string, number> = { ...old.catalogTotals }
+    for (const [index, type] of TOOL_TYPES.entries()) {
+      const total = number(value(5 + index)?.catalogTotal)
+      if (total) catalogTotals[type] = total
+    }
+    for (const [index, type] of RESOURCE_TYPES.entries()) {
+      const total = number(value(5 + TOOL_TYPES.length + index)?.catalogTotal)
+      if (total) catalogTotals[type] = total
+    }
     const finalGames = games.length ? games : old.games
     const finalTools = tools.length ? tools : old.tools
     const finalExtensions = extensions.length ? extensions : old.extensions
+    const finalPlugins = plugins.length ? plugins : old.plugins
     const finalCareers = careers.length ? careers : old.careers
     const hasContent = stream.length || finalGames.length || finalTools.length || finalExtensions.length || finalCareers.length
     return {
@@ -310,13 +336,15 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
       games: finalGames,
       tools: finalTools,
       extensions: finalExtensions,
+      plugins: finalPlugins,
       prompts,
       skills,
       workflows,
       knowledgeBases,
       agents,
       careers: finalCareers,
-      totals: { games: finalGames.length, tools: finalTools.length, extensions: finalExtensions.length, prompts: prompts.length, skills: skills.length, workflows: workflows.length, knowledgeBases: knowledgeBases.length, agents: agents.length, careers: finalCareers.length },
+      totals: { games: finalGames.length, tools: finalTools.length, extensions: finalExtensions.length, plugins: finalPlugins.length, prompts: prompts.length, skills: skills.length, workflows: workflows.length, knowledgeBases: knowledgeBases.length, agents: agents.length, careers: finalCareers.length },
+      catalogTotals,
       message: errors.length ? `部分在线目录暂未更新，已保留可用内容（${errors.length} 项读取失败）。` : undefined
     }
   } catch (error) {

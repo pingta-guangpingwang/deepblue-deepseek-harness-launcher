@@ -1685,18 +1685,44 @@ const idlePluginOperation: PluginOperationState = {
   restartRequired: false
 }
 
-function EcosystemPage({ plugins, operation, onAction }: {
+/** Capability seam a catalog plugin plugs into, as reported by the AI历史书 directory. */
+const pluginSeamCopy: Record<string, string> = {
+  tools: '工具能力',
+  llm: '模型接入',
+  'client-ui': '界面面板',
+  client: '客户端',
+  context: '上下文记忆',
+  agent: 'Agent 增强',
+  subagent: '子智能体',
+  channel: '通道通知',
+  meta: '目录与元工具'
+}
+
+function EcosystemPage({ plugins, catalogPlugins, catalogTotal, operation, onAction, onRefresh, busy }: {
   plugins: CatalogPlugin[]
+  catalogPlugins: LauncherResourceItem[]
+  catalogTotal: number
   operation: PluginOperationState
   onAction: (action: 'install' | 'update' | 'remove', packageSpec: string) => void
+  onRefresh: () => void
+  busy: string
 }): ReactNode {
-  const [tab, setTab] = useState<'recommended' | 'advanced' | 'installed'>('recommended')
+  const [tab, setTab] = useState<'recommended' | 'advanced' | 'installed' | 'market'>('recommended')
+  const [copied, setCopied] = useState('')
   const operationActive = pluginOperationActiveStatuses.has(operation.status)
+  const signedSpecs = new Map(plugins.map(plugin => [plugin.packageSpec.replace(/@[^@/]+$/, ''), plugin]))
   const visible = plugins.filter(plugin => tab === 'installed'
     ? plugin.installed
     : tab === 'advanced'
       ? plugin.permissionLevel !== 'standard'
       : plugin.featured && plugin.permissionLevel !== 'system')
+  const copyInstall = async (spec: string): Promise<void> => {
+    const command = `dsh plugin --profile web add ${spec}`
+    if (window.launcher) await window.launcher.copyText(command)
+    else await navigator.clipboard.writeText(command)
+    setCopied(spec)
+    window.setTimeout(() => setCopied(''), 1600)
+  }
   return <div className="ecosystem-layout">
     <section className="ecosystem-intro">
       <div><h2>把成熟能力装进 DSH，不复制一套新外壳</h2><p>启动器通过 Harness 原生插件命令安装到当前 Web profile。每项都由用户主动选择，安装完成后重启 Harness 生效。</p></div>
@@ -1706,7 +1732,47 @@ function EcosystemPage({ plugins, operation, onAction }: {
       <button role="tab" aria-selected={tab === 'recommended'} className={tab === 'recommended' ? 'active' : ''} onClick={() => setTab('recommended')}>推荐增强</button>
       <button role="tab" aria-selected={tab === 'advanced'} className={tab === 'advanced' ? 'active' : ''} onClick={() => setTab('advanced')}>高级能力</button>
       <button role="tab" aria-selected={tab === 'installed'} className={tab === 'installed' ? 'active' : ''} onClick={() => setTab('installed')}>已安装 {plugins.filter(plugin => plugin.installed).length}</button>
+      <button role="tab" aria-selected={tab === 'market'} className={tab === 'market' ? 'active' : ''} onClick={() => setTab('market')}>插件超市 {catalogTotal || catalogPlugins.length}</button>
     </div>
+    {tab === 'market' && <>
+      <Card className="catalog-toolbar">
+        <div className="toolbar-stats">
+          <span><strong>{catalogTotal || catalogPlugins.length}</strong> 个已收录插件</span>
+          <span>收录门槛 <strong>package.json 声明 dsh.bundle</strong></span>
+          <span>来源 <strong>AI历史书目录</strong></span>
+        </div>
+        <button className="quiet-button" disabled={busy === 'discovery'} onClick={onRefresh}>{busy === 'discovery' ? <><LoaderCircle className="spin" size={14} />同步中</> : <><RefreshCw size={14} />刷新目录</>}</button>
+      </Card>
+      <div className="ecosystem-grid">
+        {catalogPlugins.map(item => {
+          const signed = item.pluginPackage ? signedSpecs.get(item.pluginPackage) : undefined
+          const currentTarget = operationActive && signed && operation.packageSpec === signed.packageSpec
+          return <article className="ecosystem-row" key={item.id}>
+            <span className="ecosystem-icon level-standard"><Plug size={18} /></span>
+            <div className="ecosystem-copy">
+              <div><h2>{item.title}</h2>{item.pluginSeam && <span>{pluginSeamCopy[item.pluginSeam] || item.pluginSeam}</span>}</div>
+              <p>{item.summary}</p>
+              <small>
+                {item.author}
+                {typeof item.stars === 'number' && item.stars > 0 ? ` · ${item.stars.toLocaleString('zh-CN')} ★` : ''}
+                {item.editorialScore ? ` · 编辑评分 ${Math.round(item.editorialScore)}` : ''}
+                {item.pluginProbe?.status === 'pending' ? ' · 实测待回填' : item.pluginProbe?.status ? ` · 实测 ${item.pluginProbe.status}` : ''}
+                {(item.pluginBadges || []).length ? ` · ${(item.pluginBadges || []).join(' / ')}` : ''}
+              </small>
+              {item.pluginPackage && <code>{item.pluginPackage}</code>}
+            </div>
+            <div className="ecosystem-actions">
+              <button className="quiet-button" onClick={() => void window.launcher?.openExternal(item.repositoryUrl || item.url || item.canonicalUrl)}><Github size={14} />源码</button>
+              {item.pluginPackage && !signed && <button className="quiet-button" onClick={() => void copyInstall(item.pluginPackage!)}>{copied === item.pluginPackage ? <><CheckCircle2 size={14} />已复制</> : <><Copy size={14} />复制安装命令</>}</button>}
+              {signed && <button className={currentTarget ? 'quiet-button' : signed.installed ? 'small-button danger' : 'primary-button'} disabled={Boolean(currentTarget)} onClick={() => onAction(signed.installed ? 'remove' : 'install', signed.packageSpec)}>{currentTarget ? <><LoaderCircle className="spin" size={14} />{operation.progress}%</> : signed.installed ? <><Trash2 size={14} />卸载</> : <><Download size={14} />安装</>}</button>}
+            </div>
+          </article>
+        })}
+        {!catalogPlugins.length && <Card><EmptyState icon={<Plug />} title="插件目录暂未同步" text="启动器只展示 AI历史书目录里已确认 dsh.bundle 身份的插件；点击刷新目录后重试。" /></Card>}
+      </div>
+      <p className="ecosystem-boundary"><ShieldCheck size={15} />超市条目来自无签名的在线目录，只用于浏览与人工安装。只有同时进入启动器签名清单的插件才提供一键安装；其余请先核对仓库与许可后再手动执行安装命令。</p>
+    </>}
+    {tab !== 'market' && <>
     <div className="ecosystem-grid">
       {visible.map(plugin => {
         const permission = ecosystemPermissionCopy[plugin.permissionLevel || 'standard']
@@ -1720,6 +1786,7 @@ function EcosystemPage({ plugins, operation, onAction }: {
       {!visible.length && <Card><EmptyState icon={<Plug />} title={tab === 'installed' ? '当前没有生态插件' : '没有符合条件的插件'} text={tab === 'installed' ? '从推荐增强或高级能力中选择，安装完成后会出现在这里。' : '签名目录刷新后再试。'} /></Card>}
     </div>
     <p className="ecosystem-boundary"><ShieldCheck size={15} />没有把两个项目的桌面壳复制进启动器；只复用其公开插件接口和产品经验，避免与现有热更新、模型同步及资源商店形成第二套状态。</p>
+    </>}
   </div>
 }
 
@@ -2400,7 +2467,7 @@ export default function App(): ReactNode {
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
-          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} operation={pluginOperation} onAction={pluginAction} />}
+          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} catalogPlugins={snapshot.discovery.plugins} catalogTotal={snapshot.discovery.catalogTotals?.plugin || 0} operation={pluginOperation} onAction={pluginAction} onRefresh={refreshDiscovery} busy={busy} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}
           {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
