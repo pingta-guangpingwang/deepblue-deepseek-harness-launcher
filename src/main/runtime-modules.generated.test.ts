@@ -48,8 +48,19 @@ async function stopTree(pid: number | undefined): Promise<void> {
 
 afterAll(async () => {
   vi.unstubAllGlobals()
-  await Promise.all(installationRoots.map((root) => rm(root, { recursive: true, force: true })))
-})
+  if (process.platform === 'win32' && installationRoots.length) {
+    const cleaner = spawn('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', path.resolve('scripts/cleanup-runtime-smoke-temp.ps1'),
+      ...installationRoots
+    ], { detached: true, windowsHide: true, stdio: 'ignore' })
+    cleaner.unref()
+    return
+  }
+  for (const root of installationRoots) {
+    await rm(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 })
+  }
+}, 15_000)
 
 describe.skipIf(!enabled)('generated runtime modules', () => {
   it('installs the exact release artifacts and boots the packaged Harness CLI and Web service', { timeout: 240_000 }, async () => {
@@ -125,6 +136,12 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
       expect(ready, webOutput).toBe(true)
     } finally {
       await stopTree(web.pid)
+      if (web.exitCode === null) {
+        await Promise.race([
+          new Promise<void>((resolve) => web.once('close', () => resolve())),
+          new Promise<void>((resolve) => setTimeout(resolve, 3_000))
+        ])
+      }
     }
   })
 })

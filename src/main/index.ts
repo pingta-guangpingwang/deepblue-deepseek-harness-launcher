@@ -223,6 +223,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:resource-detail', (_event, id: string) => controller?.resourceDetail(id))
   ipcMain.handle('launcher:resource-engagement', (_event, id: string) => controller?.resourceEngagement(id))
   ipcMain.handle('launcher:comment-resource', (_event, id: string, body: string) => controller?.commentResource(id, body))
+  ipcMain.handle('launcher:community-request', (_event, request) => controller?.communityRequest(request))
   ipcMain.handle('launcher:queue-resource', (_event, id: string) => controller?.queueResource(id))
   ipcMain.handle('launcher:install-library-resource', (_event, id: string) => controller?.installLibraryResource(id))
   ipcMain.handle('launcher:remove-library-resource', (_event, id: string) => controller?.removeLibraryResource(id))

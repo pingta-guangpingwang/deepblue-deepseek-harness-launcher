@@ -32,6 +32,7 @@ import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
 import type {
   EnvironmentItem,
   HarnessVersion,
+  LauncherCommunityRequest,
   LauncherSettings,
   LauncherInstallationState,
   LauncherSnapshot,
@@ -206,6 +207,14 @@ export class LauncherController {
     this.log('INFO', `数据目录：${launcherDataPaths().root}`)
     this.log('INFO', `发行模式：${this.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}`)
     if (this.runtimeModules.length) this.log('INFO', `已加载内置运行目录（${this.runtimeModules.length} 个模块），在线目录不可用时仍可安装`)
+    // The snapshot is complete at this point, so the renderer can paint the
+    // launcher immediately. Model migration, account refresh and store
+    // hydration continue in the background and emit their own state updates.
+    // A slow file lock or network endpoint must never hold the first window.
+    void this.finishInitialization()
+  }
+
+  private async finishInitialization(): Promise<void> {
     try {
       await this.modelStore.initialize()
       this.snapshot.modelHub = this.modelStore.state()
@@ -1117,6 +1126,10 @@ export class LauncherController {
   async commentResource(id: string, body: string) {
     const item = this.catalogResource(id) || await fetchResourceDetail(id)
     return this.accountService.commentResource(item, body)
+  }
+
+  async communityRequest(request: LauncherCommunityRequest) {
+    return this.accountService.communityRequest(request)
   }
 
   async queueResource(id: string): Promise<LauncherSnapshot> {

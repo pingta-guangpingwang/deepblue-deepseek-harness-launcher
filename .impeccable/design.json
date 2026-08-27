@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-15T15:54:42.2438509+08:00",
+  "generatedAt": "2026-08-27T20:08:00+08:00",
   "title": "Design System: 深蓝 DeepSeekHarness 启动器",
   "extensions": {
     "colorMeta": {
@@ -80,6 +80,13 @@
       "description": "显示在线或离线发行类型。",
       "html": "<span class=\"ds-chip\">完整离线版</span>",
       "css": ".ds-chip{display:inline-flex;padding:7px 11px;border-radius:999px;background:#4d6bfe;color:#fff;font-size:11px;font-weight:700}"
+    },
+    {
+      "name": "Community Tabs",
+      "kind": "nav",
+      "description": "固定社区工作区中的三项原生页签；选中项只使用淡蓝底和品牌蓝。",
+      "html": "<nav class=\"ds-community-tabs\" aria-label=\"兴趣社区\"><button aria-selected=\"true\">DeepSeek 房间</button><button aria-selected=\"false\">AI 聊天广场</button><button aria-selected=\"false\">兴趣帖子</button></nav>",
+      "css": ".ds-community-tabs{display:flex;gap:4px;padding:6px;border:1px solid #e4e6ea;border-radius:10px;background:#fff}.ds-community-tabs button{min-height:38px;padding:0 13px;border:0;border-radius:8px;background:transparent;color:#666970;font-weight:600}.ds-community-tabs button:hover{background:#f1f2f4;color:#202124}.ds-community-tabs button[aria-selected=true]{background:#eef1ff;color:#4d6bfe}.ds-community-tabs button:focus-visible{outline:3px solid rgba(77,107,254,.25);outline-offset:1px}"
     }
   ],
   "narrative": {

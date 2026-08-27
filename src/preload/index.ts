@@ -26,6 +26,7 @@ const api: LauncherApi = {
   resourceDetail: (id) => ipcRenderer.invoke('launcher:resource-detail', id),
   resourceEngagement: (id) => ipcRenderer.invoke('launcher:resource-engagement', id),
   commentResource: (id, body) => ipcRenderer.invoke('launcher:comment-resource', id, body),
+  communityRequest: (request) => ipcRenderer.invoke('launcher:community-request', request),
   queueResource: (id) => ipcRenderer.invoke('launcher:queue-resource', id),
   installLibraryResource: (id) => ipcRenderer.invoke('launcher:install-library-resource', id),
   removeLibraryResource: (id) => ipcRenderer.invoke('launcher:remove-library-resource', id),

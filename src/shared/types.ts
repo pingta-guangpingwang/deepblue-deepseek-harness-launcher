@@ -1,4 +1,22 @@
-export type PageId = 'home' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
+export type PageId = 'home' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'community' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
+
+export interface LauncherCommunityUpload {
+  name: string
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+  bytes: ArrayBuffer
+}
+
+export type LauncherCommunityRequest =
+  | { scope: 'forum'; method: 'GET'; action: 'bootstrap' | 'feed'; realm?: string; circle?: string; sort?: 'recommended' | 'latest' | 'following'; query?: string; page?: number }
+  | { scope: 'forum'; method: 'GET'; action: 'thread'; id: string }
+  | { scope: 'forum'; method: 'POST'; action: 'create_thread'; clientRequestId: string; circle: string; threadType: string; title: string; body: string; tags: string[] }
+  | { scope: 'forum'; method: 'POST'; action: 'create_reply'; clientRequestId: string; threadId: string; body: string; replyToPostId?: string; stickerId?: string; savedStickerId?: string; image?: LauncherCommunityUpload }
+  | { scope: 'forum'; method: 'POST'; action: 'toggle_bookmark'; threadId: string }
+  | { scope: 'forum'; method: 'POST'; action: 'toggle_reaction'; postId: string; reactionType: 'helpful' }
+  | { scope: 'chat'; method: 'GET'; channel: 'deepseek' | 'plaza' }
+  | { scope: 'chat'; method: 'POST'; action: 'send_chat'; channel: 'deepseek' | 'plaza'; body: string; stickerId?: string; savedStickerId?: string; image?: LauncherCommunityUpload }
+  | { scope: 'chat'; method: 'POST'; action: 'save_sticker'; sourceType: 'chat' | 'post'; sourceKey: string }
+  | { scope: 'chat'; method: 'POST'; action: 'delete_sticker'; stickerId: string }
 export type RunStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'paused'
 export type DistributionMode = 'online' | 'offline'
@@ -754,6 +772,7 @@ export interface LauncherApi {
   resourceDetail(id: string): Promise<LauncherResourceItem>
   resourceEngagement(id: string): Promise<LauncherResourceEngagement>
   commentResource(id: string, body: string): Promise<LauncherResourceEngagement>
+  communityRequest(request: LauncherCommunityRequest): Promise<Record<string, unknown>>
   queueResource(id: string): Promise<LauncherSnapshot>
   installLibraryResource(id: string): Promise<LauncherSnapshot>
   removeLibraryResource(id: string): Promise<LauncherSnapshot>

@@ -106,6 +106,7 @@ import { catalogCapacity, catalogPageTokens } from './catalog-pagination'
 import { onlinePageRefreshTarget } from './online-page-refresh'
 import { desktopWallpaperCapability } from '../../shared/desktop-wallpaper'
 import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature } from './launcher-analytics'
+import { CommunityPage } from './CommunityPage'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }] },
@@ -120,7 +121,7 @@ const navigation: Array<{ label: string; items: Array<{ id: PageId; label: strin
     { id: 'models', label: '模型连接', icon: Library },
     { id: 'ecosystem', label: 'DSH 生态', icon: Plug }
   ] },
-  { label: '发现', items: [{ id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
+  { label: '发现', items: [{ id: 'community', label: '兴趣社区', icon: MessageCircle }, { id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
   { label: '个性化', items: [{ id: 'skins', label: '皮肤商店', icon: Palette }, { id: 'pets', label: '宠物商店', icon: PawPrint }] },
   { label: '管理', items: [{ id: 'versions', label: '版本管理', icon: Box }, { id: 'workspaces', label: '工作区', icon: Folder }, { id: 'diagnostics', label: '日志诊断', icon: SquareTerminal }, { id: 'settings', label: '设置', icon: Settings }] }
 ]
@@ -139,6 +140,7 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   library: { title: '能力安装列表', subtitle: '集中确认待安装资源；Skill 原生安装，其他资料进入受控能力库。' },
   models: { title: '模型连接', subtitle: '连接主流平台或自定义接口；只有已添加的模型会进入全局切换器。' },
   ecosystem: { title: 'DSH 开源生态', subtitle: '选择真正需要的插件能力，明确权限后安装到当前 Web profile。' },
+  community: { title: '兴趣社区', subtitle: '与 AI历史书网站使用同一账号、聊天室和帖子数据，直接在启动器内聊天。' },
   news: { title: 'AI 新闻', subtitle: '免费浏览最新 10 条与热门排行；登录后继续在启动器内展开。' },
   games: { title: 'AI 游戏试玩', subtitle: '同步网站完整游戏与项目目录；本站作品可在启动器内登录试玩。' },
   careers: { title: '职场进化', subtitle: '直接读取网站 33 个职业及工作模块；只有长课程教学按需打开网页。' },
@@ -2392,7 +2394,7 @@ export default function App(): ReactNode {
           <time>{new Date(snapshot.runtimeUpdates.checkedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>
         </div>}
 
-        <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page')}>
+        <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page', page === 'community' && 'community-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} onVersions={() => setPage('versions')} onPortSettings={openPortSettings} />}
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
@@ -2401,6 +2403,7 @@ export default function App(): ReactNode {
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
           {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} operation={pluginOperation} onAction={pluginAction} />}
+          {page === 'community' && <CommunityPage snapshot={snapshot} onLogin={accountLogin} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}
           {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
