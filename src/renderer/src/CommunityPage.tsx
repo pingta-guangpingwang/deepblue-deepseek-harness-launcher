@@ -160,6 +160,18 @@ function mediaUrl(value: unknown): string | undefined {
   }
 }
 
+function isGifUrl(value: string): boolean {
+  try {
+    return new URL(value, COMMUNITY_SITE_ROOT).pathname.toLowerCase().endsWith('.gif')
+  } catch {
+    return /\.gif(?:$|[?#])/i.test(value)
+  }
+}
+
+function isGifFile(file: File | undefined): boolean {
+  return file?.type === 'image/gif'
+}
+
 function parseAuthor(value: unknown): CommunityAuthor {
   const row = object(value)
   return {
@@ -305,7 +317,9 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
   const chatSignatureRef = useRef('')
   const chatMessagesRef = useRef<CommunityChatMessage[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const gifInputRef = useRef<HTMLInputElement>(null)
   const replyFileRef = useRef<HTMLInputElement>(null)
+  const replyGifRef = useRef<HTMLInputElement>(null)
   const authenticated = snapshot.account.status === 'signed_in'
 
   const request = async (payload: LauncherCommunityRequest): Promise<Record<string, unknown>> => {
@@ -382,12 +396,15 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
     setNewMessageCount(0)
   }
 
-  const chooseImage = (event: ChangeEvent<HTMLInputElement>, target: 'chat' | 'reply'): void => {
+  const chooseImage = (event: ChangeEvent<HTMLInputElement>, target: 'chat' | 'reply', gifOnly = false): void => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!COMMUNITY_IMAGE_TYPES.has(file.type)) { setChatError('图片只支持 JPG、PNG、WebP 或 GIF'); return }
-    if (file.size < 1 || file.size > COMMUNITY_IMAGE_MAX_BYTES) { setChatError('图片大小需在 5 MB 以内'); return }
+    const setError = target === 'chat' ? setChatError : setPostError
+    if (!COMMUNITY_IMAGE_TYPES.has(file.type)) { setError('图片只支持 JPG、PNG、WebP 或 GIF'); return }
+    if (gifOnly && file.type !== 'image/gif') { setError('请选择 GIF 动图；普通图片请使用“发图”'); return }
+    if (file.size < 1 || file.size > COMMUNITY_IMAGE_MAX_BYTES) { setError('图片或 GIF 大小需在 5 MB 以内'); return }
+    setError('')
     if (target === 'chat') { setChatImage(file); setSelectedSticker(undefined); setStickerOpen(false) }
     else { setReplyImage(file); setReplySticker(undefined) }
   }
@@ -552,11 +569,12 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
           {!chatBusy && !chatMessages.length && <div className="community-empty"><MessageCircle /><strong>这里还很安静</strong><span>发第一条短消息，值得沉淀的方法再整理成帖子。</span></div>}
           {chatMessages.map((message) => {
             const mediaUrl = message.imageUrl || (message.stickerId ? `${COMMUNITY_ASSET_ROOT}/${message.stickerId}.webp` : '')
+            const gif = mediaUrl ? isGifUrl(mediaUrl) : false
             return <article className="community-message" data-mine={message.mine} key={message.id}>
               <div className="community-avatar">{avatar(message.author)}</div>
               <div className="community-message-content">
                 <div className="community-message-meta"><strong>{message.author.name}</strong>{message.isSeedData && <span>共建样例</span>}{message.author.isStaff && <span>管理员</span>}<time>{relativeTime(message.createdAt)}</time></div>
-                <div className="community-message-bubble">{message.body && <p>{message.body}</p>}{mediaUrl && <button className="community-message-media" onClick={() => setPreviewUrl(mediaUrl)}><img src={mediaUrl} alt={`${message.author.name}发送的图片`} /></button>}</div>
+                <div className="community-message-bubble">{message.body && <p>{message.body}</p>}{mediaUrl && <button className="community-message-media" data-gif={gif} aria-label={gif ? `预览${message.author.name}发送的 GIF 动图` : `预览${message.author.name}发送的图片`} onClick={() => setPreviewUrl(mediaUrl)}><img src={mediaUrl} alt={gif ? `${message.author.name}发送的 GIF 动图` : `${message.author.name}发送的图片`} />{gif && <span className="community-media-format">GIF</span>}</button>}</div>
                 {mediaUrl && !message.mine && <button className="community-save-sticker" onClick={() => void saveSticker('chat', message.id)}>添加到我的表情</button>}
               </div>
             </article>
@@ -568,13 +586,15 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
             {savedStickers.length > 0 && <section><strong>我的表情</strong><div>{savedStickers.map((sticker) => <span key={sticker.id}><button type="button" aria-pressed={selectedSticker?.id === sticker.id} onClick={() => { setSelectedSticker(sticker); setChatImage(undefined) }}><img src={sticker.imageUrl} alt={sticker.label} /></button><button type="button" className="community-sticker-delete" aria-label={`删除${sticker.label}`} onClick={() => void deleteSticker(sticker.id)}><Trash2 /></button></span>)}</div></section>}
             <section><strong>公共表情</strong><div>{PUBLIC_STICKERS.map((sticker) => <button type="button" key={sticker.id} aria-pressed={selectedSticker?.id === sticker.id} onClick={() => { setSelectedSticker(sticker); setChatImage(undefined) }}><img src={sticker.imageUrl} alt={sticker.label} /></button>)}</div></section>
           </div>}
-          {(chatImage || selectedSticker) && <div className="community-selected-media">{chatImage ? <img src={chatImageUrl} alt="待发送图片" /> : <img src={selectedSticker?.imageUrl} alt={selectedSticker?.label} />}<span>{chatImage ? `${chatImage.name} · ${Math.max(1, Math.round(chatImage.size / 1024))} KB` : `已选择：${selectedSticker?.label}`}</span><button type="button" onClick={() => { setChatImage(undefined); setSelectedSticker(undefined) }}><X /></button></div>}
+          {(chatImage || selectedSticker) && <div className="community-selected-media" data-gif={isGifFile(chatImage) || Boolean(selectedSticker && isGifUrl(selectedSticker.imageUrl))}>{chatImage ? <img src={chatImageUrl} alt={isGifFile(chatImage) ? '待发送 GIF 动图' : '待发送图片'} /> : <img src={selectedSticker?.imageUrl} alt={selectedSticker?.label} />}<span>{chatImage ? `${isGifFile(chatImage) ? 'GIF 动图' : '图片'} · ${chatImage.name} · ${Math.max(1, Math.round(chatImage.size / 1024))} KB` : `已选择：${selectedSticker?.label}`}</span><button type="button" aria-label="移除待发送媒体" onClick={() => { setChatImage(undefined); setSelectedSticker(undefined) }}><X /></button></div>}
           <div className="community-composer-row">
-            <button type="button" aria-label="发送图片" onClick={() => authenticated ? fileInputRef.current?.click() : onLogin()}><ImageIcon /></button>
+            <button type="button" aria-label="发送普通图片" title="发送 JPG、PNG 或 WebP 图片" onClick={() => authenticated ? fileInputRef.current?.click() : onLogin()}><ImageIcon /></button>
+            <button type="button" className="community-gif-button" aria-label="发送 GIF 动图" title="发送 GIF 动图" onClick={() => authenticated ? gifInputRef.current?.click() : onLogin()}><span>GIF</span></button>
             <button type="button" aria-label="选择表情" aria-expanded={stickerOpen} onClick={() => authenticated ? setStickerOpen((current) => !current) : onLogin()}><SmilePlus /></button>
             <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} onKeyDown={chatKeyDown} maxLength={CHAT_TEXT_MAX} readOnly={!authenticated} onClick={() => { if (!authenticated) onLogin() }} placeholder={authenticated ? '说点短的；Enter 发送，Shift + Enter 换行' : '登录 AI历史书账号后直接聊天'} />
             <button type="submit" className="community-send-button" disabled={chatBusy}>{chatBusy ? <LoaderCircle className="spin" /> : <Send />}<span>{authenticated ? '发送' : '登录'}</span></button>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(event) => chooseImage(event, 'chat')} />
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => chooseImage(event, 'chat')} />
+            <input ref={gifInputRef} type="file" accept="image/gif,.gif" hidden onChange={(event) => chooseImage(event, 'chat', true)} />
           </div>
           <div className="community-composer-foot"><span>文字统一检查违禁词，新图先经 DeepSeek 视觉审核</span><b>{Array.from(chatDraft).length}/{CHAT_TEXT_MAX}</b></div>
           {chatError && <p className="community-inline-error"><CircleAlert />{chatError}</p>}
@@ -583,7 +603,7 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
       <aside className="community-room-aside">
         <strong>这个房间怎么用</strong>
         <p>聊天适合即时交流；可复用的方法、排错过程和作品复盘，请转到帖子长期沉淀。</p>
-        <dl><div><dt>消息保留</dt><dd>最新 100 条</dd></div><div><dt>账号</dt><dd>与网站双向同步</dd></div><div><dt>发图</dt><dd>最大 5 MB</dd></div></dl>
+        <dl><div><dt>消息保留</dt><dd>最新 100 条</dd></div><div><dt>账号</dt><dd>与网站双向同步</dd></div><div><dt>图片 / GIF</dt><dd>最大 5 MB</dd></div></dl>
         <div className="community-aside-stickers"><strong>我的表情</strong>{savedStickers.length ? <div>{savedStickers.slice(0, 8).map((sticker) => <button key={sticker.id} onClick={() => { setSelectedSticker(sticker); setStickerOpen(true) }}><img src={sticker.imageUrl} alt={sticker.label} /></button>)}</div> : <span>{authenticated ? '在聊天图片上点击“添加到我的表情”' : '登录后同步网站收藏的表情'}</span>}</div>
       </aside>
     </section> : <section className="community-post-layout">
@@ -626,12 +646,13 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
           <div className="community-reader-actions"><button aria-pressed={selectedThread.viewer.reaction} onClick={() => void toggleThreadAction('reaction')}><Heart fill={selectedThread.viewer.reaction ? 'currentColor' : 'none'} />{selectedThread.viewer.reaction ? '已有帮助' : '有帮助'} {selectedThread.reactionCount}</button><button aria-pressed={selectedThread.viewer.bookmarked} onClick={() => void toggleThreadAction('bookmark')}><Bookmark fill={selectedThread.viewer.bookmarked ? 'currentColor' : 'none'} />{selectedThread.viewer.bookmarked ? '已收藏' : '收藏'} {selectedThread.bookmarkCount}</button></div>
           <section className="community-replies"><h3>全部回复 <span>{selectedThread.replyCount}</span></h3>{selectedThread.comments?.length ? selectedThread.comments.map((comment) => {
             const mediaUrl = comment.imageUrl || (comment.stickerId ? `${COMMUNITY_ASSET_ROOT}/${comment.stickerId}.webp` : '')
-            return <article key={comment.id}><div className="community-avatar">{avatar(comment.author)}</div><div><header><strong>{comment.author.name}</strong><time>{relativeTime(comment.createdAt)}</time></header>{comment.body && <p>{comment.body}</p>}{mediaUrl && <button className="community-comment-media" onClick={() => setPreviewUrl(mediaUrl)}><img src={mediaUrl} alt={`${comment.author.name}回复中的图片`} /></button>}{mediaUrl && !comment.viewerIsAuthor && <button className="community-save-sticker" onClick={() => void saveSticker('post', comment.id)}>添加到我的表情</button>}</div></article>
+            const gif = mediaUrl ? isGifUrl(mediaUrl) : false
+            return <article key={comment.id}><div className="community-avatar">{avatar(comment.author)}</div><div><header><strong>{comment.author.name}</strong><time>{relativeTime(comment.createdAt)}</time></header>{comment.body && <p>{comment.body}</p>}{mediaUrl && <button className="community-comment-media" data-gif={gif} aria-label={gif ? `预览${comment.author.name}回复中的 GIF 动图` : `预览${comment.author.name}回复中的图片`} onClick={() => setPreviewUrl(mediaUrl)}><img src={mediaUrl} alt={gif ? `${comment.author.name}回复中的 GIF 动图` : `${comment.author.name}回复中的图片`} />{gif && <span className="community-media-format">GIF</span>}</button>}{mediaUrl && !comment.viewerIsAuthor && <button className="community-save-sticker" onClick={() => void saveSticker('post', comment.id)}>添加到我的表情</button>}</div></article>
           }) : <div className="community-empty compact"><MessageCircle /><strong>还没有回复</strong><span>可以补充一个具体方法或继续追问。</span></div>}</section>
         </div>
         <form className="community-reply-composer" onSubmit={(event) => void submitReply(event)}>
-          {(replyImage || replySticker) && <div className="community-selected-media">{replyImage ? <img src={replyImageUrl} alt="待发布图片" /> : <img src={replySticker?.imageUrl} alt={replySticker?.label} />}<span>{replyImage ? replyImage.name : replySticker?.label}</span><button type="button" onClick={() => { setReplyImage(undefined); setReplySticker(undefined) }}><X /></button></div>}
-          <div><button type="button" onClick={() => authenticated ? replyFileRef.current?.click() : onLogin()}><ImageIcon />发图</button><button type="button" onClick={() => authenticated ? setReplySticker(PUBLIC_STICKERS[Math.floor(Math.random() * PUBLIC_STICKERS.length)]) : onLogin()}><SmilePlus />随机表情</button><textarea value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} readOnly={!authenticated} onClick={() => { if (!authenticated) onLogin() }} maxLength={20_000} placeholder={authenticated ? '补充信息、方法或继续追问…' : '登录后参与讨论'} /><button className="primary-button" type="submit" disabled={replyBusy}>{replyBusy ? <LoaderCircle className="spin" /> : <Send />}发布回复</button><input ref={replyFileRef} type="file" hidden accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => chooseImage(event, 'reply')} /></div>
+          {(replyImage || replySticker) && <div className="community-selected-media" data-gif={isGifFile(replyImage) || Boolean(replySticker && isGifUrl(replySticker.imageUrl))}>{replyImage ? <img src={replyImageUrl} alt={isGifFile(replyImage) ? '待发布 GIF 动图' : '待发布图片'} /> : <img src={replySticker?.imageUrl} alt={replySticker?.label} />}<span>{replyImage ? `${isGifFile(replyImage) ? 'GIF 动图' : '图片'} · ${replyImage.name}` : replySticker?.label}</span><button type="button" aria-label="移除待发布媒体" onClick={() => { setReplyImage(undefined); setReplySticker(undefined) }}><X /></button></div>}
+          <div><button type="button" onClick={() => authenticated ? replyFileRef.current?.click() : onLogin()}><ImageIcon />发图</button><button type="button" className="community-gif-button" onClick={() => authenticated ? replyGifRef.current?.click() : onLogin()}><span>GIF</span>发动图</button><button type="button" onClick={() => authenticated ? setReplySticker(PUBLIC_STICKERS[Math.floor(Math.random() * PUBLIC_STICKERS.length)]) : onLogin()}><SmilePlus />随机表情</button><textarea value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} readOnly={!authenticated} onClick={() => { if (!authenticated) onLogin() }} maxLength={20_000} placeholder={authenticated ? '补充信息、方法或继续追问…' : '登录后参与讨论'} /><button className="primary-button" type="submit" disabled={replyBusy}>{replyBusy ? <LoaderCircle className="spin" /> : <Send />}发布回复</button><input ref={replyFileRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseImage(event, 'reply')} /><input ref={replyGifRef} type="file" hidden accept="image/gif,.gif" onChange={(event) => chooseImage(event, 'reply', true)} /></div>
         </form>
       </section>
     </div>}
@@ -647,6 +668,6 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
       </form>
     </div>}
 
-    {previewUrl && <div className="community-media-lightbox" role="dialog" aria-modal="true" aria-label="图片预览" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewUrl('') }}><button aria-label="关闭图片预览" onClick={() => setPreviewUrl('')}><X /></button><img src={previewUrl} alt="社区图片高清预览" /></div>}
+    {previewUrl && <div className="community-media-lightbox" role="dialog" aria-modal="true" aria-label={isGifUrl(previewUrl) ? 'GIF 动图预览' : '图片预览'} onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewUrl('') }}><button aria-label="关闭媒体预览" onClick={() => setPreviewUrl('')}><X /></button><img src={previewUrl} alt={isGifUrl(previewUrl) ? '社区 GIF 动图高清预览' : '社区图片高清预览'} />{isGifUrl(previewUrl) && <span className="community-lightbox-format">GIF 动图</span>}</div>}
   </div>
 }

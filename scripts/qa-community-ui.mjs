@@ -78,6 +78,8 @@ try {
   await page.locator('.community-message').first().waitFor({ state: 'visible', timeout: 30_000 })
   check('启动器原生社区包含 3 个主入口', await page.getByRole('tab').count() >= 3)
   check('启动器只保留最新 100 条聊天', await page.locator('.community-message').count() <= 100)
+  check('聊天输入器提供独立 GIF 动图入口', await page.getByRole('button', { name: '发送 GIF 动图', exact: true }).isVisible())
+  check('聊天 GIF 选择器只接收 GIF', await page.locator('input[type="file"][accept="image/gif,.gif"]').count() === 1)
 
   await page.waitForTimeout(1_200)
   await dismissUpdateDialog()
@@ -89,7 +91,19 @@ try {
   await dismissUpdateDialog()
   const scrollAfter = await page.locator('.community-message-list').evaluate((node) => node.scrollTop)
   check('无新消息时轮询不重置聊天阅读位置', Math.abs(scrollAfter - scrollBefore) <= 1)
+  await page.locator('input[type="file"][accept="image/gif,.gif"]').setInputFiles({
+    name: 'community-loop.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('R0lGODlhAgACAPAAAP///wAAACH5BAAAAAAALAAAAAACAAIAAAICRAEAIfkEAAAAAAAsAAAAAAIAAgAAAgJEADs=', 'base64')
+  })
+  const gifPreview = page.locator('.community-selected-media[data-gif="true"]')
+  await gifPreview.waitFor({ state: 'visible' })
+  check('本机 GIF 选择后保留动图 MIME 并进入发送预览', await gifPreview.locator('img').evaluate((image) => image.getAttribute('src')?.startsWith('blob:') === true && image.naturalWidth > 0))
   await page.screenshot({ path: path.join(outputRoot, 'deepseek-room-live.png') })
+  await page.setViewportSize({ width: 900, height: 720 })
+  check('紧凑窗口中 GIF 输入器不产生横向溢出', await page.locator('.community-chat-composer').evaluate((node) => node.scrollWidth <= node.clientWidth + 1))
+  await page.screenshot({ path: path.join(outputRoot, 'deepseek-room-gif-compact.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
 
   await dismissUpdateDialog()
   await page.getByRole('tab', { name: '兴趣帖子', exact: true }).click()
@@ -97,6 +111,8 @@ try {
   await page.locator('.community-thread-list article').first().click()
   await page.getByRole('dialog').filter({ has: page.locator('#community-thread-title') }).waitFor({ state: 'visible' })
   check('帖子详情在启动器内弹窗打开', app.windows().length === 1)
+  check('兴趣帖子回复器提供独立 GIF 动图入口', await page.getByRole('button', { name: /GIF.*发动图/ }).isVisible())
+  check('帖子回复 GIF 选择器只接收 GIF', await page.locator('input[type="file"][accept="image/gif,.gif"]').count() === 1)
   await page.screenshot({ path: path.join(outputRoot, 'thread-detail-live.png') })
 
   const fixedOverflow = await page.locator('.page-scroll.community-fixed-page').evaluate((node) => node.scrollHeight - node.clientHeight)
