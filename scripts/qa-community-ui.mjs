@@ -86,6 +86,7 @@ try {
     return node.scrollTop
   })
   await page.waitForTimeout(13_000)
+  await dismissUpdateDialog()
   const scrollAfter = await page.locator('.community-message-list').evaluate((node) => node.scrollTop)
   check('无新消息时轮询不重置聊天阅读位置', Math.abs(scrollAfter - scrollBefore) <= 1)
   await page.screenshot({ path: path.join(outputRoot, 'deepseek-room-live.png') })
@@ -100,6 +101,18 @@ try {
 
   const fixedOverflow = await page.locator('.page-scroll.community-fixed-page').evaluate((node) => node.scrollHeight - node.clientHeight)
   check('社区使用固定工作区，不引入整页下拉', fixedOverflow <= 2)
+
+  await page.getByRole('button', { name: '关闭讨论', exact: true }).click()
+  await page.getByRole('button', { name: 'AI 工具', exact: true }).click()
+  await page.getByRole('tab', { name: /AI历史书工具/ }).waitFor({ state: 'visible' })
+  check('AI 工具默认显示网站同步目录', await page.locator('.resource-directory-card').count() > 0)
+  await page.getByRole('tab', { name: /DSH 生态/ }).click()
+  await page.locator('.ecosystem-row').first().waitFor({ state: 'visible' })
+  check('DSH 生态位于 AI 工具二级切页', await page.getByRole('tab', { name: /DSH 生态/ }).getAttribute('aria-selected') === 'true')
+  check('侧栏不再重复显示 DSH 生态', await page.locator('.sidebar nav').getByRole('button', { name: 'DSH 生态', exact: true }).count() === 0)
+  check('AI 工具与生态详情不打开外部浏览器', app.windows().length === 1)
+  await page.screenshot({ path: path.join(outputRoot, 'ai-tools-dsh-ecosystem.png') })
+
   check(`控制台无错误${consoleErrors.length ? `：${consoleErrors.join(' | ')}` : ''}`, consoleErrors.length === 0)
 } finally {
   await app.close().catch(() => undefined)

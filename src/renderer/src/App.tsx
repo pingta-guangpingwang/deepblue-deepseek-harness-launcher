@@ -109,7 +109,7 @@ import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature }
 import { CommunityPage } from './CommunityPage'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
-  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }] },
+  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
   { label: '能力库', items: [
     { id: 'prompts', label: '提示词', icon: MessageSquareText },
     { id: 'skills', label: 'Skill', icon: Sparkles },
@@ -118,10 +118,9 @@ const navigation: Array<{ label: string; items: Array<{ id: PageId; label: strin
     { id: 'tools', label: 'AI 工具', icon: Wrench },
     { id: 'agents', label: '智能体', icon: Bot },
     { id: 'library', label: '安装列表', icon: PackageCheck },
-    { id: 'models', label: '模型连接', icon: Library },
-    { id: 'ecosystem', label: 'DSH 生态', icon: Plug }
+    { id: 'models', label: '模型连接', icon: Library }
   ] },
-  { label: '发现', items: [{ id: 'community', label: '兴趣社区', icon: MessageCircle }, { id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
+  { label: '发现', items: [{ id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
   { label: '个性化', items: [{ id: 'skins', label: '皮肤商店', icon: Palette }, { id: 'pets', label: '宠物商店', icon: PawPrint }] },
   { label: '管理', items: [{ id: 'versions', label: '版本管理', icon: Box }, { id: 'workspaces', label: '工作区', icon: Folder }, { id: 'diagnostics', label: '日志诊断', icon: SquareTerminal }, { id: 'settings', label: '设置', icon: Settings }] }
 ]
@@ -135,7 +134,7 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   skills: { title: 'Skill', subtitle: '读取完整 SKILL.md，审核后安装到 Harness 原生 Skill 目录。' },
   workflows: { title: '工作流', subtitle: '查看步骤与蓝图，加入安装列表后保存到本机能力库。' },
   knowledge: { title: '知识库', subtitle: '保存可信来源与结构化资料，供后续项目和智能体复用。' },
-  tools: { title: 'AI 工具', subtitle: 'ChatGPT 等同类工具放在能力资源之后，按真实任务选择。' },
+  tools: { title: 'AI 工具', subtitle: '同步 AI历史书工具目录，并在同一页管理 DeepSeek Harness Web 插件。' },
   agents: { title: '智能体', subtitle: '查看同类 Agent 的用途、限制、源码与真实评价。' },
   library: { title: '能力安装列表', subtitle: '集中确认待安装资源；Skill 原生安装，其他资料进入受控能力库。' },
   models: { title: '模型连接', subtitle: '连接主流平台或自定义接口；只有已添加的模型会进入全局切换器。' },
@@ -1725,6 +1724,34 @@ function EcosystemPage({ plugins, operation, onAction }: {
   </div>
 }
 
+function ToolsHubPage({ snapshot, busy, operation, initialSection = 'directory', onRefresh, onToggleFavorite, onQueue, onInstall, onLogin, onPluginAction }: {
+  snapshot: LauncherSnapshot
+  busy: string
+  operation: PluginOperationState
+  initialSection?: 'directory' | 'ecosystem'
+  onRefresh: () => void
+  onToggleFavorite: (id: string) => void
+  onQueue: (id: string) => void
+  onInstall: (id: string) => void
+  onLogin: () => void
+  onPluginAction: (action: 'install' | 'update' | 'remove', spec: string) => void
+}): ReactNode {
+  const [section, setSection] = useState<'directory' | 'ecosystem'>(initialSection)
+  return <div className="tools-hub">
+    <div className="tools-hub-switcher" role="tablist" aria-label="AI 工具内容切换">
+      <button role="tab" aria-selected={section === 'directory'} className={section === 'directory' ? 'active' : ''} onClick={() => setSection('directory')}>
+        <Wrench size={16} /><span><strong>AI历史书工具</strong><small>与网站目录同步</small></span><b>{snapshot.discovery.tools.length}</b>
+      </button>
+      <button role="tab" aria-selected={section === 'ecosystem'} className={section === 'ecosystem' ? 'active' : ''} onClick={() => setSection('ecosystem')}>
+        <Plug size={16} /><span><strong>DSH 生态</strong><small>Web profile 插件</small></span><b>{snapshot.plugins.length}</b>
+      </button>
+    </div>
+    {section === 'directory'
+      ? <ResourceDirectoryPage kind="tools" snapshot={snapshot} busy={busy} onRefresh={onRefresh} onToggleFavorite={onToggleFavorite} onQueue={onQueue} onInstall={onInstall} onLogin={onLogin} />
+      : <EcosystemPage plugins={snapshot.plugins} operation={operation} onAction={onPluginAction} />}
+  </div>
+}
+
 function PluginOperationDialog({ operation, harnessRunning, restartBusy, onRestart, onCollapse }: {
   operation: PluginOperationState
   harnessRunning: boolean
@@ -2399,10 +2426,11 @@ export default function App(): ReactNode {
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
-          {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'tools' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
+          {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
+          {page === 'tools' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
-          {page === 'ecosystem' && <EcosystemPage plugins={snapshot.plugins} operation={pluginOperation} onAction={pluginAction} />}
+          {page === 'ecosystem' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} initialSection="ecosystem" onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
           {page === 'community' && <CommunityPage snapshot={snapshot} onLogin={accountLogin} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}

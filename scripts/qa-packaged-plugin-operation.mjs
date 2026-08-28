@@ -82,12 +82,27 @@ try {
   page.on('pageerror', (error) => rendererErrors.push(error.message))
   page.on('console', (message) => { if (message.type() === 'error') rendererErrors.push(message.text()) })
   await page.waitForLoadState('domcontentloaded')
-  await page.getByRole('button', { name: 'DSH 生态', exact: true }).waitFor({ timeout: 30_000 })
-  await page.getByRole('button', { name: 'DSH 生态', exact: true }).click()
+  await page.getByRole('button', { name: 'AI 工具', exact: true }).waitFor({ timeout: 30_000 })
+  await page.getByRole('button', { name: 'AI 工具', exact: true }).click()
+  await page.getByRole('tab', { name: /DSH 生态/ }).click()
   await page.getByRole('tab', { name: '高级能力', exact: true }).click()
   const remoteRow = page.locator('.ecosystem-row').filter({ hasText: '手机 / PC 远程配对' })
   await remoteRow.waitFor({ state: 'visible', timeout: 30_000 })
   check('失败后只写入依赖文件不会误报插件已安装', await remoteRow.getByRole('button', { name: '安装', exact: true }).count() === 1)
+  const dialog = page.locator('.plugin-operation-dialog[role="dialog"]')
+  const runtimeDialog = page.locator('.runtime-update-dialog[role="dialog"]')
+  const dismissRuntimeDialog = async () => {
+    if (!await runtimeDialog.isVisible().catch(() => false)) return
+    await runtimeDialog.locator('.runtime-update-actions').getByRole('button', { name: '关闭', exact: true }).click()
+    await runtimeDialog.waitFor({ state: 'hidden' })
+  }
+  const showOperationDialog = async () => {
+    await dialog.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => undefined)
+    if (!await dialog.isVisible().catch(() => false)) {
+      await page.locator('.ecosystem-actions').getByRole('button', { name: '查看进度', exact: true }).first().click()
+      await dialog.waitFor({ state: 'visible', timeout: 30_000 })
+    }
+  }
 
   // Return the profile to a clean baseline before exercising the normal
   // install/remove/restart flow below.
@@ -98,13 +113,29 @@ try {
     dependencies: {},
     dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } }
   }, null, 2)}\n`, 'utf8')
+
+  await remoteRow.getByRole('button', { name: '安装', exact: true }).click()
+  await showOperationDialog()
+  await dialog.locator('.plugin-operation-progress.completed, .plugin-operation-progress.failed').waitFor({ state: 'visible', timeout: 780_000 })
+  const remoteInstallState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pluginOperation)
+  check('远程配对插件真实安装通过 cloudflared 审核策略', remoteInstallState?.status === 'completed', remoteInstallState?.message)
+  check('远程配对安装不再触发 PNPM_IGNORED_BUILDS', !(remoteInstallState?.files || []).some((line) => /ERR_PNPM_IGNORED_BUILDS|Ignored build scripts/i.test(line)), remoteInstallState?.currentFile)
+  await page.screenshot({ path: path.join(outputRoot, 'remote-pairing-install-completed.png') })
+  await dialog.locator('.plugin-operation-actions').getByRole('button', { name: '关闭', exact: true }).click()
+  await dismissRuntimeDialog()
+  await remoteRow.getByRole('button', { name: '卸载', exact: true }).click()
+  await showOperationDialog()
+  await dialog.locator('.plugin-operation-progress.completed, .plugin-operation-progress.failed').waitFor({ state: 'visible', timeout: 180_000 })
+  const remoteRemoveState = await page.evaluate(async () => (await window.launcher.getSnapshot()).pluginOperation)
+  check('远程配对插件真实卸载完成', remoteRemoveState?.status === 'completed', remoteRemoveState?.message)
+  await dialog.locator('.plugin-operation-actions').getByRole('button', { name: '关闭', exact: true }).click()
+
   await page.getByRole('tab', { name: '推荐增强', exact: true }).click()
   const targetRow = page.locator('.ecosystem-row').filter({ hasText: '任务看板' })
   await targetRow.waitFor({ state: 'visible', timeout: 30_000 })
 
   await targetRow.getByRole('button', { name: '安装', exact: true }).click()
-  const dialog = page.locator('.plugin-operation-dialog[role="dialog"]')
-  await dialog.waitFor({ state: 'visible', timeout: 30_000 })
+  await showOperationDialog()
   check('插件操作立即显示下载与安装进度条', await dialog.getByRole('progressbar', { name: '插件下载与安装进度' }).count() === 1)
   check('插件操作显示可滚动的文件与组件区域', await dialog.locator('.plugin-file-scroll').count() === 1)
   await page.screenshot({ path: path.join(outputRoot, 'plugin-install-progress.png') })
@@ -120,11 +151,7 @@ try {
 
   await dialog.locator('.plugin-operation-actions').getByRole('button', { name: '关闭', exact: true }).click()
   await dialog.waitFor({ state: 'hidden' })
-  const runtimeDialog = page.locator('.runtime-update-dialog[role="dialog"]')
-  if (await runtimeDialog.isVisible().catch(() => false)) {
-    await runtimeDialog.locator('.runtime-update-actions').getByRole('button', { name: '关闭', exact: true }).click()
-    await runtimeDialog.waitFor({ state: 'hidden' })
-  }
+  await dismissRuntimeDialog()
   await targetRow.getByRole('button', { name: '卸载', exact: true }).click()
   await dialog.waitFor({ state: 'visible', timeout: 30_000 })
   await dialog.locator('.plugin-operation-progress.completed, .plugin-operation-progress.failed').waitFor({ state: 'visible', timeout: 180_000 })

@@ -1145,6 +1145,16 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 .resource-page { max-width: 1500px; margin-inline: auto; }
 .resource-toolbar { display: grid; grid-template-columns: minmax(320px, 1fr) auto; align-items: center; gap: 16px; }
 .resource-toolbar .toolbar-stats { justify-content: flex-end; }
+.tools-hub { max-width: 1500px; margin-inline: auto; display: grid; gap: 14px; }
+.tools-hub-switcher { width: fit-content; min-height: 52px; padding: 5px; display: flex; align-items: stretch; gap: 4px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.tools-hub-switcher button { min-width: 210px; min-height: 42px; padding: 6px 10px; display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 9px; border: 0; border-radius: 8px; color: var(--text-secondary); background: transparent; text-align: left; cursor: pointer; }
+.tools-hub-switcher button:hover { color: var(--text); background: var(--surface-soft); }
+.tools-hub-switcher button.active { color: var(--blue); background: var(--blue-soft); }
+.tools-hub-switcher button > svg { width: 16px; height: 16px; }
+.tools-hub-switcher button > span { min-width: 0; display: grid; gap: 1px; }
+.tools-hub-switcher button strong { color: inherit; font-size: 12px; }
+.tools-hub-switcher button small { overflow: hidden; color: var(--text-tertiary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.tools-hub-switcher button b { min-width: 24px; font-size: 11px; font-weight: 700; text-align: right; }
 .resource-market-card { min-height: 286px; cursor: pointer; transition: border-color .16s ease, background-color .16s ease; }
 .resource-market-card:hover { border-color: #aebcff; background: color-mix(in srgb, var(--surface) 97%, var(--blue-soft)); }
 .resource-market-card:focus-visible { outline: 3px solid rgba(77, 107, 254, .28); outline-offset: 2px; }
@@ -1220,6 +1230,8 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 @media (max-width: 1180px) {
   .resource-toolbar { grid-template-columns: 1fr; }
   .resource-toolbar .toolbar-stats { justify-content: flex-start; }
+  .tools-hub-switcher { width: 100%; }
+  .tools-hub-switcher button { min-width: 0; flex: 1; }
 }
 
 @media (max-width: 860px) {
@@ -1356,6 +1368,12 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 
 @media (prefers-reduced-motion: reduce) {
   .runtime-update-item-progress span, .runtime-update-total-track span { transition: none; }
+}
+
+@media (max-width: 620px) {
+  .tools-hub-switcher { display: grid; grid-template-columns: 1fr 1fr; }
+  .tools-hub-switcher button { width: 100%; }
+  .tools-hub-switcher button small { display: none; }
 }
 
 @media (max-width: 540px) {

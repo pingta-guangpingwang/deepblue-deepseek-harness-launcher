@@ -29,6 +29,8 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '兴趣社区改为紧挨首页的启动器原生页签，DeepSeek 房间、AI 聊天广场和帖子详情均在 Electron 内显示，不再依赖外部浏览器',
+    'AI 工具页新增“AI历史书工具 / DSH 生态”二级切页；DSH 生态明确承载 Web profile 插件，侧栏不再重复放置独立入口',
     '0.10.32 修复 DSH WEB PROFILE 远程配对插件安装失败：仅为审核过的远程 Web 插件放行 cloudflared 构建脚本，其他插件继续保持默认供应链拦截',
     '插件必须同时写入 profile 依赖、安装包文件并完成 DSH bundle 注册才会显示安装成功；历史半安装状态会恢复为可安装，不再误报已完成',
     'Cloudflared 首次下载使用 12 分钟独立超时并持续显示组件进度；真实失败保持失败状态、恢复按钮且不弹出重启成功提示',
