@@ -19,4 +19,13 @@ describe('launcher shell runtime package closure', () => {
     expect(packages).toContain('tar')
     expect(packages).toContain('yaml')
   })
+
+  it('can omit a known-unavailable Gitee mirror without publishing a dead URL', () => {
+    const shellBuilder = readFileSync(new URL('./build-launcher-shell.mjs', import.meta.url), 'utf8')
+    const uiBuilder = readFileSync(new URL('./build-launcher-ui-module.mjs', import.meta.url), 'utf8')
+    for (const source of [shellBuilder, uiBuilder]) {
+      expect(source).toContain("process.env.DSH_DISABLE_GITEE_RUNTIME_MIRROR !== '1'")
+      expect(source).toContain('...(includeGiteeMirror ?')
+    }
+  })
 })

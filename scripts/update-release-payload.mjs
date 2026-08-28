@@ -29,6 +29,8 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.33 升级社区基础 IPC：文字、图片和 GIF 发送统一走已登录的真实 API；旧内核缺少桥接时明确提示“请升级启动器”，不再用演示数据伪造发送成功',
+    '发布目录只保留已经匿名验收可下载的线路；当 Gitee 运行资源仓触发容量限制时，本期新内核与 UI 自动从 OSS 开始并回退 GitHub，不把 404 地址写入签名目录',
     '兴趣社区聊天与帖子回复新增独立 GIF 动图入口；上传、DeepSeek 识图审核、本地缓存、收藏表情、聊天流与高清预览全程保留循环动画',
     '兴趣社区改为紧挨首页的启动器原生页签，DeepSeek 房间、AI 聊天广场和帖子详情均在 Electron 内显示，不再依赖外部浏览器',
     'AI 工具页新增“AI历史书工具 / DSH 生态”二级切页；DSH 生态明确承载 Web profile 插件，侧栏不再重复放置独立入口',

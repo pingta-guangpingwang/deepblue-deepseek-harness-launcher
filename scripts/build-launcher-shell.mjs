@@ -12,6 +12,7 @@ const stagingRoot = path.join(releaseRoot, `.launcher-shell-stage-${process.pid}
 const generatedFile = path.join(releaseRoot, 'launcher-shell.generated.json')
 const launcherPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
 const GITEE_PART_BYTES = 5 * 1024 * 1024
+const includeGiteeMirror = process.env.DSH_DISABLE_GITEE_RUNTIME_MIRROR !== '1'
 
 async function exists(target) {
   try {
@@ -176,7 +177,7 @@ const payload = {
   unpackedSize,
   executable: '深蓝DeepSeekHarness启动器.exe',
   mirrors: [
-    { id: 'gitee', url: giteeParts[0].url, parts: giteeParts },
+    ...(includeGiteeMirror ? [{ id: 'gitee', url: giteeParts[0].url, parts: giteeParts }] : []),
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` }
   ],

@@ -51,6 +51,7 @@ Windows Authenticode 的开源免费路径见 [Code signing policy](../CODE_SIGN
 3. 使用 Microsoft Defender 扫描联网引导器、完整离线 EXE 和安装后的完整目录，任何检测都阻止发布。
 4. Windows 正式安装器必须以 `Get-AuthenticodeSignature` 验证为 `Valid`；下载页显示的发布者必须与批准的 SignPath Foundation 证书一致。未获批阶段只允许明确标为 unsigned beta，不能把更新目录的 Ed25519 签名当作 Authenticode。
 5. 把 UI 壳和运行模块同时发布为 Gitee、OSS、GitHub 三条真实公开线路，顺序固定为 Gitee → OSS → GitHub；完整离线包发布到百度网盘。三条线路只有在公开 URL、字节数和摘要全部验收后才可写入签名清单。
+   若某条镜像因仓库配额或服务故障无法匿名读取，本次签名目录必须省略该镜像，禁止保留 403/404 地址等待客户端超时。构建 UI 壳和 Electron 内核时可设置 `DSH_DISABLE_GITEE_RUNTIME_MIRROR=1`，只发布并验收 OSS → GitHub；容量恢复后再由新的内容寻址版本恢复 Gitee 首选线路。
    OSS 的公开下载对象必须在上传时显式指定 `--acl public-read`，不得依赖 Bucket 的默认私有 ACL，也不得使用 `public-read-write`。例如：
 
    ```sh

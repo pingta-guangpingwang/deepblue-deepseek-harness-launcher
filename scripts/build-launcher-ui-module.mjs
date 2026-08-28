@@ -11,6 +11,7 @@ const releaseRoot = path.join(root, 'release')
 const modulesRoot = path.join(releaseRoot, 'modules')
 const generatedFile = path.join(releaseRoot, 'runtime-modules.generated.json')
 const GITEE_PART_BYTES = 5 * 1024 * 1024
+const includeGiteeMirror = process.env.DSH_DISABLE_GITEE_RUNTIME_MIRROR !== '1'
 
 async function sha256File(file) {
   const digest = createHash('sha256')
@@ -89,7 +90,7 @@ const artifact = {
   size: (await stat(archive)).size,
   unpackedSize: await bytesUnder(rendererRoot),
   mirrors: [
-    { id: 'gitee', url: parts[0].url, parts },
+    ...(includeGiteeMirror ? [{ id: 'gitee', url: parts[0].url, parts }] : []),
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${fileName}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${tag}/${fileName}` }
   ]
