@@ -29,22 +29,26 @@ function Escape-Nsis([string]$value) { return $value.Replace('$', '$$').Replace(
 $mirrors = @{}
 foreach ($mirror in $generated.mirrors) { $mirrors[[string]$mirror.id] = [string]$mirror.url }
 $giteeMirror = $generated.mirrors | Where-Object { [string]$_.id -eq 'gitee' } | Select-Object -First 1
-if (-not $giteeMirror -or -not $giteeMirror.parts -or $giteeMirror.parts.Count -lt 1) {
-  throw 'The generated launcher shell does not contain signed Gitee parts.'
-}
 $lines = @(
   "!define SHELL_VERSION `"$(Escape-Nsis ([string]$generated.version))`"",
   "!define SHELL_EXECUTABLE `"$(Escape-Nsis ([string]$generated.executable))`"",
   "!define SHELL_SHA256 `"$([string]$generated.sha256)`"",
   "!define SHELL_SIZE `"$([string]$generated.size)`"",
-  "!define SHELL_URL_GITEE `"$(Escape-Nsis $mirrors.gitee)`"",
   "!define SHELL_URL_GITHUB `"$(Escape-Nsis $mirrors.github)`"",
   "!define SHELL_URL_OSS `"$(Escape-Nsis $mirrors.oss)`""
 )
-$giteePartLines = @('!macro DownloadGiteeParts', '  StrCpy $DownloadStatus "OK"')
+$giteePartLines = @('!macro DownloadGiteeParts')
+$hasGiteeParts = $giteeMirror -and $giteeMirror.parts -and $giteeMirror.parts.Count -gt 0
+if ($hasGiteeParts) {
+  $giteePartLines += '  StrCpy $DownloadStatus "OK"'
+} else {
+  # Some Gitee repositories enforce a 1 GB quota and cannot accept the signed
+  # runtime archive. Keep the bootstrap buildable and move directly to OSS.
+  $giteePartLines += '  StrCpy $DownloadStatus "PENDING"'
+}
 $joinCommand = '"$PLUGINSDIR\HashVerifier.exe" --join "$PLUGINSDIR\launcher-shell.7z" "${SHELL_SHA256}" "${SHELL_SIZE}"'
 $nsisShellVersion = '$' + '{SHELL_VERSION}'
-for ($index = 0; $index -lt $giteeMirror.parts.Count; $index++) {
+for ($index = 0; $hasGiteeParts -and $index -lt $giteeMirror.parts.Count; $index++) {
   $part = $giteeMirror.parts[$index]
   $partNumber = $index + 1
   $partFile = "shell-part-{0:d3}" -f $partNumber
@@ -56,12 +60,14 @@ for ($index = 0; $index -lt $giteeMirror.parts.Count; $index++) {
   $giteePartLines += '  ${EndIf}'
   $joinCommand += (' "$PLUGINSDIR\{0}" "{1}" "{2}"' -f $partFile, [string]$part.sha256, [string]$part.size)
 }
-$giteePartLines += '  ${If} $DownloadStatus == "OK"'
-$giteePartLines += ('    ExecWait ''{0}'' $0' -f $joinCommand)
-$giteePartLines += '    ${If} $0 != 0'
-$giteePartLines += '      StrCpy $DownloadStatus "Gitee 分片校验失败（代码 $0）"'
-$giteePartLines += '    ${EndIf}'
-$giteePartLines += '  ${EndIf}'
+if ($hasGiteeParts) {
+  $giteePartLines += '  ${If} $DownloadStatus == "OK"'
+  $giteePartLines += ('    ExecWait ''{0}'' $0' -f $joinCommand)
+  $giteePartLines += '    ${If} $0 != 0'
+  $giteePartLines += '      StrCpy $DownloadStatus "Gitee 分片校验失败（代码 $0）"'
+  $giteePartLines += '    ${EndIf}'
+  $giteePartLines += '  ${EndIf}'
+}
 $giteePartLines += '!macroend'
 $lines += $giteePartLines
 Set-Content -LiteralPath $include -Value $lines -Encoding UTF8

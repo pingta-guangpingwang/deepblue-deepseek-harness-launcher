@@ -175,7 +175,7 @@ describe('catalog signature verification', () => {
     expect(script).not.toContain('`https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/releases/${packageJson.version}`')
   })
 
-  it('publishes every modular artifact in the Gitee, OSS, GitHub fallback order without resume prompts', () => {
+  it('publishes available modular mirrors in a domestic-first order without resume prompts', () => {
     const runtimeBuilder = readFileSync(path.resolve('scripts/build-runtime-modules.mjs'), 'utf8')
     const shellBuilder = readFileSync(path.resolve('scripts/build-launcher-shell.mjs'), 'utf8')
     const bootstrapBuilder = readFileSync(path.resolve('scripts/build-bootstrap-installer.ps1'), 'utf8')
@@ -188,7 +188,8 @@ describe('catalog signature verification', () => {
       expect(gitee).toBeLessThan(oss)
       expect(oss).toBeLessThan(github)
     }
-    expect(bootstrapBuilder).toContain('SHELL_URL_GITEE')
+    expect(bootstrapBuilder).toContain('$hasGiteeParts')
+    expect(bootstrapBuilder).toContain('StrCpy $DownloadStatus "PENDING"')
     expect(bootstrapBuilder).toContain('DownloadGiteeParts')
     expect(bootstrapInstaller.indexOf('DownloadGiteeParts')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_OSS'))
     expect(bootstrapInstaller.indexOf('SHELL_URL_OSS')).toBeLessThan(bootstrapInstaller.indexOf('SHELL_URL_GITHUB'))

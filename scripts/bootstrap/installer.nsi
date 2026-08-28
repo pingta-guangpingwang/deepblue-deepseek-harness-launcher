@@ -99,14 +99,14 @@ Section "安装启动器" SEC_MAIN
   ${Else}
     StrCpy $DownloadStatus "PENDING"
     DetailPrint "资源 1/1 · 启动器 UI 壳 ${SHELL_VERSION}"
-    DetailPrint "正在检测 Gitee 国内镜像；不可用或持续无进度时切换 OSS，最后尝试 GitHub"
+    DetailPrint "正在检测可用国内镜像；不可用或持续无进度时切换线路，最后尝试 GitHub"
     !insertmacro DownloadGiteeParts
     !insertmacro DownloadMirror "${SHELL_URL_OSS}" "OSS 国内镜像"
     !insertmacro DownloadMirror "${SHELL_URL_GITHUB}" "GitHub Releases"
   ${EndIf}
 
   ${If} $DownloadStatus != "OK"
-    MessageBox MB_ICONSTOP "Gitee、OSS 与 GitHub 三条 UI 壳线路均下载失败（$DownloadStatus）。请检查网络后重试，或使用百度网盘完整离线包。"
+    MessageBox MB_ICONSTOP "国内镜像与 GitHub UI 壳线路均下载失败（$DownloadStatus）。请检查网络后重试，或使用百度网盘完整离线包。"
     Abort
   ${EndIf}
 
