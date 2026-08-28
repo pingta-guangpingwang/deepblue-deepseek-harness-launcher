@@ -24,15 +24,32 @@ function communityError(payload: Record<string, unknown>, fallback: string): str
   return fallback
 }
 
-function validateCommunityUpload(upload: LauncherCommunityUpload): void {
-  if (!COMMUNITY_IMAGE_TYPES.has(upload.mimeType)) throw new Error('图片只支持 JPG、PNG、WebP 或 GIF')
-  if (!(upload.bytes instanceof ArrayBuffer) || upload.bytes.byteLength < 1 || upload.bytes.byteLength > COMMUNITY_IMAGE_MAX_BYTES) throw new Error('图片大小需在 5 MB 以内')
+function communityUploadBytes(upload: LauncherCommunityUpload): Uint8Array {
+  const value = upload.bytes as unknown
+  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const serialized = value as { type?: unknown; data?: unknown }
+    if (serialized.type === 'Buffer' && Array.isArray(serialized.data) && serialized.data.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)) {
+      return Uint8Array.from(serialized.data as number[])
+    }
+  }
+  throw new Error('图片数据没有完整传入，请重新选择图片')
+}
+
+function validateCommunityUpload(upload: LauncherCommunityUpload): Uint8Array {
+  if (!COMMUNITY_IMAGE_TYPES.has(upload.mimeType)) throw new Error('启动器没有识别到图片类型，请升级启动器后重新选择 JPG、PNG、WebP 或 GIF')
+  const bytes = communityUploadBytes(upload)
+  if (bytes.byteLength < 1 || bytes.byteLength > COMMUNITY_IMAGE_MAX_BYTES) throw new Error('图片大小需在 5 MB 以内')
   if (!upload.name.trim() || upload.name.length > 180) throw new Error('图片文件名无效')
+  return bytes
 }
 
 function appendCommunityImage(form: FormData, upload: LauncherCommunityUpload): void {
-  validateCommunityUpload(upload)
-  form.set('image', new Blob([upload.bytes], { type: upload.mimeType }), upload.name.trim())
+  const bytes = validateCommunityUpload(upload)
+  const transferable = new Uint8Array(bytes.byteLength)
+  transferable.set(bytes)
+  form.set('image', new Blob([transferable.buffer], { type: upload.mimeType }), upload.name.trim())
 }
 
 function assertCommunityRequest(value: unknown): asserts value is LauncherCommunityRequest {
