@@ -53,6 +53,13 @@ const app = await electron.launch({
 
 const kernelPid = app.process().pid
 let page = await app.firstWindow()
+const rendererEvents = []
+const attachRendererDiagnostics = (target) => {
+  target.on('console', (message) => rendererEvents.push({ type: `console:${message.type()}`, text: message.text() }))
+  target.on('pageerror', (error) => rendererEvents.push({ type: 'pageerror', text: error.message }))
+}
+attachRendererDiagnostics(page)
+app.on('window', attachRendererDiagnostics)
 const report = {
   passed: false,
   testedAt: new Date().toISOString(),
@@ -74,7 +81,10 @@ async function snapshotFromCurrentWindow() {
 
 try {
   await page.waitForLoadState('domcontentloaded')
-  const checkButton = page.getByRole('button', { name: '检查更新', exact: true })
+  // A packaged launcher may start its scheduled source check before Playwright
+  // attaches. Treat the idle, checking and resumable-progress labels as the
+  // same update-center entry instead of timing out on the idle label only.
+  const checkButton = page.getByRole('button', { name: /^(检查更新|检查中…|更新进度)$/u })
   await checkButton.waitFor({ state: 'visible', timeout: 60_000 })
   const initial = await snapshotFromCurrentWindow()
   if (initial.launcherUiVersion !== oldVersion || initial.launcherUiSource !== 'updated') {
@@ -126,7 +136,10 @@ try {
   if (app.process().pid !== kernelPid) throw new Error('Launcher kernel process restarted during a UI-only update')
   if (finalSnapshot.launcherUiSource !== 'updated') throw new Error(`Unexpected final UI source: ${finalSnapshot.launcherUiSource}`)
   if (finalSnapshot.runStatus !== 'stopped') throw new Error(`UI-only update changed Harness status: ${finalSnapshot.runStatus}`)
-  if (!/热更新完成|无需重启/u.test(finalSnapshot.runtimeUpdates.message || '')) {
+  // The newly activated renderer immediately performs its normal source
+  // refresh, which can replace the transient hot-update toast with the
+  // equivalent steady-state message that every installed module is current.
+  if (!/热更新完成|无需重启|所有已安装模块均为最新/u.test(finalSnapshot.runtimeUpdates.message || '')) {
     throw new Error(`Missing successful hot-update feedback: ${finalSnapshot.runtimeUpdates.message || 'empty'}`)
   }
 
@@ -150,6 +163,19 @@ try {
   report.moduleState = moduleState
   await page.screenshot({ path: path.join(outputRoot, 'ui-update-applied-without-restart.png') })
   await writeFile(path.join(outputRoot, 'report.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8')
+} catch (error) {
+  const windows = app.windows()
+  report.failure = error instanceof Error ? error.message : String(error)
+  report.rendererEvents = rendererEvents.slice(-50)
+  report.windows = await Promise.all(windows.map(async (target, index) => {
+    await target.screenshot({ path: path.join(outputRoot, `startup-failure-${index + 1}.png`) }).catch(() => undefined)
+    return {
+      url: target.url(),
+      title: await target.title().catch(() => ''),
+      body: await target.locator('body').innerText().catch(() => '')
+    }
+  }))
+  throw error
 } finally {
   if (!report.passed) await writeFile(path.join(outputRoot, 'failure.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8').catch(() => undefined)
   await app.close().catch(() => undefined)
