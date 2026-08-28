@@ -261,22 +261,6 @@ async function uploadFromFile(file: File): Promise<LauncherCommunityUpload> {
   return { name: file.name.slice(0, 180), mimeType: file.type as LauncherCommunityUpload['mimeType'], bytes: await file.arrayBuffer() }
 }
 
-function demoRequest(request: LauncherCommunityRequest): Record<string, unknown> {
-  const author = { key: 'demo-user', name: '深蓝用户', isSeed: false, isStaff: false }
-  if (request.scope === 'chat' && request.method === 'GET') return {
-    ok: true, authenticated: true, savedStickers: [], messages: [
-      { id: 'demo-chat-1', body: '刚把 DeepSeek 的视觉模型接进工作流，识图和工具调用可以放在同一条任务里。', createdAt: new Date(Date.now() - 420_000).toISOString(), author: { key: 'seed-1', name: '鲸鱼研究员', isSeed: true }, viewer: { isAuthor: false }, isSeedData: true },
-      { id: 'demo-chat-2', body: '我更关心失败后怎么回放，有人做过完整日志对照吗？', createdAt: new Date(Date.now() - 180_000).toISOString(), author, viewer: { isAuthor: true } },
-      { id: 'demo-chat-3', body: request.channel === 'deepseek' ? '可以，把复现步骤发成帖子，聊天里继续补充实时结果。' : 'AI聊天广场已连通，值得沉淀的内容可以转成帖子。', createdAt: new Date(Date.now() - 70_000).toISOString(), author: { key: 'seed-2', name: '开源搭子', isSeed: true }, viewer: { isAuthor: false }, isSeedData: true, stickerId: 'deepseek-cheerful' }
-    ]
-  }
-  const space = { id: 'space-deepseek', slug: 'deepseek', name: 'DeepSeek 讨论', short: 'DS', summary: '模型、接口、排错与真实项目', realm: 'tool', color: '#4d6bfe', memberCount: 126, threadCount: 48 }
-  const thread = { id: 'demo-thread-1', title: 'DeepSeek 视觉模型接入 Harness 后，工具调用链怎么验证？', summary: '整理一次从图片输入、工具调用到 Session Log 回放的实测过程。', body: '这次测试不只看“能否识图”，还对照了请求、工具调用和会话日志。\n\n欢迎补充不同系统和模型版本下的结果。', type: 'tool_experience', tags: ['DeepSeek', '多模态', 'Harness'], replyCount: 3, reactionCount: 18, bookmarkCount: 7, viewCount: 126, createdAt: new Date(Date.now() - 3_600_000).toISOString(), rootPostId: 'demo-root-1', isSeedData: true, author: { key: 'seed-1', name: '鲸鱼研究员', isSeed: true }, space, viewer: { bookmarked: false, reaction: false, isAuthor: false }, comments: [{ id: 'demo-comment-1', body: '我在 Windows 11 上复现成功，图片压缩后延迟更稳定。', reactionCount: 4, createdAt: new Date(Date.now() - 1_200_000).toISOString(), author, viewerReaction: false, viewerIsAuthor: true }] }
-  if (request.scope === 'forum' && request.method === 'GET' && request.action === 'thread') return { ok: true, thread }
-  if (request.scope === 'forum' && request.method === 'GET') return { ok: true, authenticated: true, spaces: [space, { ...space, id: 'space-art', slug: 'ai-art', name: 'AI 视觉创作', short: '图', realm: 'interest' }], threads: [thread, { ...thread, id: 'demo-thread-2', title: '你会把聊天里的即时结论整理成长期知识吗？', summary: '讨论聊天、帖子和 Skill 之间如何形成可复用链路。', replyCount: 8, reactionCount: 26, createdAt: new Date(Date.now() - 7_200_000).toISOString() }] }
-  return { ok: true, threadId: 'demo-thread-1', postId: 'demo-comment-2', messageId: `demo-${Date.now()}`, bookmarked: true, reacted: true }
-}
-
 function avatar(author: CommunityAuthor): ReactNode {
   return author.avatar ? <img src={author.avatar} alt="" /> : <span>{author.name.slice(0, 1).toUpperCase()}</span>
 }
@@ -323,7 +307,7 @@ export function CommunityPage({ snapshot, onLogin }: { snapshot: LauncherSnapsho
   const authenticated = snapshot.account.status === 'signed_in'
 
   const request = async (payload: LauncherCommunityRequest): Promise<Record<string, unknown>> => {
-    if (!window.launcher?.communityRequest) return demoRequest(payload)
+    if (!window.launcher?.communityRequest) throw new Error('社区功能需要新版基础内核，请升级启动器')
     return window.launcher.communityRequest(payload)
   }
 

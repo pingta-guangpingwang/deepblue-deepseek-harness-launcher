@@ -12,6 +12,10 @@ let tray: Tray | undefined
 let quitting = false
 let launcherUi: LauncherUiSelection | undefined
 
+if (process.env.DSH_LAUNCHER_DISABLE_HARDWARE_ACCELERATION === '1') {
+  app.disableHardwareAcceleration()
+}
+
 protocol.registerSchemesAsPrivileged([{
   scheme: 'deepblue-skin',
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true }
@@ -301,7 +305,13 @@ function registerIpc(): void {
   })
 }
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
+// Packaged release QA uses an isolated profile while a user's installed launcher
+// may legitimately be running. Keep production single-instance behaviour, but
+// let the isolated gate opt out so an unrelated stale process cannot invalidate
+// the cold-start result.
+const hasSingleInstanceLock = process.env.DSH_LAUNCHER_ALLOW_PARALLEL === '1'
+  ? true
+  : app.requestSingleInstanceLock()
 
 if (!hasSingleInstanceLock) {
   app.quit()

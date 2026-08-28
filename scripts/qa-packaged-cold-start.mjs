@@ -41,15 +41,23 @@ const pageErrors = []
 const consoleErrors = []
 const app = await electron.launch({
   executablePath,
-  args: [`--user-data-dir=${userDataRoot}`, '--disable-gpu'],
+  args: [`--user-data-dir=${userDataRoot}`],
   env: {
     ...process.env,
     APPDATA: appDataRoot,
-    LOCALAPPDATA: localAppDataRoot
+    LOCALAPPDATA: localAppDataRoot,
+    DSH_LAUNCHER_ALLOW_PARALLEL: '1',
+    DSH_LAUNCHER_DISABLE_HARDWARE_ACCELERATION: '1'
   }
 })
+const mainProcess = app.process()
+const mainProcessDiagnostics = []
+mainProcess.stdout?.on('data', (chunk) => mainProcessDiagnostics.push(`stdout: ${String(chunk).trim()}`))
+mainProcess.stderr?.on('data', (chunk) => mainProcessDiagnostics.push(`stderr: ${String(chunk).trim()}`))
+mainProcess.on('exit', (code, signal) => mainProcessDiagnostics.push(`exit: ${code ?? 'null'}/${signal ?? 'none'}`))
 app.on('window', (page) => {
   page.on('pageerror', (error) => pageErrors.push(String(error)))
+  page.on('crash', () => pageErrors.push('renderer process crashed'))
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
   })
@@ -61,7 +69,8 @@ const report = {
   testedAt: new Date().toISOString(),
   uiVersion,
   pageErrors,
-  consoleErrors
+  consoleErrors,
+  mainProcessDiagnostics
 }
 
 try {

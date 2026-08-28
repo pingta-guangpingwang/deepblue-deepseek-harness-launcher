@@ -76,5 +76,5 @@ try {
   const rollbackStatus = await boot(bundledDsh, root, 4315)
   console.log(`Version smoke passed: install ${installedPackage.version} (HTTP ${installedStatus}) -> rollback 0.1.0-rc.8 (HTTP ${rollbackStatus})`)
 } finally {
-  await rm(temporaryRoot, { recursive: true, force: true })
+  await rm(temporaryRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })
 }
