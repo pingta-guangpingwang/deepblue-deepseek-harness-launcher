@@ -29,6 +29,7 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '兴趣社区聊天与帖子回复新增独立 GIF 动图入口；上传、DeepSeek 识图审核、本地缓存、收藏表情、聊天流与高清预览全程保留循环动画',
     '兴趣社区改为紧挨首页的启动器原生页签，DeepSeek 房间、AI 聊天广场和帖子详情均在 Electron 内显示，不再依赖外部浏览器',
     'AI 工具页新增“AI历史书工具 / DSH 生态”二级切页；DSH 生态明确承载 Web profile 插件，侧栏不再重复放置独立入口',
     '0.10.32 修复 DSH WEB PROFILE 远程配对插件安装失败：仅为审核过的远程 Web 插件放行 cloudflared 构建脚本，其他插件继续保持默认供应链拦截',
