@@ -1,0 +1,18 @@
+import { createHash } from 'node:crypto';
+import { readFile, writeFile, rename } from 'node:fs/promises';
+import path from 'node:path';
+import { mergeRuntimeModules } from './runtime-catalog-merge.mjs';
+const release = path.resolve(import.meta.dirname, '../release');
+const filename = path.join(release, 'runtime-modules.generated.json');
+const catalog = JSON.parse(await readFile(filename, 'utf8'));
+const host = JSON.parse(await readFile(path.join(release, 'agent-host.generated.json'), 'utf8'));
+if (host.id !== 'agent-host' || !/^1\.0\.0\+[a-f0-9]{12}$/.test(host.version)) throw new Error('Invalid Agent Host build record');
+const artifact = host.artifacts?.find(entry => entry.platform === 'win32' && entry.arch === 'x64');
+const bytes = await readFile(path.join(release, 'modules', `agent-host-${host.version}-win-x64.tar.gz`));
+if (!artifact || bytes.length !== artifact.size || createHash('sha256').update(bytes).digest('hex') !== artifact.sha256) throw new Error('Agent Host artifact missing or hash mismatch');
+catalog.modules = mergeRuntimeModules(catalog.modules, [host], ['node-runtime', 'harness-core', 'package-manager', 'launcher-ui', 'agent-host']);
+catalog.generatedAt = new Date().toISOString();
+const temporary = filename + '.next';
+await writeFile(temporary, JSON.stringify(catalog, null, 2) + '\n');
+await rename(temporary, filename);
+console.log(`Prepared unsigned catalog: agent-host ${host.version}; preserved other modules. Signing and public mirror verification remain required.`);

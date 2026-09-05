@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs'
 import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as tar from 'tar'
+import { mergeRuntimeModules } from './runtime-catalog-merge.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const expectedPackage = path.join(root, 'release', 'win-unpacked')
@@ -11,6 +12,9 @@ const appRoot = path.join(packagedRoot, 'resources', 'app')
 const modulesRoot = path.join(root, 'release', 'modules')
 const generatedFile = path.join(root, 'release', 'runtime-modules.generated.json')
 const GITEE_PART_BYTES = 5 * 1024 * 1024
+let previousModules = []
+try { previousModules = (await json(generatedFile)).modules }
+catch (error) { if (error.code !== 'ENOENT') throw error }
 
 if (packagedRoot.toLowerCase() !== expectedPackage.toLowerCase()) {
   throw new Error(`Refusing to package runtime modules outside the generated Windows package: ${packagedRoot}`)
@@ -99,9 +103,8 @@ const [nodePackage, pnpmPackage, harnessPackage] = await Promise.all([
 ])
 
 await mkdir(modulesRoot, { recursive: true })
-for (const entry of await readdir(modulesRoot)) {
-  if (entry.endsWith('.tar.gz')) await rm(path.join(modulesRoot, entry), { force: true })
-}
+// Content-addressed archives are retained. A core rebuild must not delete the
+// launcher-ui/agent-host archives referenced by an existing module-only release.
 
 const productionEntries = (await readdir(path.join(appRoot, 'node_modules'), { withFileTypes: true }))
   .filter((entry) => (entry.isDirectory() || entry.isFile()) && !['node', 'pnpm'].includes(entry.name))
@@ -160,5 +163,5 @@ const modules = [
   definition(packageManagerArtifact, false, 'plugin-manager', ['node-runtime'])
 ]
 
-await writeFile(generatedFile, `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), modules }, null, 2)}\n`, 'utf8')
+await writeFile(generatedFile, `${JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), modules: mergeRuntimeModules(previousModules, modules) }, null, 2)}\n`, 'utf8')
 console.log(JSON.stringify({ generatedFile, artifacts: [nodeArtifact, harnessArtifact, packageManagerArtifact] }, null, 2))

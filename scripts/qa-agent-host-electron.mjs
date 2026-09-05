@@ -5,11 +5,13 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const root = path.resolve(import.meta.dirname, '..');
+const packagedExe = process.env.QA_AGENT_HOST_EXE ? path.resolve(process.env.QA_AGENT_HOST_EXE) : undefined;
+const moduleDir = packagedExe ? path.join(path.dirname(packagedExe), 'resources/app/out/agent-host') : path.join(root, 'out/agent-host');
 const output = path.join(root, 'output/playwright/agent-host-native', String(Date.now()));
 const profile = path.join(output, 'profile');
 await mkdir(profile, { recursive: true });
 await writeFile(path.join(profile, 'launcher.json'), JSON.stringify({ settings: { storageRoot: path.join(output, 'storage'), storageSetupCompleted: true, autoOpen: false, port: 38972 } }));
-const report = { passed: false, bindingApiFixture: true, productionWrites: false, checks: [], output, stage: 'setup', stdout: '', stderr: '', mainErrors: [] };
+const report = { passed: false, packagedExe: packagedExe ?? null, moduleDir, bindingApiFixture: true, productionWrites: false, checks: [], output, stage: 'setup', stdout: '', stderr: '', mainErrors: [] };
 let application;
 const execFileAsync = promisify(execFile);
 function stage(name) { report.stage = name; console.error(`[agent-host native QA] ${name}`); }
@@ -25,7 +27,7 @@ async function cleanupOwnedProfile() {
   const scope = path.join(root, 'output', 'playwright', 'agent-host-native') + path.sep;
   assert.ok(profile.startsWith(scope) && path.basename(profile) === 'profile');
   if (process.platform === 'win32') {
-    await execFileAsync('powershell.exe', ['-NoProfile', '-Command', '$qaProfile=$env:DSH_QA_EXACT_PROFILE; $qaCandidates=Get-CimInstance Win32_Process | Where-Object { $_.Name -in @("electron.exe","cmd.exe") -and $_.CommandLine -and $_.CommandLine.Contains($qaProfile) }; foreach($qaProc in $qaCandidates) { Stop-Process -Id $qaProc.ProcessId -Force -ErrorAction SilentlyContinue }'], { windowsHide: true, timeout: 8000, env: { ...process.env, DSH_QA_EXACT_PROFILE: profile } }).catch((error) => append('stderr', `\nScoped cleanup: ${error.message}`));
+    await execFileAsync('powershell.exe', ['-NoProfile', '-Command', '$qaProfile=$env:DSH_QA_EXACT_PROFILE; $qaCandidates=Get-CimInstance Win32_Process | Where-Object { $_.Name -in @("electron.exe","cmd.exe",$env:DSH_QA_EXE_NAME) -and $_.CommandLine -and $_.CommandLine.Contains($qaProfile) }; foreach($qaProc in $qaCandidates) { Stop-Process -Id $qaProc.ProcessId -Force -ErrorAction SilentlyContinue }'], { windowsHide: true, timeout: 8000, env: { ...process.env, DSH_QA_EXACT_PROFILE: profile, DSH_QA_EXE_NAME: packagedExe ? path.basename(packagedExe) : 'electron.exe' } }).catch((error) => append('stderr', `\nScoped cleanup: ${error.message}`));
   } else application?.process()?.kill('SIGTERM');
 }
 async function saveReport() { await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2)); }
@@ -40,7 +42,7 @@ try {
   delete environment.ELECTRON_RUN_AS_NODE;
   // Let Playwright resolve Electron so its readiness loader is installed. An
   // explicit development electron.exe skips that loader in Playwright 1.x.
-  application = await bounded(electron.launch({ args: [root, `--user-data-dir=${profile}`, '--disable-gpu'], cwd: root, env: environment, timeout: 30000,
+  application = await bounded(electron.launch({ ...(packagedExe ? { executablePath: packagedExe } : {}), args: [...(packagedExe ? [] : [root]), `--user-data-dir=${profile}`, '--disable-gpu'], cwd: root, env: environment, timeout: 30000,
     logger: { isEnabled: () => true, log: (name, severity, message) => append('stderr', `[${name}/${severity}] ${message}\n`) }
   }), 35000, 'Electron launch');
   application.process().stdout?.on('data', (chunk) => append('stdout', chunk));
@@ -62,6 +64,25 @@ try {
   assert.equal(state?.supported, true, 'compiled native host loads through stable bridge');
   assert.equal(state.connection, 'unbound');
   report.checks.push('real Electron preload → main → compiled agent-host module');
+  stage('packaged-connector-child');
+  const childCheck = await bounded(application.evaluate(async (_electron, args) => {
+    const { createRequire } = process.getBuiltinModule('module');
+    const require = createRequire(args.modulePath);
+    const { fork } = require('node:child_process');
+    const child = fork(args.entry, [], { execPath: process.execPath, execArgv: [], cwd: args.cwd, windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+    return await new Promise((resolve, reject) => {
+      let ready = false, stderr = '';
+      const timeout = setTimeout(() => { child.kill(); reject(new Error('Packaged connector child timeout')); }, 8000);
+      child.stderr.on('data', value => { stderr = (stderr + value).slice(-4000); });
+      child.on('error', error => { clearTimeout(timeout); reject(error); });
+      child.on('message', message => {
+        if (message.type === 'ready' && message.protocolVersion === 1) { ready = true; child.send({ type: 'stop' }); }
+      });
+      child.on('exit', code => { clearTimeout(timeout); if (ready && code === 0) resolve(true); else reject(new Error(`Packaged connector exit ${code}: ${stderr}`)); });
+    });
+  }, { modulePath: path.join(moduleDir, 'host-service.cjs'), entry: path.join(moduleDir, 'connector/host-child.mjs'), cwd: output }), 10000, 'Packaged connector child');
+  assert.equal(childCheck, true);
+  report.checks.push('packaged Electron-as-Node child IPC boots and stops with bundled connector dependencies');
   stage('discovery');
   const discovery = await bounded(page.evaluate(() => window.launcher.agentHostAction({ action: 'discover' })), 15000, 'Adapter discovery');
   assert.equal(discovery.discovered.length, 3);
@@ -104,10 +125,11 @@ try {
     await second.action({ action: 'pause' });
     await second.dispose();
     return { protocol: AGENT_HOST_PROTOCOL, online, encrypted, restored };
-  }, { modulePath: path.join(root, 'out/agent-host/host-service.cjs'), moduleDir: path.join(root, 'out/agent-host'), storageDir: path.join(output, 'encrypted-binding') }), 15000, 'Native encryption fixture');
+  }, { modulePath: path.join(moduleDir, 'host-service.cjs'), moduleDir, storageDir: path.join(output, 'encrypted-binding') }), 15000, 'Native encryption fixture');
   assert.deepEqual(cryptoCheck, { protocol: 1, online: true, encrypted: true, restored: true });
   report.checks.push('native system encryption + cold reload preserves device binding; isolated API fixture');
   assert.deepEqual(errors, []);
+  assert.deepEqual(report.mainErrors.filter(message => !message.includes("Error occurred in handler for 'launcher:agent-workspace-request': Error: 请先登录 AI历史书账号")), []);
   report.checks.push('no renderer exceptions');
   report.passed = true;
 } catch (error) {

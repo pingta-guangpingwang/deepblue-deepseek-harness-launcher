@@ -10,6 +10,9 @@ const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), '
 const payloadPath = path.join(release, 'launcher-catalog-payload.json')
 const payload = JSON.parse(await readFile(payloadPath, 'utf8'))
 const runtimeModules = JSON.parse(await readFile(path.join(release, 'runtime-modules.generated.json'), 'utf8'))
+for (const requiredId of ['node-runtime', 'harness-core', 'package-manager', 'launcher-ui', 'agent-host']) {
+  if (!runtimeModules.modules?.some(entry => entry.id === requiredId)) throw new Error(`Refusing incomplete release: missing ${requiredId}`)
+}
 const stableDownloadBaseUrl = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/download'
 const bootstrapPath = path.join(release, 'deepblue-deepseek-harness-launcher-win-x64-online-bootstrap.exe')
 const bootstrapBytes = await readFile(bootstrapPath)
@@ -29,6 +32,8 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.34 增加电脑托管基础 IPC 与原生智能体工作台；绑定账号、授权本机项目后，可由网站查看心跳并启动已绑定的智能体，沿用原生项目和会话',
+    '电脑托管服务拆为独立 agent-host 内容寻址模块；后续托管逻辑可单独签名更新，不再为普通托管功能重发完整启动器；设备撤销、忙碌保护与失败回滚保持有效',
     '0.10.33 升级社区基础 IPC：文字、图片和 GIF 发送统一走已登录的真实 API；旧内核缺少桥接时明确提示“请升级启动器”，不再用演示数据伪造发送成功',
     '发布目录只保留已经匿名验收可下载的线路；当 Gitee 运行资源仓触发容量限制时，本期新内核与 UI 自动从 OSS 开始并回退 GitHub，不把 404 地址写入签名目录',
     '兴趣社区聊天与帖子回复新增独立 GIF 动图入口；上传、DeepSeek 识图审核、本地缓存、收藏表情、聊天流与高清预览全程保留循环动画',
