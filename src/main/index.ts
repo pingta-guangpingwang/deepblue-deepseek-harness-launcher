@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, protocol, shell, Tray } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, shell, Tray } from 'electron'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { LauncherController } from './controller'
@@ -109,7 +109,8 @@ function showMainWindow(): void {
 function syncDesktopTray(): void {
   const wallpaperActive = controller?.isDynamicDesktopActive() === true
   const petActive = controller?.isDesktopPetActive() === true
-  const active = wallpaperActive || petActive
+  const hostActive = controller?.isAgentHostActive() === true
+  const active = wallpaperActive || petActive || hostActive
   if (!active) {
     tray?.destroy()
     tray = undefined
@@ -119,7 +120,7 @@ function syncDesktopTray(): void {
     tray = new Tray(appIconPath())
     tray.on('double-click', showMainWindow)
   }
-  tray.setToolTip(`深蓝 DeepSeek Harness · ${wallpaperActive && petActive ? '动态桌面与宠物运行中' : petActive ? '桌面宠物运行中' : '动态桌面运行中'}`)
+  tray.setToolTip(`深蓝 DeepSeek Harness · ${hostActive ? '智能体托管运行中' : wallpaperActive && petActive ? '动态桌面与宠物运行中' : petActive ? '桌面宠物运行中' : '动态桌面运行中'}`)
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开启动器', click: showMainWindow },
     ...(wallpaperActive ? [{
@@ -199,6 +200,12 @@ function createWindow(ui = launcherUi, loadContents = true): BrowserWindow {
 }
 
 function registerIpc(): void {
+  const requireLauncherSender = (event: Electron.IpcMainInvokeEvent): void => {
+    if (!mainWindow || event.sender.id !== mainWindow.webContents.id || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error('只允许启动器主界面调用工作台')
+  }
+  ipcMain.handle('launcher:agent-host-state', (event) => { requireLauncherSender(event); return controller?.agentHostState() })
+  ipcMain.handle('launcher:agent-host-action', async (event, action) => { requireLauncherSender(event); const state = await controller?.agentHostAction(action); syncDesktopTray(); return state })
+  ipcMain.handle('launcher:agent-workspace-request', (event, request) => { requireLauncherSender(event); return controller?.agentWorkspaceRequest(request) })
   ipcMain.on('desktop-pet:drag-start', (event, position: unknown) => controller?.beginDesktopPetDrag(event.sender.id, position))
   ipcMain.on('desktop-pet:drag-move', (event, position: unknown) => controller?.moveDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('desktop-pet:drag-end', (event, position: unknown) => controller?.endDesktopPetDrag(event.sender.id, position))
@@ -352,7 +359,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !controller?.isDesktopExperienceActive()) app.quit()
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (controller?.isAgentHostBusy()) {
+    const choice = dialog.showMessageBoxSync({ type: 'warning', title: '智能体任务仍在运行', message: '退出启动器会中断本机智能体任务。', detail: '选择继续后台运行，可以关闭主窗口并保留远程连接。', buttons: ['继续后台运行', '退出并中断任务'], defaultId: 0, cancelId: 0 })
+    if (choice === 0) { event.preventDefault(); quitting = false; mainWindow?.hide(); syncDesktopTray(); return }
+  }
   quitting = true
-  void controller?.dispose()
+  void controller?.dispose().catch(() => {})
 })

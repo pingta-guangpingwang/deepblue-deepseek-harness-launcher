@@ -1,0 +1,26 @@
+{
+  "name": "@shenlan/agent-connector",
+  "version": "0.10.5",
+  "private": true,
+  "description": "由智能体 Skill 自动安装和维护的深蓝无界面同步服务",
+  "type": "module",
+  "files": [
+    "src/",
+    "README.md",
+    "config.example.json"
+  ],
+  "bin": {
+    "shenlan-agent": "./src/cli.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "scripts": {
+    "check": "node --check src/cli.mjs && node --check src/config.mjs && node --check src/state.mjs && node --check src/api.mjs && node --check src/privacy.mjs && node --check src/session-history.mjs && node --check src/runtime-catalog.mjs && node --check src/runner-common.mjs && node --check src/runtime-diagnostics.mjs && node --check src/attachment-transfer.mjs && node --check src/codex-app-server.mjs && node --check src/codex-runner.mjs && node --check src/claude-runner.mjs && node --check src/qclaw-runner.mjs && node --check src/codebuddy-runner.mjs && node --check src/ide-mcp-server.mjs && node --check src/ide-agent-runner.mjs && node --check src/workbuddy-runner.mjs && node --check src/runtime-runner.mjs && node --check src/connector.mjs && node --check src/service-manager.mjs && node --check test.mjs && node --check adapter-runners.test.mjs && node --check attachment-transfer.test.mjs",
+    "test": "node test.mjs && node app-server.test.mjs && node service-manager.test.mjs && node --test adapter-runners.test.mjs attachment-transfer.test.mjs host-reliability.test.mjs",
+    "pack:public": "node ../../scripts/build-agent-connector-release.mjs"
+  }
+}

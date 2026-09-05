@@ -22,6 +22,8 @@ import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
+import { AgentHostBridge } from './agent-host-bridge'
+import type { AgentHostAction, AgentWorkspaceRequest } from '../shared/agent-host'
 import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
 import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
 import { pluginOperationTimeoutMs, pluginPnpmArguments, profileHasActivePlugin, type WebProfileManifest } from './plugin-policy'
@@ -118,6 +120,7 @@ export class LauncherController {
   private startHarnessPromise?: Promise<LauncherSnapshot>
   private pluginActionPromise?: Promise<LauncherSnapshot>
   private readonly browserHandoff = new HarnessBrowserHandoff()
+  private agentHost?: AgentHostBridge
 
   constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection) {}
 
@@ -232,6 +235,21 @@ export class LauncherController {
     }
     await this.refreshEnvironment()
     this.snapshot.account = await this.accountService.refresh()
+    try {
+      const runtime = await resolveRuntime(launcherDataPaths().runtime, this.config.activeVersion)
+      this.agentHost = new AgentHostBridge(this.moduleStore, {
+        storageDir: path.join(launcherDataPaths().root, 'agent-host'),
+        nodePath: runtime.node, launcherVersion: app.getVersion(),
+        ownerId: () => this.accountService.state().user?.id,
+        request: (request) => this.accountService.agentWorkspaceRequest(request, true),
+        chooseDirectory: async () => {
+          const result = await dialog.showOpenDialog(this.window, { title: '授权智能体访问此项目（不会授权其他文件夹）', properties: ['openDirectory'] })
+          return result.canceled ? undefined : result.filePaths[0]
+        },
+        onChange: () => { if (!this.window.isDestroyed()) this.window.webContents.send('launcher:agent-host-changed') }
+      }, path.join(__dirname, '../agent-host'))
+      await this.agentHost.initialize()
+    } catch (error) { this.log('WARN', `智能体托管模块暂不可用：${error instanceof Error ? error.message : String(error)}`) }
     if (this.snapshot.account.status === 'signed_in') await this.refreshFavorites()
     await Promise.all([this.refreshSkins(), this.refreshPets()])
     void this.refreshDiscovery()
@@ -267,10 +285,20 @@ export class LauncherController {
   }
 
   isDesktopExperienceActive(): boolean {
-    return this.isDynamicDesktopActive() || this.isDesktopPetActive()
+    return this.isDynamicDesktopActive() || this.isDesktopPetActive() || this.isAgentHostActive()
   }
 
+  isAgentHostActive(): boolean { return this.agentHost?.isActive() === true }
+  isAgentHostBusy(): boolean { return this.agentHost?.isBusy() === true }
+  agentHostState() { return this.agentHost?.snapshot() }
+  async agentHostAction(action: AgentHostAction) {
+    if (!this.agentHost) throw new Error('托管模块没有加载，请检查更新后重试')
+    return this.agentHost.action(action)
+  }
+  agentWorkspaceRequest(request: AgentWorkspaceRequest) { return this.accountService.agentWorkspaceRequest(request) }
+
   async dispose(): Promise<void> {
+    await this.agentHost?.dispose()
     await this.dynamicWallpaper?.dispose()
     await this.desktopPet?.dispose()
     await this.petBalanceBridge?.dispose()
@@ -649,6 +677,8 @@ export class LauncherController {
     const activated: RuntimeModuleId[] = []
     const previousActiveHarnessVersion = this.config.activeVersion
     try {
+      if (['agent-host', 'node-runtime', 'harness-core'].some((id) => requestedIds.has(id as RuntimeModuleId)) && this.agentHost?.isBusy()) throw new Error('智能体还有任务运行，请等待完成后更新运行模块')
+      if (requestedIds.has('node-runtime') || requestedIds.has('harness-core')) await this.agentHost?.dispose()
       if (this.service && (requestedIds.has('harness-core') || requestedIds.has('node-runtime'))) await this.stopHarness()
       if (this.config.settings.backupBeforeUpdate && requestedIds.has('harness-core')) await this.backupUserData()
       for (const release of releases) {
@@ -678,7 +708,8 @@ export class LauncherController {
       const updatedModules = this.snapshot.runtimeUpdates.modules.map((item) => requestedIds.has(item.id)
         ? { ...item, currentVersion: item.nextVersion, disposition: 'current' as const, message: '本轮更新已安装并通过校验' }
         : item)
-      const requiresRelaunch = [...requestedIds].some((id) => !['launcher-ui', 'package-manager'].includes(id))
+      if (requestedIds.has('agent-host')) await this.agentHost?.reload()
+      const requiresRelaunch = [...requestedIds].some((id) => !['launcher-ui', 'package-manager', 'agent-host'].includes(id))
       const launcherUiRelease = releases.find((release) => release.id === 'launcher-ui')
       if (!requiresRelaunch) {
         if (launcherUiRelease) {
@@ -729,6 +760,9 @@ export class LauncherController {
           rollbackFailure = rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
           this.log('ERROR', `${RUNTIME_MODULE_LABELS[moduleId]} 自动回滚失败：${rollbackFailure}`)
         }
+      }
+      if (activated.includes('agent-host') || requestedIds.has('node-runtime') || requestedIds.has('harness-core')) {
+        await this.agentHost?.reload().catch((error) => { this.log('WARN', `托管服务恢复失败：${error instanceof Error ? error.message : String(error)}`) })
       }
       task.status = 'failed'
       task.detail = rollbackFailure ? `${message}；部分模块回滚失败，请执行快速修复` : `${message}；已恢复更新前模块`
@@ -894,6 +928,7 @@ export class LauncherController {
   }
 
   async chooseStorageRoot(): Promise<LauncherSnapshot> {
+    if (this.isAgentHostActive()) throw new Error('请先在工作台暂停设备托管，再迁移运行资源；不会中断正在执行的任务')
     if (this.service || this.snapshot.runStatus === 'starting' || this.snapshot.runStatus === 'running') {
       throw new Error('请先停止 Harness，再更改运行资源位置')
     }
@@ -924,7 +959,7 @@ export class LauncherController {
 
     const task = this.addTask(`storage-${Date.now()}`, '迁移运行资源', '准备安全副本；原位置不会自动删除')
     const stagingRoot = `${targetRoot}.migrating-${Date.now()}`
-    const managedEntries = ['runtime', 'harness-data', 'backups', 'logs', 'skins', 'pets', 'model-secrets.json']
+    const managedEntries = ['runtime', 'harness-data', 'backups', 'logs', 'skins', 'pets', 'model-secrets.json', 'agent-host']
     try {
       await mkdir(stagingRoot, { recursive: true })
       for (const [index, name] of managedEntries.entries()) {
@@ -945,6 +980,10 @@ export class LauncherController {
       await writeConfig(this.config)
       setLauncherStorageRoot(targetRoot)
       this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
+      if (this.agentHost) {
+        const runtime = await resolveRuntime(launcherDataPaths().runtime, this.config.activeVersion)
+        await this.agentHost.relocate(this.moduleStore, path.join(targetRoot, 'agent-host'), runtime.node)
+      }
       this.snapshot.settings = this.config.settings
       this.snapshot.installation = await this.installationState()
       task.progress = 100
@@ -1058,6 +1097,8 @@ export class LauncherController {
   }
 
   async accountLogout(): Promise<LauncherSnapshot> {
+    try { await this.agentHost?.suspendForSignOut() }
+    catch (error) { this.log('WARN', `远程控制已暂停，托管状态保存失败：${error instanceof Error ? error.message : String(error)}`) }
     this.snapshot.account = await this.accountService.signOut()
     this.snapshot.favorites = { status: 'signed_out', resourceIds: [] }
     this.log('INFO', 'AI历史书账号已退出')
@@ -1844,6 +1885,10 @@ export class LauncherController {
     currentVersions['node-runtime'] ||= this.snapshot.environment.find((item) => item.id === 'node')?.version
     currentVersions['package-manager'] ||= this.snapshot.environment.find((item) => item.id === 'pnpm')?.version
     currentVersions['launcher-ui'] ||= this.snapshot.launcherUiVersion || await bundledLauncherUiVersion()
+    try {
+      const metadata = JSON.parse(await readFile(path.join(__dirname, '../agent-host/module.json'), 'utf8')) as { version?: string }
+      currentVersions['agent-host'] ||= metadata.version
+    } catch { /* Older base shells have no bundled host module. */ }
     const items = planRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
     const modules = describeRuntimeModuleUpdates(this.runtimeModules, currentVersions, process.platform, process.arch)
     const checkedAt = new Date().toISOString()

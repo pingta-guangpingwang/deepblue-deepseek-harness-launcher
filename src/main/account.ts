@@ -1,6 +1,7 @@
 import { BrowserWindow, session, shell } from 'electron'
 import type { LauncherAccountState, LauncherCommunityRequest, LauncherCommunityUpload, LauncherResourceEngagement, LauncherResourceItem } from '../shared/types'
 import { parseFavoriteIds, validFavoriteId } from './account-favorites'
+import type { AgentWorkspaceRequest } from '../shared/agent-host'
 
 const ACCOUNT_URL = 'https://account.ailishishu.com/'
 const SESSION_URL = 'https://ailishishu.com/ailishishu-stats/api/auth-session.php'
@@ -97,6 +98,42 @@ export class AccountService {
 
   state(): LauncherAccountState {
     return structuredClone(this.account)
+  }
+
+  async agentWorkspaceRequest(request: AgentWorkspaceRequest, localHost = false, retried = false): Promise<Record<string, unknown>> {
+    if (!request || !['hub', 'devices', 'checkin'].includes(request.scope) || !['GET', 'POST'].includes(request.method)) throw new Error('工作台请求无效')
+    const action = String(request.action || '')
+    const allowed = request.scope === 'hub'
+      ? ['bootstrap', 'agent_state', 'session_history', 'activate_sync', 'request_sync', 'request_session_history', 'send_task', 'cancel_task']
+      : request.scope === 'checkin' ? ['checkin_status', 'claim_checkin'] : ['', 'command']
+    if (!localHost && !allowed.includes(action)) throw new Error('此操作只能在本机绑定流程执行')
+    if (this.account.status !== 'signed_in' || !this.accessToken || !this.account.user?.id) throw new Error('请先登录 AI历史书账号')
+    const owner = this.account.user.id
+    const token = this.accessToken
+    const epoch = this.authEpoch
+    const url = new URL(`https://ailishishu.com/ailishishu-stats/api/${request.scope === 'hub' ? 'agent-hub' : request.scope === 'checkin' ? 'wallet' : 'agent-devices'}.php`)
+    if (request.method === 'GET') {
+      for (const [key, value] of Object.entries(request.params || {})) {
+        if (!['agentId', 'projectId', 'sessionId', 'afterRevision'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
+        url.searchParams.set(key, value)
+      }
+      if (action) url.searchParams.set('action', action)
+    }
+    const body = request.method === 'POST' ? JSON.stringify({ ...request.body, action }) : undefined
+    if (body && body.length > 32000) throw new Error('工作台请求过大')
+    const response = await session.defaultSession.fetch(url.href, {
+      method: request.method, body, signal: AbortSignal.timeout(15000),
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-requested-with': 'deepblue-harness-launcher' }
+    })
+    const result = await response.json() as Record<string, unknown>
+    if (epoch !== this.authEpoch || owner !== this.account.user?.id) throw new Error('账号已切换，请重试')
+    if (response.status === 401 && !retried) {
+      await this.refresh()
+      if (this.account.status !== 'signed_in' || owner !== this.account.user?.id) throw new Error('登录已过期，请重新登录 AI历史书')
+      return this.agentWorkspaceRequest(request, localHost, true)
+    }
+    if (!response.ok || result.ok !== true) throw new Error(String(result.message || result.error || '工作台连接失败，请稍后重试'))
+    return result
   }
 
   async refresh(): Promise<LauncherAccountState> {

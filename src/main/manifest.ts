@@ -9,7 +9,8 @@ const RUNTIME_MODULE_IDS = new Set<RuntimeModuleId>([
   'harness-core',
   'package-manager',
   'terminal-native',
-  'launcher-ui'
+  'launcher-ui',
+  'agent-host'
 ])
 const RUNTIME_MIRROR_HOSTS = new Map([
   ['github', new Set(['github.com'])],

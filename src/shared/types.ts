@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'community' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
+export type PageId = 'home' | 'agent-workspace' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'community' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
 
 export interface LauncherCommunityUpload {
   name: string
@@ -709,6 +709,7 @@ export type RuntimeModuleId =
   | 'package-manager'
   | 'terminal-native'
   | 'launcher-ui'
+  | 'agent-host'
 
 export interface RuntimeModuleMirror {
   id: 'gitee' | 'github' | 'oss'
@@ -748,6 +749,9 @@ export interface RuntimeModuleRelease {
 }
 
 export interface LauncherApi {
+  agentHostState?(): Promise<import('./agent-host').AgentHostSnapshot>
+  agentHostAction?(action: import('./agent-host').AgentHostAction): Promise<import('./agent-host').AgentHostSnapshot>
+  agentWorkspaceRequest?(request: import('./agent-host').AgentWorkspaceRequest): Promise<Record<string, unknown>>
   getSnapshot(): Promise<LauncherSnapshot>
   refreshEnvironment(): Promise<LauncherSnapshot>
   checkSources(): Promise<LauncherSnapshot>

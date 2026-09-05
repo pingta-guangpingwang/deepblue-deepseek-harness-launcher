@@ -107,9 +107,10 @@ import { onlinePageRefreshTarget } from './online-page-refresh'
 import { desktopWallpaperCapability } from '../../shared/desktop-wallpaper'
 import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature } from './launcher-analytics'
 import { CommunityPage } from './CommunityPage'
+import { AgentWorkspacePage } from './AgentWorkspacePage'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
-  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
+  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
   { label: '能力库', items: [
     { id: 'prompts', label: '提示词', icon: MessageSquareText },
     { id: 'skills', label: 'Skill', icon: Sparkles },
@@ -127,6 +128,7 @@ const navigation: Array<{ label: string; items: Array<{ id: PageId; label: strin
 
 const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   home: { title: 'DeepSeek Harness', subtitle: '深蓝启动器 · DeepSeek Harness 驾驭工程教学' },
+  'agent-workspace': { title: '智能体工作台', subtitle: '本机托管 · 项目和原生会话与 AI历史书同步' },
   skins: { title: '皮肤商店', subtitle: '免费、开源、按页加载；原媒体仅在应用时下载。' },
   pets: { title: '宠物商店', subtitle: '选择会互动的网页伙伴，也可以导入自己的宠物。' },
   versions: { title: '版本管理', subtitle: '每个版本独立安装，切换前保留用户数据备份。' },
@@ -2421,8 +2423,9 @@ export default function App(): ReactNode {
           <time>{new Date(snapshot.runtimeUpdates.checkedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>
         </div>}
 
-        <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page', page === 'community' && 'community-fixed-page')}>
+        <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page', page === 'community' && 'community-fixed-page', page === 'agent-workspace' && 'agent-workspace-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} onVersions={() => setPage('versions')} onPortSettings={openPortSettings} />}
+          {page === 'agent-workspace' && <AgentWorkspacePage snapshot={snapshot} onLogin={accountLogin} />}
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}

@@ -14,7 +14,7 @@ const DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1_000
 const DOWNLOAD_STALL_TIMEOUT_MS = 15_000
 const SAFE_ENTRY_PATH = /^(?![A-Za-z]:)(?![\\/])(?!.*(?:^|[\\/])\.\.(?:[\\/]|$))[0-9A-Za-z@+._/-]+$/
 const SAFE_VERSION = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/
-const MODULE_IDS = new Set<RuntimeModuleId>(['node-runtime', 'harness-core', 'package-manager', 'terminal-native', 'launcher-ui'])
+const MODULE_IDS = new Set<RuntimeModuleId>(['node-runtime', 'harness-core', 'package-manager', 'terminal-native', 'launcher-ui', 'agent-host'])
 
 interface RuntimeModuleState {
   schemaVersion: 1
@@ -445,6 +445,12 @@ export class RuntimeModuleStore {
     if (!version) return undefined
     const root = moduleDirectory(this.root, id, version)
     return await exists(root) ? root : undefined
+  }
+
+  async deactivate(id: RuntimeModuleId): Promise<void> {
+    const state = await readState(this.stateFile)
+    delete state.active[id]
+    await writeState(this.stateFile, state)
   }
 
   async versions(id: RuntimeModuleId): Promise<{ active?: string; previous?: string; installed: string[] }> {

@@ -5,7 +5,8 @@ export const RUNTIME_MODULE_LABELS: Record<RuntimeModuleId, string> = {
   'harness-core': 'DeepSeek Harness 核心',
   'package-manager': 'pnpm 插件环境',
   'terminal-native': '终端原生组件',
-  'launcher-ui': '启动器 UI 壳'
+  'launcher-ui': '启动器 UI 壳',
+  'agent-host': '智能体托管服务'
 }
 
 export function runtimeModulePlan(

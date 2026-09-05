@@ -7,7 +7,9 @@ const mainSource = readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
 
 describe('launcher information architecture', () => {
   it('keeps the native community visible near Home', () => {
-    expect(appSource).toContain("{ label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'community', label: '兴趣社区', icon: MessageCircle }]")
+    const runGroup = appSource.slice(appSource.indexOf("{ label: '运行'"), appSource.indexOf("{ label: '能力库'"))
+    const ids = [...runGroup.matchAll(/id: '([^']+)'/g)].map((match) => match[1])
+    expect(ids).toEqual(['home', 'agent-workspace', 'community'])
     expect(appSource).toContain("{page === 'community' && <CommunityPage")
   })
 

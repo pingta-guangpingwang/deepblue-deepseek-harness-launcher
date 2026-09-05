@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { LauncherApi, LauncherSettings, LauncherSnapshot } from '../shared/types'
 
 const api: LauncherApi = {
+  agentHostState: () => ipcRenderer.invoke('launcher:agent-host-state'),
+  agentHostAction: (action) => ipcRenderer.invoke('launcher:agent-host-action', action),
+  agentWorkspaceRequest: (request) => ipcRenderer.invoke('launcher:agent-workspace-request', request),
   getSnapshot: () => ipcRenderer.invoke('launcher:get-snapshot'),
   refreshEnvironment: () => ipcRenderer.invoke('launcher:refresh-environment'),
   checkSources: () => ipcRenderer.invoke('launcher:check-sources'),
