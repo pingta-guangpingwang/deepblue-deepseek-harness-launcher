@@ -107,7 +107,7 @@ const bytes = await readFile(archive);
 const artifact = { platform: 'win32', arch: 'x64', format: 'tar.gz', sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length, unpackedSize,
   mirrors: [
     { id: 'gitee', url: `https://gitee.com/wanggp123/deepseek-harness-launcher/raw/runtime-assets/agent-host-${version}/${filename}` },
-    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${filename}` },
+    { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${encodeURIComponent(filename)}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/agent-host-${version}/${filename}` }
   ] };
 const release = { id: 'agent-host', version, required: false, installWhen: 'launcher', dependencies: [], artifacts: [artifact] };
