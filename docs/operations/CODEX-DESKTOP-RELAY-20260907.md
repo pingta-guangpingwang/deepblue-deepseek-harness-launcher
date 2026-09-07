@@ -1,6 +1,17 @@
 # Codex 桌面原对话桥接：本机验收记录
 
-日期：2026-09-07。范围：本机实现、覆盖与验收；没有发布公网下载包。
+日期：2026-09-07。范围：本机实现、覆盖、验收及两个模块的公网热更新发布。
+
+## 22:09 公网发布与实际启动器检查
+
+- 修复源码 `cac5648` 已推送 GitHub 的 `codex/launcher-agent-host` 分支；本次未合并 main。
+- agent-host `1.0.0+f979af8c34c9`（121619 字节）、launcher-ui `ui-be272626e5dc477d`（249568 字节）已上传 OSS 公共读与 GitHub Releases，并分别通过匿名完整下载和 SHA-256 校验。
+- 生产清单 `release-v2/launcher-manifest.json` 已使用指纹匹配的 `runtime-production-v2-1` 密钥签名、最后切换并回下载验签；基础 EXE 仍为 0.10.34，安装器链接及其清单内容未改动。仅保留已验证的 OSS/GitHub 镜像，没有加入未经验证的 Gitee 链接。
+- 实际安装版点击“检查更新”后，在线目录与本机两个修复模块一致，显示 0 可更新、5 无需更新、0 手动处理，不再推荐旧模块。截图：`output/playwright/online-hotfix-update-check.png`。
+- 发布记录与切换前备份：`release/hotfix-f979af8c34c9/PUBLICATION-VERIFIED.json`、`before.json`。全套回归 189 通过、1 跳过。
+- 本轮没有从空白目录重做公网全新安装；本机桌面 companion 已单独更新，但其他用户的 companion 自动配置/升级仍未完成，不能将模块发布等同于所有电脑已自动接通原生桌面桥接。
+
+以下未发布描述为当时的历史状态，由本节覆盖。
 
 ## 20:41 本机复测与修复（覆盖下文早期验收边界）
 
