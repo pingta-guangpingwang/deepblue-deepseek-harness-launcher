@@ -33,7 +33,9 @@ async function consumeJsonLines(stream, onProgress) {
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
   let sessionId = '';
   let lastSummary = '';
+  let runtimeError = '';
   for await (const line of lines) {
+    try { const event = JSON.parse(line); if (event.type === 'error' || event.type === 'turn.failed') runtimeError = String(event.message || event.error?.message || '').slice(-1200); } catch {}
     const parsed = parseCodexJsonLine(line);
     if (!parsed) continue;
     if (parsed.sessionId) sessionId = parsed.sessionId;
@@ -42,7 +44,7 @@ async function consumeJsonLines(stream, onProgress) {
       await onProgress(parsed.progress);
     }
   }
-  return sessionId;
+  return { sessionId, runtimeError };
 }
 
 function waitForExit(child) {
@@ -103,7 +105,7 @@ export async function runCodexTask({
   control.closed = false;
   control.cancelled = false;
   try {
-    const [sessionId, diagnostic, exit] = await Promise.all([
+    const [events, diagnostic, exit] = await Promise.all([
       consumeJsonLines(child.stdout, onProgress),
       readBoundedProcessText(child.stderr),
       waitForExit(child)
@@ -113,7 +115,7 @@ export async function runCodexTask({
     let finalReply = '';
     try { finalReply = safeFinalReply(await readFile(outputPath, 'utf8')); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
-    return { sessionId: sessionId || resumeSessionId, finalReply, diagnostic, resumeSessionId, exitCode: exit.code, signal: exit.signal, cancelled: Boolean(control.cancelled) };
+    return { sessionId: events.sessionId || resumeSessionId, finalReply, diagnostic: [events.runtimeError, diagnostic].filter(Boolean).join('\n'), resumeSessionId, exitCode: exit.code, signal: exit.signal, cancelled: Boolean(control.cancelled) };
   } finally {
     control.closed = true;
     if (control.forceTimer) clearTimeout(control.forceTimer);

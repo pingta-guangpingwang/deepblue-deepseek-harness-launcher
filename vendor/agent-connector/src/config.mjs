@@ -228,7 +228,8 @@ export async function loadConfigObject(raw, options = {}) {
   }
   const userHome = String(environment.USERPROFILE || environment.HOME || '').trim();
   const homeNames = { codex: '.codex', 'claude-code': '.claude', qclaw: '.qclaw', workbuddy: '.workbuddy', codebuddy: '.codebuddy', trae: '.trae-cn' };
-  const defaultRuntimeHome = path.join(userHome, homeNames[adapterCode] || `.${adapterCode}`);
+  const runtimeHomeEnv = { codex: environment.CODEX_HOME, 'claude-code': environment.CLAUDE_CONFIG_DIR, qclaw: environment.OPENCLAW_STATE_DIR }[adapterCode];
+  const defaultRuntimeHome = runtimeHomeEnv || path.join(userHome, homeNames[adapterCode] || `.${adapterCode}`);
   const runtimeHome = path.resolve(configDirectory, String(discoveryRaw.runtimeHome || defaultRuntimeHome));
 
   const stateFile = path.resolve(configDirectory, String(raw.stateFile || './.agent-connector-state.json'));

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft, Bot, CheckCircle2, CircleAlert, Folder, FolderPlu
 import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-workspace.css'
+import { LocalAgentWorkspace } from './LocalAgentWorkspace'
 
 // Existing DeepSeek operation-table design: device → native project/session → conversation.
 // The launcher is an authenticated view of website IDs, not a second conversation database.
@@ -82,7 +83,11 @@ function Empty({ title, children }: { title: string; children: React.ReactNode }
   return <div className="aw-empty"><MessageSquare size={27} aria-hidden="true" /><h3>{title}</h3><p>{children}</p></div>
 }
 
-export function AgentWorkspacePage({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
+export function AgentWorkspacePage(props: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
+  const [source, setSource] = useState<'local' | 'cloud'>('local')
+  return <div className="agent-workspace"><nav className="aw-toolbar" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : <CloudAgentWorkspace {...props} />}</div></div>
+}
+export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
   const api = window.launcher
   const supported = Boolean(api?.agentHostState && api.agentHostAction && api.agentWorkspaceRequest)
   const signedIn = snapshot.account.status === 'signed_in'
@@ -135,7 +140,7 @@ export function AgentWorkspacePage({ snapshot, onLogin }: { snapshot: LauncherSn
   }, [data?.tasks, acknowledgedTasks, projectId, sessionId])
   const timeline = useMemo(() => workspaceTimeline(history, visibleTasks), [history, visibleTasks])
   const timelineKey = JSON.stringify(timeline)
-  const runtimeOnline = ['online', 'working'].includes(data?.agent.status || '')
+  const runtimeOnline = selectedBinding ? selectedBinding.status === 'online' && ['ready', 'busy'].includes(selectedBinding.runtimeStatus) : ['online', 'working'].includes(data?.agent.status || '')
   const selectedAgentName = selectedBinding?.name || agents.find(agent => agent.id === agentId)?.name || '选择智能体'
   const activeCount = visibleTasks.filter(task => ACTIVE_TASKS.has(task.status)).length
 
@@ -269,7 +274,8 @@ export function AgentWorkspacePage({ snapshot, onLogin }: { snapshot: LauncherSn
     const current = { ...live.current }
     setBusy('refresh'); setError('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'request_sync', body: { agentId } })
+      if (selectedBinding) await window.launcher!.agentHostAction!({ action: 'refresh', agentId })
+      else await request({ scope: 'hub', method: 'POST', action: 'request_sync', body: { agentId } })
       if (sessionId) await request({ scope: 'hub', method: 'POST', action: 'request_session_history', body: { agentId, sessionId } })
       if (live.current.userId === current.userId && live.current.agentId === current.agentId) { setNotice('已通知本机同步，收到新的项目和会话后自动显示。'); setReload(value => value + 1) }
     } catch (cause) { if (live.current.userId === current.userId) setError(cause instanceof Error ? cause.message : '同步请求失败。') }

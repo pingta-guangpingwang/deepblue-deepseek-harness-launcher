@@ -3,8 +3,14 @@ import path from 'node:path';
 import { semanticSessionTitle, unwrapRemoteInstruction, visibleContentText } from './session-history.mjs';
 
 function pathKey(value) {
-  const resolved = path.resolve(String(value || ''));
+  const resolved = path.resolve(nativeProjectPath(value));
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+function nativeProjectPath(value) {
+  const text = String(value || '');
+  // Codex exec on Windows records extended-length paths; they identify the
+  // same project as the ordinary drive path used by the desktop application.
+  return process.platform === 'win32' ? text.replace(/^\\\\\?\\([A-Za-z]:\\)/, '$1') : text;
 }
 
 function cleanLabel(value, fallback = '未命名项目', maximum = 160) {
@@ -32,12 +38,15 @@ function isExcluded(candidate, exclusions) {
 
 async function authorizedDirectory(candidate, discovery, explicitPaths) {
   if (!candidate) return '';
-  const resolved = await realpath(path.resolve(candidate)).catch(() => '');
+  const resolved = nativeProjectPath(await realpath(path.resolve(nativeProjectPath(candidate))).catch(() => ''));
   if (!resolved) return '';
   const metadata = await stat(resolved).catch(() => null);
   if (!metadata?.isDirectory()) return '';
   if (explicitPaths.has(pathKey(resolved))) return resolved;
   if (isExcluded(resolved, discovery.excludePaths)) return '';
+  // Local-only metadata browsing is not remote execution authorization. This
+  // option is supplied only by the native observer, never by loadConfigObject.
+  if (discovery.localReadOnly === true && resolved !== path.parse(resolved).root) return resolved;
   return discovery.roots.some((root) => isInside(resolved, root, discovery.allowRootProjects)) ? resolved : '';
 }
 
@@ -113,7 +122,7 @@ function codexSourceKind(value) {
 
 function codexInteractiveSource(value) {
   const source = codexSourceKind(value);
-  return !source || ['vscode', 'cli', 'appserver', 'user'].includes(source);
+  return !source || ['vscode', 'cli', 'exec', 'appserver', 'user'].includes(source);
 }
 
 export function codexDatabaseThreadIsVisible(row = {}) {
@@ -133,7 +142,7 @@ function codexTopLevelSource(payload, firstUserMessage = '') {
   const source = payload?.source;
   if (!source || typeof source === 'object') return false;
   const sourceKind = String(source).trim().toLowerCase();
-  if (!['vscode', 'cli', 'user'].includes(sourceKind)) return false;
+  if (!['vscode', 'cli', 'exec', 'user'].includes(sourceKind)) return false;
   return !remoteManagedRuntimeText(firstUserMessage, payload?.serviceName, payload?.service_name);
 }
 
@@ -487,7 +496,7 @@ export async function discoverRuntimeCatalog(config, options = {}) {
     Promise.all(discovery.excludePaths.map((root) => realpath(root).catch(() => path.resolve(root)))),
     Promise.all(config.projects.map((project) => realpath(project.path).catch(() => path.resolve(project.path))))
   ]);
-  const normalizedConfig = { ...config, projectDiscovery: { ...discovery, roots, excludePaths } };
+  const normalizedConfig = { ...config, projectDiscovery: { ...discovery, roots, excludePaths, localReadOnly: options.localReadOnly === true } };
   const explicitPaths = new Set(explicitDirectories.map(pathKey));
   const projects = new Map();
   const sessions = new Map();

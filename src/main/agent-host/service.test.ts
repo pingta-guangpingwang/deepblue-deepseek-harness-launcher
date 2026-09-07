@@ -332,7 +332,7 @@ describe('Windows npm shim resolution', () => {
     await writeFile(path.join(root, 'codex.cmd'), 'not executed')
     await writeFile(path.join(packageRoot, 'package.json'), JSON.stringify({ name: '@openai/codex', bin: { codex: 'bin/codex.js' } }))
     await writeFile(path.join(packageRoot, 'bin', 'codex.js'), '// not executed')
-    vi.stubEnv('Path', root); vi.stubEnv('PATH', root)
+    vi.stubEnv('Path', root); vi.stubEnv('PATH', root); vi.stubEnv('USERPROFILE', root)
     const resolved = await resolveAgentLaunch('codex', process.execPath)
     expect(resolved?.executable).toBe(process.execPath)
     expect(resolved?.args).toEqual([await realpath(path.join(packageRoot, 'bin', 'codex.js'))])

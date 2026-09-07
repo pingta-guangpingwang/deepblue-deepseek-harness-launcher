@@ -86,6 +86,8 @@ if (syncVendor) {
 }
 await resetManagedDirectory('out/agent-host');
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/service.ts')], outfile: path.join(output, 'host-service.cjs'), bundle: true, platform: 'node', target: 'node22', format: 'cjs', external: ['electron'], sourcemap: false });
+await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-companion-entry.ts')], outfile: path.join(output, 'native-companion.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
+await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-task-runner.ts')], outfile: path.join(output, 'native-task-runner.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
 await cp(path.join(source, 'src'), path.join(output, 'connector'), { recursive: true });
 await cp(wsDirectory, path.join(output, 'node_modules/ws'), { recursive: true });
 await writeFile(path.join(output, 'SOURCE.json'), JSON.stringify({ source: upstream, sourcePath: 'packages/agent-connector', package: connector.name, connectorVersion: connector.version, sourceSha256, authorization: licenseNote, moduleProtocol: 1 }, null, 2));

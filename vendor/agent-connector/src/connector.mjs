@@ -206,7 +206,7 @@ export class AgentConnector {
     this.runtimeLease = String(this.state.pendingRuntimeLease || '') || randomBytes(32).toString('hex');
     this.state.pendingRuntimeLease = this.runtimeLease;
     await this.persist();
-    if (this.config.adapterCode === 'codex' && this.config.codexHost?.enabled) {
+    if (this.config.adapterCode === 'codex' && this.config.codexHost?.enabled && !process.env.SHENLAN_DESKTOP_RUNNER) {
       if (!this.codexHost) this.codexHost = new CodexAppServerHost(this.config, this.state, () => this.persist(), { logger: this.logger });
       await this.codexHost.start();
       await this.retireLegacyCodexSessions();
@@ -338,6 +338,7 @@ export class AgentConnector {
       };
     }
     await this.persist();
+    this.lastLocalCatalogAt = new Date().toISOString();
   }
 
   async sendSnapshot(commandId = '', options = {}) {
@@ -609,12 +610,13 @@ export class AgentConnector {
     }
     const sourceRuntimeSessionId = session && (session.runtimeSessionId || session.codexSessionId) || '';
     const usesCodexRouter = this.config.adapterCode === 'codex' && Boolean(this.codexHost);
+    const usesDesktopNative = this.config.adapterCode === 'codex' && Boolean(process.env.SHENLAN_DESKTOP_RUNNER) && Boolean(sourceRuntimeSessionId);
     const resumeSessionId = sourceRuntimeSessionId;
     const availability = await runtimeSessionAvailability(this.config.adapterCode, {
       resumeSessionId,
       runtimeHome: this.config.projectDiscovery?.runtimeHome || ''
     });
-    if (!availability.available) {
+    if (!availability.available && !usesDesktopNative) {
       await this.waitRunCommand(
         command,
         taskId,
@@ -624,7 +626,7 @@ export class AgentConnector {
       return;
     }
     const rawInstruction = String(payload.instruction || '').trim();
-    const control = { taskId, child: null, cancelled: false, closed: false };
+    const control = { taskId, child: null, cancelled: false, closed: false, desktopNative: usesDesktopNative };
     local._localStatus = 'running';
     local._retryAt = 0;
     await this.persist();
@@ -655,6 +657,7 @@ export class AgentConnector {
         await this.reportTaskEvent(taskId, 'running', progress.summary, progress.progressPercent).catch((error) => this.logger.error?.(`进度上报失败：${error.message}`));
       };
       const result = await runRuntimeTask(this.config.adapterCode, {
+        runtimeRequestId: `${this.state.installationId}:${taskId}`,
         executable: this.config.runtimeExecutable,
         executableArgs: this.config.runtimeExecutableArgs,
         project,
@@ -673,6 +676,10 @@ export class AgentConnector {
         onProgress
       });
 
+      if (result.desktopDelivery && result.exitCode !== 0) {
+        await this.markFinalPending(command, { status: 'failed', reply: result.diagnostic, summary: '桌面原对话未确认完成；不会自动重发', errorCode: 'desktop_result_unconfirmed', externalSessionId: sourceRuntimeSessionId || '' });
+        return;
+      }
       if (result.cancelled) {
         const cancelledSessionId = result.sessionId || resumeSessionId;
         if (cancelledSessionId) this.managedSessionSettledUntil.set(cancelledSessionId, Date.now() + MANAGED_SESSION_SETTLE_MS);
@@ -756,6 +763,11 @@ export class AgentConnector {
     const taskId = taskIdOf(command);
     const running = this.runningTasks.get(taskId);
     if (running) {
+      if (running.control.desktopNative) {
+        await this.reportTaskEvent(taskId, 'running', '桌面原对话仍在执行；当前需在 Codex 内停止，网页不会假报已经停止', null).catch(() => {});
+        await this.removeCommand(command.id);
+        return;
+      }
       terminateAgent(running.control, this.config.cancelGraceMs);
       const runCommand = this.findPendingCommand(running.commandId);
       if (runCommand) runCommand._cancelRequested = true;

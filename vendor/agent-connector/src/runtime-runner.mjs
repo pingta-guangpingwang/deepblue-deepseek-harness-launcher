@@ -1,4 +1,6 @@
 import { runCodexTask } from './codex-runner.mjs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { runCodexAppServerTask } from './codex-app-server.mjs';
 import { runClaudeTask } from './claude-runner.mjs';
 import { runCodeBuddyTask } from './codebuddy-runner.mjs';
@@ -89,6 +91,11 @@ export function buildRuntimeInstruction(adapterCode, { instruction, project, san
 }
 
 export function runRuntimeTask(adapterCode, options) {
+  if (adapterCode === 'codex' && options.resumeSessionId && process.env.SHENLAN_DESKTOP_RUNNER) {
+    const module = process.env.SHENLAN_DESKTOP_RUNNER;
+    if (!path.isAbsolute(module) || path.basename(module) !== 'native-task-runner.mjs') throw new Error('桌面桥接模块路径无效');
+    return import(pathToFileURL(module).href).then(runtime => runtime.runNativeDesktopTask(options));
+  }
   if (adapterCode === 'claude-code') return runClaudeTask(options);
   if (adapterCode === 'qclaw') return runQClawTask(options);
   if (adapterCode === 'workbuddy') return runWorkBuddyTask(options);

@@ -1,16 +1,19 @@
-import { safeStorage } from 'electron'
+import { safeStorage, dialog } from 'electron'
 import { fork, type ChildProcess, type ForkOptions } from 'node:child_process'
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import { hostname } from 'node:os'
-import { access, mkdir, open, readFile, rename, realpath, stat } from 'node:fs/promises'
+import { access, mkdir, open, readFile, readdir, rename, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
-import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest, LocalAgentBinding } from '../../shared/agent-host'
+import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest, LocalAgentBinding, LocalCatalog, LocalTask } from '../../shared/agent-host'
+import { desktopRelayRequest } from './desktop-relay'
+import { readLocalModels, mergeLocalModels, sameLocalPath } from './local-models'
 
 export const AGENT_HOST_PROTOCOL = 1
 type Reply = Record<string, unknown>
 interface Binding extends LocalAgentBinding { key: string; executable: string; executableArgs?: string[]; desiredRunning: boolean; pendingCloudBind?: boolean }
 interface CommandResult { agentId: string; status: 'completed' | 'failed'; message: string }
 interface SavedState {
+  desktopTasks?: LocalTask[]
   version: 1; installationId: string; ownerUserId: string; deviceId: string; deviceKey: string
   enabled: boolean; agents: Binding[]; commands: Record<string, CommandResult & { state: 'running' | 'done' }>
 }
@@ -52,6 +55,21 @@ function inside(root: string, file: string): boolean {
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
 }
 export async function resolveAgentLaunch(adapter: AgentAdapter, nodePath: string): Promise<{ executable: string; args: string[] } | undefined> {
+  if (adapter === 'codex' && process.platform === 'win32' && process.env.USERPROFILE) {
+    // The desktop updater owns this bounded directory. Prefer its matching CLI
+    // over a stale npm shim that cannot read the desktop's newer model cache.
+    const desktopRoot = path.join(process.env.USERPROFILE, 'AppData/Local/OpenAI/Codex/bin')
+    const versions = await readdir(desktopRoot, { withFileTypes: true }).catch(() => [])
+    const candidates = await Promise.all(versions.filter(entry => entry.isDirectory() && /^[a-f0-9]{16,64}$/i.test(entry.name)).slice(0, 20).map(async entry => {
+      const file = path.join(desktopRoot, entry.name, 'codex.exe')
+      const resolved = await realpath(file).catch(() => '')
+      if (!resolved || !inside(desktopRoot, resolved)) return undefined
+      const info = await stat(resolved).catch(() => undefined)
+      return info?.isFile() ? { file: resolved, modified: info.mtimeMs } : undefined
+    }))
+    const latest = candidates.filter((candidate): candidate is { file: string; modified: number } => Boolean(candidate)).sort((a,b) => b.modified - a.modified)[0]
+    if (latest) return { executable: latest.file, args: [] }
+  }
   const executable = await discoverExecutable(ADAPTERS[adapter].command)
   if (!executable) return
   if (!/\.(cmd|bat)$/i.test(executable)) return { executable, args: [] }
@@ -88,6 +106,10 @@ export class AgentHostService {
   private boundAgentIds = new Set<string>()
   private leaseRequest?: Promise<Reply>
   private starting = new Map<string, Promise<void>>()
+  private observer?: ChildProcess
+  private localChildren = new Map<string, ChildProcess>()
+  private localFiles = new Map<string, { path: string; name: string; byteSize: number; mediaKind: string }>()
+  private observerPending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>()
   constructor(private readonly options: AgentHostOptions) {}
 
   async initialize(): Promise<void> {
@@ -102,6 +124,7 @@ export class AgentHostService {
         const saved = JSON.parse(safeStorage.decryptString(bytes)) as SavedState
         if (saved.version !== 1 || !Array.isArray(saved.agents) || !saved.installationId) throw new Error('设备状态格式不兼容')
         this.saved = saved
+        this.state.localTasks = Array.isArray(saved.desktopTasks) ? saved.desktopTasks.slice(-50) : []
         this.lastGoodCipher = bytes
         for (const agent of this.saved.agents) { agent.status = 'stopped'; agent.busy = false; agent.runtimeStatus = 'unknown' }
         for (const value of Object.values(this.saved.commands)) {
@@ -123,8 +146,8 @@ export class AgentHostService {
       ownerUserId: sameOwner ? this.saved.ownerUserId : undefined,
       agents: sameOwner ? this.saved.agents.map(({ key: _key, executable: _exe, executableArgs: _args, desiredRunning: _desired, pendingCloudBind: _pending, ...publicBinding }) => publicBinding) : [] })
   }
-  isActive(): boolean { return !this.disposed && (this.saved.enabled || this.children.size > 0) }
-  isBusy(): boolean { return this.saved.agents.some((agent) => agent.busy) }
+  isActive(): boolean { return !this.disposed && (this.saved.enabled || this.children.size > 0 || this.localChildren.size > 0) }
+  isBusy(): boolean { return this.saved.agents.some((agent) => agent.busy) || this.localChildren.size > 0 }
   async suspendForSignOut(): Promise<void> {
     this.saved.enabled = false
     this.leaseValidUntil = 0
@@ -172,6 +195,49 @@ export class AgentHostService {
   }
   private async perform(input: AgentHostAction): Promise<AgentHostSnapshot> {
     if (!input || typeof input.action !== 'string') throw new Error('托管操作无效')
+    if (input.action === 'choose_local_files') {
+      const result = await dialog.showOpenDialog({ title: '交给本机智能体的文件（不会上传网站）', properties: ['openFile', 'multiSelections'] })
+      if (result.canceled) return this.snapshot()
+      this.localFiles.clear()
+      for (const file of result.filePaths) {
+        const actual = await realpath(file), metadata = await stat(actual)
+        if (!metadata.isFile()) continue
+        const extension = path.extname(actual).toLowerCase()
+        const mediaKind = /\.(png|jpg|jpeg|webp|gif)$/.test(extension) ? 'image' : /\.(mp3|wav|m4a|ogg)$/.test(extension) ? 'audio' : /\.(mp4|mov|webm|mkv)$/.test(extension) ? 'video' : 'file'
+        this.localFiles.set(randomUUID(), { path: actual, name: path.basename(actual), byteSize: metadata.size, mediaKind })
+      }
+      this.state.localFiles = [...this.localFiles].map(([id, { path: _path, ...file }]) => ({ id, ...file }))
+      return this.snapshot()
+    }
+    if (input.action === 'send_local') { await this.sendLocal(input); return this.snapshot() }
+    if (input.action === 'refresh_local_models') {
+      const models = await readLocalModels().catch(() => undefined)
+      if (!models) throw new Error('本机模型目录暂时不可读，请先在 Codex 打开模型选择后重试；保留当前列表')
+      if (this.state.localCatalog) this.state.localCatalog.models = mergeLocalModels(this.state.localCatalog.models || [], models)
+      this.changed(); return this.snapshot()
+    }
+    if (input.action === 'cancel_local') { this.localChildren.get(input.taskId)?.send({ type: 'cancel' }); return this.snapshot() }
+    if (input.action === 'scan_local') {
+      const previousModels = this.state.localCatalog?.models || []
+      this.state.localCatalog = await this.observe({ type: 'scan' }) as LocalCatalog
+      this.state.localCatalog.models = mergeLocalModels(previousModels, this.state.localCatalog.models || [])
+      this.state.desktopRelay = await desktopRelayRequest({ action: 'status' }).then(reply => ({ ready: reply.ready === true, message: reply.ready ? 'Codex 桌面直连已就绪' : '请重新启动 Codex，使桌面桥接生效' })).catch(error => ({ ready: false, message: errorText(error) }))
+      this.changed()
+      return this.snapshot()
+    }
+    if (input.action === 'read_local_history') {
+      const selectedSessionId = input.sessionId
+      this.state.localHistory = await this.observe({ type: 'history', sessionId: input.sessionId }) as AgentHostSnapshot['localHistory']
+      const session = this.state.localCatalog?.sessions.find(item => item.id === selectedSessionId)
+      if (session?.adapter === 'codex' && this.state.desktopRelay?.ready) {
+        const reply = await desktopRelayRequest({ action: 'read', targetThreadId: session.runtimeSessionId }).catch(() => undefined)
+        const current = (reply?.result?.thread as { model?: string } | undefined)?.model
+        if (current && /^[a-zA-Z0-9._:/-]{1,120}$/.test(current) && this.state.localCatalog) this.state.localCatalog.models = mergeLocalModels(this.state.localCatalog.models || [], [{ id: current, name: current, adapter: 'codex' }])
+      }
+      await this.refreshDesktopTasks(input.sessionId)
+      return this.snapshot()
+    }
+    let observedRoot: string | undefined
     if (input.action === 'discover') {
       this.state.discovered = await Promise.all((Object.keys(ADAPTERS) as AgentAdapter[]).map(async (adapter) => {
         const found = await resolveAgentLaunch(adapter, this.options.nodePath)
@@ -182,6 +248,29 @@ export class AgentHostService {
     const owner = this.options.ownerId()
     if (!owner) throw new Error('请先登录 AI历史书账号，再绑定这台电脑')
     if (this.saved.ownerUserId && owner !== this.saved.ownerUserId) throw new Error('这台电脑绑定了另一账号，请切回原账号解除绑定后重试')
+    if (input.action === 'bind_local_project') {
+      const projectId = input.projectId
+      const project = this.state.localCatalog?.projects.find(item => item.id === projectId)
+      if (!project) throw new Error('请先刷新本机项目，再选择需要同步的目录')
+      observedRoot = await realpath(project.path)
+      if (!safeProjectRoot(observedRoot)) throw new Error('不能托管磁盘根目录')
+      if (!this.saved.deviceId) await this.perform({ action: 'bind_device' })
+      const existing = this.saved.agents.find(agent => agent.adapter === project.adapter)
+      if (existing) {
+        if (existing.busy) throw new Error('智能体正在运行任务，请完成后添加同步项目')
+        if (!existing.projectRoots.some(root => root.toLowerCase() === observedRoot!.toLowerCase())) {
+          if (existing.projectRoots.length >= 60) throw new Error('最多授权 60 个项目')
+          existing.projectRoots.push(observedRoot)
+          await this.persist()
+          if (this.children.has(existing.id)) await this.stopAgent(existing)
+        }
+        existing.desiredRunning = true
+        await this.startAgent(existing)
+        await this.persist()
+        return this.snapshot()
+      }
+      input = { action: 'add_agent', adapter: project.adapter, name: ADAPTERS[project.adapter].name }
+    }
     if (input.action === 'bind_device') {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('本机系统加密暂不可用，不能安全保存设备绑定')
       if (!this.saved.deviceId) {
@@ -226,7 +315,7 @@ export class AgentHostService {
       if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
       const launch = await resolveAgentLaunch(input.adapter, this.options.nodePath)
       if (!launch) throw new Error('没有找到可直接运行的智能体。请安装官方原生程序或官方 npm 包；不支持任意 cmd/bat 启动脚本')
-      const root = await this.chooseProject()
+      const root = observedRoot || await this.chooseProject()
       if (!root) return this.snapshot()
       this.assertOwner(owner)
       const result = await this.options.request({ scope: 'hub', method: 'POST', action: 'add_agent', body: { adapterCode: input.adapter, displayName: (input.name || ADAPTERS[input.adapter].name).slice(0, 80) } })
@@ -253,6 +342,8 @@ export class AgentHostService {
           binding.projectRoots.push(root)
           if (this.children.has(binding.id)) { await this.stopAgent(binding); await this.startAgent(binding) }
         }
+      } else if (input.action === 'refresh') {
+        await this.refreshAgent(binding)
       } else if (input.action === 'remove_agent') {
         await this.options.request({ scope: 'devices', method: 'POST', action: 'unbind', body: { deviceId: this.saved.deviceId, agentId: binding.id } })
         await this.stopAgent(binding)
@@ -275,6 +366,128 @@ export class AgentHostService {
     const root = await realpath(selected)
     if (!safeProjectRoot(root) || !await stat(root).then((row) => row.isDirectory())) throw new Error('请选择具体项目文件夹，不能授权整个磁盘')
     return root
+  }
+  private observe(message: Reply): Promise<unknown> {
+    if (!this.observer?.connected) {
+      const child = fork(path.join(this.options.moduleDir, 'connector/local-observer.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } } as ForkOptions)
+      this.observer = child
+      const fail = (): void => { if (this.observer === child) this.observer = undefined; for (const pending of this.observerPending.values()) { clearTimeout(pending.timer); pending.reject(new Error('本机读取服务已退出，请重新刷新')) }; this.observerPending.clear() }
+      child.on('error', fail); child.on('exit', fail)
+      child.on('message', (raw: unknown) => {
+        const reply = raw as Reply
+        const requestId = String(reply?.requestId || '')
+        const pending = this.observerPending.get(requestId)
+        if (!pending) return
+        clearTimeout(pending.timer); this.observerPending.delete(requestId)
+        if (reply.error) pending.reject(new Error(errorText(reply.error))); else pending.resolve(reply.result)
+      })
+    }
+    return new Promise((resolve, reject) => {
+      const requestId = randomUUID()
+      const timer = setTimeout(() => { this.observerPending.delete(requestId); reject(new Error('本机目录读取超时，保留上次结果，请重试')) }, 60000)
+      this.observerPending.set(requestId, { resolve, reject, timer })
+      this.observer!.send({ ...message, requestId }, error => { if (error) { clearTimeout(timer); this.observerPending.delete(requestId); reject(new Error('本机读取连接已中断，请重试')) } })
+    })
+  }
+  private async sendLocal(input: Extract<AgentHostAction, { action: 'send_local' }>): Promise<void> {
+    if (!/^[a-f0-9-]{36}$/i.test(input.requestId)) throw new Error('本机任务请求编号无效')
+    if (this.state.localTasks?.some(task => task.requestId === input.requestId)) return
+    const project = this.state.localCatalog?.projects.find(item => item.id === input.projectId)
+    if (!project) throw new Error('请刷新并选择本机项目')
+    if (!['codex', 'claude-code'].includes(project.adapter)) throw new Error('此智能体暂未接通本机直接发送，请使用原生界面')
+    const session = input.sessionId ? this.state.localCatalog?.sessions.find(item => item.id === input.sessionId && item.projectId === project.id) : undefined
+    if (input.sessionId && !session) throw new Error('会话不属于所选本机项目')
+    if (this.state.localTasks?.some(task => ['running', 'delivered'].includes(task.status) && task.projectId === project.id && (task.sessionId || '') === (input.sessionId || ''))) throw new Error('此对话已有任务运行或等待桌面处理，请等待完成后发送')
+    const instruction = String(input.instruction || '').trim()
+    if (!instruction || instruction.length > 12000) throw new Error('请输入任务内容，单次内容请保持在 12000 字符以内；长资料请添加文件')
+    if (input.model && !this.state.localCatalog?.models?.some(model => model.adapter === project.adapter && model.id === input.model)) throw new Error('所选模型不在本机智能体目录中，请刷新或使用默认模型')
+    const root = await realpath(project.path)
+    if (!safeProjectRoot(root)) throw new Error('请选择具体项目目录')
+    const files = (input.fileIds || []).map(id => { const file = this.localFiles.get(id); if (!file) throw new Error('附件选择已失效，请重新选择'); return file })
+    if (project.adapter === 'codex' && session) {
+      const status = await desktopRelayRequest({ action: 'status' })
+      if (!status.ready) throw new Error('桌面直连未就绪，草稿已保留。请重新启动 Codex 后刷新本机；不会另开 CLI 或新建替代对话')
+      const before = await desktopRelayRequest({ action: 'read', targetThreadId: session.runtimeSessionId })
+      const native = before.result as { thread?: { id?: string; cwd?: string }; turns?: Array<{ id: string; items?: Array<{ id?: string }> }> } | undefined
+      const nativeRoot = native?.thread?.cwd ? await realpath(native.thread.cwd).catch(() => '') : ''
+      if (!before.ok || native?.thread?.id !== session.runtimeSessionId || !sameLocalPath(nativeRoot, root)) throw new Error('原对话与本机项目映射未通过校验，草稿已保留，请刷新目录')
+      const prompt = instruction + (files.length ? '\n\n用户为此任务选择的本机附件（只在本机读取）：\n' + files.map(file => JSON.stringify(file.path)).join('\n') : '')
+      const task: LocalTask = { id: randomUUID(), requestId: input.requestId, projectId: project.id, sessionId: input.sessionId, status: 'running', backend: 'desktop', instruction, deliveryPrompt: prompt, baselineTurnId: native.turns?.[0]?.id, summary: '正在发送到桌面原对话', startedAt: new Date().toISOString() }
+      task.baselineItemIds = native.turns?.flatMap(turn => (turn.items || []).map(item => item.id).filter((id): id is string => !!id)) || []
+      this.state.localTasks = [...(this.state.localTasks || []).slice(-49), task]; this.changed()
+      await this.persistDesktopTasks()
+      try {
+        const reply = await desktopRelayRequest({ action: 'send', requestId: input.requestId, targetThreadId: session.runtimeSessionId, message: prompt, model: input.model || '', baselineTurnId: task.baselineTurnId })
+        task.status = reply.status || 'unconfirmed'
+        task.summary = reply.status === 'delivered' ? '已送达桌面原对话，等待执行状态同步' : reply.error || '发送结果未确认，请检查原对话，不要重复发送'
+      } catch (error) { task.status = 'unconfirmed'; task.summary = errorText(error) }
+      await this.persistDesktopTasks(); this.changed(); return
+    }
+    const launch = await resolveAgentLaunch(project.adapter, this.options.nodePath)
+    if (!launch) throw new Error('没有检测到该智能体的本机命令，请先安装并登录原生智能体')
+    const id = randomUUID()
+    const task = { id, requestId: input.requestId, projectId: project.id, sessionId: input.sessionId, status: 'running' as const, instruction, summary: '正在启动本机智能体', startedAt: new Date().toISOString() }
+    this.state.localTasks = [...(this.state.localTasks || []).slice(-49), task]
+    const child = fork(path.join(this.options.moduleDir, 'connector/local-runner.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } } as ForkOptions)
+    this.localChildren.set(id, child)
+    const update = (values: Reply): void => { Object.assign(task, values); this.changed() }
+    child.on('message', (raw: unknown) => {
+      const message = raw as Reply
+      if (message?.type === 'progress') update({ summary: String((message.progress as Reply)?.summary || '本机执行中') })
+      if (message?.type === 'result') {
+        const result = message.result as Reply
+        const diagnostic = String(result.diagnostic || '')
+        const failure = /active writer|thread-store conflict/i.test(diagnostic) ? '该会话被桌面 Codex 占用，消息未发送。请复制下面的原任务在桌面窗口继续；启动器不会抢锁或自动重发。' : errorText(diagnostic || '智能体执行失败，请检查原生登录与权限')
+        update({ status: result.cancelled ? 'cancelled' : result.exitCode === 0 ? 'completed' : 'failed', reply: String(result.finalReply || ''), summary: result.exitCode === 0 ? '本机任务完成' : failure })
+      }
+    })
+    child.on('error', error => update({ status: 'failed', summary: errorText(error) }))
+    child.on('exit', () => { this.localChildren.delete(id); if (task.status === 'running') update({ status: 'failed', summary: '本机进程退出，未收到完成确认；不会自动重复执行' }); this.changed() })
+    child.send({ type: 'start', adapter: project.adapter, project: { path: root }, executable: launch.executable, executableArgs: launch.args, outputDirectory: path.join(this.options.storageDir, 'local-tasks', id), instruction, resumeSessionId: session?.runtimeSessionId || '', files, model: input.model || '' })
+  }
+  private async refreshDesktopTasks(sessionId: string): Promise<void> {
+    const pending = this.state.localTasks?.filter(task => task.backend === 'desktop' && task.sessionId === sessionId && ['running', 'delivered', 'unconfirmed'].includes(task.status)) || []
+    if (!pending.length) return
+    const session = this.state.localCatalog?.sessions.find(item => item.id === sessionId)
+    if (!session) return
+    try {
+      const reply = await desktopRelayRequest({ action: 'read', targetThreadId: session.runtimeSessionId })
+      const native = reply.result as { turns?: Array<{ id: string; status: string; items?: Array<{ id?: string; type: string; text?: string; phase?: string; content?: Array<{ text?: string }> }> }> } | undefined
+      if (!reply.ok) return
+      for (const task of pending) {
+        const turn = native?.turns?.find(turn => task.deliveryTurnId ? turn.id === task.deliveryTurnId : turn.items?.some(item => item.type === 'userMessage' && (!item.id || !task.baselineItemIds?.includes(item.id)) && item.content?.map(part => part.text || '').join('\n') === task.deliveryPrompt))
+        if (!turn) continue
+        task.deliveryTurnId = turn.id
+        if (turn.status === 'completed') {
+          task.status = 'completed'; task.summary = '桌面原对话任务已完成'
+          task.reply = turn.items?.filter(item => item.type === 'agentMessage' && item.phase === 'final_answer').map(item => item.text).join('\n')
+        } else if (turn.status === 'failed' || turn.status === 'interrupted') { task.status = 'failed'; task.summary = '桌面原对话执行失败或已中断，请查看原对话' }
+        else { task.status = 'running'; task.summary = '桌面原对话正在执行；需要审批时请在 Codex 处理' }
+      }
+      await this.persistDesktopTasks()
+    } catch { /* Read failures do not imply send failures and never trigger resend. */ }
+  }
+  private async persistDesktopTasks(): Promise<void> {
+    this.saved.desktopTasks = this.state.localTasks?.filter(task => task.backend === 'desktop').slice(-50)
+    await this.persist()
+  }
+  private async refreshAgent(binding: Binding): Promise<void> {
+    this.assertMayStart(binding)
+    const child = this.children.get(binding.id)
+    if (!child?.connected) throw new Error('本机同步进程尚未启动，请先启动智能体')
+    const requestId = randomUUID()
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => { clearTimeout(timer); child.off('message', onMessage); child.off('exit', onExit) }
+      const onExit = (): void => { cleanup(); reject(new Error('同步进程已退出')) }
+      const onMessage = (raw: unknown): void => {
+        const reply = raw as Reply
+        if (reply?.type !== 'refresh_result' || reply.requestId !== requestId) return
+        cleanup(); reply.error ? reject(new Error(errorText(reply.error))) : resolve()
+      }
+      const timer = setTimeout(() => { cleanup(); reject(new Error('本机同步尚未确认，请稍后检查同步时间，不要重复提交任务')) }, 45000)
+      child.on('message', onMessage); child.once('exit', onExit)
+      child.send({ type: 'refresh', requestId }, error => { if (error) { cleanup(); reject(new Error('无法通知本机同步进程')) } })
+    })
   }
   private async startAgent(binding: Binding): Promise<void> {
     const existing = this.starting.get(binding.id)
@@ -319,7 +532,7 @@ export class AgentHostService {
     binding.status = 'starting'; binding.message = '正在连接本地智能体与网站'
     const epoch = (this.childEpoch.get(binding.id) || 0) + 1
     this.childEpoch.set(binding.id, epoch)
-    const environment = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+    const environment = { ...process.env, ELECTRON_RUN_AS_NODE: '1', SHENLAN_DESKTOP_RUNNER: path.join(this.options.moduleDir, 'native-task-runner.mjs') }
     delete (environment as NodeJS.ProcessEnv).SHENLAN_AGENT_INTERACTION_KEY
     let child: ChildProcess
     try { child = fork(entry, [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true, env: environment, cwd: this.options.storageDir } as ForkOptions & { windowsHide: boolean }) }
@@ -331,8 +544,10 @@ export class AgentHostService {
       const data = message as Reply
       if (data.type !== 'status') return
       binding.busy = Number(data.runningTasks || 0) > 0 || data.phase === 'busy'
-      binding.status = data.phase === 'failed' ? 'failed' : data.phase === 'stopped' ? 'stopped' : data.phase === 'starting' ? 'starting' : data.connected === true ? 'online' : 'reconnecting'
-      binding.runtimeStatus = binding.busy ? 'busy' : data.runtimeReady === true ? 'ready' : data.phase === 'failed' ? 'error' : 'unknown'
+      binding.status = data.phase === 'failed' ? 'failed' : data.phase === 'stopped' ? 'stopped' : data.phase === 'starting' ? 'starting' : data.runtimeReady === false ? 'failed' : data.connected === true ? 'online' : 'reconnecting'
+      binding.runtimeStatus = binding.busy ? 'busy' : data.runtimeReady === true ? 'ready' : data.phase === 'failed' || data.runtimeReady === false ? 'error' : 'unknown'
+      binding.lastCatalogAt = typeof data.lastCatalogAt === 'string' ? data.lastCatalogAt : binding.lastCatalogAt
+      binding.lastSyncedAt = typeof data.lastSyncedAt === 'string' ? data.lastSyncedAt : binding.lastSyncedAt
       binding.message = data.error ? errorText(data.error) : undefined
       this.changed()
     })
@@ -514,7 +729,7 @@ export class AgentHostService {
         if (command.command === 'stop') binding.desiredRunning = false
         if (command.command === 'stop' || command.command === 'restart') await this.stopAgent(binding)
         if (command.command === 'start' || command.command === 'restart') await this.startAgent(binding)
-        if (command.command === 'refresh') { const child = this.children.get(binding.id); if (child?.connected) child.send({ type: 'status' }, () => {}) }
+        if (command.command === 'refresh') await this.refreshAgent(binding)
         result.status = 'completed'; result.message = command.command === 'start' || command.command === 'restart' ? '启动请求已交给本机，连接就绪状态以智能体心跳为准' : '本机操作已完成'
       } catch (error) { result.message = errorText(error) }
       result.state = 'done'
@@ -527,6 +742,7 @@ export class AgentHostService {
   async dispose(): Promise<void> {
     if (this.isBusy() || this.starting.size) throw new Error('智能体正在执行任务或启动中，请等空闲后切换托管模块')
     this.disposed = true
+    this.observer?.disconnect()
     if (this.timer) clearTimeout(this.timer)
     await this.stopAll()
     await this.saveQueue

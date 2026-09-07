@@ -101,6 +101,20 @@ async function readTail(filePath, maximumBytes = MAX_HISTORY_BYTES) {
 function codexVisibleMessage(event, sequence) {
   if (event?.type !== 'event_msg' || !event.payload || typeof event.payload !== 'object') return null;
   const type = String(event.payload.type || '');
+  if (type === 'item_completed') {
+    const item = event.payload.item;
+    if (item?.type === 'FunctionCallOutput' && item.namespace === 'codex_app' && item.name === 'send_message_to_thread') {
+      const input = /^<codex_delegation>[\s\S]*?<input>([\s\S]*)<\/input>\s*<\/codex_delegation>\s*$/.exec(String(item.output || ''))?.[1];
+      return input ? visibleMessage('codex', 'user', input, safeTime(event.timestamp), sequence) : null;
+    }
+    if (!item || !['UserMessage', 'AgentMessage'].includes(item.type)) return null;
+    if (item.type === 'AgentMessage' && item.phase !== 'final_answer') return null;
+    const content = (Array.isArray(item.content) ? item.content : [])
+      .filter(block => ['text', 'Text'].includes(block?.type) && typeof block.text === 'string')
+      .map(block => block.text).join('\n\n');
+    return visibleMessage('codex', item.type === 'UserMessage' ? 'user' : 'assistant', content,
+      safeTime(event.timestamp), sequence);
+  }
   if (type !== 'user_message' && type !== 'agent_message') return null;
   if (type === 'agent_message' && event.payload.phase && event.payload.phase !== 'final_answer') return null;
   const role = type === 'user_message' ? 'user' : 'assistant';

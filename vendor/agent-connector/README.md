@@ -10,4 +10,5 @@ This source snapshot is copied mechanically after connector tests; do not mainta
 Standalone build: run `npm ci` at the launcher repository root, then `npm run agent-host:build`.
 Update: set `AILISHISHU_CONNECTOR_SOURCE` to the reviewed upstream package and run `node scripts/build-agent-host-module.mjs --vendor-from-source`.
 
-Each generated module's `SOURCE.json` records the exact source SHA-256 (src plus package.json), package version and upstream location.
+Snapshot package: @shenlan/agent-connector@0.10.5
+Source SHA-256 (src plus package.json): 795e0af26c73b53a4e92166b5f6e85349d09ddd0b3b14e6d3ba7ab3feeabc02f

@@ -53,6 +53,8 @@ export class HostChildController {
       pendingCommands: pending.filter((command) => !['running', 'final_pending'].includes(command._localStatus)).length,
       // A responsive website endpoint is not proof that every CLI is logged in.
       runtimeReady: ['stopped', 'failed'].includes(phase) ? false : this.runtimeReady,
+      lastCatalogAt: this.connector?.lastLocalCatalogAt || null,
+      lastSyncedAt: this.connector?.lastCatalogSyncAt ? new Date(this.connector.lastCatalogSyncAt).toISOString() : null,
       ...(this.error ? { error: this.error } : {})
     };
     const serialized = JSON.stringify(message);
@@ -68,6 +70,15 @@ export class HostChildController {
       finally { this.lastHealthAt = this.now(); this.healthBusy = false; }
     }
     this.emitStatus();
+  }
+  async refresh(requestId) {
+    try {
+      if (this.phase !== 'ready' || !this.connector) throw new Error('本机同步服务尚未就绪');
+      await this.connector.sendSnapshot('', { onlyIfChanged: true });
+      await this.connector.heartbeat({ synchronizeIfActivated: false });
+      this.emitStatus(true);
+      this.send({ type: 'refresh_result', requestId });
+    } catch (error) { this.send({ type: 'refresh_result', requestId, error: this.redact(error.message) }); }
   }
 
   async start(message) {
@@ -113,7 +124,7 @@ export class HostChildController {
     const logger = Object.fromEntries(['info', 'warn', 'error'].map((level) => [level, (value) => this.send({ type: 'log', instanceId: this.instanceId, level, message: this.redact(value) })]));
     this.connector = this.createConnector(config, { api, logger });
     await this.connector.start();
-    this.runtimeReady = config.adapterCode === 'codex' && this.connector.codexHost ? true : null;
+    this.runtimeReady = this.connector.codexHost?.isReady ? await this.connector.codexHost.isReady() : null;
     this.phase = this.stopRequested ? 'stopping' : 'ready';
     this.emitStatus(true);
   }
@@ -160,6 +171,7 @@ export function runHostChild() {
     if (!message || typeof message !== 'object') return;
     if (message.type === 'start') void host.start(message).catch((error) => { send({ type: 'log', level: 'error', message: host.redact(error.message) }); clearInterval(interval); process.exitCode = 1; if (process.connected) process.disconnect(); });
     else if (message.type === 'status') host.emitStatus(true);
+    else if (message.type === 'refresh') void host.refresh(message.requestId);
     else if (message.type === 'stop') void exit(message.force === true);
   });
   process.once('disconnect', () => { void exit(true); });
