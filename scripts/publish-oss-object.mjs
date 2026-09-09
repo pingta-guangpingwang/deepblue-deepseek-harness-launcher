@@ -158,6 +158,9 @@ if (objectKey === 'release-v2/launcher-manifest.json') {
     console.log(JSON.stringify({ objectKey, bytes: bytes.length, sha256, publicUrl: productionManifestUrl, anonymousVerified: true, alreadyPublished: true }))
     process.exit(0)
   }
+  const candidateGeneratedAt = Date.parse(candidate.payload.generatedAt)
+  const currentGeneratedAt = Date.parse(current.payload.generatedAt)
+  if (!Number.isFinite(candidateGeneratedAt) || !Number.isFinite(currentGeneratedAt) || candidateGeneratedAt <= currentGeneratedAt) throw new Error('Candidate production manifest timestamp does not advance beyond the live catalog')
   const currentHost = current.payload.runtimeModules.find((module) => module.id === 'agent-host')
   if (currentHost?.version !== expectedAgentHostVersion) throw new Error('Current production Agent Host no longer matches the pinned release baseline')
   if (JSON.stringify(candidate.payload.launcher) !== JSON.stringify(current.payload.launcher)) throw new Error('Candidate manifest changes the public launcher')

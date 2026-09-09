@@ -119,6 +119,9 @@ const replacementHost = structuredClone(generatedHost)
 replacementHost.artifacts[0].mirrors = mirrors
 const payload = structuredClone(onlineManifest.payload)
 payload.generatedAt = new Date().toISOString()
+const nextGeneratedAt = Date.parse(payload.generatedAt)
+const currentGeneratedAt = Date.parse(onlineManifest.payload.generatedAt)
+if (!Number.isFinite(nextGeneratedAt) || !Number.isFinite(currentGeneratedAt) || nextGeneratedAt <= currentGeneratedAt) throw new Error('Prepared payload timestamp must advance beyond the live catalog')
 payload.runtimeModules = payload.runtimeModules.map((module) => module.id === 'agent-host' ? replacementHost : module)
 if (!validateRuntimeModules(payload.runtimeModules)) throw new Error('Prepared payload fails Launcher-equivalent runtime graph validation')
 
