@@ -120,6 +120,7 @@
 .arm-session-state svg { flex: 0 0 auto; margin-top: 1px; }
 .arm-member-drawer > footer { flex: 0 0 auto; padding: 11px 14px; border-top: 1px solid var(--border); }
 .arm-delete-confirm { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 14px; border-top: 1px solid var(--border); background: var(--red-soft); }
+.arm-delete-confirm > strong { width: 100%; color: var(--arm-danger-ink); font-size: 11px; }
 .arm-delete-confirm p { width: 100%; margin: 0; font-size: 11px; line-height: 1.55; }
 .arm-mobile-nav, .arm-mobile-room-picker { display: none; }
 .arm-editor { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font-family: inherit; }
@@ -136,6 +137,8 @@
 .arm-room-name { max-width: 520px; }
 .arm-editor-heading { justify-content: space-between; margin-top: 22px; }
 .arm-editor-heading > div { min-width: 0; }
+.arm-editor-add { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.arm-editor-add > span { max-width: 230px; color: var(--text-secondary); font-size: 10px; line-height: 1.4; text-align: right; }
 .arm-editor h3 { font-size: 14px; }
 .arm-member-editors { margin-top: 8px; }
 .arm-member-editor { margin: 0; padding: 14px 0; border: 0; border-top: 1px solid var(--border); }
@@ -202,6 +205,7 @@
   .arm-editor > form { max-height: calc(100dvh - 18px); }
   .arm-editor > form > header, .arm-editor-body, .arm-editor > form > footer { padding-left: 12px; padding-right: 12px; }
   .arm-member-editor-title { align-items: stretch; flex-wrap: wrap; }
+  .arm-editor-add { align-items: flex-end; flex-direction: column-reverse; }
   .arm-member-editor-title > label { flex: 1 1 150px !important; }
   .arm-member-binding { grid-template-columns: 1fr; }
   .arm-editor .small-button, .arm-editor .primary-button, .arm-editor .aw-icon-button { min-height: 44px; }

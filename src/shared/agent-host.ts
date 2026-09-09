@@ -57,6 +57,7 @@ export type AgentHostAction =
   | { action: 'start' | 'stop' | 'restart' | 'remove_agent' | 'add_project' | 'refresh'; agentId: string }
 
 export type AgentRoomAccess = 'workspace_write'
+export type AgentRoomApprovalPolicy = 'bounded_run'
 export type AgentRoomRunStatus = 'queued' | 'running' | 'awaiting_approval' | 'unknown' | 'completed' | 'failed' | 'cancel_requested' | 'cancelled'
 export type AgentRoomSessionState = 'pending' | 'ready' | 'broken'
 export type AgentRoomMessageSegment =
@@ -64,11 +65,13 @@ export type AgentRoomMessageSegment =
   | { type: 'mention'; memberId: string }
 
 export interface AgentRoomSummary {
+  contractVersion: 2
   id: string
   name: string
   coordinatorMemberId: string
   maxSteps: number
   defaultAccess: AgentRoomAccess
+  approvalPolicy: AgentRoomApprovalPolicy
   definitionRevision: string | number
   stateRevision: string | number
   status: string
@@ -122,6 +125,7 @@ export interface AgentRoomRun {
   targetMemberIds: string[]
   definitionRevision: string | number
   maxSteps: number
+  approvalPolicy: AgentRoomApprovalPolicy
   status: AgentRoomRunStatus | string
   stepCount: number
   access: AgentRoomAccess

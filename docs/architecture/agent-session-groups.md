@@ -27,11 +27,11 @@
 
 基础启动器继续通过 `agentWorkspaceRequest` 访问统一 Bearer 鉴权的 Agent Hub。仅使用新命名空间，不降级调用 `group_*`：
 
-- `GET room_list`：返回 `{contractVersion:2, rooms, candidates:{agents,projects,truncated,limits}}`。
-- `GET room_detail`：查询参数为 `roomId`，以及可选的 `afterRevision`、`afterMessageSeq`、`beforeMessageSeq`。`detailRevision` 是 64 位十六进制哈希；房间 `definitionRevision/stateRevision` 是数字。
+- `GET room_list`：返回 `{contractVersion:2, rooms, candidates:{agents,projects,truncated,limits:{candidateAgents,projects,maxMembers}}}`。成员上限只用于禁用“添加成员”并给出文字原因，不在主界面展示数字。
+- `GET room_detail`：查询参数为 `roomId`，以及可选的 `afterRevision` 与一个消息方向游标；`afterMessageSeq`、`beforeMessageSeq` 不得同时出现。`detailRevision` 是 64 位十六进制哈希；房间 `definitionRevision/stateRevision` 是数字。
 - `POST room_create`：`{clientRequestId,name,coordinatorMemberId,maxSteps,defaultAccess:"workspace_write",members}`。
 - `POST room_update`：在创建字段之外增加 `{roomId,expectedDefinitionRevision}`。
-- `POST room_delete`：`{roomId,clientRequestId}`，重试复用同一请求编号。
+- `POST room_delete`：`{roomId,clientRequestId}`。它会立即永久清理公共聊天、任务正文与结果、成员名称、职责和会话标签且无法恢复；不会删除智能体、授权项目、本地文件或原生会话。确认层必须在请求前逐项说明，网络结果不明时按房间复用同一请求编号。
 - `POST room_send`：`{roomId,clientRequestId,expectedDefinitionRevision,content,replyToMessageId?,access:"workspace_write"}`。`content` 仅含 `{type:'text',text}` 或 `{type:'mention',memberId}`。
 - `POST room_approve`：`{roomId,runId,approvalId}`；不能随批准请求改写正文、成员、项目或权限。
 - `POST room_cancel`：`{roomId,runId}`。
@@ -40,11 +40,13 @@
 
 消息的 `mentions` 是 `{memberId,displayName,mentionHandle}` 对象数组；正文渲染仍以 `segments` 的稳定 `memberId` 为准。详情窗口分别声明 `hasEarlierMessages` 和 `hasLaterMessages`：前者只控制“加载更早消息”，后者使用 `afterMessageSeq` 分批追上新消息，不能混成一个 `hasMore`。
 
+房间、run 和发送回执采用严格解析，不把字符串数字转成版本、不截断越界 `maxSteps`，也不把其他权限或批准策略强制改写为安全值后继续显示。房间固定为 `contractVersion=2 + status=active + defaultAccess=workspace_write + approvalPolicy=bounded_run`；run 的房间、主控、定义版本、步数和成员范围必须与当前房间一致。详情窗口精确读取 `actionCount/hasMoreActions`，服务端以 `LIMIT 101` 区分完整的 100 条窗口与更多记录。
+
 ## 执行与批准
 
 首发仅允许 `workspace_write`，不提供或暗示当前运行时无法一致强制的 `read_only` 模式。内部安全步数由服务端和客户端合同共同限制，但主界面不向用户暴露编排参数。每个新 run 都必须先显示并完成一次整项批准：
 
-1. 发送成功后，公共消息已经落入房间，但批准前没有真实智能体任务。服务端没有返回 `requiresApproval=true + approvalId` 时，Launcher 必须 fail closed。
+1. 发送成功后，公共消息已经落入房间，但批准前没有真实智能体任务。回执必须精确包含 `contractVersion=2`、`status=awaiting_approval`、`requiresApproval=true`，以及 32 位小写十六进制 `messageId/runId/approvalId`；任一项错误都保留草稿并 fail closed。
 2. 批准冻结本 run 的房间定义版本、成员、项目、原始消息、权限和内部步数上限。
 3. 这次批准只覆盖各成员在已授权项目中的工作。发布、发送、破坏性删除、扩大范围或读取凭据必须停下并另行询问；各本机运行时权限仍是最终技术边界。
 4. 主控后续委派不再逐条打断用户，但每次分派和成员汇报都进入左侧任务动态与右侧公共聊天。
@@ -54,8 +56,9 @@
 ## 版本与安全门禁
 
 - `0.10.34` 及更旧基础内核必须在任何 `room_*` 请求前 fail closed；多智能会话最低基础版本仍为 `0.10.35`。
-- 房间切换时，旧房间延迟返回的详情、消息窗口、发送、批准或取消响应不得写入新房间。
-- 发送、保存和删除的网络重试保留稳定 `clientRequestId`。任一 mutating 请求在途时，发送器正文仍可编辑，但不能并发提交覆盖操作状态。
+- 房间切换时，旧房间延迟返回的详情、消息窗口、发送、批准或取消响应不得写入新房间；发送和删除的结果不明请求编号按“房间 + 规范负载”保留，切换返回后仍复用。
+- 任一 mutating 请求在途时，发送器正文仍可编辑，但不能并发提交。旧消息确认成功时，只清理仍与已发送内容相同的草稿，绝不能删除用户在等待期间输入的新文字。
+- 取消界面采用服务端真实回执状态；幂等重放若已经是 `cancelled/completed/failed/unknown`，必须显示该终态或不确定态，不能一律写成 `cancel_requested`。
 - 合成 fixture 必须显式标注，不得把 UI 结果冒充真实多智能联调。正式发布还需要真实账号、真实多成员、同智能体多专属会话、断网恢复、审批、取消、分页、权限和安装版验收。
 
 ## 本地验收入口

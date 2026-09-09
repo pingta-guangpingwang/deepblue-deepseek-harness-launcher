@@ -116,7 +116,9 @@ export class AccountService {
     const epoch = this.authEpoch
     const url = new URL(`https://ailishishu.com/ailishishu-stats/api/${request.scope === 'hub' ? 'agent-hub' : request.scope === 'checkin' ? 'wallet' : 'agent-devices'}.php`)
     if (request.method === 'GET') {
-      for (const [key, value] of Object.entries(request.params || {})) {
+      const params = request.params || {}
+      if (params.afterMessageSeq !== undefined && params.beforeMessageSeq !== undefined) throw new Error('工作台查询参数无效')
+      for (const [key, value] of Object.entries(params)) {
         if (!['agentId', 'projectId', 'sessionId', 'roomId', 'afterRevision', 'afterMessageSeq', 'beforeMessageSeq'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
         if (key === 'afterRevision' && !/^[a-f0-9]{64}$/.test(value)) throw new Error('工作台查询参数无效')
         if (['afterMessageSeq', 'beforeMessageSeq'].includes(key) && !/^(0|[1-9][0-9]{0,18})$/.test(value)) throw new Error('工作台查询参数无效')
