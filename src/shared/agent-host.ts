@@ -1,4 +1,4 @@
-export type AgentAdapter = 'codex' | 'claude-code' | 'qclaw'
+export type AgentAdapter = 'codex' | 'claude-code' | 'qclaw' | 'workbuddy' | 'codebuddy' | 'trae'
 export interface LocalCatalog {
   scannedAt: string
   projects: Array<{ id: string; adapter: AgentAdapter; name: string; path: string; lastActivityAt: string }>
@@ -21,6 +21,9 @@ export interface LocalAgentBinding {
   lastSyncedAt?: string
 }
 export interface AgentHostSnapshot {
+  accountConnection?: { status: 'signed_out' | 'checking' | 'connected' | 'failed'; checkedAt?: string; message?: string }
+  cloudAgents?: Array<{ id: string; name: string; adapter: string; reportedStatus: string }>
+  legacyCandidates?: Array<{ adapter: AgentAdapter; available: boolean; projectRoots: string[]; message: string }>
   supported: boolean
   enabled: boolean
   deviceId?: string
@@ -38,6 +41,10 @@ export interface AgentHostSnapshot {
   discovered: Array<{ adapter: AgentAdapter; name: string; available: boolean; message: string }>
 }
 export type AgentHostAction =
+  | { action: 'rename_device'; name: string }
+  | { action: 'check_connection' }
+  | { action: 'discover_existing' }
+  | { action: 'import_existing'; agentId: string }
   | { action: 'scan_local' }
   | { action: 'refresh_local_models' }
   | { action: 'read_local_history'; sessionId: string }

@@ -4,15 +4,19 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto'
 import { hostname } from 'node:os'
 import { access, mkdir, open, readFile, readdir, rename, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest, LocalAgentBinding, LocalCatalog, LocalTask } from '../../shared/agent-host'
 import { desktopRelayRequest } from './desktop-relay'
 import { readLocalModels, mergeLocalModels, sameLocalPath } from './local-models'
+import { readLegacyBinding, prepareLegacyHandoff, LEGACY_ADAPTERS, type LegacyBindingConfig } from './legacy-bindings'
 
 export const AGENT_HOST_PROTOCOL = 1
 type Reply = Record<string, unknown>
-interface Binding extends LocalAgentBinding { key: string; executable: string; executableArgs?: string[]; desiredRunning: boolean; pendingCloudBind?: boolean }
+interface Binding extends LocalAgentBinding { key: string; executable: string; executableArgs?: string[]; desiredRunning: boolean; pendingCloudBind?: boolean; legacy?: Omit<LegacyBindingConfig, 'key'> }
 interface CommandResult { agentId: string; status: 'completed' | 'failed'; message: string }
 interface SavedState {
+  deviceName?: string
+  manuallyPaused?: boolean
   desktopTasks?: LocalTask[]
   version: 1; installationId: string; ownerUserId: string; deviceId: string; deviceKey: string
   enabled: boolean; agents: Binding[]; commands: Record<string, CommandResult & { state: 'running' | 'done' }>
@@ -31,9 +35,12 @@ export interface AgentHostOptions {
 const ADAPTERS: Record<AgentAdapter, { name: string; command: string }> = {
   codex: { name: 'Codex', command: 'codex' },
   'claude-code': { name: 'Claude Code', command: 'claude' },
-  qclaw: { name: 'QClaw / OpenClaw', command: 'openclaw' }
+  qclaw: { name: 'QClaw / OpenClaw', command: 'openclaw' },
+  workbuddy: { name: 'WorkBuddy', command: 'workbuddy' },
+  codebuddy: { name: 'CodeBuddy', command: 'codebuddy' },
+  trae: { name: 'TRAE', command: 'trae-cn' }
 }
-const NPM_PACKAGES: Record<AgentAdapter, string> = { codex: '@openai/codex', 'claude-code': '@anthropic-ai/claude-code', qclaw: 'openclaw' }
+const NPM_PACKAGES: Partial<Record<AgentAdapter, string>> = { codex: '@openai/codex', 'claude-code': '@anthropic-ai/claude-code', qclaw: 'openclaw' }
 function errorText(error: unknown): string {
   return String(error instanceof Error ? error.message : error).replace(/(?:adh_live_|agh_live_|sk-)[\w-]+|Bearer\s+\S+/gi, '[凭据已隐藏]').slice(0, 360)
 }
@@ -71,17 +78,23 @@ export async function resolveAgentLaunch(adapter: AgentAdapter, nodePath: string
     if (latest) return { executable: latest.file, args: [] }
   }
   const executable = await discoverExecutable(ADAPTERS[adapter].command)
+  // Existing Connector configurations must use discover_existing/import_existing
+  // so the original cloud instance, project grants and adapter settings remain
+  // intact. A normal Add operation must never consume legacy credentials and
+  // silently create a duplicate instance.
   if (!executable) return
   if (!/\.(cmd|bat)$/i.test(executable)) return { executable, args: [] }
+  const packageName = NPM_PACKAGES[adapter]
+  if (!packageName) return
   // Never shell-execute npm shims. Resolve only the known adapter package's bin
   // inside its real node_modules directory; renderer/cloud cannot select a script.
   const modulesRoot = await realpath(path.join(path.dirname(executable), 'node_modules')).catch(() => '')
   if (!modulesRoot) return
-  const packageRoot = await realpath(path.join(modulesRoot, NPM_PACKAGES[adapter])).catch(() => '')
+  const packageRoot = await realpath(path.join(modulesRoot, packageName)).catch(() => '')
   if (!packageRoot || !inside(modulesRoot, packageRoot)) return
   try {
     const manifest = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8')) as { name?: string; bin?: string | Record<string, string> }
-    if (manifest.name !== NPM_PACKAGES[adapter]) return
+    if (manifest.name !== packageName) return
     const bin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.[ADAPTERS[adapter].command]
     if (!bin || path.isAbsolute(bin)) return
     const entry = await realpath(path.resolve(packageRoot, bin))
@@ -95,6 +108,7 @@ export class AgentHostService {
   private children = new Map<string, ChildProcess>()
   private childEpoch = new Map<string, number>()
   private state: AgentHostSnapshot = { supported: true, enabled: false, deviceName: hostname(), connection: 'unbound', agents: [], discovered: [] }
+  private autoConnectedOwner?: string
   private timer?: ReturnType<typeof setTimeout>
   private saveQueue = Promise.resolve()
   private actionQueue = Promise.resolve<unknown>(undefined)
@@ -110,6 +124,9 @@ export class AgentHostService {
   private localChildren = new Map<string, ChildProcess>()
   private localFiles = new Map<string, { path: string; name: string; byteSize: number; mediaKind: string }>()
   private observerPending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>()
+  private connectionCheckedAt = 0
+  private connectionOwner?: string
+  private connectionCheck?: Promise<void>
   constructor(private readonly options: AgentHostOptions) {}
 
   async initialize(): Promise<void> {
@@ -126,7 +143,13 @@ export class AgentHostService {
         this.saved = saved
         this.state.localTasks = Array.isArray(saved.desktopTasks) ? saved.desktopTasks.slice(-50) : []
         this.lastGoodCipher = bytes
-        for (const agent of this.saved.agents) { agent.status = 'stopped'; agent.busy = false; agent.runtimeStatus = 'unknown' }
+        for (const agent of this.saved.agents) {
+          agent.status = 'stopped'; agent.busy = false; agent.runtimeStatus = 'unknown'
+          if (agent.adapter === 'trae') {
+            agent.runtimeStatus = 'unavailable'; agent.desiredRunning = false; agent.autoStart = false
+            agent.message = 'TRAE 远程交互暂不支持：原窗口发送接口拒绝当前账号。保留项目与历史，请使用其他已就绪智能体。'
+          }
+        }
         for (const value of Object.values(this.saved.commands)) {
           if (value.state === 'running') Object.assign(value, { state: 'done', status: 'failed', message: '托管服务在操作中重启，结果需要检查；不会自动重复执行' })
         }
@@ -138,23 +161,61 @@ export class AgentHostService {
       }
     }
     if (found) { this.state.connection = 'revoked'; this.state.message = '设备配置无法解密或已损坏。请从网站撤销旧设备后重新绑定；原文件未删除。' }
+    this.schedule(200)
+  }
+  private async checkConnection(force = false): Promise<void> {
+    const owner = this.options.ownerId()
+    if (!owner) {
+      this.connectionOwner = undefined; this.connectionCheckedAt = 0
+      this.state.accountConnection = { status: 'signed_out' }; this.state.cloudAgents = []
+      return
+    }
+    if (this.connectionCheck) return this.connectionCheck
+    if (!force && this.connectionOwner === owner && Date.now() - this.connectionCheckedAt < 60000) return
+    this.state.accountConnection = { status: 'checking' }
+    if (this.connectionOwner !== owner) this.state.cloudAgents = []
+    this.changed()
+    const operation = (async () => {
+      try {
+        const result = await this.options.request({ scope: 'hub', method: 'GET', action: 'bootstrap' })
+        if (this.options.ownerId() !== owner) return
+        if (result.ok === false || !Array.isArray(result.agents)) throw new Error('账号连接未确认，请重新登录或重试')
+        this.state.cloudAgents = result.agents.filter((row): row is Reply => !!row && typeof row === 'object').map(row => ({ id: String(row.id || ''), name: String(row.display_name || row.displayName || row.adapter_code || '智能体'), adapter: String(row.adapter_code || ''), reportedStatus: String(row.status || 'unknown') })).filter(row => /^[a-zA-Z0-9_-]{16,80}$/.test(row.id))
+        this.state.accountConnection = { status: 'connected', checkedAt: new Date().toISOString() }
+      } catch (error) {
+        if (this.options.ownerId() === owner) this.state.accountConnection = { status: 'failed', checkedAt: new Date().toISOString(), message: errorText(error) }
+      } finally {
+        if (this.options.ownerId() === owner) { this.connectionOwner = owner; this.connectionCheckedAt = Date.now() }
+        this.changed()
+      }
+    })()
+    this.connectionCheck = operation
+    try { await operation } finally { if (this.connectionCheck === operation) this.connectionCheck = undefined }
   }
   snapshot(): AgentHostSnapshot {
     const sameOwner = this.saved.ownerUserId === this.options.ownerId()
-    return structuredClone({ ...this.state, enabled: this.saved.enabled && sameOwner,
+    return structuredClone({ ...this.state, deviceName: sameOwner ? this.saved.deviceName || hostname() : hostname(), enabled: this.saved.enabled && sameOwner,
+      cloudAgents: this.connectionOwner === this.options.ownerId() ? this.state.cloudAgents : [],
+      accountConnection: this.connectionOwner === this.options.ownerId() ? this.state.accountConnection : { status: this.options.ownerId() ? 'checking' : 'signed_out' },
       deviceId: sameOwner ? this.saved.deviceId || undefined : undefined,
       ownerUserId: sameOwner ? this.saved.ownerUserId : undefined,
-      agents: sameOwner ? this.saved.agents.map(({ key: _key, executable: _exe, executableArgs: _args, desiredRunning: _desired, pendingCloudBind: _pending, ...publicBinding }) => publicBinding) : [] })
+      legacyCandidates: sameOwner ? this.state.legacyCandidates : [],
+      agents: sameOwner ? this.saved.agents.map(({ key: _key, executable: _exe, executableArgs: _args, desiredRunning: _desired, pendingCloudBind: _pending, legacy: _legacy, ...publicBinding }) => publicBinding) : [] })
   }
   isActive(): boolean { return !this.disposed && (this.saved.enabled || this.children.size > 0 || this.localChildren.size > 0) }
   isBusy(): boolean { return this.saved.agents.some((agent) => agent.busy) || this.localChildren.size > 0 }
   async suspendForSignOut(): Promise<void> {
+    const message = '账号已退出，远程控制已暂停；运行中的任务安全结束后停止同步'
+    const changed = this.saved.enabled || this.leaseValidUntil !== 0 || this.state.connection !== 'offline' || this.state.message !== message
+    const shouldDrain = this.children.size > 0
+    this.autoConnectedOwner = undefined
     this.saved.enabled = false
     this.leaseValidUntil = 0
     this.state.connection = 'offline'
-    this.state.message = '账号已退出，远程控制已暂停；运行中的任务安全结束后停止同步'
-    this.drainAll()
-    if (this.saved.deviceId) await this.persist()
+    this.state.message = message
+    if (shouldDrain) this.drainAll()
+    if (changed && this.saved.deviceId) await this.persist()
+    if (changed) this.changed()
   }
   private changed(): void { this.options.onChange() }
   private assertOwner(owner = this.saved.ownerUserId): void {
@@ -195,6 +256,7 @@ export class AgentHostService {
   }
   private async perform(input: AgentHostAction): Promise<AgentHostSnapshot> {
     if (!input || typeof input.action !== 'string') throw new Error('托管操作无效')
+    if (input.action === 'check_connection') { await this.checkConnection(true); return this.snapshot() }
     if (input.action === 'choose_local_files') {
       const result = await dialog.showOpenDialog({ title: '交给本机智能体的文件（不会上传网站）', properties: ['openFile', 'multiSelections'] })
       if (result.canceled) return this.snapshot()
@@ -248,6 +310,38 @@ export class AgentHostService {
     const owner = this.options.ownerId()
     if (!owner) throw new Error('请先登录 AI历史书账号，再绑定这台电脑')
     if (this.saved.ownerUserId && owner !== this.saved.ownerUserId) throw new Error('这台电脑绑定了另一账号，请切回原账号解除绑定后重试')
+    if (input.action === 'discover_existing') {
+      await this.checkConnection(true)
+      this.state.legacyCandidates = await Promise.all(LEGACY_ADAPTERS.map(async adapter => {
+        try { const existing = await readLegacyBinding(adapter); return { adapter, available: true, projectRoots: existing.projectRoots, message: '发现已授权的旧连接器，可关联原网站实例；关联后需主动启动' } }
+        catch (error) { return { adapter, available: false, projectRoots: [], message: errorText(error) } }
+      }))
+      return this.snapshot()
+    }
+    if (input.action === 'import_existing') {
+      await this.checkConnection(true)
+      const selectedAgentId = input.agentId
+      const cloud = this.state.cloudAgents?.find(agent => agent.id === selectedAgentId)
+      if (!cloud || !LEGACY_ADAPTERS.includes(cloud.adapter as AgentAdapter)) throw new Error('当前账号中没有这个受支持的智能体')
+      if (this.saved.agents.some(agent => agent.id === cloud.id)) return this.snapshot()
+      if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
+      const legacy = await readLegacyBinding(cloud.adapter as AgentAdapter)
+      if (!this.saved.deviceId) await this.perform({ action: 'bind_device' })
+      const resolved = await this.options.request({ scope: 'devices', method: 'POST', action: 'resolve_legacy', body: { deviceId: this.saved.deviceId, interactionKey: legacy.key } })
+      this.assertOwner(owner)
+      if (resolved.agentId !== cloud.id || resolved.adapter !== cloud.adapter) throw new Error('本机配置与所选网站智能体不匹配，不会覆盖原绑定')
+      const { key, ...privateLegacy } = legacy
+      const unavailable = legacy.adapter === 'trae'
+      const binding: Binding = { id: cloud.id, name: cloud.name, adapter: legacy.adapter, projectRoots: legacy.projectRoots, key, executable: legacy.executable, executableArgs: legacy.executableArgs,
+        legacy: privateLegacy, autoStart: false, desiredRunning: false, status: 'stopped', runtimeStatus: unavailable ? 'unavailable' : 'unknown', busy: false, pendingCloudBind: true,
+        message: unavailable ? 'TRAE 远程交互暂不支持：保留原项目和历史，请使用其他已就绪智能体。' : '已关联原网站实例；点击启动后接管旧同步服务，原项目和会话保留' }
+      this.saved.agents.push(binding)
+      await this.persist()
+      await this.completePendingBinding(binding)
+      await this.persist()
+      this.changed()
+      return this.snapshot()
+    }
     if (input.action === 'bind_local_project') {
       const projectId = input.projectId
       const project = this.state.localCatalog?.projects.find(item => item.id === projectId)
@@ -281,18 +375,27 @@ export class AgentHostService {
         this.saved.deviceKey ||= 'adh_live_' + randomBytes(32).toString('base64url')
         await this.persist()
         this.assertOwner(owner)
-        const result = await this.options.request({ scope: 'devices', method: 'POST', action: 'register', body: { name: hostname(), installationId: this.saved.installationId, platform: process.platform, launcherVersion: this.options.launcherVersion, registrationKey: this.saved.deviceKey } })
+        const result = await this.options.request({ scope: 'devices', method: 'POST', action: 'register', body: { name: this.saved.deviceName || hostname(), installationId: this.saved.installationId, platform: process.platform, launcherVersion: this.options.launcherVersion, registrationKey: this.saved.deviceKey } })
         this.assertOwner(owner)
         if (!result.deviceKey || !(result.device as Reply)?.id) throw new Error('设备绑定未返回有效凭据')
         if (result.deviceKey !== this.saved.deviceKey) throw new Error('设备注册凭据不匹配，请更新服务器设备接口后重试')
         this.saved.deviceId = String((result.device as Reply).id)
+        this.saved.deviceName = String((result.device as Reply).name || this.saved.deviceName || hostname())
         this.saved.deviceKey = String(result.deviceKey)
         this.saved.ownerUserId = owner
       }
       this.saved.enabled = true
+    } else if (input.action === 'rename_device') {
+      const name = input.name.trim()
+      if (!name || [...name].length > 80 || /[\x00-\x1f\x7f]/.test(name)) throw new Error('设备名称需为 1–80 个字符，不能包含控制字符')
+      const result = await this.options.request({ scope: 'devices', method: 'POST', action: 'rename', body: { deviceId: this.saved.deviceId, name } })
+      this.assertOwner(owner)
+      if ((result.device as Reply)?.id !== this.saved.deviceId || (result.device as Reply)?.name !== name) throw new Error('设备名称尚未同步，请重试')
+      this.saved.deviceName = name
     } else if (input.action === 'pause') {
       if (this.isBusy()) throw new Error('还有任务运行中，请等完成后暂停托管')
       this.saved.enabled = false
+      this.saved.manuallyPaused = true
       this.leaseValidUntil = 0
       await this.stopAll()
       this.state.connection = 'offline'
@@ -300,18 +403,23 @@ export class AgentHostService {
     } else if (input.action === 'resume') {
       if (!this.saved.deviceKey) throw new Error('请先绑定这台电脑')
       this.saved.enabled = true
+      this.saved.manuallyPaused = false
     } else if (input.action === 'revoke_device') {
       if (this.isBusy()) throw new Error('请先等待当前任务完成再解除设备绑定')
       await this.options.request({ scope: 'devices', method: 'POST', action: 'revoke', body: { deviceId: this.saved.deviceId } })
       this.saved.enabled = false
       this.leaseValidUntil = 0
       await this.stopAll()
-      this.saved.deviceKey = ''; this.saved.deviceId = ''; this.saved.ownerUserId = ''; this.saved.agents = []; this.saved.commands = {}; this.saved.installationId = randomUUID()
+      this.saved.deviceKey = ''; this.saved.deviceId = ''; this.saved.ownerUserId = ''; this.saved.agents = []; this.saved.commands = {}
+      // Keep this installation's identity; an explicit later login may register
+      // it again, but removal must not be undone by the current heartbeat.
+      this.autoConnectedOwner = owner
       this.state.connection = 'unbound'
     } else if (input.action === 'add_agent') {
       if (!this.saved.deviceKey) throw new Error('请先绑定这台电脑')
       await this.ensureLease(true)
       if (!Object.hasOwn(ADAPTERS, input.adapter)) throw new Error('当前版本不支持这个适配器')
+      if (input.adapter === 'trae') throw new Error('TRAE 远程交互暂不支持；可以保留原网站记录，但不能新建可执行绑定')
       if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
       const launch = await resolveAgentLaunch(input.adapter, this.options.nodePath)
       if (!launch) throw new Error('没有找到可直接运行的智能体。请安装官方原生程序或官方 npm 包；不支持任意 cmd/bat 启动脚本')
@@ -323,13 +431,13 @@ export class AgentHostService {
       const instance = (result.instance || result.agent) as Reply
       const key = String(result.interactionKey || '')
       if (!/^[A-Za-z0-9_-]{16,80}$/.test(String(instance?.id || '')) || !/^agh_live_[A-Za-z0-9_-]{32,}$/.test(key)) throw new Error('智能体绑定返回无效，请刷新网站实例列表检查')
-      const binding: Binding = { id: String(instance.id), name: String(instance.displayName || instance.name || input.name || ADAPTERS[input.adapter].name), adapter: input.adapter, key, executable: launch.executable, executableArgs: launch.args, projectRoots: [root], autoStart: true, desiredRunning: true, status: 'stopped', runtimeStatus: 'unknown', busy: false, pendingCloudBind: true }
+      const binding: Binding = { id: String(instance.id), name: String(instance.displayName || instance.name || input.name || ADAPTERS[input.adapter].name), adapter: input.adapter, key, executable: launch.executable, executableArgs: launch.args, projectRoots: [root], autoStart: false, desiredRunning: false, status: 'stopped', runtimeStatus: 'unknown', busy: false, pendingCloudBind: true }
       // Persist the one-time key before a second network call can fail.
       this.saved.agents.push(binding)
       await this.persist()
       await this.completePendingBinding(binding)
       await this.ensureLease(true)
-      await this.startAgent(binding)
+      binding.message = '已完成绑定，请主动点击启动后再交互'
     } else if ('agentId' in input) {
       const binding = this.saved.agents.find((agent) => agent.id === input.agentId)
       if (!binding) throw new Error('这个智能体不属于当前设备')
@@ -428,7 +536,8 @@ export class AgentHostService {
     const id = randomUUID()
     const task = { id, requestId: input.requestId, projectId: project.id, sessionId: input.sessionId, status: 'running' as const, instruction, summary: '正在启动本机智能体', startedAt: new Date().toISOString() }
     this.state.localTasks = [...(this.state.localTasks || []).slice(-49), task]
-    const child = fork(path.join(this.options.moduleDir, 'connector/local-runner.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } } as ForkOptions)
+    const localTaskRoot = path.join(this.options.storageDir, 'local-tasks')
+    const child = fork(path.join(this.options.moduleDir, 'connector/local-runner.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', SHENLAN_LOCAL_TASK_ROOT: localTaskRoot } } as ForkOptions)
     this.localChildren.set(id, child)
     const update = (values: Reply): void => { Object.assign(task, values); this.changed() }
     child.on('message', (raw: unknown) => {
@@ -443,7 +552,7 @@ export class AgentHostService {
     })
     child.on('error', error => update({ status: 'failed', summary: errorText(error) }))
     child.on('exit', () => { this.localChildren.delete(id); if (task.status === 'running') update({ status: 'failed', summary: '本机进程退出，未收到完成确认；不会自动重复执行' }); this.changed() })
-    child.send({ type: 'start', adapter: project.adapter, project: { path: root }, executable: launch.executable, executableArgs: launch.args, outputDirectory: path.join(this.options.storageDir, 'local-tasks', id), instruction, resumeSessionId: session?.runtimeSessionId || '', files, model: input.model || '' })
+    child.send({ type: 'start', adapter: project.adapter, project: { path: root }, executable: launch.executable, executableArgs: launch.args, outputDirectory: path.join(localTaskRoot, id), instruction, resumeSessionId: session?.runtimeSessionId || '', files, model: input.model || '' })
   }
   private async refreshDesktopTasks(sessionId: string): Promise<void> {
     const pending = this.state.localTasks?.filter(task => task.backend === 'desktop' && task.sessionId === sessionId && ['running', 'delivered', 'unconfirmed'].includes(task.status)) || []
@@ -514,6 +623,12 @@ export class AgentHostService {
     }
   }
   private async startAgentReady(binding: Binding): Promise<void> {
+    if (binding.adapter === 'trae') {
+      binding.runtimeStatus = 'unavailable'; binding.desiredRunning = false
+      binding.message = 'TRAE 远程交互暂不支持：原窗口发送接口拒绝当前账号。保留项目与历史，请使用其他已就绪智能体。'
+      this.changed()
+      throw new Error(binding.message)
+    }
     await this.ensureLease()
     // Only an explicit local start/add reaches an unresolved binding. Background
     // reconciliation deliberately skips it: a web-side unbind must never be
@@ -528,6 +643,13 @@ export class AgentHostService {
     await access(entry).catch(() => { throw new Error('缺少智能体托管模块，请在版本管理中更新或安装最新版启动器') })
     const stateDirectory = path.join(this.options.storageDir, 'instances', binding.id)
     await mkdir(stateDirectory, { recursive: true })
+    if (binding.legacy) {
+      const legacy = binding.legacy
+      await prepareLegacyHandoff(legacy, path.join(stateDirectory, 'connector-state.json'), async (pid) => {
+        const control = await import(pathToFileURL(path.join(this.options.moduleDir, 'connector', 'service-control.mjs')).href)
+        return control.requestServiceHandoff(legacy.sourceFile, binding.key, pid)
+      })
+    }
     this.assertMayStart(binding)
     binding.status = 'starting'; binding.message = '正在连接本地智能体与网站'
     const epoch = (this.childEpoch.get(binding.id) || 0) + 1
@@ -544,11 +666,11 @@ export class AgentHostService {
       const data = message as Reply
       if (data.type !== 'status') return
       binding.busy = Number(data.runningTasks || 0) > 0 || data.phase === 'busy'
-      binding.status = data.phase === 'failed' ? 'failed' : data.phase === 'stopped' ? 'stopped' : data.phase === 'starting' ? 'starting' : data.runtimeReady === false ? 'failed' : data.connected === true ? 'online' : 'reconnecting'
+      binding.status = data.phase === 'failed' ? 'failed' : data.phase === 'stopped' ? 'stopped' : data.phase === 'starting' ? 'starting' : data.connected === true ? 'online' : 'reconnecting'
       binding.runtimeStatus = binding.busy ? 'busy' : data.runtimeReady === true ? 'ready' : data.phase === 'failed' || data.runtimeReady === false ? 'error' : 'unknown'
       binding.lastCatalogAt = typeof data.lastCatalogAt === 'string' ? data.lastCatalogAt : binding.lastCatalogAt
       binding.lastSyncedAt = typeof data.lastSyncedAt === 'string' ? data.lastSyncedAt : binding.lastSyncedAt
-      binding.message = data.error ? errorText(data.error) : undefined
+      binding.message = data.error ? errorText(data.error) : data.runtimeReady === false ? '同步服务已连接，但智能体尚未通过本机检查；请确认应用登录与网关状态，可直接停止或重启服务' : undefined
       this.changed()
     })
     child.on('error', (error) => { if (this.childEpoch.get(binding.id) !== epoch) return; binding.status = 'failed'; binding.desiredRunning = false; binding.message = errorText(error); if (!child.pid || child.exitCode !== null) this.children.delete(binding.id); this.changed() })
@@ -565,6 +687,7 @@ export class AgentHostService {
       serverUrl: 'https://ailishishu.com/ailishishu-stats/api/agent-connector.php', interactionKey: binding.key,
       adapterCode: binding.adapter, runtimeLabel: hostname(), runtimeExecutable: binding.executable,
       runtimeExecutableArgs: binding.executableArgs || [],
+      ...(binding.legacy?.settings || {}),
       stateFile: path.join(stateDirectory, 'connector-state.json'), sandbox: 'workspace-write',
       projects: binding.projectRoots.map((root) => ({ name: path.basename(root), path: root, enabled: true })),
       projectDiscovery: { enabled: true, roots: binding.projectRoots, maxProjects: 60, maxSessionsPerProject: 100 },
@@ -623,11 +746,47 @@ export class AgentHostService {
     this.timer = setTimeout(() => { void this.tick() }, delay)
     this.timer.unref()
   }
+  private async connectSignedInDevice(): Promise<void> {
+    const owner = this.options.ownerId()
+    if (!owner) { this.autoConnectedOwner = undefined; return }
+    if (this.autoConnectedOwner === owner || this.state.accountConnection?.status !== 'connected') return
+    // Registration needs the signed-in user's token; a revoked device key can
+    // never recreate a device by itself. Check only once per login/startup.
+    if (this.saved.ownerUserId && this.saved.ownerUserId !== owner) return
+    const result = await this.options.request({ scope: 'devices', method: 'GET', action: 'list' })
+    this.assertOwner(owner)
+    if (!Array.isArray(result.devices)) throw new Error('设备列表尚未确认，暂不自动登记')
+    const existing = result.devices.find((value): value is Reply => !!value && typeof value === 'object' && (value as Reply).id === this.saved.deviceId)
+    if (existing) {
+      this.saved.deviceName = String(existing.name || this.saved.deviceName || hostname())
+      if (!this.saved.manuallyPaused) this.saved.enabled = true
+    } else {
+      if (this.isBusy() || this.children.size) throw new Error('请等待原托管任务安全结束后重新登记设备')
+      const keepPaused = this.saved.manuallyPaused === true
+      const removedDevice = Boolean(this.saved.deviceId)
+      this.saved.deviceId = ''
+      // Keep an in-flight registration key for response-loss idempotency.
+      // A known removed device rotates its key after this account-authenticated lookup.
+      if (removedDevice) this.saved.deviceKey = ''
+      for (const binding of this.saved.agents) { binding.pendingCloudBind = true; binding.desiredRunning = false }
+      await this.perform({ action: 'bind_device' })
+      for (const binding of this.saved.agents) await this.completePendingBinding(binding)
+      if (keepPaused) this.saved.enabled = false
+    }
+    this.assertOwner(owner)
+    await this.persist()
+    this.autoConnectedOwner = owner
+  }
   async tick(): Promise<void> {
     if (this.polling || this.disposed) return
     this.polling = true
     let delay = 15000
     try {
+      await this.checkConnection()
+      if (!this.options.ownerId()) { await this.suspendForSignOut(); return }
+      const autoConnect = this.actionQueue.catch(() => {}).then(() => this.connectSignedInDevice())
+      this.actionQueue = autoConnect
+      await autoConnect
       if (!this.saved.enabled || !this.saved.deviceKey) return
       if (this.saved.ownerUserId !== this.options.ownerId()) {
         this.state.connection = 'offline'; this.state.message = '请登录绑定这台电脑的账号，远程控制已暂停'

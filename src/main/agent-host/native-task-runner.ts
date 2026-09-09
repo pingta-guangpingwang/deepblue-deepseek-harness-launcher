@@ -11,6 +11,9 @@ interface Options {
   onProgress?: (progress: { summary: string }) => Promise<void>
 }
 interface NativeTurn { id: string; status: string; items?: Array<{ type: string; text?: string; phase?: string; content?: Array<{ text?: string }> }> }
+export async function probeNativeDesktop(): Promise<boolean> {
+  return desktopRelayRequest({ action: 'status' }).then(reply => reply.ok && reply.ready === true).catch(() => false)
+}
 export async function runNativeDesktopTask(options: Options): Promise<Record<string, unknown>> {
   const { resumeSessionId: target, instruction } = options
   const control = options.control || {}; control.desktopNative = true; control.closed = false

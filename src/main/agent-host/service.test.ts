@@ -4,13 +4,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ fork: vi.fn(), encryptionAvailable: vi.fn(() => true), encrypt: vi.fn((value: string) => Buffer.from('mock-encrypted:' + Buffer.from(value).toString('base64'))) }))
+const mocks = vi.hoisted(() => ({ fork: vi.fn(), readLegacyBinding: vi.fn(), encryptionAvailable: vi.fn(() => true), encrypt: vi.fn((value: string) => Buffer.from('mock-encrypted:' + Buffer.from(value).toString('base64'))) }))
 vi.mock('electron', () => ({ safeStorage: {
   isEncryptionAvailable: mocks.encryptionAvailable,
   encryptString: mocks.encrypt,
   decryptString: (value: Buffer) => Buffer.from(value.toString().replace(/^mock-encrypted:/, ''), 'base64').toString()
 } }))
 vi.mock('node:child_process', async (original) => ({ ...await original<typeof import('node:child_process')>(), fork: mocks.fork }))
+vi.mock('./legacy-bindings', async (original) => ({ ...await original<typeof import('./legacy-bindings')>(), readLegacyBinding: mocks.readLegacyBinding }))
 
 import { AgentHostService, resolveAgentLaunch } from './service'
 import type { AgentWorkspaceRequest } from '../../shared/agent-host'
@@ -21,7 +22,7 @@ const key = 'agh_live_' + 'k'.repeat(48)
 const deviceKey = 'adh_live_' + 'v'.repeat(48)
 type TestBinding = { id: string; name: string; adapter: 'codex'; key: string; executable: string; executableArgs?: string[]; projectRoots: string[]; desiredRunning: boolean; autoStart: boolean; status: string; runtimeStatus: string; busy: boolean; message?: string; pendingCloudBind?: boolean }
 type Internals = {
-  saved: { enabled: boolean; ownerUserId: string; installationId: string; deviceId: string; deviceKey: string; agents: TestBinding[]; commands: Record<string, unknown> }
+  saved: { enabled: boolean; manuallyPaused?: boolean; deviceName?: string; ownerUserId: string; installationId: string; deviceId: string; deviceKey: string; agents: TestBinding[]; commands: Record<string, unknown> }
   children: Map<string, FakeChild>
   starting: Map<string, Promise<void>>
   leaseValidUntil: number
@@ -81,6 +82,8 @@ async function until(predicate: () => boolean): Promise<void> {
 }
 beforeEach(() => {
   mocks.fork.mockReset()
+  mocks.readLegacyBinding.mockReset()
+  mocks.readLegacyBinding.mockRejectedValue(new Error('no legacy binding'))
   mocks.encryptionAvailable.mockReturnValue(true)
   mocks.encrypt.mockClear()
   mocks.fork.mockImplementation(() => { const child = new FakeChild(); queueMicrotask(() => child.emit('message', { type: 'ready', protocolVersion: 1 })); return child })
@@ -101,6 +104,96 @@ afterEach(async () => {
 })
 
 describe('AgentHostService local authorization and child protocol', () => {
+  it('registers a signed-in installation once without starting agents and persists its name', async () => {
+    const f = await fixture()
+    Object.assign(f.internal.saved, { deviceId: '', deviceKey: '', ownerUserId: '', agents: [], enabled: false })
+    f.requestMock.mockImplementation(async request => request.action === 'bootstrap' ? { ok: true, agents: [] } : request.action === 'list' ? { ok: true, devices: [] } : { ok: true, device: { id: deviceId, name: '工作电脑' }, deviceKey: request.body?.registrationKey })
+    await f.service.tick()
+    await f.service.tick()
+    expect(f.service.snapshot()).toMatchObject({ deviceId, deviceName: '工作电脑', enabled: true, connection: 'online' })
+    expect(f.requestMock.mock.calls.filter(([r]) => r.action === 'register')).toHaveLength(1)
+    expect(f.internal.saved.installationId).toBe('test-installation')
+    expect(mocks.fork).not.toHaveBeenCalled()
+  })
+  it('restores a removed device only on a new signed-in connection using a rotated key', async () => {
+    const f = await fixture()
+    f.internal.saved.agents = []
+    f.requestMock.mockImplementation(async request => request.action === 'bootstrap' ? { ok: true, agents: [] } : request.action === 'list' ? { ok: true, devices: [] } : { ok: true, device: { id: deviceId, name: '恢复电脑' }, deviceKey: request.body?.registrationKey })
+    await f.service.tick()
+    expect(f.internal.saved.deviceKey).not.toBe(deviceKey)
+    expect(f.internal.saved.installationId).toBe('test-installation')
+    expect(f.service.snapshot().deviceId).toBe(deviceId)
+    await f.service.action({ action: 'revoke_device' })
+    await f.service.tick()
+    expect(f.service.snapshot().deviceId).toBeUndefined()
+    expect(f.requestMock.mock.calls.filter(([r]) => r.action === 'register')).toHaveLength(1)
+    expect(f.internal.saved.installationId).toBe('test-installation')
+  })
+  it('preserves a manual pause when a removed device is registered again', async () => {
+    const f = await fixture()
+    f.internal.saved.manuallyPaused = true; f.internal.saved.enabled = false; f.internal.saved.agents = []
+    f.requestMock.mockImplementation(async request => request.action === 'bootstrap' ? { ok: true, agents: [] } : request.action === 'list' ? { ok: true, devices: [] } : { ok: true, device: { id: deviceId, name: '暂停电脑' }, deviceKey: request.body?.registrationKey })
+    await f.service.tick()
+    expect(f.service.snapshot()).toMatchObject({ deviceId, deviceName: '暂停电脑', enabled: false })
+    expect(mocks.fork).not.toHaveBeenCalled()
+  })
+  it('does not undo a manual pause and never registers on account verification failure', async () => {
+    const f = await fixture()
+    f.internal.saved.manuallyPaused = true; f.internal.saved.enabled = false
+    f.requestMock.mockImplementation(async r => r.action === 'bootstrap' ? { ok: true, agents: [] } : { ok: true, devices: [{ id: deviceId, name: '暂停电脑' }] })
+    await f.service.tick()
+    expect(f.service.snapshot().enabled).toBe(false)
+    expect(f.fetchMock).not.toHaveBeenCalled()
+    expect(mocks.fork).not.toHaveBeenCalled()
+    const g = await fixture()
+    g.requestMock.mockRejectedValue(new Error('登录已过期'))
+    await g.service.tick()
+    expect(g.requestMock.mock.calls.every(([r]) => r.action === 'bootstrap')).toBe(true)
+  })
+  it('persists the signed-out transition once instead of rewriting encrypted state every tick', async () => {
+    const f = await fixture()
+    f.setOwner(undefined); mocks.encrypt.mockClear()
+    await f.service.tick(); await f.service.tick()
+    expect(mocks.encrypt).toHaveBeenCalledTimes(1)
+    expect(f.service.snapshot().connection).toBe('offline')
+  })
+  it('renames only the owned device and keeps its key and installation identity', async () => {
+    const f = await fixture()
+    f.requestMock.mockResolvedValue({ ok: true, device: { id: deviceId, name: '我的工作电脑' } })
+    await f.service.action({ action: 'rename_device', name: ' 我的工作电脑 ' })
+    expect(f.service.snapshot().deviceName).toBe('我的工作电脑')
+    expect(f.internal.saved.deviceKey).toBe(deviceKey)
+    expect(f.internal.saved.installationId).toBe('test-installation')
+    await expect(f.service.action({ action: 'rename_device', name: 'a\u0000b' })).rejects.toThrow('控制字符')
+    f.setOwner('owner-B')
+    await expect(f.service.action({ action: 'rename_device', name: '其他账号' })).rejects.toThrow('账号')
+  })
+  it('fails closed for TRAE without forking a fallback or touching its saved history', async () => {
+    const f = await fixture()
+    const binding = f.internal.saved.agents[0]!
+    Object.assign(binding, { adapter: 'trae', desiredRunning: true })
+    await expect(f.internal.startAgent(binding)).rejects.toThrow('TRAE 远程交互暂不支持')
+    expect(mocks.fork).not.toHaveBeenCalled()
+    expect(binding.runtimeStatus).toBe('unavailable')
+    expect(binding.desiredRunning).toBe(false)
+    expect(f.internal.saved.agents).toHaveLength(1)
+  })
+  it('rejects a new TRAE binding and marks an imported legacy instance unavailable immediately', async () => {
+    const f = await fixture()
+    await expect(f.service.action({ action: 'add_agent', adapter: 'trae', name: 'TRAE' })).rejects.toThrow('暂不支持')
+    f.internal.saved.agents = []
+    mocks.readLegacyBinding.mockResolvedValue({ adapter: 'trae', sourceFile: path.join(f.root, 'sync-service.json'), stateFile: path.join(f.root, 'sync-state.json'), key,
+      executable: process.execPath, executableArgs: [], projectRoots: [path.join(f.root, 'project')], settings: { qclawStateDir: '', qclawConfigPath: '', qclawAgentId: 'main' } })
+    f.requestMock.mockImplementation(async request => {
+      if (request.action === 'bootstrap') return { ok: true, agents: [{ id: agentId, display_name: 'TRAE', adapter_code: 'trae', status: 'online' }] }
+      if (request.action === 'resolve_legacy') return { ok: true, agentId, adapter: 'trae' }
+      return { ok: true }
+    })
+    const snapshot = await f.service.action({ action: 'import_existing', agentId })
+    expect(snapshot.agents[0]).toMatchObject({ adapter: 'trae', status: 'stopped', runtimeStatus: 'unavailable', autoStart: false })
+    expect(snapshot.agents[0]?.message).toContain('暂不支持')
+    expect(mocks.fork).not.toHaveBeenCalled()
+  })
   it('never exposes keys, executable arguments, or another account bindings in snapshots', async () => {
     const f = await fixture()
     const serialized = JSON.stringify(f.service.snapshot())
@@ -127,6 +220,11 @@ describe('AgentHostService local authorization and child protocol', () => {
     child.emit('message', { type: 'status', instanceId: agentId, phase: 'ready', connected: true, runtimeReady: null })
     await starting
     expect(f.binding.runtimeStatus).toBe('unknown')
+    child.emit('message', { type: 'status', instanceId: agentId, phase: 'ready', connected: true, runtimeReady: false })
+    expect(f.binding.status).toBe('online')
+    expect(f.binding.runtimeStatus).toBe('error')
+    child.emit('message', { type: 'status', instanceId: agentId, phase: 'ready', connected: true, runtimeReady: true })
+    expect(f.binding.runtimeStatus).toBe('ready')
     const forkOptions = mocks.fork.mock.calls[0]![2]
     expect(JSON.stringify(mocks.fork.mock.calls[0]!.slice(0, 2))).not.toContain(key)
     expect(forkOptions.env.SHENLAN_AGENT_INTERACTION_KEY).toBeUndefined()
@@ -287,6 +385,19 @@ describe('AgentHostService local authorization and child protocol', () => {
     expect(JSON.stringify(result)).not.toContain(firstKey)
   })
 
+  it('checks account on tick without creating bindings or treating cloud online as runtime ready', async () => {
+    const f = await fixture()
+    f.requestMock.mockResolvedValue({ ok: true, agents: [{ id: agentId, display_name: 'Codex', adapter_code: 'codex', status: 'online', interactionKey: 'must-not-escape' }] })
+    await f.service.tick()
+    expect(f.service.snapshot().accountConnection?.status).toBe('connected')
+    expect(f.service.snapshot().cloudAgents).toEqual([{ id: agentId, name: 'Codex', adapter: 'codex', reportedStatus: 'online' }])
+    expect(f.service.snapshot().agents[0]?.runtimeStatus).toBe('unknown')
+    expect(JSON.stringify(f.service.snapshot())).not.toContain('must-not-escape')
+    await f.service.tick()
+    expect(f.requestMock.mock.calls.filter(([request]) => request.action === 'bootstrap')).toHaveLength(1)
+    expect(mocks.fork).not.toHaveBeenCalled()
+  })
+
   it('retains a pending cloud binding and only retries the same instance after an explicit local start', async () => {
     const f = await fixture()
     let cloudBound = false
@@ -297,7 +408,7 @@ describe('AgentHostService local authorization and child protocol', () => {
     expect(f.internal.saved.agents).toHaveLength(1)
     expect(f.binding.pendingCloudBind).toBe(true)
     await f.service.tick()
-    expect(f.requestMock).toHaveBeenCalledTimes(1)
+    expect(f.requestMock.mock.calls.filter(([request]) => request.action !== 'bootstrap')).toHaveLength(1)
     expect(mocks.fork).not.toHaveBeenCalled()
     f.requestMock.mockImplementationOnce(async (request) => {
       expect(request).toMatchObject({ action: 'bind', body: { agentId, deviceId } })
@@ -308,7 +419,7 @@ describe('AgentHostService local authorization and child protocol', () => {
     expect(f.internal.saved.agents).toHaveLength(1)
     expect(f.binding.pendingCloudBind).toBe(false)
     expect(mocks.fork).toHaveBeenCalledTimes(1)
-    expect(f.requestMock.mock.calls.every(([request]) => request.action === 'bind')).toBe(true)
+    expect(f.requestMock.mock.calls.filter(([request]) => request.action !== 'bootstrap').every(([request]) => request.action === 'bind')).toBe(true)
   })
 
   it('confirms an ambiguous bind by heartbeat but never silently rebinds after a later web-side unbind', async () => {
@@ -319,7 +430,7 @@ describe('AgentHostService local authorization and child protocol', () => {
     f.fetchMock.mockImplementation(async () => new Response(JSON.stringify({ ok: true, boundAgentIds: [], commands: [], leaseSeconds: 60 })))
     await f.service.tick()
     expect(f.binding.desiredRunning).toBe(false)
-    expect(f.requestMock).not.toHaveBeenCalled()
+    expect(f.requestMock.mock.calls.filter(([request]) => request.action !== 'bootstrap')).toHaveLength(0)
     await expect(f.service.action({ action: 'start', agentId })).rejects.toThrow('尚未授权')
   })
 })
