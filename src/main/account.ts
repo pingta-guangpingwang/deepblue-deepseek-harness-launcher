@@ -106,7 +106,7 @@ export class AccountService {
     const allowed = request.scope === 'hub'
       ? [
           'bootstrap', 'agent_state', 'session_history', 'activate_sync', 'request_sync', 'request_session_history', 'send_task', 'cancel_task',
-          'group_list', 'group_detail', 'group_create', 'group_update', 'group_delete', 'group_send', 'group_cancel'
+          'group_list', 'group_detail', 'group_create', 'group_update', 'group_delete', 'group_send', 'group_cancel', 'group_approve'
         ]
       : request.scope === 'checkin' ? ['checkin_status', 'claim_checkin'] : ['', 'command']
     if (!localHost && !allowed.includes(action)) throw new Error('此操作只能在本机绑定流程执行')

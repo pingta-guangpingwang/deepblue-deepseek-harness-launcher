@@ -17,7 +17,7 @@ import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSession
 type JsonRecord = Record<string, unknown>
 interface CandidateSession { id: string; projectId: string; title: string }
 interface CandidateProject { id: string; name: string; sessions: CandidateSession[] }
-interface CandidateAgent { id: string; name: string; adapter: string; status: string; projects: CandidateProject[]; message?: string }
+interface CandidateAgent { id: string; name: string; adapter: string; status: string; readinessSource?: string; projects: CandidateProject[]; message?: string }
 interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean; sessions: boolean }; limits: { agents: number; projects: number; sessions: number } }
 interface GroupEditorState {
   groupId?: string
@@ -42,11 +42,11 @@ export function groupStatusLabel(value: string): string {
   return ({
     idle: '待命', ready: '已就绪', online: '已在线', busy: '忙碌', working: '执行中', stopped: '已停止', offline: '成员离线',
     needs_login: '需要本机登录', unavailable: '暂不支持', queued: '排队中', running: '执行中',
-    awaiting_approval: '等待本机确认', cancel_requested: '取消中', unknown: '结果待确认', cancelled: '已取消', completed: '已完成', failed: '失败'
+    awaiting_approval: '等待你确认', awaiting_user_approval: '等待你允许委派', approved: '已允许', cancel_requested: '取消中', unknown: '结果待确认', cancelled: '已取消', completed: '已完成', failed: '失败'
   } as Record<string, string>)[value] || value || '待检查'
 }
 
-export function groupRoleReady(status: string): boolean { return ['ready', 'online', 'busy', 'working'].includes(status) }
+export function groupRoleReady(status: string): boolean { return ['ready', 'busy'].includes(status) }
 export function groupRunActive(status: string): boolean { return ACTIVE_RUNS.has(status) }
 
 export function normalizeSessionGroupSummary(value: unknown): AgentSessionGroupSummary {
@@ -82,6 +82,7 @@ function normalizeRole(value: unknown): AgentSessionGroupRole {
     nativeSessionId: text(field(row, 'native_session_id', 'nativeSessionId', 'session_id', 'sessionId')),
     nativeSessionTitle: text(field(row, 'native_session_title', 'nativeSessionTitle', 'session_title', 'sessionTitle')) || '原生会话',
     status: text(field(row, 'runtime_status', 'runtimeStatus', 'status', 'agent_status', 'agentStatus')) || 'unknown',
+    readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined,
     message: text(field(row, 'message', 'status_message', 'statusMessage')) || undefined
   }
 }
@@ -103,6 +104,7 @@ function normalizeRun(value: unknown): AgentSessionGroupRun {
     createdAt: text(field(row, 'created_at', 'createdAt')) || undefined,
     completedAt: text(field(row, 'completed_at', 'completedAt')) || undefined,
     contentAvailable,
+    contentTruncated: field(row, 'content_truncated', 'contentTruncated') === true || Number(field(row, 'content_truncated', 'contentTruncated')) === 1,
     contentPrunedAt: text(field(row, 'content_pruned_at', 'contentPrunedAt')) || undefined
   }
 }
@@ -121,17 +123,34 @@ function normalizeAction(value: unknown): AgentSessionGroupAction {
     summary: text(field(row, 'summary', 'latest_summary', 'latestSummary')),
     finalText: text(field(row, 'final_text', 'finalText')) || undefined,
     errorCode: text(field(row, 'error_code', 'errorCode')) || undefined,
+    approvalRequired: field(row, 'approval_required', 'approvalRequired') === true || Number(field(row, 'approval_required', 'approvalRequired')) === 1,
+    approvalReason: text(field(row, 'approval_reason', 'approvalReason')) || undefined,
+    approvedAt: text(field(row, 'approved_at', 'approvedAt')) || undefined,
+    contentTruncated: field(row, 'content_truncated', 'contentTruncated') === true || Number(field(row, 'content_truncated', 'contentTruncated')) === 1,
     createdAt: text(field(row, 'created_at', 'createdAt')) || undefined
   }
 }
 
 export function normalizeSessionGroupDetail(value: unknown): AgentSessionGroupDetail {
   const response = object(value)
+  const rawWindow = object(response.window)
   return {
     group: normalizeSessionGroupSummary(response.group),
     roles: rows(response.roles).map(normalizeRole).filter(role => role.id),
     runs: rows(response.runs).map(normalizeRun).filter(run => run.id).sort((left, right) => (Date.parse(right.createdAt || '') || 0) - (Date.parse(left.createdAt || '') || 0)),
-    actions: rows(response.actions).map(normalizeAction).filter(action => action.id).sort((left, right) => left.ordinal - right.ordinal)
+    actions: rows(response.actions).map(normalizeAction).filter(action => action.id).sort((left, right) => left.ordinal - right.ordinal),
+    detailRevision: text(field(response, 'detail_revision', 'detailRevision')) || undefined,
+    window: Object.keys(rawWindow).length ? {
+      maxRuns: Math.max(0, Number(field(rawWindow, 'max_runs', 'maxRuns')) || 0),
+      maxActions: Math.max(0, Number(field(rawWindow, 'max_actions', 'maxActions')) || 0),
+      runCount: Math.max(0, Number(field(rawWindow, 'run_count', 'runCount')) || 0),
+      actionCount: Math.max(0, Number(field(rawWindow, 'action_count', 'actionCount')) || 0),
+      hasMoreRuns: field(rawWindow, 'has_more_runs', 'hasMoreRuns') === true,
+      hasMoreActions: field(rawWindow, 'has_more_actions', 'hasMoreActions') === true,
+      maxRunBodyChars: Math.max(0, Number(field(rawWindow, 'max_run_body_chars', 'maxRunBodyChars')) || 0),
+      maxActionInstructionChars: Math.max(0, Number(field(rawWindow, 'max_action_instruction_chars', 'maxActionInstructionChars')) || 0),
+      maxActionResultChars: Math.max(0, Number(field(rawWindow, 'max_action_result_chars', 'maxActionResultChars')) || 0)
+    } : undefined
   }
 }
 
@@ -168,7 +187,7 @@ function normalizeFlattenedCandidates(value: unknown): CandidateCatalog | undefi
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
     const projects = sourceProjects.filter(project => project.agentId === id).map(project => ({ id: project.id, name: project.name, sessions: sourceSessions.filter(session => session.projectId === project.id && (!session.agentId || session.agentId === id)).map(({ id: sessionId, projectId, title }) => ({ id: sessionId, projectId, title })) }))
-    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown', projects }
+    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus')) || 'unknown', readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined, projects, message: text(field(row, 'status_message', 'statusMessage', 'message')) || undefined }
   }).filter(agent => agent.id)
   const truncated = object(catalog.truncated)
   const limits = object(catalog.limits)
@@ -190,13 +209,15 @@ function timestamp(value?: string): string {
 }
 
 function Status({ value }: { value: string }): React.JSX.Element {
-  const tone = ['ready', 'online', 'completed', 'idle'].includes(value) ? 'good' : ['failed', 'offline', 'needs_login', 'unavailable', 'unknown'].includes(value) ? 'bad' : ['queued', 'running', 'awaiting_approval', 'cancel_requested', 'busy'].includes(value) ? 'pending' : 'neutral'
+  const tone = ['ready', 'completed', 'idle', 'approved'].includes(value) ? 'good' : ['failed', 'offline', 'needs_login', 'unavailable', 'unknown'].includes(value) ? 'bad' : ['queued', 'running', 'awaiting_approval', 'awaiting_user_approval', 'cancel_requested', 'busy'].includes(value) ? 'pending' : 'neutral'
   return <span className={`asg-status ${tone}`}><i aria-hidden="true" />{groupStatusLabel(value)}</span>
 }
 
-function ActionRecord({ action, roleName }: { action: AgentSessionGroupAction; roleName: string }): React.JSX.Element {
+function ActionRecord({ action, role, busy, onApprove, onReject }: { action: AgentSessionGroupAction; role?: AgentSessionGroupRole; busy: boolean; onApprove(): void; onReject(): void }): React.JSX.Element {
+  const roleName = role?.name || '群编排'
+  const awaitingApproval = action.approvalRequired === true && action.status === 'awaiting_user_approval'
   const hasCopy = Boolean(action.instruction || action.summary || action.finalText || action.errorCode)
-  return <div className="asg-action"><span>{roleName}</span><div className="asg-action-copy">{action.instruction && <p><strong>任务：</strong>{action.instruction}</p>}{action.summary && <p>{action.summary}</p>}{action.finalText && <p><strong>结果：</strong>{action.finalText}</p>}{action.errorCode && <code>错误：{action.errorCode}</code>}{!hasCopy && <p>{action.actionType}</p>}</div><Status value={action.status} /></div>
+  return <div className={`asg-action ${awaitingApproval ? 'needs-approval' : ''}`}><span>{roleName}</span><div className="asg-action-copy">{awaitingApproval ? <div className="asg-approval" role="alert"><strong>主控请求委派，尚未执行</strong><p>{role?.agentName || '智能体'} · {role?.projectName || '项目'} · {role?.nativeSessionTitle || '原生会话'}</p><p><strong>拟派任务：</strong>{action.instruction || '未提供任务内容'}</p><small>该智能体拥有当前项目的实际操作能力；只有你明确允许后才会派发。</small><div><button className="primary-button" disabled={busy} onClick={onApprove}>{busy ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}允许委派</button><button className="small-button danger" disabled={busy} onClick={onReject}>拒绝并停止</button></div></div> : <>{action.instruction && <p><strong>任务：</strong>{action.instruction}</p>}{action.summary && <p>{action.summary}</p>}{action.finalText && <p><strong>结果：</strong>{action.finalText}</p>}{action.errorCode && <code>错误：{action.errorCode}</code>}{!hasCopy && <p>{action.actionType}</p>}</>}{action.contentTruncated && <small className="asg-truncated">内容过长，当前只显示安全截断后的部分。</small>}</div><Status value={action.status} /></div>
 }
 
 export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
@@ -231,6 +252,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const saving = useRef(false)
   const submission = useRef<{ signature: string; clientRequestId: string } | undefined>(undefined)
   const configuredGroup = useRef('')
+  const polledGroup = useRef('')
+  const detailRevision = useRef('')
+  const unchangedPolls = useRef(0)
+  const lastDetailActive = useRef(false)
 
   async function request(value: AgentWorkspaceRequest): Promise<JsonRecord> {
     if (!window.launcher?.agentWorkspaceRequest) throw new Error('当前启动器内核缺少会话群接口，请检查更新。')
@@ -242,7 +267,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   useEffect(() => {
     accountEpoch.current += 1
     setGroups([]); setSelectedGroupId(''); setDetail(undefined); setCandidates([]); setCandidateCatalog(undefined); setError(''); setSyncError(''); setNotice(''); setInstruction(''); setEditor(undefined)
-    submission.current = undefined; configuredGroup.current = ''
+    submission.current = undefined; configuredGroup.current = ''; polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false
   }, [userId, signedIn])
 
   useEffect(() => {
@@ -285,27 +310,36 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   }, [supported, signedIn, userId, reload])
 
   useEffect(() => {
-    if (!supported || !signedIn || !selectedGroupId) { setDetail(undefined); return }
+    if (!supported || !signedIn || !selectedGroupId) { setDetail(undefined); polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; return }
+    if (polledGroup.current !== selectedGroupId) { polledGroup.current = selectedGroupId; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false }
     const epoch = accountEpoch.current
     let disposed = false
     let timer: ReturnType<typeof setTimeout>
     const current = (): boolean => !disposed && epoch === accountEpoch.current
     async function load(): Promise<void> {
       if (document.hidden) { timer = setTimeout(() => void load(), 4000); return }
+      let nextDelay = lastDetailActive.current ? 4000 : Math.min(30000, 8000 * Math.pow(2, Math.max(0, unchangedPolls.current - 1)))
       try {
-        const response = await request({ scope: 'hub', method: 'GET', action: 'group_detail', params: { groupId: selectedGroupId } })
+        const params: Record<string, string> = { groupId: selectedGroupId }
+        if (detailRevision.current) params.afterRevision = detailRevision.current
+        const response = await request({ scope: 'hub', method: 'GET', action: 'group_detail', params })
         if (!current()) return
+        if (response.changed === false) { unchangedPolls.current = Math.min(4, unchangedPolls.current + 1); setSyncError(''); return }
         const next = normalizeSessionGroupDetail(response)
         if (next.group.id !== selectedGroupId) throw new Error('返回的会话群不匹配，请重新刷新。')
         const activeRuns = next.runs.filter(run => groupRunActive(run.status))
         const latestRun = next.runs[0]
         const group = { ...next.group, activeRunCount: activeRuns.length, activeRunId: activeRuns[0]?.id, latestRunStatus: latestRun?.status, status: activeRuns[0]?.status || latestRun?.status || next.group.status }
         const merged = { ...next, group }
+        detailRevision.current = next.detailRevision || ''
+        unchangedPolls.current = 0
+        lastDetailActive.current = activeRuns.length > 0
+        nextDelay = lastDetailActive.current ? 4000 : 8000
         setDetail(previous => JSON.stringify(previous) === JSON.stringify(merged) ? previous : merged)
         setGroups(previous => previous.map(item => item.id === group.id ? { ...item, ...group } : item))
         setSyncError('')
       } catch (cause) { if (current()) setSyncError(cause instanceof Error ? cause.message : '会话群同步失败。') }
-      finally { if (current()) timer = setTimeout(() => void load(), 4000) }
+      finally { if (current()) timer = setTimeout(() => void load(), nextDelay) }
     }
     void load()
     return () => { disposed = true; clearTimeout(timer) }
@@ -337,7 +371,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const candidateTruncation = candidateCatalog ? (['agents', 'projects', 'sessions'] as const).filter(key => candidateCatalog.truncated[key]).map(key => `${{ agents: '智能体', projects: '项目', sessions: '会话' }[key]}最近 ${candidateCatalog.limits[key] || '有限'} 项`).join('、') : ''
 
   function chooseGroup(id: string): void {
-    setSelectedGroupId(id); setDetail(undefined); setError(''); setNotice(''); setMobilePane('roles'); configuredGroup.current = ''; submission.current = undefined
+    setSelectedGroupId(id); setDetail(undefined); setError(''); setNotice(''); setMobilePane('roles'); configuredGroup.current = ''; polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; submission.current = undefined
   }
   function openCreate(): void {
     setEditorError(''); setEditor({ name: '', mode: 'manual', coordinatorRoleId: '', maxTurns: 6, roles: [blankRole(), blankRole()] })
@@ -367,7 +401,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
       const groupId = text(response.groupId) || text(object(response.group).id) || editor.groupId || ''
       setEditor(undefined); setNotice(editor.groupId ? '会话群设置已保存。' : '会话群已创建；成员不会因此自动启动或扩大目录授权。')
       if (groupId) { setSelectedGroupId(groupId); setMobilePane('roles') }
-      if (editingExisting) { setDetail(undefined); setTargetRoleIds([]); submission.current = undefined; setComposerReset(value => value + 1) }
+      if (editingExisting) { setDetail(undefined); detailRevision.current = ''; unchangedPolls.current = 0; setTargetRoleIds([]); submission.current = undefined; setComposerReset(value => value + 1) }
       setReload(value => value + 1)
     } catch (cause) { setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') }
     finally { saving.current = false; setBusy('') }
@@ -377,7 +411,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     setBusy('group_delete'); setError(''); setNotice('')
     try {
       await request({ scope: 'hub', method: 'POST', action: 'group_delete', body: { groupId: detail.group.id } })
-      setSelectedGroupId(''); setDetail(undefined); setConfirmDelete(false); setNotice('会话群已停用并从列表移除；必要审计记录已保留。'); setMobilePane('groups'); setReload(value => value + 1)
+      setSelectedGroupId(''); setDetail(undefined); detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; setConfirmDelete(false); setNotice('会话群已停用并从列表移除；任务正文与角色结果已清理，只保留状态和必要审计。'); setMobilePane('groups'); setReload(value => value + 1)
     } catch (cause) { setError(cause instanceof Error ? cause.message : '停用失败，请重试。') }
     finally { setBusy('') }
   }
@@ -413,6 +447,24 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     finally { setBusy('') }
   }
 
+  async function approveDelegate(runId: string, actionId: string): Promise<void> {
+    if (!detail || busy) return
+    setBusy(`group_approve:${actionId}`); setError(''); setNotice('')
+    try {
+      await request({ scope: 'hub', method: 'POST', action: 'group_approve', body: { groupId: detail.group.id, runId, actionId } })
+      const approvedAt = new Date().toISOString()
+      setDetail(previous => previous ? {
+        ...previous,
+        group: { ...previous.group, status: 'running' },
+        runs: previous.runs.map(run => run.id === runId ? { ...run, status: 'running', summary: '你已允许本次委派，等待目标智能体接收' } : run),
+        actions: previous.actions.map(action => action.id === actionId ? { ...action, status: 'approved', approvalRequired: false, approvedAt } : action)
+      } : previous)
+      setNotice('已允许这一次委派；系统会在再次核对目标智能体状态后派发。')
+      setReload(value => value + 1)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '委派批准结果未确认，请刷新后重试。') }
+    finally { setBusy('') }
+  }
+
   if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>会话群需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
   if (!supported) return <div className="aw-unavailable"><Users size={36} /><h2>请升级启动器</h2><p>当前内核没有会话群通信接口，不能安全创建或派发群任务。</p></div>
   if (!signedIn) return <div className="aw-login"><Users size={20} /><div><strong>登录后使用智能体会话群</strong><p>会话群只组合当前账号已有的智能体、授权项目和原生会话。</p></div><button className="primary-button" onClick={onLogin}>登录 AI历史书</button></div>
@@ -434,16 +486,16 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
           <div className="asg-group-meta"><strong>{detail.group.name}</strong><span>{detail.group.mode === 'coordinator' ? '主控协调' : '我来指挥'} · 最多 {detail.group.maxTurns} 次角色调用</span></div>
           <div className="asg-role-list">{detail.roles.map(role => <article className="asg-role-row" key={role.id}><Bot size={18} /><div><div className="asg-role-title"><strong>{role.name}</strong><Status value={role.status} /></div><p>{role.responsibility || '尚未填写职责'}</p><small>{role.agentName} · {role.projectName}</small><small>{role.nativeSessionTitle}</small>{role.message && <small>{role.message}</small>}</div></article>)}</div>
           <div className="asg-role-actions"><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑群与角色</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />停用并移除</button><button className="primary-button asg-mobile-next" onClick={() => setMobilePane('activity')}>查看群任务</button></div>
-          {confirmDelete && <div className="asg-delete-confirm" role="alert"><p>会话群将从列表移除并停用，角色、运行和动作会保留必要审计；不会删除原生项目、会话或智能体。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'group_delete'} onClick={() => void deleteGroup()}>{busy === 'group_delete' ? '停用中…' : '确认停用'}</button></div>}
+          {confirmDelete && <div className="asg-delete-confirm" role="alert"><p>会话群将从列表移除并停用；任务正文、角色结果和待派发内容会立即清理，只保留状态、哈希与必要审计。不会删除原生项目、会话或智能体。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'group_delete'} onClick={() => void deleteGroup()}>{busy === 'group_delete' ? '停用中…' : '确认停用并清理正文'}</button></div>}
         </>}
       </aside>
       <main className="asg-pane asg-activity-pane">
         <header className="asg-activity-heading"><button className="asg-back aw-icon-button" aria-label="返回成员列表" onClick={() => setMobilePane('roles')}><ArrowLeft size={17} /></button><div><h2>{detail?.group.name || '群任务'}</h2><p>{detail ? `${detail.roles.length} 个角色 · ${activeRun ? groupStatusLabel(activeRun.status) : '暂无进行中任务'}` : '选择会话群后开始'}</p></div>{detail && <Status value={activeRun?.status || detail.group.status} />}</header>
-        <div className="asg-activity" tabIndex={0} aria-label="会话群任务与动作记录">{detail?.runs.map(run => <article className="asg-run" key={run.id}><header><div><strong>{run.contentAvailable ? run.instruction || '群任务' : '历史群任务（正文已清理）'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header><p>{run.contentAvailable ? run.finalText || run.summary || groupStatusLabel(run.status) : `正文已按最近 10 次保留策略清理${run.contentPrunedAt ? ` · ${timestamp(run.contentPrunedAt)}` : ''}`}</p><div className="asg-run-meta"><span>{run.mode === 'coordinator' ? '主控协调' : `发送给 ${run.targetRoleIds.length || '所选'} 个角色`}</span><span>上限 {run.maxTurns} 次</span></div>{detail.actions.filter(action => action.runId === run.id).map(action => <ActionRecord action={action} roleName={action.roleId ? roleById.get(action.roleId)?.name || '角色' : '群编排'} key={action.id} />)}{groupRunActive(run.status) && run.status !== 'cancel_requested' && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />取消群任务</button>}</article>)}{detail && !detail.runs.length && <div className="asg-empty"><MessageSquare size={25} /><strong>还没有群任务</strong><p>选择角色并发送一条明确任务。系统会保留原生会话边界和执行上限。</p></div>}{!detail && <div className="asg-empty"><Users size={25} /><strong>选择一个会话群</strong><p>任务、角色动作和最终结果会显示在这里。</p></div>}</div>
+        <div className="asg-activity" tabIndex={0} aria-label="会话群任务与动作记录">{detail?.window && (detail.window.hasMoreRuns || detail.window.hasMoreActions) && <p className="asg-window-note">为控制同步体积，仅显示最近 {detail.window.maxRuns} 次运行与 {detail.window.maxActions} 个动作；更早记录仅保留审计状态。</p>}{detail?.runs.map(run => <article className="asg-run" key={run.id}><header><div><strong>{run.contentAvailable ? run.instruction || '群任务' : '历史群任务（正文已清理）'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header><p>{run.contentAvailable ? run.finalText || run.summary || groupStatusLabel(run.status) : `正文已按最近 10 次保留策略清理${run.contentPrunedAt ? ` · ${timestamp(run.contentPrunedAt)}` : ''}`}</p>{run.contentTruncated && <small className="asg-truncated">任务正文过长，当前只显示安全截断后的部分。</small>}<div className="asg-run-meta"><span>{run.mode === 'coordinator' ? '主控协调' : `发送给 ${run.targetRoleIds.length || '所选'} 个角色`}</span><span>上限 {run.maxTurns} 次</span></div>{detail.actions.filter(action => action.runId === run.id).map(action => <ActionRecord action={action} role={action.roleId ? roleById.get(action.roleId) : undefined} busy={Boolean(busy)} onApprove={() => void approveDelegate(run.id, action.id)} onReject={() => void cancelRun(run.id)} key={action.id} />)}{groupRunActive(run.status) && run.status !== 'cancel_requested' && !detail.actions.some(action => action.runId === run.id && action.status === 'awaiting_user_approval') && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />取消群任务</button>}</article>)}{detail && !detail.runs.length && <div className="asg-empty"><MessageSquare size={25} /><strong>还没有群任务</strong><p>选择角色并发送一条明确任务。系统会保留原生会话边界和执行上限。</p></div>}{!detail && <div className="asg-empty"><Users size={25} /><strong>选择一个会话群</strong><p>任务、角色动作和最终结果会显示在这里。</p></div>}</div>
         <form className="asg-composer" onSubmit={event => void send(event)}>
           {detail && <div className="asg-dispatch-options"><label>运行方式<select value={dispatchMode} onChange={event => { setDispatchMode(event.target.value as AgentSessionGroupMode); submission.current = undefined }}><option value="manual">我来指挥</option><option value="coordinator">主控协调</option></select></label>{dispatchMode === 'coordinator' && <label>主控角色<select value={coordinatorRoleId} onChange={event => { setCoordinatorRoleId(event.target.value); submission.current = undefined }}><option value="">请选择主控</option>{detail.roles.map(role => <option value={role.id} key={role.id}>{role.name} · {groupStatusLabel(role.status)}</option>)}</select></label>}<label>最多调用<input type="number" min={1} max={12} value={maxTurns} onChange={event => { setMaxTurns(boundedTurns(event.target.value)); submission.current = undefined }} /></label></div>}
           {detail && dispatchMode === 'manual' && <fieldset className="asg-targets"><legend>发送给角色</legend>{detail.roles.map(role => <label key={role.id} data-ready={groupRoleReady(role.status)}><input type="checkbox" checked={targetRoleIds.includes(role.id)} disabled={!groupRoleReady(role.status)} onChange={event => { setTargetRoleIds(previous => event.target.checked ? [...previous, role.id] : previous.filter(id => id !== role.id)); submission.current = undefined }} /><span>{role.name}</span><small>{groupStatusLabel(role.status)}</small></label>)}</fieldset>}
-          {detail && dispatchMode === 'coordinator' && <p className="asg-composer-hint">主控只能委派给群内现有角色，不会新增成员、项目或目录权限。</p>}
+          {detail && dispatchMode === 'coordinator' && <p className="asg-composer-hint">主控只能建议委派给群内现有角色；每一次实际委派都会先展示目标项目、原生会话和任务内容，由你明确允许。</p>}
           {activeRun && <p className="asg-composer-hint">当前群任务为“{groupStatusLabel(activeRun.status)}”。结束或取消确认后才能提交下一条。</p>}
           <label className="aw-sr-only" htmlFor="asg-instruction">会话群任务内容</label><textarea id="asg-instruction" value={instruction} maxLength={8000} disabled={!detail || Boolean(activeRun) || busy === 'group_send'} placeholder={dispatchMode === 'coordinator' ? '描述目标，让主控在限定次数内规划、委派并汇总…' : '描述任务，并选择一个或多个角色…'} onChange={event => { setInstruction(event.target.value); submission.current = undefined }} />
           <div className="asg-composer-footer"><span>{detail && dispatchMode === 'manual' && !manualTargetsWithinLimit ? `已选 ${targetRoleIds.length} 个角色，最大调用 ${maxTurns} 次` : !sendReady && detail ? dispatchMode === 'manual' ? '请选择至少一个已就绪角色' : !coordinator ? '请选择已就绪的主控角色' : coordinatorOfflineRoles.length ? `${coordinatorOfflineRoles.length} 个参与角色未就绪：${coordinatorOfflineRoles.map(role => role.name).join('、')}` : '请选择已就绪的主控角色' : `${instruction.length}/8000 · 点击发送`}</span><button type="submit" className="primary-button" disabled={!detail || Boolean(activeRun) || Boolean(busy) || !instruction.trim() || !sendReady}>{busy === 'group_send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'group_send' ? '发送中' : '发送群任务'}</button></div>

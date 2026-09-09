@@ -82,6 +82,7 @@ export interface AgentSessionGroupRole {
   nativeSessionId: string
   nativeSessionTitle: string
   status: string
+  readinessSource?: 'host' | 'standalone' | string
   message?: string
 }
 export interface AgentSessionGroupRun {
@@ -98,6 +99,7 @@ export interface AgentSessionGroupRun {
   createdAt?: string
   completedAt?: string
   contentAvailable: boolean
+  contentTruncated?: boolean
   contentPrunedAt?: string
 }
 export interface AgentSessionGroupAction {
@@ -112,13 +114,30 @@ export interface AgentSessionGroupAction {
   summary: string
   finalText?: string
   errorCode?: string
+  approvalRequired?: boolean
+  approvalReason?: string
+  approvedAt?: string
+  contentTruncated?: boolean
   createdAt?: string
+}
+export interface AgentSessionGroupDetailWindow {
+  maxRuns: number
+  maxActions: number
+  runCount: number
+  actionCount: number
+  hasMoreRuns: boolean
+  hasMoreActions: boolean
+  maxRunBodyChars: number
+  maxActionInstructionChars: number
+  maxActionResultChars: number
 }
 export interface AgentSessionGroupDetail {
   group: AgentSessionGroupSummary
   roles: AgentSessionGroupRole[]
   runs: AgentSessionGroupRun[]
   actions: AgentSessionGroupAction[]
+  detailRevision?: string
+  window?: AgentSessionGroupDetailWindow
 }
 export interface AgentSessionGroupRoleInput {
   id: string
