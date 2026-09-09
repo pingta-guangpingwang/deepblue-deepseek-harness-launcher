@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest, LocalAgentBinding, LocalCatalog, LocalTask } from '../../shared/agent-host'
 import { desktopRelayRequest } from './desktop-relay'
 import { readLocalModels, mergeLocalModels, sameLocalPath } from './local-models'
+import { resolveBuiltinDshHost, type DshHostSettings } from './dsh-launcher'
 import { readLegacyBinding, prepareLegacyHandoff, LEGACY_ADAPTERS, type LegacyBindingConfig } from './legacy-bindings'
 
 export const AGENT_HOST_PROTOCOL = 1
@@ -31,8 +32,10 @@ export interface AgentHostOptions {
   chooseDirectory: () => Promise<string | undefined>
   onChange: () => void
   fetch?: typeof fetch
+  resolveDshHost?: () => Promise<DshHostSettings>
 }
 const ADAPTERS: Record<AgentAdapter, { name: string; command: string }> = {
+  'deepseek-harness': { name: 'DeepSeek Harness（内置）', command: 'dsh' },
   codex: { name: 'Codex', command: 'codex' },
   'claude-code': { name: 'Claude Code', command: 'claude' },
   qclaw: { name: 'QClaw / OpenClaw', command: 'openclaw' },
@@ -62,6 +65,7 @@ function inside(root: string, file: string): boolean {
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
 }
 export async function resolveAgentLaunch(adapter: AgentAdapter, nodePath: string): Promise<{ executable: string; args: string[] } | undefined> {
+  if (adapter === 'deepseek-harness') return undefined // Requires the owning Launcher profile; never pick a random PATH installation.
   if (adapter === 'codex' && process.platform === 'win32' && process.env.USERPROFILE) {
     // The desktop updater owns this bounded directory. Prefer its matching CLI
     // over a stale npm shim that cannot read the desktop's newer model cache.
@@ -128,6 +132,16 @@ export class AgentHostService {
   private connectionOwner?: string
   private connectionCheck?: Promise<void>
   constructor(private readonly options: AgentHostOptions) {}
+
+  private dshHostSettings(): Promise<DshHostSettings> {
+    return this.options.resolveDshHost ? this.options.resolveDshHost() : resolveBuiltinDshHost(this.options.storageDir)
+  }
+  private async resolveLaunch(adapter: AgentAdapter): Promise<{ executable: string; args: string[] } | undefined> {
+    if (adapter !== 'deepseek-harness') return resolveAgentLaunch(adapter, this.options.nodePath)
+    await this.dshHostSettings()
+    // DSH executes through its already-running local RPC host, not a new CLI.
+    return { executable: this.options.nodePath, args: [] }
+  }
 
   async initialize(): Promise<void> {
     await mkdir(this.options.storageDir, { recursive: true })
@@ -302,8 +316,10 @@ export class AgentHostService {
     let observedRoot: string | undefined
     if (input.action === 'discover') {
       this.state.discovered = await Promise.all((Object.keys(ADAPTERS) as AgentAdapter[]).map(async (adapter) => {
-        const found = await resolveAgentLaunch(adapter, this.options.nodePath)
-        return { adapter, name: ADAPTERS[adapter].name, available: !!found, message: found ? '发现本地命令；绑定后检查登录与会话状态' : '未发现命令，请先安装并完成智能体自身登录' }
+        try {
+          const found = await this.resolveLaunch(adapter)
+          return { adapter, name: ADAPTERS[adapter].name, available: !!found, message: adapter === 'deepseek-harness' ? '使用内置 DSH；请先在首页启动 Harness，再绑定项目并启动同步' : found ? '发现本地命令；绑定后检查登录与会话状态' : '未发现命令，请先安装并完成智能体自身登录' }
+        } catch (error) { return { adapter, name: ADAPTERS[adapter].name, available: false, message: errorText(error) } }
       }))
       return this.snapshot()
     }
@@ -322,7 +338,7 @@ export class AgentHostService {
       await this.checkConnection(true)
       const selectedAgentId = input.agentId
       const cloud = this.state.cloudAgents?.find(agent => agent.id === selectedAgentId)
-      if (!cloud || !LEGACY_ADAPTERS.includes(cloud.adapter as AgentAdapter)) throw new Error('当前账号中没有这个受支持的智能体')
+      if (!cloud || !(LEGACY_ADAPTERS as readonly AgentAdapter[]).includes(cloud.adapter as AgentAdapter)) throw new Error('当前账号中没有这个受支持的智能体')
       if (this.saved.agents.some(agent => agent.id === cloud.id)) return this.snapshot()
       if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
       const legacy = await readLegacyBinding(cloud.adapter as AgentAdapter)
@@ -421,7 +437,7 @@ export class AgentHostService {
       if (!Object.hasOwn(ADAPTERS, input.adapter)) throw new Error('当前版本不支持这个适配器')
       if (input.adapter === 'trae') throw new Error('TRAE 远程交互暂不支持；可以保留原网站记录，但不能新建可执行绑定')
       if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
-      const launch = await resolveAgentLaunch(input.adapter, this.options.nodePath)
+      const launch = await this.resolveLaunch(input.adapter)
       if (!launch) throw new Error('没有找到可直接运行的智能体。请安装官方原生程序或官方 npm 包；不支持任意 cmd/bat 启动脚本')
       const root = observedRoot || await this.chooseProject()
       if (!root) return this.snapshot()
@@ -639,6 +655,7 @@ export class AgentHostService {
       if (binding.status === 'failed') throw new Error('旧连接服务正在安全退出，请等退出后重试')
       return
     }
+    const dshHost = binding.adapter === 'deepseek-harness' ? await this.dshHostSettings() : undefined
     const entry = path.join(this.options.moduleDir, 'connector', 'host-child.mjs')
     await access(entry).catch(() => { throw new Error('缺少智能体托管模块，请在版本管理中更新或安装最新版启动器') })
     const stateDirectory = path.join(this.options.storageDir, 'instances', binding.id)
@@ -687,6 +704,7 @@ export class AgentHostService {
       serverUrl: 'https://ailishishu.com/ailishishu-stats/api/agent-connector.php', interactionKey: binding.key,
       adapterCode: binding.adapter, runtimeLabel: hostname(), runtimeExecutable: binding.executable,
       runtimeExecutableArgs: binding.executableArgs || [],
+      ...(dshHost ? { dshHost } : {}),
       ...(binding.legacy?.settings || {}),
       stateFile: path.join(stateDirectory, 'connector-state.json'), sandbox: 'workspace-write',
       projects: binding.projectRoots.map((root) => ({ name: path.basename(root), path: root, enabled: true })),

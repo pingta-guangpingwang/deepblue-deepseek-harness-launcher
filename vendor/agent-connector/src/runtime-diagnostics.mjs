@@ -60,6 +60,9 @@ export function classifyRuntimeException(adapterCode, error) {
       diagnostic
     };
   }
+  if (adapterCode === 'deepseek-harness' && error?.dshSessionBusy) {
+    return { code: 'session_busy', retryable: true, userMessage: 'DSH 正在本机执行这个会话，远程任务保留在队列中，空闲后继续。', diagnostic };
+  }
   if (adapterCode === 'codex' && /(?:thread\s+[0-9a-f-]+\s+)?already has an active writer|active writer.{0,80}(?:thread|session)|(?:thread|session).{0,80}active writer/i.test(source)) {
     return {
       code: 'native_session_open',
@@ -93,7 +96,7 @@ export function classifyRuntimeException(adapterCode, error) {
 }
 
 function runtimeName(adapterCode) {
-  return ({ codex: 'Codex', 'claude-code': 'Claude Code', qclaw: 'QClaw', workbuddy: 'WorkBuddy', codebuddy: 'CodeBuddy', trae: 'TRAE' })[adapterCode] || '智能体';
+  return ({ codex: 'Codex', 'claude-code': 'Claude Code', qclaw: 'QClaw', workbuddy: 'WorkBuddy', codebuddy: 'CodeBuddy', trae: 'TRAE', 'deepseek-harness': 'DeepSeek Harness' })[adapterCode] || '智能体';
 }
 
 function waitForProbe(child) {

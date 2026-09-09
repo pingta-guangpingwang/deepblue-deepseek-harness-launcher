@@ -4,8 +4,13 @@ import path from 'node:path';
 import { ensureQClawGateway, qclawGatewayReady, validateLocalGateway } from './qclaw-gateway.mjs';
 import { spawnRuntime, childEnvironmentWithoutSecret, waitForExit, readBoundedProcessText } from './runner-common.mjs';
 import { probeWorkBuddyRuntime } from './workbuddy-runner.mjs';
+import { probeDshHost } from './dsh-runner.mjs';
 
 export async function probeRuntimeHealth(config, connector, operations = {}) {
+  if (config.adapterCode === 'deepseek-harness') {
+    const host = await (operations.probeDshHost || probeDshHost)(config);
+    return Boolean(host?.provider && host?.model); // Running web server alone is not a configured model route.
+  }
   if (connector.codexHost?.isReady) return connector.codexHost.isReady();
   if (config.adapterCode === 'codex' && process.env.SHENLAN_DESKTOP_RUNNER) {
     const module = process.env.SHENLAN_DESKTOP_RUNNER;

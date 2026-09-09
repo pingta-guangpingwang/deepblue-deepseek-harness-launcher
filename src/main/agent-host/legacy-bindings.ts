@@ -51,7 +51,7 @@ export async function prepareLegacyHandoff(legacy: Omit<LegacyBindingConfig, 'ke
 // Fixed per-user service directory only. Cloud and renderer cannot choose a file
 // or executable, and this structure must never be returned through IPC.
 export async function readLegacyBinding(adapter: AgentAdapter, base = path.join(process.env.LOCALAPPDATA || '', 'ShenlanAI', 'AgentSync')): Promise<LegacyBindingConfig> {
-  if (!LEGACY_ADAPTERS.includes(adapter) || !path.isAbsolute(base)) throw new Error('不支持的本机连接配置')
+  if (!(LEGACY_ADAPTERS as readonly AgentAdapter[]).includes(adapter) || !path.isAbsolute(base)) throw new Error('不支持的本机连接配置')
   const root = await realpath(path.join(base, adapter))
   const sourceFile = await realpath(path.join(root, 'sync-service.json'))
   if (!inside(base, root) || !inside(root, sourceFile)) throw new Error('连接配置超出本机服务目录')

@@ -1,9 +1,10 @@
 import { chmod, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { validateDshEndpoint } from './dsh-rpc.mjs';
 
 const DEFAULT_CONFIG_NAME = 'agent-connector.local.json';
 const KEY_PATTERN = /^agh_live_[A-Za-z0-9_-]{32,}$/;
-const SUPPORTED_ADAPTERS = ['codex', 'claude-code', 'qclaw', 'workbuddy', 'codebuddy', 'trae'];
+const SUPPORTED_ADAPTERS = ['codex', 'claude-code', 'qclaw', 'workbuddy', 'codebuddy', 'trae', 'deepseek-harness'];
 const FORBIDDEN_ARGUMENTS = [
   '--yolo',
   '--dangerously-bypass-approvals-and-sandbox',
@@ -22,6 +23,7 @@ const ADAPTER_DEFAULTS = {
   qclaw: { executable: 'openclaw', workspaceKind: 'workspace' },
   workbuddy: { executable: 'workbuddy', workspaceKind: 'project' },
   codebuddy: { executable: 'codebuddy', workspaceKind: 'project' },
+  'deepseek-harness': { executable: 'dsh', workspaceKind: 'project' },
   trae: { executable: 'trae-cn', workspaceKind: 'project' }
 };
 
@@ -39,6 +41,7 @@ export function configTemplate(adapterCode = 'codex') {
     stateFile: './.agent-connector-state.json',
     runtimeExecutable: ADAPTER_DEFAULTS[normalizedAdapter].executable,
     runtimeExecutableArgs: [],
+    ...(normalizedAdapter === 'deepseek-harness' ? { dshHost: { endpoint: 'http://127.0.0.1:3000', expectedVersion: '0.1.1-rc.2', expectedCwd: '' } } : {}),
     codexHost: {
       enabled: normalizedAdapter === 'codex',
       endpoint: 'ws://127.0.0.1:4500',
@@ -239,6 +242,11 @@ export async function loadConfigObject(raw, options = {}) {
   if (!runtimeExecutable) throw new Error('runtimeExecutable 不能为空');
   const runtimeExecutableArgs = validateWrapperArguments(raw.runtimeExecutableArgs || legacyArguments || []);
   const codexHost = validateCodexHost(raw.codexHost, adapterCode);
+  const dshHost = adapterCode === 'deepseek-harness' ? {
+    endpoint: validateDshEndpoint(raw.dshHost?.endpoint),
+    expectedVersion: String(raw.dshHost?.expectedVersion || '0.1.1-rc.2'),
+    expectedCwd: raw.dshHost?.expectedCwd ? path.resolve(configDirectory, String(raw.dshHost.expectedCwd)) : ''
+  } : undefined;
   const qclawStateDir = raw.qclawStateDir ? path.resolve(configDirectory, String(raw.qclawStateDir)) : '';
   const qclawConfigPath = raw.qclawConfigPath ? path.resolve(configDirectory, String(raw.qclawConfigPath)) : '';
   if (adapterCode === 'qclaw') {
@@ -264,6 +272,7 @@ export async function loadConfigObject(raw, options = {}) {
     runtimeExecutable,
     runtimeExecutableArgs,
     codexHost,
+    dshHost,
     qclawStateDir,
     qclawConfigPath,
     qclawAgentId: String(raw.qclawAgentId || 'main').trim().slice(0, 120) || 'main',

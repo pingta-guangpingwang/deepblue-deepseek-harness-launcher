@@ -8,11 +8,12 @@ import { attachmentInstruction, buildRuntimeInstruction, classifyRuntimeExceptio
 import { AttachmentTransferError, cleanupTaskAttachments, downloadTaskAttachments } from './attachment-transfer.mjs';
 import { bindDiscoveredSessions, discoverRuntimeCatalog, mergeProjectSources } from './runtime-catalog.mjs';
 import { readRuntimeSessionHistory } from './session-history.mjs';
+import { readDshSessionHistory } from './dsh-runner.mjs';
 import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 
-const CONNECTOR_VERSION = '0.10.8';
+const CONNECTOR_VERSION = '0.10.9';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -526,8 +527,9 @@ export class AgentConnector {
       await this.refreshLocalCatalog();
       const project = this.resolveProject(command);
       const session = project ? this.resolveSession(command, project) : null;
-      const historyAvailable = Boolean(session?.historyPath) && ['codex', 'claude-code', 'qclaw', 'codebuddy'].includes(this.config.adapterCode);
-      const messages = historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
+      const isDsh = this.config.adapterCode === 'deepseek-harness' && Boolean(session && project);
+      const historyAvailable = isDsh || Boolean(session?.historyPath) && ['codex', 'claude-code', 'qclaw', 'codebuddy'].includes(this.config.adapterCode);
+      const messages = isDsh ? await readDshSessionHistory(this.config, project, session, 20) : historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
       const response = await this.serializeMutation(() => this.api.request('session_history', {
         method: 'POST',
         idempotencyKey: `session-history:${command.id}:${session?.revision || 0}`,
@@ -742,6 +744,7 @@ export class AgentConnector {
         qclawStateDir: this.config.qclawStateDir,
         qclawConfigPath: this.config.qclawConfigPath,
         codexHost: this.codexHost,
+        dshHost: this.config.dshHost,
         control,
         threadTitle: rawInstruction.split(/\r?\n/)[0].slice(0, 72),
         onProgress

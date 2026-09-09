@@ -1,5 +1,7 @@
 import { open, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { DshClient, dshSessionRows } from './dsh-rpc.mjs';
+import { probeDshHost } from './dsh-runner.mjs';
 import { semanticSessionTitle, unwrapRemoteInstruction, visibleContentText } from './session-history.mjs';
 
 function pathKey(value) {
@@ -500,6 +502,21 @@ export async function discoverRuntimeCatalog(config, options = {}) {
   const explicitPaths = new Set(explicitDirectories.map(pathKey));
   const projects = new Map();
   const sessions = new Map();
+  if (config.adapterCode === 'deepseek-harness') {
+    const client = options.dshClient || new DshClient(config.dshHost?.endpoint);
+    await probeDshHost(config, client);
+    const rows = dshSessionRows(await client.call('session.list'));
+    for (const row of rows) {
+      if (row.blank) continue;
+      const directory = await authorizedDirectory(row.cwd, normalizedConfig.projectDiscovery, explicitPaths);
+      if (!directory) continue;
+      const lastActivityAt = isoTime(row.updatedAt);
+      addProject(projects, { path: directory, name: path.basename(directory), workspaceKind: 'project', lastActivityAt });
+      const nativeTitle = row.projections?.values?.title;
+      const title = typeof nativeTitle === 'string' ? nativeTitle : nativeTitle?.title;
+      addSession(sessions, { runtimeSessionId: row.sessionId, projectPath: directory, title: cleanLabel(title, fallbackSessionTitle('DSH 会话', lastActivityAt)), titleQuality: title ? 'native' : 'generated', status: row.running ? 'running' : 'idle', revision: Math.floor(Date.parse(lastActivityAt) / 1000), lastActivityAt });
+    }
+  }
   if (config.adapterCode === 'codex') await discoverCodex(normalizedConfig, projects, sessions, explicitPaths, options.codexThreadProvider);
   else if (config.adapterCode === 'claude-code') await discoverClaude(normalizedConfig, projects, sessions, explicitPaths, 'claude-code');
   else if (config.adapterCode === 'codebuddy') await discoverClaude(normalizedConfig, projects, sessions, explicitPaths, 'codebuddy');
