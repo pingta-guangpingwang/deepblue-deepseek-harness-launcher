@@ -4,6 +4,7 @@ import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-workspace.css'
 import { LocalAgentWorkspace } from './LocalAgentWorkspace'
+import { AgentSessionGroups } from './AgentSessionGroups'
 
 // Existing DeepSeek operation-table design: device → native project/session → conversation.
 // The launcher is an authenticated view of website IDs, not a second conversation database.
@@ -84,10 +85,10 @@ function Empty({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export function AgentWorkspacePage(props: { snapshot: LauncherSnapshot; onLogin(): void; initialSource?: 'local' | 'cloud'; manageRequest?: number; onManageRequestHandled?(request: number): void }): React.JSX.Element {
-  const [source, setSource] = useState<'local' | 'cloud'>(props.initialSource || 'local')
+  const [source, setSource] = useState<'local' | 'cloud' | 'groups'>(props.initialSource || 'local')
   useEffect(() => { if (props.initialSource) setSource(props.initialSource) }, [props.initialSource])
   useEffect(() => { if (props.manageRequest) setSource('cloud') }, [props.manageRequest])
-  return <div className="agent-workspace"><nav className="aw-toolbar" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : <CloudAgentWorkspace {...props} />}</div></div>
+  return <div className="agent-workspace"><nav className="aw-toolbar aw-source-tabs" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button><button className={source === 'groups' ? 'primary-button' : 'small-button'} aria-pressed={source === 'groups'} onClick={() => setSource('groups')}>会话群</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : source === 'cloud' ? <CloudAgentWorkspace {...props} /> : <AgentSessionGroups snapshot={props.snapshot} onLogin={props.onLogin} />}</div></div>
 }
 export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManageRequestHandled }: { snapshot: LauncherSnapshot; onLogin(): void; manageRequest?: number; onManageRequestHandled?(request: number): void }): React.JSX.Element {
   const api = window.launcher

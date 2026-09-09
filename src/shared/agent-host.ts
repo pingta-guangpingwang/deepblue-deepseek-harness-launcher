@@ -55,6 +55,79 @@ export type AgentHostAction =
   | { action: 'discover' | 'bind_device' | 'pause' | 'resume' | 'revoke_device' }
   | { action: 'add_agent'; adapter: AgentAdapter; name?: string }
   | { action: 'start' | 'stop' | 'restart' | 'remove_agent' | 'add_project' | 'refresh'; agentId: string }
+
+export type AgentSessionGroupMode = 'manual' | 'coordinator'
+export type AgentSessionGroupRunStatus = 'queued' | 'running' | 'awaiting_approval' | 'unknown' | 'completed' | 'failed' | 'cancel_requested' | 'cancelled'
+export interface AgentSessionGroupSummary {
+  id: string
+  name: string
+  mode: AgentSessionGroupMode
+  maxTurns: number
+  coordinatorRoleId?: string
+  roleCount: number
+  activeRunCount: number
+  latestRunStatus?: AgentSessionGroupRunStatus | string
+  status: string
+  activeRunId?: string
+  updatedAt?: string
+}
+export interface AgentSessionGroupRole {
+  id: string
+  name: string
+  responsibility: string
+  agentId: string
+  agentName: string
+  projectId: string
+  projectName: string
+  nativeSessionId: string
+  nativeSessionTitle: string
+  status: string
+  message?: string
+}
+export interface AgentSessionGroupRun {
+  id: string
+  instruction: string
+  status: AgentSessionGroupRunStatus | string
+  summary: string
+  finalText?: string
+  clientRequestId?: string
+  targetRoleIds: string[]
+  mode: AgentSessionGroupMode
+  coordinatorRoleId?: string
+  maxTurns: number
+  createdAt?: string
+  completedAt?: string
+  contentAvailable: boolean
+  contentPrunedAt?: string
+}
+export interface AgentSessionGroupAction {
+  id: string
+  runId: string
+  roleId?: string
+  ordinal: number
+  actionType: string
+  status: string
+  taskStatus?: string
+  instruction?: string
+  summary: string
+  finalText?: string
+  errorCode?: string
+  createdAt?: string
+}
+export interface AgentSessionGroupDetail {
+  group: AgentSessionGroupSummary
+  roles: AgentSessionGroupRole[]
+  runs: AgentSessionGroupRun[]
+  actions: AgentSessionGroupAction[]
+}
+export interface AgentSessionGroupRoleInput {
+  id: string
+  name: string
+  responsibility: string
+  agentId: string
+  projectId: string
+  nativeSessionId: string
+}
 export interface AgentWorkspaceRequest {
   scope: 'hub' | 'devices' | 'checkin'
   method: 'GET' | 'POST'
