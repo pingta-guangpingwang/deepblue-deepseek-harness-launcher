@@ -104,7 +104,10 @@ export class AccountService {
     if (!request || !['hub', 'devices', 'checkin'].includes(request.scope) || !['GET', 'POST'].includes(request.method)) throw new Error('工作台请求无效')
     const action = String(request.action || '')
     const allowed = request.scope === 'hub'
-      ? ['bootstrap', 'agent_state', 'session_history', 'activate_sync', 'request_sync', 'request_session_history', 'send_task', 'cancel_task']
+      ? [
+          'bootstrap', 'agent_state', 'session_history', 'activate_sync', 'request_sync', 'request_session_history', 'send_task', 'cancel_task',
+          'group_list', 'group_detail', 'group_create', 'group_update', 'group_delete', 'group_send', 'group_cancel'
+        ]
       : request.scope === 'checkin' ? ['checkin_status', 'claim_checkin'] : ['', 'command']
     if (!localHost && !allowed.includes(action)) throw new Error('此操作只能在本机绑定流程执行')
     if (this.account.status !== 'signed_in' || !this.accessToken || !this.account.user?.id) throw new Error('请先登录 AI历史书账号')
@@ -114,7 +117,7 @@ export class AccountService {
     const url = new URL(`https://ailishishu.com/ailishishu-stats/api/${request.scope === 'hub' ? 'agent-hub' : request.scope === 'checkin' ? 'wallet' : 'agent-devices'}.php`)
     if (request.method === 'GET') {
       for (const [key, value] of Object.entries(request.params || {})) {
-        if (!['agentId', 'projectId', 'sessionId', 'afterRevision'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
+        if (!['agentId', 'projectId', 'sessionId', 'groupId', 'afterRevision'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
         url.searchParams.set(key, value)
       }
       if (action) url.searchParams.set('action', action)
