@@ -100,6 +100,7 @@ describe('Electron distribution ensure step', () => {
   it('is wired before every electron-builder packaging command', async () => {
     const manifest = JSON.parse(await import('node:fs/promises').then(({ readFile }) => readFile(new URL('../package.json', import.meta.url), 'utf8')))
     expect(manifest.scripts['electron:ensure']).toBe('node scripts/ensure-electron-dist.mjs')
+    expect(manifest.scripts.test.startsWith('npm run electron:ensure && vitest run')).toBe(true)
     for (const name of ['package', 'dist:win', 'dist:mac']) {
       const command = manifest.scripts[name]
       expect(command.indexOf('npm run electron:ensure')).toBeGreaterThanOrEqual(0)
