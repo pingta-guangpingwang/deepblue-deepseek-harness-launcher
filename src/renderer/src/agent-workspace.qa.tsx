@@ -68,7 +68,8 @@ const fixture = {
 }
 Object.assign(window, { workspaceQa: fixture })
 const state = (id: string) => ({ agent: { id, display_name: id === 'qa-codex' ? 'Codex · 网站开发' : 'Claude Code', adapter_code: id === 'qa-codex' ? 'codex' : 'claude-code', status: id === 'qa-codex' ? host.agents[0]!.status : host.agents[1]!.status }, projects: [{ id: 'qa-project', source_name: 'AI历史书网站' }, { id: 'qa-docs', source_name: '技术说明文档' }], sessions: [{ id: 'qa-session', project_id: 'qa-project', source_title: '修复连接并同步原生会话', source_status: 'idle' }, { id: 'qa-session-2', project_id: 'qa-project', source_title: '检查网页工作台布局', source_status: 'idle' }], tasks, access: { canDispatchToday: true } })
-window.launcher = new URL(location.href).searchParams.has('legacy') ? undefined : {
+const parameters = new URL(location.href).searchParams
+window.launcher = parameters.has('legacy') ? undefined : {
   agentHostState: async () => structuredClone(host),
   agentHostAction: async (action: AgentHostAction) => { actions.push(action); if ('agentId' in action) { const agent = host.agents.find(item => item.id === action.agentId); if (agent && action.action === 'start') { agent.status = 'online'; agent.runtimeStatus = 'ready' } } return structuredClone(host) },
   agentWorkspaceRequest: async (request: AgentWorkspaceRequest) => {
@@ -147,7 +148,7 @@ window.launcher = new URL(location.href).searchParams.has('legacy') ? undefined 
   openExternal: async () => undefined
 } as unknown as LauncherApi
 const account = { status: 'signed_in' as const, user: { id: 'qa-user', name: '界面测试账号' }, sessionRemembered: true }
-const snapshot = { ...mockSnapshot, account }
+const snapshot = { ...mockSnapshot, launcherVersion: parameters.has('oldBase') ? '0.10.34' : '0.10.35', account }
 const root = createRoot(document.getElementById('root')!)
 renderWorkspace = () => root.render(<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}><header style={{ padding: '12px 18px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}><strong>智能体工作台</strong><span style={{ marginLeft: 12, color: 'var(--text-secondary)', fontSize: 12 }}>合成数据界面验收 · 不访问真实账号</span></header><div className="page-scroll agent-workspace-fixed-page"><AgentWorkspacePage key={mountVersion} snapshot={snapshot} onLogin={() => { expired = false }} initialSource={initialSource} manageRequest={manageRequest || undefined} onManageRequestHandled={request => { if (manageRequest === request) manageRequest = 0 }} /></div></div>)
 renderWorkspace()

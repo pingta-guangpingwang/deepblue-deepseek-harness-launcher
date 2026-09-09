@@ -49,17 +49,17 @@
 
 启动器已增加本地“会话群”页签和合成数据验收，仍不代表生产 API 已发布。界面继续使用工作台三栏：群列表、成员与角色、群任务与动作；`390×844` 下按群、成员、任务逐层进入，任务输入区固定在可见区域内。
 
-当前公共基础启动器 `0.10.34` 的主进程请求 allowlist 不认识 `group_*` 和 GET `groupId`，单独热更新 launcher-ui/agent-host 仍会在发网前拒绝请求。公开会话群必须等待服务端合同就绪，并发布包含新 allowlist 的下一版基础启动器（候选 `0.10.35` 或更高）；本地纵向切片不修改 package 版本、不安装到正在运行的实际模块，也不得提前出现在公共入口。
+当前公共基础启动器 `0.10.34` 的主进程请求 allowlist 不认识 `group_*` 和 GET `groupId`，单独热更新 launcher-ui/agent-host 仍会在发网前拒绝请求。本分支把基础版本提升到 `0.10.35`，UI 同时按 `snapshot.launcherVersion >= 0.10.35` 自门禁；这只是界面能力检查，现有模块 metadata 的最低版本声明尚未改为或实现这项门禁，不得宣称模块安装器会替代检查。公开时必须先发布并验证包含 allowlist 的 `0.10.35` 基础启动器，再发布/启用会话群 UI，且必须等待服务端合同就绪。
 
 Launcher 通过现有 `agentWorkspaceRequest` 使用以下固定动作：
 
 - `group_list`：GET；返回 `groups`，并优先附带脱敏的 `candidates: { agents, projects, sessions, truncated, limits }`。候选被截断时编辑器明确显示最近条数和同步/刷新指引；只有旧服务完全缺少 candidates 结构时，Launcher 才回退到 `bootstrap + agent_state`。
 - `group_detail`：GET，参数 `{ groupId }`；返回 `{ group, roles, runs, actions }`。actions 保留 `ordinal`、`instruction`、`latestSummary`、`finalText`、`errorCode`、`taskStatus` 与服务端派生的有效状态，Launcher 按 ordinal 展示角色的完整结果和错误证据。
 - `group_create` / `group_update`：POST；正文 `{ groupId?, name, mode, coordinatorRoleId, maxTurns, roles }`。角色为 `{ id, name, responsibility, agentId, projectId, nativeSessionId }`，其中新角色 ID 是 32 位小写十六进制；群名最多 80 字符，角色名最多 60 字符，职责最多 500 字符。
-- `group_delete`：POST，正文 `{ groupId }`；仅删除群与编排记录。
+- `group_delete`：POST，正文 `{ groupId }`；语义为停用并从普通列表移除，服务端保留角色、运行和动作的必要审计，不删除原生项目、会话或智能体。
 - `group_send`：POST，正文 `{ groupId, instruction, targetRoleIds, mode, coordinatorRoleId?, maxTurns, clientRequestId }`；返回 `{ runId, status, replayed }`。模式、主控和 1–12 次上限是本次运行的明确覆盖值；手动模式所选角色数不得超过 maxTurns。
 - `group_cancel`：POST，正文 `{ groupId, runId }`；停止后续派发后保持 `cancel_requested`，直到本机回执确认最终状态。
 
-同一发送内容在未确认时保留原 `clientRequestId`；双击由本机 in-flight 门禁合并，网络重试由服务端幂等记录返回原 run。协调模式首期要求群内全部参与角色已就绪；手动模式要求所选角色已就绪且人数不超过本次 maxTurns，Launcher 在发网前显示具体原因并禁止无效提交。
+同一发送内容在未确认时保留原 `clientRequestId`；发送和创建/更新的连续双击均由本机同步门禁合并，网络重试由服务端幂等记录返回原 run。编辑同一个群后先重新读取 detail，再用服务端返回的 mode、coordinatorRoleId、maxTurns 和角色集合重置发送器及 targetRoleIds，不能沿用编辑前的隐藏选择。协调模式首期要求群内全部参与角色已就绪；手动模式要求所选角色已就绪且人数不超过本次 maxTurns，Launcher 在发网前显示具体原因并禁止无效提交。
 
 worker 返回失败或派发结果无法确认时，run 保持 `unknown`（界面显示“结果待确认”）并继续占用群运行位，用户可发起取消以完成对账，不能直接发送下一条。旧 run 若返回 `contentAvailable: false` 与 `contentPrunedAt`，界面明确显示“正文已按最近 10 次保留策略清理”，不把空正文伪装成普通“群任务”。候选列表与群详情同时兼容 snake_case 和 camelCase，但写请求只使用以上 camelCase 合同。

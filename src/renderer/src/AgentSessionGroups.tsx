@@ -12,6 +12,7 @@ import type {
   AgentWorkspaceRequest
 } from '../../shared/agent-host'
 import './agent-session-groups.css'
+import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
 interface CandidateSession { id: string; projectId: string; title: string }
@@ -28,6 +29,7 @@ interface GroupEditorState {
 }
 
 const ACTIVE_RUNS = new Set(['queued', 'running', 'awaiting_approval', 'cancel_requested', 'unknown'])
+const DOWNLOAD_URL = 'https://deepseek.ailishishu.com/'
 const object = (value: unknown): JsonRecord => value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {}
 const rows = (value: unknown): JsonRecord[] => Array.isArray(value) ? value.map(object) : []
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
@@ -200,7 +202,8 @@ function ActionRecord({ action, roleName }: { action: AgentSessionGroupAction; r
 export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
   const signedIn = snapshot.account.status === 'signed_in'
   const userId = snapshot.account.user?.id || ''
-  const supported = Boolean(window.launcher?.agentWorkspaceRequest)
+  const baseSupported = launcherSupportsAgentSessionGroups(snapshot.launcherVersion)
+  const supported = baseSupported && Boolean(window.launcher?.agentWorkspaceRequest)
   const [groups, setGroups] = useState<AgentSessionGroupSummary[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [detail, setDetail] = useState<AgentSessionGroupDetail>()
@@ -221,9 +224,11 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const [targetRoleIds, setTargetRoleIds] = useState<string[]>([])
   const [coordinatorRoleId, setCoordinatorRoleId] = useState('')
   const [maxTurns, setMaxTurns] = useState(6)
+  const [composerReset, setComposerReset] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
   const accountEpoch = useRef(0)
   const sending = useRef(false)
+  const saving = useRef(false)
   const submission = useRef<{ signature: string; clientRequestId: string } | undefined>(undefined)
   const configuredGroup = useRef('')
 
@@ -306,12 +311,14 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     return () => { disposed = true; clearTimeout(timer) }
   }, [supported, signedIn, userId, selectedGroupId, reload])
 
+  const composerDefaultsKey = detail ? JSON.stringify({ id: detail.group.id, mode: detail.group.mode, coordinatorRoleId: detail.group.coordinatorRoleId || '', maxTurns: detail.group.maxTurns, roles: detail.roles.map(role => role.id) }) : ''
   useEffect(() => {
-    if (!detail || configuredGroup.current === detail.group.id) return
+    if (!detail) return
+    const changedGroup = configuredGroup.current !== detail.group.id
     configuredGroup.current = detail.group.id
     setDispatchMode(detail.group.mode); setCoordinatorRoleId(detail.group.coordinatorRoleId || ''); setMaxTurns(detail.group.maxTurns)
-    setTargetRoleIds([]); setInstruction(''); submission.current = undefined; setConfirmDelete(false)
-  }, [detail?.group.id])
+    setTargetRoleIds([]); if (changedGroup) setInstruction(''); submission.current = undefined; setConfirmDelete(false)
+  }, [composerDefaultsKey, composerReset])
 
   useEffect(() => {
     if (editor && !dialog.current?.open) dialog.current?.showModal()
@@ -339,7 +346,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     if (!detail) return
     setEditorError(''); setEditor({ groupId: detail.group.id, name: detail.group.name, mode: detail.group.mode, coordinatorRoleId: detail.group.coordinatorRoleId || '', maxTurns: detail.group.maxTurns, roles: detail.roles.map(role => ({ id: role.id, name: role.name, responsibility: role.responsibility, agentId: role.agentId, projectId: role.projectId, nativeSessionId: role.nativeSessionId })) })
   }
-  function closeEditor(): void { if (!busy.startsWith('group_')) { setEditor(undefined); setEditorError('') } }
+  function closeEditor(): void { if (!saving.current && !busy.startsWith('group_')) { setEditor(undefined); setEditorError('') } }
   function updateEditor(values: Partial<GroupEditorState>): void { setEditor(previous => previous ? { ...previous, ...values } : previous); setEditorError('') }
   function updateRole(index: number, values: Partial<AgentSessionGroupRoleInput>): void {
     setEditor(previous => previous ? { ...previous, roles: previous.roles.map((role, roleIndex) => roleIndex === index ? { ...role, ...values } : role) } : previous)
@@ -347,28 +354,31 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   }
   async function saveEditor(event: FormEvent): Promise<void> {
     event.preventDefault()
-    if (!editor || busy) return
+    if (!editor || saving.current || busy) return
     const validation = validateSessionGroupDraft(editor)
     if (validation) { setEditorError(validation); return }
     const action = editor.groupId ? 'group_update' : 'group_create'
+    const editingExisting = Boolean(editor.groupId)
+    saving.current = true
     setBusy(action); setEditorError(''); setError(''); setNotice('')
     try {
       const body = { ...(editor.groupId ? { groupId: editor.groupId } : {}), name: editor.name.trim(), mode: editor.mode, coordinatorRoleId: editor.mode === 'coordinator' ? editor.coordinatorRoleId : null, maxTurns: editor.maxTurns, roles: editor.roles.map(role => ({ ...role, name: role.name.trim(), responsibility: role.responsibility.trim() })) }
       const response = await request({ scope: 'hub', method: 'POST', action, body })
       const groupId = text(response.groupId) || text(object(response.group).id) || editor.groupId || ''
       setEditor(undefined); setNotice(editor.groupId ? '会话群设置已保存。' : '会话群已创建；成员不会因此自动启动或扩大目录授权。')
-      if (groupId) { setSelectedGroupId(groupId); configuredGroup.current = ''; setMobilePane('roles') }
+      if (groupId) { setSelectedGroupId(groupId); setMobilePane('roles') }
+      if (editingExisting) { setDetail(undefined); setTargetRoleIds([]); submission.current = undefined; setComposerReset(value => value + 1) }
       setReload(value => value + 1)
     } catch (cause) { setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') }
-    finally { setBusy('') }
+    finally { saving.current = false; setBusy('') }
   }
   async function deleteGroup(): Promise<void> {
     if (!detail || busy) return
     setBusy('group_delete'); setError(''); setNotice('')
     try {
       await request({ scope: 'hub', method: 'POST', action: 'group_delete', body: { groupId: detail.group.id } })
-      setSelectedGroupId(''); setDetail(undefined); setConfirmDelete(false); setNotice('会话群已删除；原生项目、会话和智能体未被删除。'); setMobilePane('groups'); setReload(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '删除失败，请重试。') }
+      setSelectedGroupId(''); setDetail(undefined); setConfirmDelete(false); setNotice('会话群已停用并从列表移除；必要审计记录已保留。'); setMobilePane('groups'); setReload(value => value + 1)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '停用失败，请重试。') }
     finally { setBusy('') }
   }
   async function send(event?: FormEvent): Promise<void> {
@@ -403,6 +413,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     finally { setBusy('') }
   }
 
+  if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>会话群需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
   if (!supported) return <div className="aw-unavailable"><Users size={36} /><h2>请升级启动器</h2><p>当前内核没有会话群通信接口，不能安全创建或派发群任务。</p></div>
   if (!signedIn) return <div className="aw-login"><Users size={20} /><div><strong>登录后使用智能体会话群</strong><p>会话群只组合当前账号已有的智能体、授权项目和原生会话。</p></div><button className="primary-button" onClick={onLogin}>登录 AI历史书</button></div>
 
@@ -422,8 +433,8 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
         {!detail ? <div className="aw-inline-empty">{selectedGroupId ? '正在读取成员…' : '选择一个会话群查看成员与原生会话。'}</div> : <>
           <div className="asg-group-meta"><strong>{detail.group.name}</strong><span>{detail.group.mode === 'coordinator' ? '主控协调' : '我来指挥'} · 最多 {detail.group.maxTurns} 次角色调用</span></div>
           <div className="asg-role-list">{detail.roles.map(role => <article className="asg-role-row" key={role.id}><Bot size={18} /><div><div className="asg-role-title"><strong>{role.name}</strong><Status value={role.status} /></div><p>{role.responsibility || '尚未填写职责'}</p><small>{role.agentName} · {role.projectName}</small><small>{role.nativeSessionTitle}</small>{role.message && <small>{role.message}</small>}</div></article>)}</div>
-          <div className="asg-role-actions"><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑群与角色</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />删除群</button><button className="primary-button asg-mobile-next" onClick={() => setMobilePane('activity')}>查看群任务</button></div>
-          {confirmDelete && <div className="asg-delete-confirm" role="alert"><p>只删除群与编排记录，不删除原生项目、会话或智能体。确定继续？</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'group_delete'} onClick={() => void deleteGroup()}>{busy === 'group_delete' ? '删除中…' : '确认删除'}</button></div>}
+          <div className="asg-role-actions"><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑群与角色</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />停用并移除</button><button className="primary-button asg-mobile-next" onClick={() => setMobilePane('activity')}>查看群任务</button></div>
+          {confirmDelete && <div className="asg-delete-confirm" role="alert"><p>会话群将从列表移除并停用，角色、运行和动作会保留必要审计；不会删除原生项目、会话或智能体。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'group_delete'} onClick={() => void deleteGroup()}>{busy === 'group_delete' ? '停用中…' : '确认停用'}</button></div>}
         </>}
       </aside>
       <main className="asg-pane asg-activity-pane">

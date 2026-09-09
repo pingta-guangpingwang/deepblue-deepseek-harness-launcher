@@ -3,7 +3,7 @@ import { modelProviderTemplates } from '../../shared/model-provider-catalog'
 import petCatalog from '../../../pet-store/catalog.payload.json'
 
 export const mockSnapshot: LauncherSnapshot = {
-  launcherVersion: '0.10.30',
+  launcherVersion: '0.10.35',
   launcherUiVersion: 'ui-demo-latest',
   launcherUiSource: 'updated',
   platform: 'win32-x64',
