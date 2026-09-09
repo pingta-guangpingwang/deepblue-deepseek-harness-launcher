@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { _electron as electron } from 'playwright'
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +16,23 @@ const localAppDataRoot = path.join(profileRoot, 'localappdata')
 const storageRoot = path.join(profileRoot, 'storage')
 const uiVersion = 'ui-cold-start-fixture'
 const uiRoot = path.join(storageRoot, 'runtime', 'modules', 'launcher-ui', uiVersion)
+const packagedKoffiRoot = path.join(
+  path.dirname(executablePath),
+  'resources',
+  'app',
+  'node_modules',
+  '@koromix',
+  `koffi-${process.platform}-${process.arch}`
+)
+
+if (process.platform === 'win32') {
+  await Promise.all([
+    access(path.join(packagedKoffiRoot, 'package.json')),
+    access(path.join(packagedKoffiRoot, `${process.platform}_${process.arch}`, 'koffi.node'))
+  ]).catch(() => {
+    throw new Error(`Packaged Koffi native module is missing: ${packagedKoffiRoot}`)
+  })
+}
 
 await rm(outputRoot, { recursive: true, force: true })
 await Promise.all([userDataRoot, appDataRoot, localAppDataRoot, storageRoot, uiRoot].map((target) => mkdir(target, { recursive: true })))

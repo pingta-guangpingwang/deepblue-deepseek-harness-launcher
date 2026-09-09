@@ -64,6 +64,9 @@
     "ws": "8.21.3",
     "yaml": "^2.9.0"
   },
+  "optionalDependencies": {
+    "@koromix/koffi-win32-x64": "3.1.6"
+  },
   "devDependencies": {
     "@types/node": "24.10.1",
     "@types/react": "19.2.7",
