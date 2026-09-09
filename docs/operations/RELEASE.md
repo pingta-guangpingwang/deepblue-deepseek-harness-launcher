@@ -87,6 +87,25 @@ npm run hot-update:ui
 
 发布门禁必须从上一 UI 哈希启动，执行 `npm run release:qa-public-ui-hot-update`：点击“检查更新”后只能出现 `launcher-ui` 一项，下载量应低于 2 MiB；安装后当前窗口自动刷新、Electron 内核 PID、Harness 进程和端口保持不变、`runtime/modules/state.json` 的 active 指针切换到新哈希。失败必须恢复 previous 指针。只有新增/修改 IPC、Electron 权限、安全协议、主进程原生能力或基础内核依赖时，才允许提升 `launcher.version` 并覆盖网页安装器。
 
+### 仅发布 Agent Host 热更新
+
+Agent Host 可独立服务于仍受支持的公共基础内核时，不得运行会把 `package.json` 的开发版 Launcher 版本写入目录的 `catalog:prepare`。先构建并发布内容寻址模块，再从当前线上签名清单机械替换唯一的 `agent-host` 条目：
+
+```sh
+set -euo pipefail
+npm run agent-host:build
+curl --fail --silent --show-error --proto '=https' --output release/launcher-manifest.before.json https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json
+OSS_PUBLISHER_PROFILE=/secure/oss-profile.json EXPECTED_NEW_AGENT_HOST_VERSION=1.0.0+<new-hash> EXPECTED_NEW_AGENT_HOST_SHA256=<sha256> EXPECTED_NEW_AGENT_HOST_SIZE=<bytes> EXPECTED_NEW_AGENT_HOST_UNPACKED_SIZE=<bytes> npm run release:publish-oss-object -- release/modules/agent-host-<version>-win-x64.tar.gz modules/agent-host-<version>-win-x64.tar.gz
+gh release view agent-host-<version> --repo pingta-guangpingwang/deepblue-deepseek-harness-launcher >/dev/null 2>&1 || gh release create agent-host-<version> release/modules/agent-host-<version>-win-x64.tar.gz --repo pingta-guangpingwang/deepblue-deepseek-harness-launcher --target <pushed-commit>
+EXPECTED_PUBLIC_LAUNCHER_VERSION=0.10.34 EXPECTED_PUBLIC_AGENT_HOST_VERSION=1.0.0+<old-hash> EXPECTED_NEW_AGENT_HOST_VERSION=1.0.0+<new-hash> EXPECTED_NEW_AGENT_HOST_SHA256=<sha256> EXPECTED_NEW_AGENT_HOST_SIZE=<bytes> EXPECTED_NEW_AGENT_HOST_UNPACKED_SIZE=<bytes> npm run agent-host:prepare-hot-update -- release/launcher-manifest.before.json release/agent-host.generated.json release/launcher-catalog-payload.agent-host.json
+LAUNCHER_SIGNING_KEY=/secure/runtime-production-v2-1-private.pem LAUNCHER_SIGNING_KEY_ID=runtime-production-v2-1 npm run sign:manifest -- release/launcher-catalog-payload.agent-host.json release/launcher-manifest.agent-host.json
+OSS_PUBLISHER_PROFILE=/secure/oss-profile.json EXPECTED_PUBLIC_LAUNCHER_VERSION=0.10.34 EXPECTED_PUBLIC_AGENT_HOST_VERSION=1.0.0+<old-hash> EXPECTED_NEW_AGENT_HOST_VERSION=1.0.0+<new-hash> EXPECTED_NEW_AGENT_HOST_SHA256=<sha256> EXPECTED_NEW_AGENT_HOST_SIZE=<bytes> EXPECTED_NEW_AGENT_HOST_UNPACKED_SIZE=<bytes> npm run release:publish-oss-object -- release/launcher-manifest.agent-host.json release-v2/launcher-manifest.json
+```
+
+`agent-host:prepare-hot-update` 会先验证旧清单 Ed25519 签名，再匿名回下载并核对新 OSS/GitHub 制品，只保留这两个已验证镜像，并证明 Launcher 版本与其余模块逐字不变。最后才把新签名清单原子覆盖 `release-v2/launcher-manifest.json`，随后再次匿名下载验签。生产凭据只能由环境变量引用本机受保护文件；命令参数、日志和仓库不得出现 AccessKey 或私钥内容。若公共基础仍为 `0.10.34`，此流程必须继续保留 `0.10.34`，不能借模块更新发布未取得 Authenticode 的 `0.10.35`。
+
+稳定清单使用基于旧清单 SHA-256 的不可变单写 claim；同一候选可以幂等续传，不同候选必须停止。回滚必须从当前线上清单重新生成、更新 `generatedAt` 并重新签名，禁止把历史 envelope 的原始字节直接覆盖回去，否则会形成 ABA 并与永久 claim 冲突。模块和 claim 发布前还会用固定能力对象实测 `x-oss-forbid-overwrite` 确实返回 409；若 Bucket 版本控制或权限策略使该保证失效，发布立即停止。
+
 签名脚本默认并只面向 schema-2 运行目录，默认 Key ID 为 `runtime-production-v2-1`。发布后必须匿名读取线上清单并核对该值；旧的 `production-1` 会被启动器安全拒绝，不能进入生产。
 
 ## 5. 灰度和回滚
