@@ -22,7 +22,7 @@ export interface WorkspaceData {
 export interface WorkspaceTimelineRow { id: string; role: 'user' | 'assistant'; text: string; time: string; task?: WorkspaceTask }
 const POLL_MS = 4000
 const DOWNLOAD_URL = 'https://deepseek.ailishishu.com/'
-const REVOKED_DEVICE_HELP = '设备授权已失效，请先解绑本机，再重新绑定；原项目文件不会删除'
+const REVOKED_DEVICE_HELP = '设备已从账号移除。重新登录启动器后自动登记；原项目文件不会删除'
 const ACTIVE_TASKS = new Set(['queued', 'delivered', 'running', 'awaiting_approval', 'cancel_requested'])
 const object = (value: unknown): JsonRecord => value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {}
 const string = (value: unknown): string => typeof value === 'string' ? value : ''
@@ -32,7 +32,7 @@ const statusNames: Record<string, string> = {
   stopped: '已停止', starting: '启动中', reconnecting: '正在重连', failed: '失败', working: '执行中',
   awaiting_connection: '等待连接', queued: '排队中', delivered: '等待执行', running: '执行中',
   awaiting_approval: '等待本机确认', cancel_requested: '正在取消', completed: '已完成', cancelled: '已取消',
-  idle: '待命', ready: '可用', busy: '忙碌', unknown: '待检查'
+  idle: '待命', ready: '可用', busy: '忙碌', unknown: '待检查', unavailable: '暂不支持', error: '检查未通过', needs_login: '请在本机登录'
 }
 export const workspaceStatusLabel = (value: string): string => statusNames[value] || value || '待检查'
 export function normalizeWorkspaceAgent(value: unknown): WorkspaceAgent {
@@ -83,11 +83,13 @@ function Empty({ title, children }: { title: string; children: React.ReactNode }
   return <div className="aw-empty"><MessageSquare size={27} aria-hidden="true" /><h3>{title}</h3><p>{children}</p></div>
 }
 
-export function AgentWorkspacePage(props: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
-  const [source, setSource] = useState<'local' | 'cloud'>('local')
+export function AgentWorkspacePage(props: { snapshot: LauncherSnapshot; onLogin(): void; initialSource?: 'local' | 'cloud'; manageRequest?: number; onManageRequestHandled?(request: number): void }): React.JSX.Element {
+  const [source, setSource] = useState<'local' | 'cloud'>(props.initialSource || 'local')
+  useEffect(() => { if (props.initialSource) setSource(props.initialSource) }, [props.initialSource])
+  useEffect(() => { if (props.manageRequest) setSource('cloud') }, [props.manageRequest])
   return <div className="agent-workspace"><nav className="aw-toolbar" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : <CloudAgentWorkspace {...props} />}</div></div>
 }
-export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
+export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManageRequestHandled }: { snapshot: LauncherSnapshot; onLogin(): void; manageRequest?: number; onManageRequestHandled?(request: number): void }): React.JSX.Element {
   const api = window.launcher
   const supported = Boolean(api?.agentHostState && api.agentHostAction && api.agentWorkspaceRequest)
   const signedIn = snapshot.account.status === 'signed_in'
@@ -107,8 +109,16 @@ export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherS
   const [loading, setLoading] = useState(true)
   const [reload, setReload] = useState(0)
   const [manage, setManage] = useState(false)
+  const [deviceNameDraft, setDeviceNameDraft] = useState('')
+  useEffect(() => { setDeviceNameDraft(host?.deviceName || '') }, [host?.deviceName])
+  useEffect(() => {
+    if (!manageRequest) return
+    setManage(true)
+    onManageRequestHandled?.(manageRequest)
+  }, [manageRequest, onManageRequestHandled])
   const hostManagement = workspaceHostManagement(host, manage, Boolean(busy))
   const [confirmAction, setConfirmAction] = useState<AgentHostAction>()
+  const [importAgentId, setImportAgentId] = useState('')
   const [mobilePane, setMobilePane] = useState<'agents' | 'sessions' | 'conversation'>('agents')
   const [newContent, setNewContent] = useState(false)
   const [acknowledgedTasks, setAcknowledgedTasks] = useState<WorkspaceTask[]>([])
@@ -259,13 +269,14 @@ export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherS
       const next = await window.launcher!.agentHostAction!(action)
       if (live.current.userId !== account) return
       setHost(next)
-      if (action.action === 'add_agent') {
+      if (action.action === 'add_agent' || action.action === 'import_existing') {
         const added = next.agents.find(agent => !host?.agents.some(previous => previous.id === agent.id))
         if (added) selectAgent(added.id)
       }
       if (action.action === 'revoke_device') { setAgentId(''); setData(undefined); setProjectId(''); setSessionId('') }
       if (action.action === 'remove_agent' && action.agentId === agentId) { setAgentId(''); setData(undefined) }
       setReload(value => value + 1)
+      if (action.action === 'import_existing') setImportAgentId('')
     } catch (cause) { if (live.current.userId === account) setError(cause instanceof Error ? cause.message : '操作失败，请重试。') }
     finally { if (live.current.userId === account) setBusy('') }
   }
@@ -326,28 +337,40 @@ export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherS
   return <section className="agent-workspace" data-mobile-pane={mobilePane} aria-label="智能体工作台">
     <div className="aw-toolbar">
       <div className="aw-device-line"><Monitor size={17} /><strong>{host?.deviceName || '这台电脑'}</strong><StateLabel value={host?.connection || 'connecting'} label={host?.enabled === false && host.connection !== 'unbound' && !hostManagement.revoked ? '已暂停托管' : undefined} /></div>
-      <div className="aw-toolbar-actions"><span>心跳 {timeLabel(host?.lastHeartbeatAt)}</span><button className="small-button" disabled={Boolean(busy)} onClick={() => setReload(value => value + 1)} aria-label="刷新工作台状态"><RefreshCw size={14} /></button><button className="small-button" aria-expanded={signedIn && hostManagement.visible} onClick={() => setManage(value => !value)}><Settings2 size={14} />管理本机</button></div>
+      <div className="aw-toolbar-actions"><span>心跳 {timeLabel(host?.lastHeartbeatAt)}</span><button className="small-button" disabled={Boolean(busy)} onClick={() => setReload(value => value + 1)} aria-label="刷新工作台状态"><RefreshCw size={14} /></button><button className="small-button" aria-expanded={signedIn && hostManagement.visible} onClick={() => setManage(value => !value)}><Settings2 size={14} />{hostManagement.visible ? '返回会话' : '管理本机'}</button></div>
     </div>
     {(error || syncError) && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{error || syncError}</span>{/登录|会话.*过期/.test(error || syncError) && <button onClick={onLogin}>重新登录</button>}<button onClick={() => { setError(''); setSyncError(''); setReload(value => value + 1) }}>重试同步</button></div>}
     {notice && <div className="aw-feedback" role="status"><CheckCircle2 size={16} /><span>{notice}</span><button onClick={() => setNotice('')}>知道了</button></div>}
-    {!signedIn && <div className="aw-login"><LogIn size={20} /><div><strong>登录 AI历史书，连接这台电脑</strong><p>账号只绑定一次。已授权的项目和原生会话，之后可以从手机继续。</p></div><button className="primary-button" onClick={onLogin}>登录并绑定</button></div>}
-    {signedIn && host && hostManagement.visible && <div className="aw-management">
+    {!signedIn && <div className="aw-login"><LogIn size={20} /><div><strong>登录 AI历史书，连接这台电脑</strong><p>登录后自动登记设备并保持登录。手机使用同一账号，就能找到这台电脑。</p></div><button className="primary-button" onClick={onLogin}>登录并连接</button></div>}
+    {signedIn && hostManagement.visible && <div className="aw-management-view" aria-label="本机绑定管理">
+    {host && <div className="aw-management">
       <div><strong>{host.deviceId ? '本机托管设置' : '允许这台电脑接收远程任务'}</strong><p>只启动你添加的智能体，只访问你选择的项目。电脑关机、睡眠或完全退出启动器后无法远程启动。</p></div>
+      {host.deviceId && <form className="aw-device-name-form" onSubmit={event => { event.preventDefault(); void hostAction({ action: 'rename_device', name: deviceNameDraft }) }}><label htmlFor="aw-device-name">设备名称<input id="aw-device-name" value={deviceNameDraft} maxLength={80} onChange={event => setDeviceNameDraft(event.target.value)} /></label><button className="small-button" disabled={Boolean(busy) || !deviceNameDraft.trim() || deviceNameDraft.trim() === host.deviceName}>保存名称</button><small>设备 ID：{host.deviceId} · 改名不会更换设备或项目</small></form>}
       {hostManagement.revoked ? <p className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{REVOKED_DEVICE_HELP}</span></p> : host.message && <p role="status">{host.message}</p>}
       <div className="aw-management-actions">
-        {!host.deviceId ? <button className="primary-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'bind_device' })}>{busy === 'bind_device' ? <LoaderCircle size={15} className="spin" /> : <Monitor size={15} />}绑定这台电脑</button> : <><button className="small-button" disabled={hostManagement.toggleDisabled} onClick={() => void hostAction({ action: host.enabled ? 'pause' : 'resume' })}>{host.enabled ? <Pause size={14} /> : <Play size={14} />}{host.enabled ? '暂停后台托管' : '恢复后台托管'}</button><button className="small-button danger" disabled={hostManagement.unbindDisabled} onClick={() => setConfirmAction({ action: 'revoke_device' })}><Unplug size={14} />解绑本机</button></>}
+        {!host.deviceId ? <button className="primary-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'bind_device' })}>{busy === 'bind_device' ? <LoaderCircle size={15} className="spin" /> : <Monitor size={15} />}重试连接这台电脑</button> : <><button className="small-button" disabled={hostManagement.toggleDisabled} onClick={() => void hostAction({ action: host.enabled ? 'pause' : 'resume' })}>{host.enabled ? <Pause size={14} /> : <Play size={14} />}{host.enabled ? '暂停后台托管' : '恢复后台托管'}</button><button className="small-button danger" disabled={hostManagement.unbindDisabled} onClick={() => setConfirmAction({ action: 'revoke_device' })}><Unplug size={14} />解绑本机</button></>}
         <button className="small-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'discover' })}><RefreshCw size={14} />检测本机智能体</button>
       </div>
       {host.discovered.length > 0 && <div className="aw-discovered">{host.discovered.map(item => <div key={item.adapter}><span><strong>{item.name}</strong><small>{item.message || (item.available ? '本机已检测到' : '未检测到可用命令')}</small></span><button className="small-button" disabled={Boolean(busy) || !item.available || !host.deviceId} onClick={() => void hostAction({ action: 'add_agent', adapter: item.adapter as AgentAdapter, name: item.name })}><Plus size={13} />添加并选择项目</button></div>)}</div>}
       {confirmAction && <div className="aw-confirm" role="alert"><p>{confirmAction.action === 'revoke_device' ? '解绑会停止本机接收任务并撤销设备凭据，不会删除你的项目文件。' : '移除此托管绑定？原生项目和会话文件不会被删除。'}</p><button className="small-button" onClick={() => setConfirmAction(undefined)}>取消</button><button className="small-button danger" onClick={() => void hostAction(confirmAction)}>确认{confirmAction.action === 'revoke_device' ? '解绑' : '移除'}</button></div>}
     </div>}
+    <div className="aw-management aw-legacy-management">
+      <div><strong>接入网站已有智能体</strong><p>复用原实例、项目和对话，不重复创建。先检测本机旧连接配置，再确认授权；接入后需主动点击启动。</p></div>
+      <button className="small-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'discover_existing' })}>检测已有连接配置</button>
+      <div className="aw-discovered">{agents.filter(agent => !host?.agents.some(bound => bound.id === agent.id)).map(agent => {
+        const candidate = host?.legacyCandidates?.find(item => item.adapter === agent.adapter)
+        return <div key={agent.id}><span><strong>{agent.name}</strong><small>{candidate?.message || '尚未检测本机配置'}</small></span><button className="small-button" disabled={Boolean(busy) || !candidate?.available} onClick={() => setImportAgentId(agent.id)}>关联到本机</button></div>
+      })}</div>
+      {importAgentId && <div className="aw-confirm aw-import-confirm" role="region" aria-label="确认智能体项目授权"><p>允许启动器接收此智能体的远程任务，并访问以下原授权项目？不会强制终止旧服务中的任务；关联后仍需主动启动。</p><ul>{host?.legacyCandidates?.find(item => item.adapter === agents.find(agent => agent.id === importAgentId)?.adapter)?.projectRoots.map(root => <li className="aw-local-path" key={root}>{root}</li>)}</ul><button className="small-button" disabled={Boolean(busy)} onClick={() => setImportAgentId('')}>取消</button><button className="primary-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'import_existing', agentId: importAgentId })}>授权并关联原实例</button></div>}
+    </div></div>}
+    {!(signedIn && hostManagement.visible) && <>
     <nav className="aw-mobile-nav" aria-label="工作台分栏"><button aria-current={mobilePane === 'agents' ? 'page' : undefined} onClick={() => setMobilePane('agents')}>智能体</button><button aria-current={mobilePane === 'sessions' ? 'page' : undefined} onClick={() => setMobilePane('sessions')}>项目与会话</button><button aria-current={mobilePane === 'conversation' ? 'page' : undefined} onClick={() => setMobilePane('conversation')}>对话</button></nav>
     <div className="aw-panes">
       <aside className="aw-agent-pane">
         <header className="aw-pane-heading"><h2>我的智能体</h2><button className="aw-icon-button" aria-label="添加智能体" onClick={() => { setManage(true); void hostAction({ action: 'discover' }) }}><Plus size={17} /></button></header>
         <div className="aw-agent-list">{agents.map(agent => {
           const local = host?.agents.find(item => item.id === agent.id)
-          return <button className={`aw-agent-row ${agentId === agent.id ? 'selected' : ''}`} key={agent.id} aria-pressed={agentId === agent.id} onClick={() => selectAgent(agent.id)}><Bot size={19} /><span><strong>{local?.name || agent.name}</strong><small>{agent.adapter} · {local ? '本机托管' : '网站已连接'}</small><StateLabel value={local?.status || agent.status} /></span></button>
+          return <button className={`aw-agent-row ${agentId === agent.id ? 'selected' : ''}`} key={agent.id} aria-pressed={agentId === agent.id} onClick={() => selectAgent(agent.id)}><Bot size={19} /><span><strong>{local?.name || agent.name}</strong><small>{agent.adapter} · {local ? '本机托管' : '独立连接器'}</small><StateLabel value={local?.status || 'unbound'} label={local ? undefined : '未由本机托管'} /></span></button>
         })}{!agents.length && <div className="aw-inline-empty">{loading ? '正在读取智能体…' : '先绑定本机，再检测并添加智能体。'}</div>}</div>
         <div className="aw-local-note"><Monitor size={15} /><p>托管服务独立于页面运行。DeepSeek Harness 仍从首页启动。</p></div>
       </aside>
@@ -355,7 +378,7 @@ export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherS
         <header className="aw-pane-heading"><h2>项目与会话</h2>{selectedBinding && <button className="aw-icon-button" disabled={Boolean(busy)} aria-label="添加授权项目" onClick={() => void hostAction({ action: 'add_project', agentId })}><FolderPlus size={17} /></button>}</header>
         <div className="aw-project-select"><label htmlFor="aw-project">授权项目</label><select id="aw-project" value={projectId} disabled={!data?.projects.length} onChange={event => selectProject(event.target.value)}>{!data?.projects.length && <option value="">尚未同步项目</option>}{data?.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select><button className="small-button" disabled={!projectId || Boolean(busy)} onClick={() => selectSession('')}><Plus size={14} />新建会话</button></div>
         <div className="aw-session-list">{sessions.map(session => <button key={session.id} className={`aw-session-row ${sessionId === session.id ? 'selected' : ''}`} aria-pressed={sessionId === session.id} onClick={() => selectSession(session.id)}><MessageSquare size={16} /><span><strong>{session.title}</strong><small>{workspaceStatusLabel(session.status)}</small></span></button>)}{!sessions.length && <div className="aw-inline-empty">{!agentId ? '选择左侧智能体。' : !projectId ? '添加授权目录并启动后，项目会自动同步到这里。' : '这个项目还没有同步会话。可直接新建，或点击同步本机。'}</div>}</div>
-        {selectedBinding && <div className="aw-agent-control"><div><span>运行环境</span><StateLabel value={selectedBinding.runtimeStatus} /></div><p>{selectedBinding.message || (selectedBinding.busy ? '正在处理任务，停止或重启会中断执行。' : '只启动已授权的本机运行环境。')}</p><div className="aw-control-buttons"><button className="primary-button" disabled={Boolean(busy) || !host?.enabled} onClick={() => void hostAction({ action: ['stopped', 'failed'].includes(selectedBinding.status) ? 'start' : 'stop', agentId })}>{['stopped', 'failed'].includes(selectedBinding.status) ? <Play size={14} /> : <Square size={14} />}{['stopped', 'failed'].includes(selectedBinding.status) ? '启动' : '停止'}</button><button className="small-button" disabled={Boolean(busy) || !host?.enabled} onClick={() => void hostAction({ action: 'restart', agentId })}>重启</button><button className="aw-icon-button danger" disabled={Boolean(busy)} aria-label="移除智能体托管绑定" onClick={() => { setManage(true); setConfirmAction({ action: 'remove_agent', agentId }) }}><Unplug size={14} /></button></div></div>}
+        {selectedBinding && <div className="aw-agent-control"><div><span>运行环境</span><StateLabel value={selectedBinding.runtimeStatus} /></div><p>{selectedBinding.message || (selectedBinding.busy ? '正在处理任务，停止或重启会中断执行。' : '只启动已授权的本机运行环境。')}</p><div className="aw-control-buttons"><button className="primary-button" disabled={Boolean(busy) || !host?.enabled || selectedBinding.runtimeStatus === 'unavailable'} onClick={() => void hostAction({ action: ['stopped', 'failed'].includes(selectedBinding.status) ? 'start' : 'stop', agentId })}>{['stopped', 'failed'].includes(selectedBinding.status) ? <Play size={14} /> : <Square size={14} />}{['stopped', 'failed'].includes(selectedBinding.status) ? '启动' : '停止'}</button><button className="small-button" disabled={Boolean(busy) || !host?.enabled || selectedBinding.runtimeStatus === 'unavailable'} onClick={() => void hostAction({ action: 'restart', agentId })}>重启</button><button className="aw-icon-button danger" disabled={Boolean(busy)} aria-label="移除智能体托管绑定" onClick={() => { setManage(true); setConfirmAction({ action: 'remove_agent', agentId }) }}><Unplug size={14} /></button></div></div>}
       </aside>
       <main className="aw-conversation-pane">
         <header className="aw-conversation-heading"><button className="aw-back aw-icon-button" aria-label="返回项目会话" onClick={() => setMobilePane('sessions')}><ArrowLeft size={17} /></button><div><h2>{selectedSession?.title || (selectedProject ? '新建会话' : selectedAgentName)}</h2><p><Folder size={13} />{selectedProject?.name || '选择项目后开始'}<span>·</span>{activeCount ? `${activeCount} 个任务处理中` : '原生会话同步'}</p></div><button className="small-button" disabled={!agentId || !runtimeOnline || Boolean(busy)} onClick={() => void refreshNative()}><RefreshCw size={14} className={busy === 'refresh' ? 'spin' : ''} />同步本机</button></header>
@@ -366,11 +389,11 @@ export function CloudAgentWorkspace({ snapshot, onLogin }: { snapshot: LauncherS
         {newContent && <button className="aw-new-content" onClick={() => { if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; stickToBottom.current = true; setNewContent(false) }}><ArrowDown size={14} />有新内容，回到最新</button>}
         <form className="aw-composer" onSubmit={event => void send(event)}>
           {signedIn && data?.canDispatch === false && <p className="aw-composer-hint">今天尚未签到，签到后可免费派发任务。<button type="button" className="aw-text-button" disabled={Boolean(busy)} onClick={() => void checkin()}>{busy === 'checkin' ? '签到中…' : '立即签到'}</button></p>}
-          {agentId && !runtimeOnline && <p className="aw-composer-hint">{selectedBinding ? '智能体尚未连线，请先启动；电脑离线时不能派发任务。' : '这个智能体尚未连线，请在它所在的电脑启动连接器。'}</p>}
+          {agentId && !runtimeOnline && <p className="aw-composer-hint">{selectedBinding?.runtimeStatus === 'unavailable' ? '此智能体暂不支持远程交互，请切换其他已就绪智能体；历史记录仍可查看。' : selectedBinding ? '智能体尚未就绪，请先启动并完成本机检查；电脑离线时不能派发任务。' : '这个智能体尚未连线，请在它所在的电脑启动连接器。'}</p>}
           <label className="aw-sr-only" htmlFor="aw-instruction">发送给当前智能体的任务</label><textarea id="aw-instruction" value={instruction} maxLength={8000} disabled={!signedIn || !projectId || busy === 'send'} placeholder={sessionId ? '继续这个原生会话…' : '输入任务，在所选项目中创建会话…'} onChange={event => setInstruction(event.target.value)} onKeyDown={event => { if (workspaceEnterSends(event)) { event.preventDefault(); void send() } }} />
           <div className="aw-composer-footer"><span>Enter 发送 · Shift + Enter 换行 <span>{instruction.length}/8000</span></span><button type="submit" className="primary-button" disabled={Boolean(busy) || !signedIn || !runtimeOnline || !projectId || data?.canDispatch === false || !instruction.trim()}>{busy === 'send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'send' ? '发送中' : '发送任务'}</button></div>
         </form>
       </main>
-    </div>
+    </div></>}
   </section>
 }

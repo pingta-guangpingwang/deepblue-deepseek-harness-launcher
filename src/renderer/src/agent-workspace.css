@@ -23,6 +23,11 @@
 .aw-login > div { flex: 1; }
 .aw-login p { margin: 5px 0 0; color: var(--text-secondary); font-size: 13px; }
 .aw-management { flex: 0 1 auto; min-height: 75px; max-height: 40%; overflow: auto; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.aw-management-view { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; overflow: auto; }
+.aw-management-view > .aw-management { max-height: none; flex: 0 0 auto; overflow: visible; }
+.aw-management-view > .aw-legacy-management { flex: 1 0 auto; }
+.aw-import-confirm { flex-wrap: wrap; }
+.aw-import-confirm > p, .aw-import-confirm > ul { flex-basis: 100%; }
 .aw-management p { margin: 5px 0 12px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
 .aw-management-actions, .aw-control-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .aw-discovered { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border-top: 1px solid var(--border); gap: 16px; padding-top: 12px; }
@@ -138,3 +143,7 @@
   .aw-icon-button { min-width: 36px; min-height: 36px; }
   .aw-agent-row, .aw-session-row { min-height: 48px; }
 }
+.aw-device-name-form { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.aw-device-name-form label { display: grid; gap: 6px; flex: 1 1 200px; }
+.aw-device-name-form input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; color: inherit; background: transparent; }
+.aw-device-name-form small { flex-basis: 100%; overflow-wrap: anywhere; }

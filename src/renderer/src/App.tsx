@@ -108,6 +108,7 @@ import { desktopWallpaperCapability } from '../../shared/desktop-wallpaper'
 import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature } from './launcher-analytics'
 import { CommunityPage } from './CommunityPage'
 import { AgentWorkspacePage } from './AgentWorkspacePage'
+import { AgentConnectionStatus } from './AgentConnectionStatus'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
@@ -2008,6 +2009,8 @@ export default function App(): ReactNode {
   const [snapshot, setSnapshot] = useState<LauncherSnapshot>(mockSnapshot)
   const [snapshotReady, setSnapshotReady] = useState(false)
   const [page, setPage] = useState<PageId>('home')
+  const [agentWorkspaceSource, setAgentWorkspaceSource] = useState<'local' | 'cloud'>('local')
+  const [agentManageRequest, setAgentManageRequest] = useState(0)
   const [busy, setBusy] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -2423,9 +2426,10 @@ export default function App(): ReactNode {
           <time>{new Date(snapshot.runtimeUpdates.checkedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</time>
         </div>}
 
+        <AgentConnectionStatus snapshot={snapshot} blocked={updateCenterOpen || snapshot.installation.setupRequired} onLogin={accountLogin} onManage={() => { setAgentWorkspaceSource('cloud'); setAgentManageRequest(value => value + 1); setPage('agent-workspace') }} />
         <div className={classNames('page-scroll', (page === 'skins' || page === 'pets') && 'catalog-fixed-page', page === 'community' && 'community-fixed-page', page === 'agent-workspace' && 'agent-workspace-fixed-page')}>
           {page === 'home' && <HomePage snapshot={snapshot} busy={busy} onStart={start} onStop={stop} onRepair={repair} onWorkspace={chooseWorkspace} onSources={checkSources} onVersions={() => setPage('versions')} onPortSettings={openPortSettings} />}
-          {page === 'agent-workspace' && <AgentWorkspacePage snapshot={snapshot} onLogin={accountLogin} />}
+          {page === 'agent-workspace' && <AgentWorkspacePage snapshot={snapshot} onLogin={accountLogin} initialSource={agentWorkspaceSource} manageRequest={agentManageRequest} onManageRequestHandled={request => setAgentManageRequest(current => current === request ? 0 : current)} />}
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}

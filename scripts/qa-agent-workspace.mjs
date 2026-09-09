@@ -20,6 +20,7 @@ try {
   const desktop = await open(1440, 900)
   const errors = []
   desktop.on('pageerror', error => errors.push(error.message))
+  await desktop.getByRole('button', { name: '网站同步与托管', exact: true }).click()
   await desktop.getByRole('button', { name: /修复连接并同步原生会话/ }).click({ timeout: 20000 })
   await desktop.locator('.aw-message').first().waitFor({ timeout: 20000 })
   await desktop.screenshot({ path: path.join(output, 'desktop.png') })
@@ -64,6 +65,7 @@ try {
   check('No JavaScript errors', errors.length === 0)
 
   const mobile = await open(390, 844)
+  await mobile.getByRole('button', { name: '网站同步与托管', exact: true }).click()
   await mobile.getByRole('button', { name: /Codex · 网站开发.*本机托管/ }).click({ timeout: 20000 })
   await mobile.getByRole('button', { name: /修复连接并同步原生会话/ }).click({ timeout: 20000 })
   await mobile.locator('.aw-message').first().waitFor({ timeout: 20000 })
@@ -71,6 +73,7 @@ try {
   check('Mobile shows one conversation pane with input inside viewport', await mobile.locator('.aw-composer').isVisible() && !(await mobile.locator('.aw-agent-pane').isVisible()) && await mobile.locator('.aw-composer').evaluate(node => node.getBoundingClientRect().bottom <= innerHeight + 1))
   check('No page-level horizontal or vertical overflow', await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight))
   const legacy = await open(900, 650, '?legacy=1')
+  await legacy.getByRole('button', { name: '网站同步与托管', exact: true }).click()
   await legacy.getByRole('heading', { name: '请升级启动器' }).waitFor()
   check('Missing IPC shows upgrade instead of demo success', await legacy.getByRole('button', { name: '下载最新版启动器' }).isVisible() && await legacy.locator('.aw-composer').count() === 0)
   await legacy.screenshot({ path: path.join(output, 'legacy-upgrade.png') })
