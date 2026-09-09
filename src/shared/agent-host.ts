@@ -56,100 +56,140 @@ export type AgentHostAction =
   | { action: 'add_agent'; adapter: AgentAdapter; name?: string }
   | { action: 'start' | 'stop' | 'restart' | 'remove_agent' | 'add_project' | 'refresh'; agentId: string }
 
-export type AgentSessionGroupMode = 'manual' | 'coordinator'
-export type AgentSessionGroupRunStatus = 'queued' | 'running' | 'awaiting_approval' | 'unknown' | 'completed' | 'failed' | 'cancel_requested' | 'cancelled'
-export interface AgentSessionGroupSummary {
+export type AgentRoomAccess = 'workspace_write'
+export type AgentRoomRunStatus = 'queued' | 'running' | 'awaiting_approval' | 'unknown' | 'completed' | 'failed' | 'cancel_requested' | 'cancelled'
+export type AgentRoomSessionState = 'pending' | 'ready' | 'broken'
+export type AgentRoomMessageSegment =
+  | { type: 'text'; text: string }
+  | { type: 'mention'; memberId: string }
+
+export interface AgentRoomSummary {
   id: string
   name: string
-  mode: AgentSessionGroupMode
-  maxTurns: number
-  coordinatorRoleId?: string
-  roleCount: number
-  activeRunCount: number
-  latestRunStatus?: AgentSessionGroupRunStatus | string
+  coordinatorMemberId: string
+  maxSteps: number
+  defaultAccess: AgentRoomAccess
+  definitionRevision: string | number
+  stateRevision: string | number
   status: string
   activeRunId?: string
+  latestRunStatus?: AgentRoomRunStatus | string
   updatedAt?: string
 }
-export interface AgentSessionGroupRole {
+export interface AgentRoomMember {
   id: string
-  name: string
+  displayName: string
+  mentionHandle: string
   responsibility: string
   agentId: string
   agentName: string
+  adapterCode: string
   projectId: string
   projectName: string
-  nativeSessionId: string
-  nativeSessionTitle: string
+  sessionLabel: string
+  nativeSessionId?: string
+  sessionState: AgentRoomSessionState
   status: string
   canDispatch: boolean
   dispatchErrorCode?: string
-  readinessSource?: 'host' | 'standalone' | string
-  message?: string
+  readinessSource?: string
+  statusMessage?: string
 }
-export interface AgentSessionGroupRun {
+export interface AgentRoomMessage {
   id: string
-  instruction: string
-  status: AgentSessionGroupRunStatus | string
-  summary: string
-  finalText?: string
-  clientRequestId?: string
-  targetRoleIds: string[]
-  mode: AgentSessionGroupMode
-  coordinatorRoleId?: string
-  maxTurns: number
+  seq: number
+  runId?: string
+  actionId?: string
+  authorType: 'user' | 'member' | 'system'
+  authorMemberId?: string
+  authorName?: string
+  messageType: string
+  replyToMessageId?: string
+  body: string
+  segments: AgentRoomMessageSegment[]
+  mentions: Array<{ memberId: string; displayName: string; mentionHandle: string }>
   createdAt?: string
+  contentAvailable: boolean
+  contentPrunedAt?: string
+  truncated?: boolean
+}
+export interface AgentRoomRun {
+  id: string
+  roomId: string
+  rootMessageId: string
+  routingKind: string
+  coordinatorMemberId: string
+  targetMemberIds: string[]
+  definitionRevision: string | number
+  maxSteps: number
+  status: AgentRoomRunStatus | string
+  stepCount: number
+  access: AgentRoomAccess
+  requiresApproval: boolean
+  approvalId?: string
+  approvedAt?: string
+  finalMessageId?: string
+  errorCode?: string
+  cancelRequestedAt?: string
+  deadlineAt?: string
+  createdAt?: string
+  startedAt?: string
   completedAt?: string
   contentAvailable: boolean
-  contentTruncated?: boolean
   contentPrunedAt?: string
+  updatedAt?: string
 }
-export interface AgentSessionGroupAction {
+export interface AgentRoomAction {
   id: string
   runId: string
-  roleId?: string
+  memberId?: string
+  memberName?: string
   ordinal: number
   actionType: string
+  parentActionId?: string
+  triggerMessageId?: string
+  assignmentMessageId?: string
+  reportMessageId?: string
+  taskId?: string
+  sessionMode?: string
   status: string
   taskStatus?: string
   instruction?: string
   summary: string
   finalText?: string
   errorCode?: string
-  approvalInstruction?: string
-  approvalRequired?: boolean
-  approvalReason?: string
-  approvedAt?: string
+  directiveType?: string
+  contextThroughSeq?: number
   contentTruncated?: boolean
   createdAt?: string
+  completedAt?: string
 }
-export interface AgentSessionGroupDetailWindow {
-  maxRuns: number
+export interface AgentRoomDetailWindow {
+  maxMessages: number
   maxActions: number
-  runCount: number
+  messageCount: number
   actionCount: number
-  hasMoreRuns: boolean
+  hasEarlierMessages: boolean
+  hasLaterMessages: boolean
   hasMoreActions: boolean
-  maxRunBodyChars: number
-  maxActionInstructionChars: number
-  maxApprovalInstructionChars: number
-  maxActionResultChars: number
 }
-export interface AgentSessionGroupDetail {
-  group: AgentSessionGroupSummary
-  roles: AgentSessionGroupRole[]
-  runs: AgentSessionGroupRun[]
-  actions: AgentSessionGroupAction[]
+export interface AgentRoomDetail {
+  room: AgentRoomSummary
+  members: AgentRoomMember[]
+  messages: AgentRoomMessage[]
+  runs: AgentRoomRun[]
+  actions: AgentRoomAction[]
   detailRevision?: string
-  window?: AgentSessionGroupDetailWindow
+  window?: AgentRoomDetailWindow
 }
-export interface AgentSessionGroupRoleInput {
+export interface AgentRoomMemberInput {
   id: string
-  name: string
+  displayName: string
+  mentionHandle: string
   responsibility: string
   agentId: string
   projectId: string
-  nativeSessionId: string
+  sessionLabel: string
 }
 export interface AgentWorkspaceRequest {
   scope: 'hub' | 'devices' | 'checkin'

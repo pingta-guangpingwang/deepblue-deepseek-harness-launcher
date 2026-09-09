@@ -1,210 +1,293 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, Bot, CheckCircle2, CircleAlert, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, Wrench, X } from 'lucide-react'
 import type { LauncherSnapshot } from '../../shared/types'
-import type {
-  AgentSessionGroupAction,
-  AgentSessionGroupDetail,
-  AgentSessionGroupMode,
-  AgentSessionGroupRole,
-  AgentSessionGroupRoleInput,
-  AgentSessionGroupRun,
-  AgentSessionGroupSummary,
-  AgentWorkspaceRequest
-} from '../../shared/agent-host'
+import type { AgentRoomAccess, AgentRoomAction, AgentRoomDetail, AgentRoomMember, AgentRoomMemberInput, AgentRoomMessage, AgentRoomMessageSegment, AgentRoomRun, AgentRoomSummary, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-session-groups.css'
 import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
-interface CandidateSession { id: string; projectId: string; title: string }
-interface CandidateProject { id: string; name: string; sessions: CandidateSession[] }
-interface CandidateAgent { id: string; name: string; adapter: string; status: string; canDispatch: boolean; dispatchErrorCode?: string; readinessSource?: string; projects: CandidateProject[]; message?: string }
-interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean; sessions: boolean }; limits: { agents: number; projects: number; sessions: number } }
-interface GroupEditorState {
-  groupId?: string
+interface CandidateProject { id: string; agentId: string; name: string }
+interface CandidateAgent { id: string; name: string; adapter: string; status: string; canDispatch: boolean; statusMessage?: string; projects: CandidateProject[] }
+interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean }; limits: { agents: number; projects: number } }
+interface RoomEditorState {
+  roomId?: string
   name: string
-  mode: AgentSessionGroupMode
-  coordinatorRoleId: string
-  maxTurns: number
-  roles: AgentSessionGroupRoleInput[]
+  coordinatorMemberId: string
+  maxSteps: number
+  defaultAccess: AgentRoomAccess
+  expectedDefinitionRevision?: string | number
+  members: AgentRoomMemberInput[]
 }
+export interface RoomMentionToken { memberId: string; start: number; end: number; label: string }
 
 const ACTIVE_RUNS = new Set(['queued', 'running', 'awaiting_approval', 'cancel_requested', 'unknown'])
 const DOWNLOAD_URL = 'https://deepseek.ailishishu.com/'
+const DEFAULT_MAX_STEPS = 12
+const DEFAULT_ACCESS: AgentRoomAccess = 'workspace_write'
 const object = (value: unknown): JsonRecord => value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {}
 const rows = (value: unknown): JsonRecord[] => Array.isArray(value) ? value.map(object) : []
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
+const revision = (value: unknown): string | number => typeof value === 'number' && Number.isSafeInteger(value) ? value : text(value)
 const field = (row: JsonRecord, ...keys: string[]): unknown => keys.map(key => row[key]).find(value => value !== undefined && value !== null)
-const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-const boundedTurns = (value: unknown): number => Math.max(1, Math.min(12, Number(value) || 6))
-const normalizedMode = (value: unknown): AgentSessionGroupMode => ['coordinator', 'orchestrated'].includes(text(value)) ? 'coordinator' : 'manual'
+const bool = (value: unknown): boolean => value === true || Number(value) === 1
+const boundedSteps = (value: unknown): number => Math.max(1, Math.min(12, Number(value) || DEFAULT_MAX_STEPS))
+const normalizedAccess = (_value: unknown): AgentRoomAccess => 'workspace_write'
 
-export function groupStatusLabel(value: string): string {
+export function roomStatusLabel(value: string): string {
   return ({
-    idle: '待命', ready: '已就绪', online: '已在线', busy: '忙碌', working: '执行中', stopped: '已停止', offline: '成员离线',
-    needs_login: '需要本机登录', unavailable: '暂不支持', queued: '排队中', running: '执行中',
-    awaiting_approval: '等待你确认', awaiting_user_approval: '等待你允许委派', approved: '已允许', cancel_requested: '取消中', unknown: '结果待确认', cancelled: '已取消', completed: '已完成', failed: '失败'
+    active: '待命', idle: '待命', ready: '已就绪', online: '已在线', busy: '忙碌', working: '执行中', stopped: '已停止', offline: '等待连接',
+    needs_login: '需要本机登录', unavailable: '暂不支持', pending: '会话待创建', broken: '会话需修复', queued: '排队中', running: '执行中',
+    awaiting_approval: '等待你确认', approved: '已允许', reserved: '等待连接', cancel_requested: '取消中', unknown: '结果待确认', cancelled: '已取消', completed: '已完成', failed: '失败'
   } as Record<string, string>)[value] || value || '待检查'
 }
 
-export function groupRoleReady(canDispatch: unknown): boolean { return canDispatch === true }
-export function groupRunActive(status: string): boolean { return ACTIVE_RUNS.has(status) }
+export function roomRunActive(status: string): boolean { return ACTIVE_RUNS.has(status) }
 
-export function normalizeSessionGroupSummary(value: unknown): AgentSessionGroupSummary {
+export function normalizeRoomSummary(value: unknown): AgentRoomSummary {
   const row = object(value)
-  const activeRunCount = Math.max(0, Number(field(row, 'active_run_count', 'activeRunCount')) || 0)
-  const sourceStatus = text(field(row, 'status', 'run_status', 'runStatus')) || 'idle'
-  const latestRunStatus = text(field(row, 'latest_run_status', 'latestRunStatus')) || undefined
   return {
-    id: text(field(row, 'id', 'group_id', 'groupId')),
-    name: text(field(row, 'name', 'display_name', 'displayName')) || '未命名会话群',
-    mode: normalizedMode(field(row, 'mode', 'control_mode', 'controlMode')),
-    maxTurns: boundedTurns(field(row, 'max_turns', 'maxTurns')),
-    coordinatorRoleId: text(field(row, 'coordinator_role_id', 'coordinatorRoleId')) || undefined,
-    roleCount: Math.max(0, Number(field(row, 'role_count', 'roleCount')) || rows(row.roles).length),
-    activeRunCount,
-    latestRunStatus,
-    status: sourceStatus === 'active' ? latestRunStatus || (activeRunCount > 0 ? 'running' : 'idle') : sourceStatus,
+    id: text(field(row, 'id', 'room_id', 'roomId')),
+    name: text(field(row, 'name', 'display_name', 'displayName')) || '未命名房间',
+    coordinatorMemberId: text(field(row, 'coordinator_member_id', 'coordinatorMemberId')),
+    maxSteps: boundedSteps(field(row, 'max_steps', 'maxSteps')),
+    defaultAccess: normalizedAccess(field(row, 'default_access', 'defaultAccess')),
+    definitionRevision: revision(field(row, 'definition_revision', 'definitionRevision')),
+    stateRevision: revision(field(row, 'state_revision', 'stateRevision')),
+    status: text(row.status) || 'active',
     activeRunId: text(field(row, 'active_run_id', 'activeRunId')) || undefined,
+    latestRunStatus: text(field(row, 'latest_run_status', 'latestRunStatus')) || undefined,
     updatedAt: text(field(row, 'updated_at', 'updatedAt')) || undefined
   }
 }
 
-function normalizeRole(value: unknown): AgentSessionGroupRole {
+function normalizeMember(value: unknown): AgentRoomMember {
   const row = object(value)
+  const sessionState = text(field(row, 'session_state', 'sessionState'))
+  const nativeSessionId = text(field(row, 'native_session_id', 'nativeSessionId')) || undefined
   return {
-    id: text(field(row, 'id', 'role_id', 'roleId')),
-    name: text(field(row, 'name', 'role_name', 'roleName')) || '未命名角色',
+    id: text(field(row, 'id', 'member_id', 'memberId')),
+    displayName: text(field(row, 'display_name', 'displayName', 'name')) || '未命名成员',
+    mentionHandle: text(field(row, 'mention_handle', 'mentionHandle')).replace(/^@/, ''),
     responsibility: text(field(row, 'responsibility', 'duty', 'description')),
     agentId: text(field(row, 'agent_id', 'agentId')),
     agentName: text(field(row, 'agent_name', 'agentName')) || '智能体',
+    adapterCode: text(field(row, 'adapter_code', 'adapterCode')),
     projectId: text(field(row, 'project_id', 'projectId')),
     projectName: text(field(row, 'project_name', 'projectName')) || '未命名项目',
-    nativeSessionId: text(field(row, 'native_session_id', 'nativeSessionId', 'session_id', 'sessionId')),
-    nativeSessionTitle: text(field(row, 'native_session_title', 'nativeSessionTitle', 'session_title', 'sessionTitle')) || '原生会话',
-    status: text(field(row, 'runtime_status', 'runtimeStatus', 'status', 'agent_status', 'agentStatus')) || 'unknown',
-    canDispatch: field(row, 'can_dispatch', 'canDispatch') === true || Number(field(row, 'can_dispatch', 'canDispatch')) === 1,
+    sessionLabel: text(field(row, 'session_label', 'sessionLabel')) || '房间会话',
+    nativeSessionId,
+    sessionState: sessionState === 'ready' || sessionState === 'broken' ? sessionState : nativeSessionId ? 'ready' : 'pending',
+    status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown',
+    canDispatch: bool(field(row, 'can_dispatch', 'canDispatch')),
     dispatchErrorCode: text(field(row, 'dispatch_error_code', 'dispatchErrorCode')) || undefined,
     readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined,
-    message: text(field(row, 'message', 'status_message', 'statusMessage')) || undefined
+    statusMessage: text(field(row, 'status_message', 'statusMessage')) || undefined
   }
 }
 
-function normalizeRun(value: unknown): AgentSessionGroupRun {
+function normalizeSegments(value: unknown, fallbackBody: string): AgentRoomMessageSegment[] {
+  const segments = rows(value).flatMap((row): AgentRoomMessageSegment[] => {
+    if (row.type === 'mention' && text(field(row, 'member_id', 'memberId'))) return [{ type: 'mention', memberId: text(field(row, 'member_id', 'memberId')) }]
+    if (row.type === 'text' && typeof row.text === 'string') return [{ type: 'text', text: row.text }]
+    return []
+  })
+  return segments.length ? segments : fallbackBody ? [{ type: 'text', text: fallbackBody }] : []
+}
+
+function normalizeMessage(value: unknown): AgentRoomMessage {
   const row = object(value)
-  const contentAvailable = field(row, 'content_available', 'contentAvailable') !== false
+  const body = text(field(row, 'body', 'body_text', 'bodyText'))
+  const author = text(field(row, 'author_type', 'authorType'))
+  return {
+    id: text(field(row, 'id', 'message_id', 'messageId')),
+    seq: Math.max(0, Number(field(row, 'seq', 'message_seq', 'messageSeq')) || 0),
+    runId: text(field(row, 'run_id', 'runId')) || undefined,
+    actionId: text(field(row, 'action_id', 'actionId')) || undefined,
+    authorType: author === 'member' || author === 'system' ? author : 'user',
+    authorMemberId: text(field(row, 'author_member_id', 'authorMemberId')) || undefined,
+    authorName: text(field(row, 'author_name', 'authorName')) || undefined,
+    messageType: text(field(row, 'message_type', 'messageType')) || 'chat',
+    replyToMessageId: text(field(row, 'reply_to_message_id', 'replyToMessageId')) || undefined,
+    body,
+    segments: normalizeSegments(row.segments, body),
+    mentions: rows(row.mentions).map(item => ({ memberId: text(field(item, 'member_id', 'memberId')), displayName: text(field(item, 'display_name', 'displayName')), mentionHandle: text(field(item, 'mention_handle', 'mentionHandle')).replace(/^@/, '') })).filter(item => item.memberId),
+    createdAt: text(field(row, 'created_at', 'createdAt')) || undefined,
+    contentAvailable: field(row, 'content_available', 'contentAvailable') !== false,
+    contentPrunedAt: text(field(row, 'content_pruned_at', 'contentPrunedAt')) || undefined,
+    truncated: bool(field(row, 'truncated', 'content_truncated', 'contentTruncated'))
+  }
+}
+
+function normalizeRun(value: unknown): AgentRoomRun {
+  const row = object(value)
   return {
     id: text(field(row, 'id', 'run_id', 'runId')),
-    instruction: text(field(row, 'instruction', 'request_text', 'requestText')),
+    roomId: text(field(row, 'room_id', 'roomId')),
+    rootMessageId: text(field(row, 'root_message_id', 'rootMessageId')),
+    routingKind: text(field(row, 'routing_kind', 'routingKind')) || 'coordinator',
+    coordinatorMemberId: text(field(row, 'coordinator_member_id', 'coordinatorMemberId')),
+    targetMemberIds: Array.isArray(field(row, 'target_member_ids', 'targetMemberIds')) ? (field(row, 'target_member_ids', 'targetMemberIds') as unknown[]).map(text).filter(Boolean) : [],
+    definitionRevision: revision(field(row, 'definition_revision', 'definitionRevision')),
+    maxSteps: boundedSteps(field(row, 'max_steps', 'maxSteps')),
     status: text(row.status) || 'queued',
-    summary: text(field(row, 'summary', 'latest_summary', 'latestSummary')),
-    finalText: text(field(row, 'final_text', 'finalText')) || undefined,
-    clientRequestId: text(field(row, 'client_request_id', 'clientRequestId')) || undefined,
-    targetRoleIds: strings(field(row, 'target_role_ids', 'targetRoleIds')),
-    mode: normalizedMode(field(row, 'mode', 'control_mode', 'controlMode')),
-    coordinatorRoleId: text(field(row, 'coordinator_role_id', 'coordinatorRoleId')) || undefined,
-    maxTurns: boundedTurns(field(row, 'max_turns', 'maxTurns')),
+    stepCount: Math.max(0, Number(field(row, 'step_count', 'stepCount')) || 0),
+    access: normalizedAccess(row.access),
+    requiresApproval: bool(field(row, 'requires_approval', 'requiresApproval')),
+    approvalId: text(field(row, 'approval_id', 'approvalId')) || undefined,
+    approvedAt: text(field(row, 'approved_at', 'approvedAt')) || undefined,
+    finalMessageId: text(field(row, 'final_message_id', 'finalMessageId')) || undefined,
+    errorCode: text(field(row, 'error_code', 'errorCode')) || undefined,
+    cancelRequestedAt: text(field(row, 'cancel_requested_at', 'cancelRequestedAt')) || undefined,
+    deadlineAt: text(field(row, 'deadline_at', 'deadlineAt')) || undefined,
     createdAt: text(field(row, 'created_at', 'createdAt')) || undefined,
+    startedAt: text(field(row, 'started_at', 'startedAt')) || undefined,
     completedAt: text(field(row, 'completed_at', 'completedAt')) || undefined,
-    contentAvailable,
-    contentTruncated: field(row, 'content_truncated', 'contentTruncated') === true || Number(field(row, 'content_truncated', 'contentTruncated')) === 1,
-    contentPrunedAt: text(field(row, 'content_pruned_at', 'contentPrunedAt')) || undefined
+    contentAvailable: field(row, 'content_available', 'contentAvailable') !== false,
+    contentPrunedAt: text(field(row, 'content_pruned_at', 'contentPrunedAt')) || undefined,
+    updatedAt: text(field(row, 'updated_at', 'updatedAt')) || undefined
   }
 }
 
-function normalizeAction(value: unknown): AgentSessionGroupAction {
+function normalizeAction(value: unknown): AgentRoomAction {
   const row = object(value)
   return {
     id: text(field(row, 'id', 'action_id', 'actionId')),
     runId: text(field(row, 'run_id', 'runId')),
-    roleId: text(field(row, 'role_id', 'roleId')) || undefined,
+    memberId: text(field(row, 'member_id', 'memberId')) || undefined,
+    memberName: text(field(row, 'member_name', 'memberName')) || undefined,
     ordinal: Math.max(0, Number(row.ordinal) || 0),
     actionType: text(field(row, 'action_type', 'actionType', 'type')) || 'update',
+    parentActionId: text(field(row, 'parent_action_id', 'parentActionId')) || undefined,
+    triggerMessageId: text(field(row, 'trigger_message_id', 'triggerMessageId')) || undefined,
+    assignmentMessageId: text(field(row, 'assignment_message_id', 'assignmentMessageId')) || undefined,
+    reportMessageId: text(field(row, 'report_message_id', 'reportMessageId')) || undefined,
+    taskId: text(field(row, 'task_id', 'taskId')) || undefined,
+    sessionMode: text(field(row, 'session_mode', 'sessionMode')) || undefined,
     status: text(field(row, 'effective_status', 'effectiveStatus', 'status', 'task_status', 'taskStatus')) || 'queued',
     taskStatus: text(field(row, 'task_status', 'taskStatus')) || undefined,
     instruction: text(row.instruction) || undefined,
     summary: text(field(row, 'summary', 'latest_summary', 'latestSummary')),
     finalText: text(field(row, 'final_text', 'finalText')) || undefined,
     errorCode: text(field(row, 'error_code', 'errorCode')) || undefined,
-    approvalInstruction: text(field(row, 'approval_instruction', 'approvalInstruction')) || undefined,
-    approvalRequired: field(row, 'approval_required', 'approvalRequired') === true || Number(field(row, 'approval_required', 'approvalRequired')) === 1,
-    approvalReason: text(field(row, 'approval_reason', 'approvalReason')) || undefined,
-    approvedAt: text(field(row, 'approved_at', 'approvedAt')) || undefined,
-    contentTruncated: field(row, 'content_truncated', 'contentTruncated') === true || Number(field(row, 'content_truncated', 'contentTruncated')) === 1,
-    createdAt: text(field(row, 'created_at', 'createdAt')) || undefined
+    directiveType: text(field(row, 'directive_type', 'directiveType')) || undefined,
+    contextThroughSeq: Math.max(0, Number(field(row, 'context_through_seq', 'contextThroughSeq')) || 0) || undefined,
+    contentTruncated: bool(field(row, 'content_truncated', 'contentTruncated')),
+    createdAt: text(field(row, 'created_at', 'createdAt')) || undefined,
+    completedAt: text(field(row, 'completed_at', 'completedAt')) || undefined
   }
 }
 
-export function normalizeSessionGroupDetail(value: unknown): AgentSessionGroupDetail {
+function sortRoomRuns(runs: AgentRoomRun[], messages: AgentRoomMessage[]): AgentRoomRun[] {
+  const messageSeq = new Map(messages.map(message => [message.id, message.seq]))
+  return [...runs].sort((left, right) => (messageSeq.get(right.rootMessageId) || 0) - (messageSeq.get(left.rootMessageId) || 0) || (Date.parse(right.createdAt || '') || 0) - (Date.parse(left.createdAt || '') || 0))
+}
+
+export function normalizeRoomDetail(value: unknown): AgentRoomDetail {
   const response = object(value)
   const rawWindow = object(response.window)
+  const messages = rows(response.messages).map(normalizeMessage).filter(message => message.id).sort((left, right) => left.seq - right.seq)
+  const runs = sortRoomRuns(rows(response.runs).map(normalizeRun).filter(run => run.id), messages)
   return {
-    group: normalizeSessionGroupSummary(response.group),
-    roles: rows(response.roles).map(normalizeRole).filter(role => role.id),
-    runs: rows(response.runs).map(normalizeRun).filter(run => run.id).sort((left, right) => (Date.parse(right.createdAt || '') || 0) - (Date.parse(left.createdAt || '') || 0)),
+    room: normalizeRoomSummary(response.room),
+    members: rows(response.members).map(normalizeMember).filter(member => member.id),
+    messages,
+    runs,
     actions: rows(response.actions).map(normalizeAction).filter(action => action.id).sort((left, right) => left.ordinal - right.ordinal),
     detailRevision: text(field(response, 'detail_revision', 'detailRevision')) || undefined,
     window: Object.keys(rawWindow).length ? {
-      maxRuns: Math.max(0, Number(field(rawWindow, 'max_runs', 'maxRuns')) || 0),
+      maxMessages: Math.max(0, Number(field(rawWindow, 'max_messages', 'maxMessages')) || 0),
       maxActions: Math.max(0, Number(field(rawWindow, 'max_actions', 'maxActions')) || 0),
-      runCount: Math.max(0, Number(field(rawWindow, 'run_count', 'runCount')) || 0),
+      messageCount: Math.max(0, Number(field(rawWindow, 'message_count', 'messageCount')) || 0),
       actionCount: Math.max(0, Number(field(rawWindow, 'action_count', 'actionCount')) || 0),
-      hasMoreRuns: field(rawWindow, 'has_more_runs', 'hasMoreRuns') === true,
-      hasMoreActions: field(rawWindow, 'has_more_actions', 'hasMoreActions') === true,
-      maxRunBodyChars: Math.max(0, Number(field(rawWindow, 'max_run_body_chars', 'maxRunBodyChars')) || 0),
-      maxActionInstructionChars: Math.max(0, Number(field(rawWindow, 'max_action_instruction_chars', 'maxActionInstructionChars')) || 0),
-      maxApprovalInstructionChars: Math.max(0, Number(field(rawWindow, 'max_approval_instruction_chars', 'maxApprovalInstructionChars')) || 0),
-      maxActionResultChars: Math.max(0, Number(field(rawWindow, 'max_action_result_chars', 'maxActionResultChars')) || 0)
+      hasEarlierMessages: bool(field(rawWindow, 'has_earlier_messages', 'hasEarlierMessages')),
+      hasLaterMessages: bool(field(rawWindow, 'has_later_messages', 'hasLaterMessages')),
+      hasMoreActions: bool(field(rawWindow, 'has_more_actions', 'hasMoreActions'))
     } : undefined
   }
 }
 
-export function validateSessionGroupDraft(draft: Pick<GroupEditorState, 'name' | 'mode' | 'coordinatorRoleId' | 'maxTurns' | 'roles'>): string {
-  if (!draft.name.trim() || [...draft.name.trim()].length > 80) return '群名称需为 1–80 个字符。'
-  if (!Number.isInteger(draft.maxTurns) || draft.maxTurns < 1 || draft.maxTurns > 12) return '最大执行次数需为 1–12。'
-  if (draft.roles.length < 2 || draft.roles.length > 6) return '每个会话群需配置 2–6 个角色。'
-  for (const role of draft.roles) {
-    if (!role.name.trim() || [...role.name.trim()].length > 60) return '每个角色都需要 1–60 个字符的名称。'
-    if (!role.responsibility.trim() || [...role.responsibility.trim()].length > 500) return `请填写“${role.name.trim()}”的职责，最多 500 个字符。`
-    if (!role.agentId || !role.projectId || !role.nativeSessionId) return `请为“${role.name.trim()}”选择智能体、项目和原生会话。`
-  }
-  const assignments = new Set<string>()
-  for (const role of draft.roles) {
-    const assignment = `${role.agentId}\0${role.nativeSessionId}`
-    if (assignments.has(assignment)) return '同一个智能体担任多个角色时，必须选择不同的原生会话。'
-    assignments.add(assignment)
-  }
-  if (draft.mode === 'coordinator' && !draft.roles.some(role => role.id === draft.coordinatorRoleId)) return '主控协调模式需要选择一个现有角色作为主控。'
-  return ''
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
+  const merged = new Map(current.map(item => [item.id, item]))
+  for (const item of incoming) merged.set(item.id, item)
+  return [...merged.values()]
 }
 
-export function groupSubmissionSignature(value: { groupId: string; instruction: string; targetRoleIds: string[]; mode: AgentSessionGroupMode; coordinatorRoleId?: string; maxTurns: number }): string {
-  return JSON.stringify({ ...value, targetRoleIds: [...value.targetRoleIds].sort() })
+export function mergeRoomDetail(current: AgentRoomDetail | undefined, incoming: AgentRoomDetail, preserveEarlierMessages = true): AgentRoomDetail {
+  if (!current) return incoming
+  if (current.room.id !== incoming.room.id) return current
+  const window = incoming.window || current.window
+  const messages = mergeById(current.messages, incoming.messages).sort((left, right) => left.seq - right.seq)
+  const runs = sortRoomRuns(mergeById(current.runs, incoming.runs), messages)
+  return {
+    ...incoming,
+    room: incoming.room.id ? incoming.room : current.room,
+    members: incoming.members.length ? incoming.members : current.members,
+    messages,
+    runs,
+    actions: mergeById(current.actions, incoming.actions).sort((left, right) => left.ordinal - right.ordinal),
+    window: window && preserveEarlierMessages && current.window ? { ...window, hasEarlierMessages: current.window.hasEarlierMessages || window.hasEarlierMessages } : window
+  }
 }
 
-export function newSessionGroupRoleId(): string { return crypto.randomUUID().replaceAll('-', '') }
-
-function normalizeFlattenedCandidates(value: unknown): CandidateCatalog | undefined {
+function normalizeCandidates(value: unknown): CandidateCatalog | undefined {
   const catalog = object(value)
-  if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects) || !Array.isArray(catalog.sessions)) return
-  const sourceSessions = rows(catalog.sessions).map(row => ({ id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), projectId: text(field(row, 'project_id', 'projectId')), title: text(field(row, 'source_title', 'sourceTitle', 'title')) || '未命名会话' })).filter(session => session.id && session.projectId)
-  const sourceProjects = rows(catalog.projects).map(row => ({ id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目' })).filter(project => project.id && project.agentId)
+  if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects)) return
+  const projects = rows(catalog.projects).map(row => ({ id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目' })).filter(project => project.id && project.agentId)
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
-    const projects = sourceProjects.filter(project => project.agentId === id).map(project => ({ id: project.id, name: project.name, sessions: sourceSessions.filter(session => session.projectId === project.id && (!session.agentId || session.agentId === id)).map(({ id: sessionId, projectId, title }) => ({ id: sessionId, projectId, title })) }))
-    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus')) || 'unknown', canDispatch: field(row, 'can_dispatch', 'canDispatch') === true || Number(field(row, 'can_dispatch', 'canDispatch')) === 1, dispatchErrorCode: text(field(row, 'dispatch_error_code', 'dispatchErrorCode')) || undefined, readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined, projects, message: text(field(row, 'status_message', 'statusMessage', 'message')) || undefined }
+    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown', canDispatch: bool(field(row, 'can_dispatch', 'canDispatch')), statusMessage: text(field(row, 'status_message', 'statusMessage')) || undefined, projects: projects.filter(project => project.agentId === id) }
   }).filter(agent => agent.id)
   const truncated = object(catalog.truncated)
   const limits = object(catalog.limits)
-  return {
-    agents,
-    truncated: { agents: truncated.agents === true, projects: truncated.projects === true, sessions: truncated.sessions === true },
-    limits: { agents: Math.max(0, Number(limits.agents) || 0), projects: Math.max(0, Number(limits.projects) || 0), sessions: Math.max(0, Number(limits.sessions) || 0) }
-  }
+  return { agents, truncated: { agents: bool(truncated.agents), projects: bool(truncated.projects) }, limits: { agents: Math.max(0, Number(limits.agents) || 0), projects: Math.max(0, Number(limits.projects) || 0) } }
 }
 
-function blankRole(): AgentSessionGroupRoleInput {
-  return { id: newSessionGroupRoleId(), name: '', responsibility: '', agentId: '', projectId: '', nativeSessionId: '' }
+function newMemberId(): string { return crypto.randomUUID().replaceAll('-', '') }
+function blankMember(index: number): AgentRoomMemberInput { return { id: newMemberId(), displayName: '', mentionHandle: `agent-${index + 1}`, responsibility: '', agentId: '', projectId: '', sessionLabel: '' } }
+
+export function validateRoomDraft(draft: RoomEditorState): string {
+  if (!draft.name.trim() || [...draft.name.trim()].length > 80) return '房间名称需为 1–80 个字符。'
+  if (draft.members.length < 2) return '请至少配置主控和一名协作成员。'
+  const handles = new Set<string>()
+  for (const member of draft.members) {
+    if (!member.displayName.trim() || [...member.displayName.trim()].length > 60) return '每位成员都需要一个清晰的显示名称。'
+    const handle = member.mentionHandle.trim().replace(/^@/, '').toLowerCase()
+    if (!/^[\p{L}\p{N}_.-]{1,40}$/u.test(member.mentionHandle.trim().replace(/^@/, ''))) return `“${member.displayName.trim()}”的 @名称需为 1–40 位文字、数字、下划线、句点或短横线。`
+    if (handles.has(handle)) return `@${handle} 已被其他成员使用。`
+    handles.add(handle)
+    if (!member.responsibility.trim() || [...member.responsibility.trim()].length > 500) return `请填写“${member.displayName.trim()}”的职责。`
+    if (!member.agentId || !member.projectId) return `请为“${member.displayName.trim()}”选择已有智能体和授权项目。`
+    if (!member.sessionLabel.trim() || [...member.sessionLabel.trim()].length > 80) return `请为“${member.displayName.trim()}”命名本房间的独立会话。`
+  }
+  if (!draft.members.some(member => member.id === draft.coordinatorMemberId)) return '请选择一位房间主控。'
+  return ''
 }
+
+export function reconcileMentionTokens(previousText: string, nextText: string, tokens: RoomMentionToken[]): RoomMentionToken[] {
+  if (previousText === nextText) return tokens
+  let prefix = 0
+  while (prefix < previousText.length && prefix < nextText.length && previousText[prefix] === nextText[prefix]) prefix += 1
+  let suffix = 0
+  while (suffix < previousText.length - prefix && suffix < nextText.length - prefix && previousText[previousText.length - 1 - suffix] === nextText[nextText.length - 1 - suffix]) suffix += 1
+  const oldEnd = previousText.length - suffix
+  const delta = nextText.length - previousText.length
+  return tokens.flatMap(token => token.end <= prefix ? [token] : token.start >= oldEnd ? [{ ...token, start: token.start + delta, end: token.end + delta }] : []).filter(token => nextText.slice(token.start, token.end) === token.label)
+}
+
+export function buildRoomMessageContent(value: string, tokens: RoomMentionToken[]): AgentRoomMessageSegment[] {
+  const ordered = [...tokens].filter(token => token.start >= 0 && token.end > token.start && value.slice(token.start, token.end) === token.label).sort((left, right) => left.start - right.start)
+  const content: AgentRoomMessageSegment[] = []
+  let cursor = 0
+  for (const token of ordered) {
+    if (token.start < cursor) continue
+    if (token.start > cursor) content.push({ type: 'text', text: value.slice(cursor, token.start) })
+    content.push({ type: 'mention', memberId: token.memberId }); cursor = token.end
+  }
+  if (cursor < value.length) content.push({ type: 'text', text: value.slice(cursor) })
+  return content.filter(segment => segment.type === 'mention' || segment.text.length > 0)
+}
+
+export function roomMessageSignature(value: { roomId: string; content: AgentRoomMessageSegment[]; replyToMessageId?: string; access: AgentRoomAccess; expectedDefinitionRevision: string | number }): string { return JSON.stringify(value) }
 
 function timestamp(value?: string): string {
   if (!value) return '刚刚'
@@ -213,18 +296,21 @@ function timestamp(value?: string): string {
 }
 
 function Status({ value }: { value: string }): React.JSX.Element {
-  const tone = ['ready', 'completed', 'idle', 'approved'].includes(value) ? 'good' : ['failed', 'offline', 'needs_login', 'unavailable', 'unknown'].includes(value) ? 'bad' : ['queued', 'running', 'awaiting_approval', 'awaiting_user_approval', 'cancel_requested', 'busy'].includes(value) ? 'pending' : 'neutral'
-  return <span className={`asg-status ${tone}`}><i aria-hidden="true" />{groupStatusLabel(value)}</span>
+  const tone = ['active', 'ready', 'completed', 'idle', 'approved'].includes(value) ? 'good' : ['failed', 'offline', 'needs_login', 'unavailable', 'unknown', 'broken'].includes(value) ? 'bad' : ['queued', 'running', 'awaiting_approval', 'cancel_requested', 'busy', 'pending', 'reserved'].includes(value) ? 'pending' : 'neutral'
+  return <span className={`arm-status ${tone}`}><i aria-hidden="true" />{roomStatusLabel(value)}</span>
 }
 
-function ActionRecord({ action, run, role, busy, onApprove, onReject }: { action: AgentSessionGroupAction; run: AgentSessionGroupRun; role?: AgentSessionGroupRole; busy: boolean; onApprove(): void; onReject(): void }): React.JSX.Element {
-  const roleName = role?.name || '群编排'
-  const awaitingApproval = action.approvalRequired === true && action.status === 'awaiting_user_approval'
-  const coordinatorStart = action.approvalReason === 'coordinator_run_write_capable'
-  const approvalInstruction = action.approvalInstruction || (coordinatorStart ? run.instruction : action.instruction)
-  const visibleInstruction = action.actionType === 'coordinator' ? (action.ordinal === 1 ? run.instruction : '主控根据上一角色结果继续规划与汇总') : action.instruction
-  const hasCopy = Boolean(visibleInstruction || action.summary || action.finalText || action.errorCode)
-  return <div className={`asg-action ${awaitingApproval ? 'needs-approval' : ''}`}><span>{roleName}</span><div className="asg-action-copy">{awaitingApproval ? <div className="asg-approval" role="alert"><strong>{coordinatorStart ? '主控准备开始本轮规划，尚未执行' : '主控请求委派，尚未执行'}</strong><p>{role?.agentName || '智能体'} · {role?.projectName || '项目'} · {role?.nativeSessionTitle || '原生会话'}</p><p><strong>{coordinatorStart ? '本轮任务：' : '拟派任务：'}</strong>{approvalInstruction || '未提供任务内容'}</p><small>{coordinatorStart ? `该主控拥有当前项目的实际操作能力。允许后，仅在本轮最多 ${run.maxTurns} 次调用范围内负责规划与汇总；对其他角色的委派仍会逐次询问你。` : '该智能体拥有当前项目的实际操作能力；只有你明确允许后才会派发。'}</small><div><button className="primary-button" disabled={busy} onClick={onApprove}>{busy ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}{coordinatorStart ? '允许主控开始' : '允许委派'}</button><button className="small-button danger" disabled={busy} onClick={onReject}>拒绝并停止</button></div></div> : <>{visibleInstruction && <p><strong>任务：</strong>{visibleInstruction}</p>}{action.summary && <p>{action.summary}</p>}{action.finalText && <p><strong>结果：</strong>{action.finalText}</p>}{action.errorCode && <code>错误：{action.errorCode}</code>}{!hasCopy && <p>{action.actionType}</p>}</>}{action.contentTruncated && <small className="asg-truncated">内容过长，当前只显示安全截断后的部分。</small>}</div><Status value={action.status} /></div>
+function MessageBody({ message, members }: { message: AgentRoomMessage; members: Map<string, AgentRoomMember> }): React.JSX.Element {
+  if (!message.contentAvailable) return <span className="arm-pruned">这条正文已按保留策略清理。</span>
+  return <>{message.segments.map((segment, index) => segment.type === 'text' ? <span key={`${message.id}-text-${index}`}>{segment.text}</span> : <span className="arm-inline-mention" key={`${message.id}-mention-${index}`}>@{members.get(segment.memberId)?.mentionHandle || message.mentions.find(mention => mention.memberId === segment.memberId)?.mentionHandle || '成员'}</span>)}{message.truncated && <small className="arm-truncated">内容过长，当前显示安全截断版本。</small>}</>
+}
+
+function TaskAction({ action, member, coordinator }: { action: AgentRoomAction; member?: AgentRoomMember; coordinator?: AgentRoomMember }): React.JSX.Element {
+  const waitingForConnection = action.status === 'reserved' || (action.status === 'queued' && member && !member.canDispatch)
+  const status = waitingForConnection ? 'reserved' : action.status
+  const target = member ? `@${member.mentionHandle}` : action.memberName ? `@${action.memberName.replace(/^@/, '')}` : '成员'
+  const route = action.actionType === 'direct' ? `你 → ${target}` : action.actionType === 'delegate' ? `@${coordinator?.mentionHandle || '主控'} → ${target}` : action.actionType === 'report' ? `${target} → @${coordinator?.mentionHandle || '主控'}` : `@${coordinator?.mentionHandle || '主控'} 接收/复核`
+  return <li className="arm-action-row"><div><strong>{route}</strong><Status value={status} /></div><p>{action.summary || action.instruction || roomStatusLabel(action.status)}</p>{waitingForConnection && <small>消息已经进入公共聊天；成员连接后会继续领取。</small>}{action.errorCode && <code>{action.errorCode}</code>}</li>
 }
 
 export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
@@ -232,300 +318,421 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const userId = snapshot.account.user?.id || ''
   const baseSupported = launcherSupportsAgentSessionGroups(snapshot.launcherVersion)
   const supported = baseSupported && Boolean(window.launcher?.agentWorkspaceRequest)
-  const [groups, setGroups] = useState<AgentSessionGroupSummary[]>([])
-  const [selectedGroupId, setSelectedGroupId] = useState('')
-  const [detail, setDetail] = useState<AgentSessionGroupDetail>()
-  const [candidates, setCandidates] = useState<CandidateAgent[]>([])
+  const [rooms, setRooms] = useState<AgentRoomSummary[]>([])
+  const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [detail, setDetail] = useState<AgentRoomDetail>()
   const [candidateCatalog, setCandidateCatalog] = useState<CandidateCatalog>()
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
-  const [syncError, setSyncError] = useState('')
   const [notice, setNotice] = useState('')
   const [reload, setReload] = useState(0)
-  const [mobilePane, setMobilePane] = useState<'groups' | 'roles' | 'activity'>('groups')
-  const [editor, setEditor] = useState<GroupEditorState>()
+  const [mobilePane, setMobilePane] = useState<'chat' | 'tasks' | 'members'>('chat')
+  const [membersOpen, setMembersOpen] = useState(false)
+  const [editor, setEditor] = useState<RoomEditorState>()
   const [editorError, setEditorError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [instruction, setInstruction] = useState('')
-  const [dispatchMode, setDispatchMode] = useState<AgentSessionGroupMode>('manual')
-  const [targetRoleIds, setTargetRoleIds] = useState<string[]>([])
-  const [coordinatorRoleId, setCoordinatorRoleId] = useState('')
-  const [maxTurns, setMaxTurns] = useState(6)
-  const [composerReset, setComposerReset] = useState(0)
+  const [draft, setDraft] = useState('')
+  const [mentionTokens, setMentionTokens] = useState<RoomMentionToken[]>([])
+  const [mentionQuery, setMentionQuery] = useState<{ start: number; query: string; active: number }>()
   const dialog = useRef<HTMLDialogElement>(null)
+  const textarea = useRef<HTMLTextAreaElement>(null)
+  const messageScroll = useRef<HTMLDivElement>(null)
   const accountEpoch = useRef(0)
+  const selectedRoomRef = useRef('')
+  const detailRevision = useRef('')
+  const latestMessageSeq = useRef(0)
+  const unchangedPolls = useRef(0)
+  const lastDetailActive = useRef(false)
   const sending = useRef(false)
   const saving = useRef(false)
   const submission = useRef<{ signature: string; clientRequestId: string } | undefined>(undefined)
-  const configuredGroup = useRef('')
-  const polledGroup = useRef('')
-  const detailRevision = useRef('')
-  const unchangedPolls = useRef(0)
-  const lastDetailActive = useRef(false)
+  const editorSubmission = useRef<{ signature: string; clientRequestId: string } | undefined>(undefined)
+  const deleteSubmission = useRef<{ roomId: string; clientRequestId: string } | undefined>(undefined)
 
   async function request(value: AgentWorkspaceRequest): Promise<JsonRecord> {
-    if (!window.launcher?.agentWorkspaceRequest) throw new Error('当前启动器内核缺少会话群接口，请检查更新。')
+    if (!window.launcher?.agentWorkspaceRequest) throw new Error('当前启动器内核缺少多智能会话接口，请检查更新。')
     const response = await window.launcher.agentWorkspaceRequest(value)
-    if (response.ok === false) throw new Error(text(response.message) || text(response.error) || '会话群操作未完成，请稍后重试。')
+    if (response.ok === false) throw new Error(text(response.message) || text(response.error) || '多智能会话操作未完成，请稍后重试。')
     return response
   }
 
   useEffect(() => {
     accountEpoch.current += 1
-    setGroups([]); setSelectedGroupId(''); setDetail(undefined); setCandidates([]); setCandidateCatalog(undefined); setError(''); setSyncError(''); setNotice(''); setInstruction(''); setEditor(undefined)
-    submission.current = undefined; configuredGroup.current = ''; polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false
+    setRooms([]); setSelectedRoomId(''); selectedRoomRef.current = ''; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setNotice(''); setDraft(''); setMentionTokens([]); setEditor(undefined); setMembersOpen(false)
+    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; submission.current = undefined; editorSubmission.current = undefined; deleteSubmission.current = undefined
   }, [userId, signedIn])
 
   useEffect(() => {
     if (!supported || !signedIn) { setLoading(false); return }
     const epoch = accountEpoch.current
     let disposed = false
-    const current = (): boolean => !disposed && epoch === accountEpoch.current
     async function load(): Promise<void> {
       setLoading(true)
       try {
-        const list = await request({ scope: 'hub', method: 'GET', action: 'group_list' })
-        if (!current()) return
-        const nextGroups = rows(list.groups).map(normalizeSessionGroupSummary).filter(group => group.id)
-        const flattened = normalizeFlattenedCandidates(list.candidates)
-        let nextCandidates = flattened?.agents
-        if (!nextCandidates) {
-          const bootstrap = await request({ scope: 'hub', method: 'GET', action: 'bootstrap' })
-          const agents = rows(bootstrap.agents).map(row => ({ id: text(row.id), name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(row.status) || 'unknown', canDispatch: false, message: '当前服务未提供可验证的运行时状态，请升级 Connector 后刷新。' })).filter(agent => agent.id)
-          nextCandidates = await Promise.all(agents.map(async agent => {
-            try {
-              const response = await request({ scope: 'hub', method: 'GET', action: 'agent_state', params: { agentId: agent.id } })
-              const state = object(response.state)
-              const sessions = rows(state.sessions).map(row => ({ id: text(row.id), projectId: text(field(row, 'project_id', 'projectId')), title: text(field(row, 'source_title', 'sourceTitle', 'title')) || '未命名会话' })).filter(session => session.id && session.projectId)
-              const projects = rows(state.projects).map(row => { const id = text(row.id); return { id, name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目', sessions: sessions.filter(session => session.projectId === id) } }).filter(project => project.id)
-              return { ...agent, projects }
-            } catch (cause) {
-              return { ...agent, canDispatch: false, projects: [], message: cause instanceof Error ? cause.message : '项目与会话暂不可读' }
-            }
-          }))
-        }
-        if (!current()) return
-        setGroups(nextGroups); setCandidates(nextCandidates || []); setCandidateCatalog(flattened)
-        setSelectedGroupId(previous => previous && nextGroups.some(group => group.id === previous) ? previous : nextGroups[0]?.id || '')
-        setSyncError('')
-      } catch (cause) { if (current()) setSyncError(cause instanceof Error ? cause.message : '无法读取会话群。') }
-      finally { if (current()) setLoading(false) }
+        const response = await request({ scope: 'hub', method: 'GET', action: 'room_list' })
+        if (disposed || epoch !== accountEpoch.current) return
+        if (Number(response.contractVersion) !== 2) throw new Error('网站端尚未启用多智能房间 v2，请稍后更新。')
+        const nextRooms = rows(response.rooms).map(normalizeRoomSummary).filter(room => room.id)
+        setRooms(nextRooms); setCandidateCatalog(normalizeCandidates(response.candidates))
+        setSelectedRoomId(previous => { const next = previous && nextRooms.some(room => room.id === previous) ? previous : nextRooms[0]?.id || ''; selectedRoomRef.current = next; return next })
+        setError('')
+      } catch (cause) { if (!disposed && epoch === accountEpoch.current) setError(cause instanceof Error ? cause.message : '无法读取多智能房间。') }
+      finally { if (!disposed && epoch === accountEpoch.current) setLoading(false) }
     }
     void load()
     return () => { disposed = true }
   }, [supported, signedIn, userId, reload])
 
   useEffect(() => {
-    if (!supported || !signedIn || !selectedGroupId) { setDetail(undefined); polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; return }
-    if (polledGroup.current !== selectedGroupId) { polledGroup.current = selectedGroupId; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false }
+    if (!supported || !signedIn || !selectedRoomId) { setDetail(undefined); detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; return }
     const epoch = accountEpoch.current
     let disposed = false
     let timer: ReturnType<typeof setTimeout>
-    const current = (): boolean => !disposed && epoch === accountEpoch.current
     async function load(): Promise<void> {
       if (document.hidden) { timer = setTimeout(() => void load(), 4000); return }
-      let nextDelay = lastDetailActive.current ? 4000 : Math.min(30000, 8000 * Math.pow(2, Math.max(0, unchangedPolls.current - 1)))
+      let nextDelay = lastDetailActive.current ? 3000 : Math.min(30000, 7000 * Math.pow(2, Math.max(0, unchangedPolls.current - 1)))
       try {
-        const params: Record<string, string> = { groupId: selectedGroupId }
-        if (detailRevision.current) params.afterRevision = detailRevision.current
-        const response = await request({ scope: 'hub', method: 'GET', action: 'group_detail', params })
-        if (!current()) return
-        if (response.changed === false) { unchangedPolls.current = Math.min(4, unchangedPolls.current + 1); setSyncError(''); return }
-        const next = normalizeSessionGroupDetail(response)
-        if (next.group.id !== selectedGroupId) throw new Error('返回的会话群不匹配，请重新刷新。')
-        const activeRuns = next.runs.filter(run => groupRunActive(run.status))
-        const latestRun = next.runs[0]
-        const group = { ...next.group, activeRunCount: activeRuns.length, activeRunId: activeRuns[0]?.id, latestRunStatus: latestRun?.status, status: activeRuns[0]?.status || latestRun?.status || next.group.status }
-        const merged = { ...next, group }
-        detailRevision.current = next.detailRevision || ''
+        const params: Record<string, string> = { roomId: selectedRoomId }
+        if (detailRevision.current !== '') params.afterRevision = String(detailRevision.current)
+        if (latestMessageSeq.current) params.afterMessageSeq = String(latestMessageSeq.current)
+        const response = await request({ scope: 'hub', method: 'GET', action: 'room_detail', params })
+        if (disposed || epoch !== accountEpoch.current || selectedRoomRef.current !== selectedRoomId) return
+        if (Number(response.contractVersion) !== 2) throw new Error('房间详情合同版本不匹配，请更新网站端和启动器。')
+        if (response.changed === false) { unchangedPolls.current = Math.min(4, unchangedPolls.current + 1); return }
+        const incoming = normalizeRoomDetail(response)
+        if (incoming.room.id !== selectedRoomId) throw new Error('返回的房间与当前选择不匹配，请刷新。')
+        detailRevision.current = incoming.detailRevision ?? detailRevision.current
+        latestMessageSeq.current = Math.max(latestMessageSeq.current, ...incoming.messages.map(message => message.seq), 0)
         unchangedPolls.current = 0
-        lastDetailActive.current = activeRuns.length > 0
-        nextDelay = lastDetailActive.current ? 4000 : 8000
-        setDetail(previous => JSON.stringify(previous) === JSON.stringify(merged) ? previous : merged)
-        setGroups(previous => previous.map(item => item.id === group.id ? { ...item, ...group } : item))
-        setSyncError('')
-      } catch (cause) { if (current()) setSyncError(cause instanceof Error ? cause.message : '会话群同步失败。') }
-      finally { if (current()) timer = setTimeout(() => void load(), nextDelay) }
+        if (incoming.runs.length) lastDetailActive.current = incoming.runs.some(run => roomRunActive(run.status))
+        setDetail(previous => mergeRoomDetail(previous, incoming))
+        setRooms(previous => previous.map(room => room.id === incoming.room.id ? { ...room, ...incoming.room } : room))
+        nextDelay = lastDetailActive.current ? 3000 : 7000
+        setError('')
+      } catch (cause) { if (!disposed && epoch === accountEpoch.current && selectedRoomRef.current === selectedRoomId) setError(cause instanceof Error ? cause.message : '房间同步失败。') }
+      finally { if (!disposed && epoch === accountEpoch.current) timer = setTimeout(() => void load(), nextDelay) }
     }
     void load()
     return () => { disposed = true; clearTimeout(timer) }
-  }, [supported, signedIn, userId, selectedGroupId, reload])
-
-  const composerDefaultsKey = detail ? JSON.stringify({ id: detail.group.id, mode: detail.group.mode, coordinatorRoleId: detail.group.coordinatorRoleId || '', maxTurns: detail.group.maxTurns, roles: detail.roles.map(role => role.id) }) : ''
-  useEffect(() => {
-    if (!detail) return
-    const changedGroup = configuredGroup.current !== detail.group.id
-    configuredGroup.current = detail.group.id
-    setDispatchMode(detail.group.mode); setCoordinatorRoleId(detail.group.coordinatorRoleId || ''); setMaxTurns(detail.group.maxTurns)
-    setTargetRoleIds([]); if (changedGroup) setInstruction(''); submission.current = undefined; setConfirmDelete(false)
-  }, [composerDefaultsKey, composerReset])
+  }, [supported, signedIn, userId, selectedRoomId, reload])
 
   useEffect(() => {
     if (editor && !dialog.current?.open) dialog.current?.showModal()
     if (!editor && dialog.current?.open) dialog.current.close()
   }, [Boolean(editor)])
 
-  const activeRun = detail?.runs.find(run => groupRunActive(run.status))
-  const roleById = useMemo(() => new Map((detail?.roles || []).map(role => [role.id, role])), [detail?.roles])
-  const editorValidation = editor ? validateSessionGroupDraft(editor) : ''
-  const coordinator = detail?.roles.find(role => role.id === coordinatorRoleId)
-  const manualTargetsReady = targetRoleIds.length > 0 && targetRoleIds.every(id => groupRoleReady(roleById.get(id)?.canDispatch))
-  const manualTargetsWithinLimit = targetRoleIds.length <= maxTurns
-  const coordinatorOfflineRoles = detail?.roles.filter(role => !groupRoleReady(role.canDispatch)) || []
-  const coordinatorReady = Boolean(coordinator && groupRoleReady(coordinator.canDispatch) && coordinatorOfflineRoles.length === 0)
-  const sendReady = dispatchMode === 'manual' ? manualTargetsReady && manualTargetsWithinLimit : coordinatorReady
-  const candidateTruncation = candidateCatalog ? (['agents', 'projects', 'sessions'] as const).filter(key => candidateCatalog.truncated[key]).map(key => `${{ agents: '智能体', projects: '项目', sessions: '会话' }[key]}最近 ${candidateCatalog.limits[key] || '有限'} 项`).join('、') : ''
+  useEffect(() => {
+    const node = messageScroll.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [detail?.messages.length, selectedRoomId])
 
-  function chooseGroup(id: string): void {
-    setSelectedGroupId(id); setDetail(undefined); setError(''); setNotice(''); setMobilePane('roles'); configuredGroup.current = ''; polledGroup.current = ''; detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; submission.current = undefined
+  const membersById = useMemo(() => new Map((detail?.members || []).map(member => [member.id, member])), [detail?.members])
+  const coordinator = detail?.members.find(member => member.id === detail.room.coordinatorMemberId)
+  const activeRuns = detail?.runs.filter(run => roomRunActive(run.status)) || []
+  const activeRunStatus = activeRuns[0]?.status
+  const ledgerSummary = activeRunStatus === 'awaiting_approval' ? '整项任务尚未执行，仍可继续发消息' : activeRunStatus === 'cancel_requested' ? '正在停止已派发工作，仍可继续发消息' : activeRunStatus === 'unknown' ? '结果待确认，可取消对账或继续留言' : activeRunStatus === 'queued' ? '任务已排队，仍可继续发消息' : activeRunStatus === 'running' ? '主控正在推进，仍可继续发消息' : '分派、执行和完成都记录在这里'
+  const mentionedMemberIds = [...new Set(mentionTokens.map(token => token.memberId).filter(memberId => membersById.has(memberId)))]
+  const mentionedMembers = mentionedMemberIds.map(id => membersById.get(id)).filter((member): member is AgentRoomMember => Boolean(member))
+  const routePreview = mentionedMembers.length ? `将通知 ${mentionedMembers.map(member => `@${member.mentionHandle}`).join('、')}` : coordinator ? `未 @，将交给 @${coordinator.mentionHandle}` : '请先为房间设置主控'
+  const mentionOptions = (detail?.members || []).filter(member => {
+    const query = mentionQuery?.query.toLocaleLowerCase() || ''
+    return !query || member.mentionHandle.toLocaleLowerCase().includes(query) || member.displayName.toLocaleLowerCase().includes(query)
+  })
+  const editorValidation = editor ? validateRoomDraft(editor) : ''
+  const candidateTruncation = candidateCatalog ? [candidateCatalog.truncated.agents ? `智能体最近 ${candidateCatalog.limits.agents || '有限'} 项` : '', candidateCatalog.truncated.projects ? `项目最近 ${candidateCatalog.limits.projects || '有限'} 项` : ''].filter(Boolean).join('、') : ''
+
+  function chooseRoom(roomId: string): void {
+    selectedRoomRef.current = roomId; setSelectedRoomId(roomId); setDetail(undefined); setError(''); setNotice(''); setDraft(''); setMentionTokens([]); setMentionQuery(undefined); setMobilePane('chat'); setMembersOpen(false)
+    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; submission.current = undefined; deleteSubmission.current = undefined
   }
+
   function openCreate(): void {
-    setEditorError(''); setEditor({ name: '', mode: 'manual', coordinatorRoleId: '', maxTurns: 6, roles: [blankRole(), blankRole()] })
+    const members = [{ ...blankMember(0), displayName: '主控', mentionHandle: '主控', responsibility: '理解需求、分派任务、收集汇报并推进到完成', sessionLabel: '主控工作会话' }]
+    setEditorError(''); setEditor({ name: '', coordinatorMemberId: members[0]!.id, maxSteps: DEFAULT_MAX_STEPS, defaultAccess: DEFAULT_ACCESS, members })
   }
+
   function openEdit(): void {
     if (!detail) return
-    setEditorError(''); setEditor({ groupId: detail.group.id, name: detail.group.name, mode: detail.group.mode, coordinatorRoleId: detail.group.coordinatorRoleId || '', maxTurns: detail.group.maxTurns, roles: detail.roles.map(role => ({ id: role.id, name: role.name, responsibility: role.responsibility, agentId: role.agentId, projectId: role.projectId, nativeSessionId: role.nativeSessionId })) })
-  }
-  function closeEditor(): void { if (!saving.current && !busy.startsWith('group_')) { setEditor(undefined); setEditorError('') } }
-  function updateEditor(values: Partial<GroupEditorState>): void { setEditor(previous => previous ? { ...previous, ...values } : previous); setEditorError('') }
-  function updateRole(index: number, values: Partial<AgentSessionGroupRoleInput>): void {
-    setEditor(previous => previous ? { ...previous, roles: previous.roles.map((role, roleIndex) => roleIndex === index ? { ...role, ...values } : role) } : previous)
     setEditorError('')
+    setEditor({ roomId: detail.room.id, name: detail.room.name, coordinatorMemberId: detail.room.coordinatorMemberId, maxSteps: detail.room.maxSteps, defaultAccess: detail.room.defaultAccess, expectedDefinitionRevision: detail.room.definitionRevision, members: detail.members.map(member => ({ id: member.id, displayName: member.displayName, mentionHandle: member.mentionHandle, responsibility: member.responsibility, agentId: member.agentId, projectId: member.projectId, sessionLabel: member.sessionLabel })) })
   }
+
+  function closeEditor(): void { if (!saving.current && !busy.startsWith('room_')) { setEditor(undefined); setEditorError('') } }
+  function updateEditor(values: Partial<RoomEditorState>): void { setEditor(previous => previous ? { ...previous, ...values } : previous); setEditorError(''); editorSubmission.current = undefined }
+  function updateMember(index: number, values: Partial<AgentRoomMemberInput>): void { setEditor(previous => previous ? { ...previous, members: previous.members.map((member, memberIndex) => memberIndex === index ? { ...member, ...values } : member) } : previous); setEditorError(''); editorSubmission.current = undefined }
+
   async function saveEditor(event: FormEvent): Promise<void> {
     event.preventDefault()
     if (!editor || saving.current || busy) return
-    const validation = validateSessionGroupDraft(editor)
+    const validation = validateRoomDraft(editor)
     if (validation) { setEditorError(validation); return }
-    const action = editor.groupId ? 'group_update' : 'group_create'
-    const editingExisting = Boolean(editor.groupId)
-    saving.current = true
-    setBusy(action); setEditorError(''); setError(''); setNotice('')
+    const action = editor.roomId ? 'room_update' : 'room_create'
+    const epoch = accountEpoch.current
+    const members = editor.members.map(member => ({ ...member, displayName: member.displayName.trim(), mentionHandle: member.mentionHandle.trim().replace(/^@/, ''), responsibility: member.responsibility.trim(), sessionLabel: member.sessionLabel.trim() }))
+    const body: Record<string, unknown> = { ...(editor.roomId ? { roomId: editor.roomId, expectedDefinitionRevision: editor.expectedDefinitionRevision } : {}), name: editor.name.trim(), coordinatorMemberId: editor.coordinatorMemberId, maxSteps: editor.maxSteps, defaultAccess: editor.defaultAccess, members }
+    const signature = JSON.stringify(body)
+    if (editorSubmission.current?.signature !== signature) editorSubmission.current = { signature, clientRequestId: crypto.randomUUID() }
+    body.clientRequestId = editorSubmission.current.clientRequestId
+    saving.current = true; setBusy(action); setEditorError(''); setError(''); setNotice('')
     try {
-      const body = { ...(editor.groupId ? { groupId: editor.groupId } : {}), name: editor.name.trim(), mode: editor.mode, coordinatorRoleId: editor.mode === 'coordinator' ? editor.coordinatorRoleId : null, maxTurns: editor.maxTurns, roles: editor.roles.map(role => ({ ...role, name: role.name.trim(), responsibility: role.responsibility.trim() })) }
       const response = await request({ scope: 'hub', method: 'POST', action, body })
-      const groupId = text(response.groupId) || text(object(response.group).id) || editor.groupId || ''
-      setEditor(undefined); setNotice(editor.groupId ? '会话群设置已保存。' : '会话群已创建；成员不会因此自动启动或扩大目录授权。')
-      if (groupId) { setSelectedGroupId(groupId); setMobilePane('roles') }
-      if (editingExisting) { setDetail(undefined); detailRevision.current = ''; unchangedPolls.current = 0; setTargetRoleIds([]); submission.current = undefined; setComposerReset(value => value + 1) }
+      if (epoch !== accountEpoch.current) return
+      const roomId = text(response.roomId) || text(object(response.room).id) || editor.roomId || ''
+      setEditor(undefined); editorSubmission.current = undefined
+      setNotice(editor.roomId ? '房间设置已保存。新成员的独立会话会在首次需要时创建。' : '房间已创建。每位成员的独立会话将在首次参与时按需创建。')
+      if (roomId) chooseRoom(roomId)
       setReload(value => value + 1)
-    } catch (cause) { setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') }
-    finally { saving.current = false; setBusy('') }
+    } catch (cause) { if (epoch === accountEpoch.current) setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') }
+    finally { saving.current = false; setBusy(current => current === action ? '' : current) }
   }
-  async function deleteGroup(): Promise<void> {
+
+  async function deleteRoom(): Promise<void> {
     if (!detail || busy) return
-    setBusy('group_delete'); setError(''); setNotice('')
+    const targetRoomId = detail.room.id
+    if (deleteSubmission.current?.roomId !== targetRoomId) deleteSubmission.current = { roomId: targetRoomId, clientRequestId: crypto.randomUUID() }
+    setBusy('room_delete'); setError(''); setNotice('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'group_delete', body: { groupId: detail.group.id } })
-      setSelectedGroupId(''); setDetail(undefined); detailRevision.current = ''; unchangedPolls.current = 0; lastDetailActive.current = false; setConfirmDelete(false); setNotice('会话群已停用并从列表移除；任务正文与角色结果已清理，只保留状态和必要审计。'); setMobilePane('groups'); setReload(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '停用失败，请重试。') }
-    finally { setBusy('') }
+      await request({ scope: 'hub', method: 'POST', action: 'room_delete', body: { roomId: targetRoomId, clientRequestId: deleteSubmission.current.clientRequestId } })
+      if (selectedRoomRef.current !== targetRoomId) return
+      deleteSubmission.current = undefined
+      selectedRoomRef.current = ''; setSelectedRoomId(''); setDetail(undefined); setConfirmDelete(false); setMembersOpen(false); setMobilePane('chat'); setNotice('房间已停用；不会删除智能体、授权项目或本机原生会话。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '停用房间失败，请重试。') }
+    finally { setBusy(current => current === 'room_delete' ? '' : current) }
   }
+
+  function detectMention(value: string, cursor: number): void {
+    let start = cursor - 1
+    while (start >= 0 && !/\s/.test(value[start]!)) start -= 1
+    start += 1
+    const candidate = value.slice(start, cursor)
+    if (candidate.startsWith('@') && !candidate.slice(1).includes('@')) setMentionQuery({ start, query: candidate.slice(1), active: 0 })
+    else setMentionQuery(undefined)
+  }
+
+  function changeDraft(value: string, cursor: number): void { setMentionTokens(previous => reconcileMentionTokens(draft, value, previous)); setDraft(value); submission.current = undefined; detectMention(value, cursor) }
+
+  function selectMention(member: AgentRoomMember): void {
+    if (!mentionQuery) return
+    const cursor = textarea.current?.selectionStart ?? draft.length
+    const label = `@${member.mentionHandle}`
+    const next = `${draft.slice(0, mentionQuery.start)}${label} ${draft.slice(cursor)}`
+    const reconciled = reconcileMentionTokens(draft, next, mentionTokens)
+    const token = { memberId: member.id, start: mentionQuery.start, end: mentionQuery.start + label.length, label }
+    setDraft(next); setMentionTokens([...reconciled.filter(item => item.end <= token.start || item.start >= token.end), token].sort((left, right) => left.start - right.start)); setMentionQuery(undefined); submission.current = undefined
+    requestAnimationFrame(() => { const position = token.end + 1; textarea.current?.focus(); textarea.current?.setSelectionRange(position, position) })
+  }
+
+  function composerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (mentionQuery && event.key === 'Escape') { event.preventDefault(); setMentionQuery(undefined); return }
+    if (mentionQuery && mentionOptions.length) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setMentionQuery(current => current ? { ...current, active: (current.active + (event.key === 'ArrowDown' ? 1 : mentionOptions.length - 1)) % mentionOptions.length } : current); return }
+      if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); selectMention(mentionOptions[mentionQuery.active] || mentionOptions[0]!); return }
+    }
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send() }
+  }
+
   async function send(event?: FormEvent): Promise<void> {
     event?.preventDefault()
-    if (!detail || sending.current || busy || activeRun || !instruction.trim() || !sendReady) return
-    const targets = dispatchMode === 'manual' ? targetRoleIds : detail.roles.map(role => role.id)
-    const payload = { groupId: detail.group.id, instruction: instruction.trim(), targetRoleIds: targets, mode: dispatchMode, coordinatorRoleId: dispatchMode === 'coordinator' ? coordinatorRoleId : undefined, maxTurns }
-    const signature = groupSubmissionSignature(payload)
+    if (!detail || sending.current || busy || !draft.trim() || !coordinator) return
+    if (!signedIn) { onLogin(); return }
+    const targetRoomId = detail.room.id
+    const content = buildRoomMessageContent(draft, mentionTokens.filter(token => membersById.has(token.memberId)))
+    const payload = { roomId: detail.room.id, content, access: 'workspace_write' as const, expectedDefinitionRevision: detail.room.definitionRevision }
+    const signature = roomMessageSignature(payload)
     if (submission.current?.signature !== signature) submission.current = { signature, clientRequestId: crypto.randomUUID() }
     const clientRequestId = submission.current.clientRequestId
-    sending.current = true; setBusy('group_send'); setError(''); setNotice('')
+    sending.current = true; setBusy('room_send'); setError(''); setNotice('')
     try {
-      const response = await request({ scope: 'hub', method: 'POST', action: 'group_send', body: { ...payload, clientRequestId } })
+      const response = await request({ scope: 'hub', method: 'POST', action: 'room_send', body: { ...payload, clientRequestId } })
+      if (selectedRoomRef.current !== targetRoomId) return
+      const messageId = text(response.messageId)
       const runId = text(response.runId)
-      if (!runId) throw new Error('服务器未返回群任务编号；请重试同一内容确认，系统会复用原请求编号。')
-      const status = text(response.status) || 'queued'
-      setDetail(previous => previous && previous.group.id === payload.groupId ? { ...previous, group: { ...previous.group, status, activeRunId: groupRunActive(status) ? runId : undefined }, runs: previous.runs.some(run => run.id === runId) ? previous.runs : [{ id: runId, instruction: payload.instruction, status, summary: '服务器已确认，等待角色执行', clientRequestId, targetRoleIds: targets, mode: dispatchMode, coordinatorRoleId: payload.coordinatorRoleId, maxTurns, createdAt: new Date().toISOString(), contentAvailable: true }, ...previous.runs] } : previous)
-      setInstruction(''); submission.current = undefined
-      setNotice(response.replayed === true ? '已找回同一请求的群任务，没有重复创建。' : '群任务已进入队列；关闭页面不会终止已提交任务。')
-      setReload(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '发送结果未确认；内容和请求编号均已保留。') }
-    finally { sending.current = false; setBusy('') }
+      if (!messageId) throw new Error('服务器未返回消息编号；请重试同一内容确认，系统会复用原请求编号。')
+      const approvalId = text(response.approvalId)
+      if (!runId || response.requiresApproval !== true || !approvalId) throw new Error('消息可能已经进入房间，但服务端未返回整项任务批准凭证。请刷新确认；Launcher 不会在未批准状态下启动本轮。')
+      const status = 'awaiting_approval'
+      const optimisticMessage: AgentRoomMessage = { id: messageId, seq: latestMessageSeq.current + 1, runId: runId || undefined, authorType: 'user', messageType: 'user', body: draft, segments: content, mentions: mentionedMembers.map(member => ({ memberId: member.id, displayName: member.displayName, mentionHandle: member.mentionHandle })), createdAt: new Date().toISOString(), contentAvailable: true }
+      const optimisticRun: AgentRoomRun = { id: runId, roomId: detail.room.id, rootMessageId: messageId, routingKind: mentionedMemberIds.length ? 'direct' : 'coordinator', coordinatorMemberId: detail.room.coordinatorMemberId, targetMemberIds: mentionedMemberIds, definitionRevision: detail.room.definitionRevision, maxSteps: detail.room.maxSteps, status, stepCount: 0, access: 'workspace_write', requiresApproval: true, approvalId, createdAt: new Date().toISOString(), contentAvailable: true }
+      lastDetailActive.current = roomRunActive(optimisticRun.status)
+      latestMessageSeq.current = optimisticMessage.seq
+      setDetail(previous => {
+        if (previous?.room.id !== targetRoomId) return previous
+        const messages = mergeById(previous.messages, [optimisticMessage]).sort((left, right) => left.seq - right.seq)
+        return { ...previous, room: { ...previous.room, activeRunId: runId, latestRunStatus: status }, messages, runs: sortRoomRuns(mergeById(previous.runs, [optimisticRun]), messages) }
+      })
+      setDraft(''); setMentionTokens([]); setMentionQuery(undefined); submission.current = undefined
+      setNotice(response.replayed === true ? '已找回同一条房间消息，没有重复创建。' : response.requiresApproval === true ? '消息已公开到房间；确认整项任务后主控才会开始执行。' : '消息已公开到房间并进入任务队列。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '发送结果未确认；内容和请求编号均已保留。') }
+    finally { sending.current = false; setBusy(current => current === 'room_send' ? '' : current) }
   }
+
+  async function approveRun(run: AgentRoomRun): Promise<void> {
+    if (!detail || !run.approvalId || busy) return
+    const targetRoomId = detail.room.id
+    const operation = `room_approve:${run.id}`
+    setBusy(operation); setError(''); setNotice('')
+    try {
+      await request({ scope: 'hub', method: 'POST', action: 'room_approve', body: { roomId: detail.room.id, runId: run.id, approvalId: run.approvalId } })
+      if (selectedRoomRef.current !== targetRoomId) return
+      setDetail(previous => previous?.room.id === targetRoomId ? { ...previous, room: { ...previous.room, activeRunId: run.id, latestRunStatus: 'queued' }, runs: previous.runs.map(item => item.id === run.id ? { ...item, status: 'queued', requiresApproval: false, approvedAt: new Date().toISOString() } : item) } : previous)
+      lastDetailActive.current = true
+      setNotice('已允许整项任务；主控会在冻结的成员与项目范围内继续推进。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '批准结果未确认，请刷新后重试。') }
+    finally { setBusy(current => current === operation ? '' : current) }
+  }
+
   async function cancelRun(runId: string): Promise<void> {
     if (!detail || busy) return
-    setBusy(`group_cancel:${runId}`); setError(''); setNotice('')
+    const targetRoomId = detail.room.id
+    const operation = `room_cancel:${runId}`
+    setBusy(operation); setError(''); setNotice('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'group_cancel', body: { groupId: detail.group.id, runId } })
-      setDetail(previous => previous ? { ...previous, group: { ...previous.group, status: 'cancel_requested' }, runs: previous.runs.map(run => run.id === runId ? { ...run, status: 'cancel_requested', summary: '已停止后续派发，等待本机确认已创建任务的停止结果' } : run) } : previous)
-      setNotice('已请求取消。收到本机停止回执前会保持“取消中”。'); setReload(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '取消请求未确认，请重试。') }
-    finally { setBusy('') }
+      await request({ scope: 'hub', method: 'POST', action: 'room_cancel', body: { roomId: detail.room.id, runId } })
+      if (selectedRoomRef.current !== targetRoomId) return
+      setDetail(previous => previous?.room.id === targetRoomId ? { ...previous, room: { ...previous.room, activeRunId: runId, latestRunStatus: 'cancel_requested' }, runs: previous.runs.map(run => run.id === runId ? { ...run, status: 'cancel_requested', cancelRequestedAt: new Date().toISOString() } : run) } : previous)
+      lastDetailActive.current = true
+      setNotice('已请求停止整项任务；本机回执前保持“取消中”。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '取消请求未确认，请重试。') }
+    finally { setBusy(current => current === operation ? '' : current) }
   }
 
-  async function approveDelegate(runId: string, actionId: string): Promise<void> {
+  async function loadMessageWindow(direction: 'earlier' | 'later'): Promise<void> {
     if (!detail || busy) return
-    setBusy(`group_approve:${actionId}`); setError(''); setNotice('')
+    const targetRoomId = detail.room.id
+    const seqs = detail.messages.map(message => message.seq).filter(value => value > 0)
+    if (!seqs.length) return
+    const params: Record<string, string> = { roomId: detail.room.id }
+    params[direction === 'earlier' ? 'beforeMessageSeq' : 'afterMessageSeq'] = String(direction === 'earlier' ? Math.min(...seqs) : Math.max(...seqs))
+    const operation = `room_messages_${direction}`
+    setBusy(operation); setError('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'group_approve', body: { groupId: detail.group.id, runId, actionId } })
-      const approvedAt = new Date().toISOString()
-      setDetail(previous => previous ? {
-        ...previous,
-        group: { ...previous.group, status: 'running' },
-        runs: previous.runs.map(run => run.id === runId ? { ...run, status: 'running', summary: '你已允许本次委派，等待目标智能体接收' } : run),
-        actions: previous.actions.map(action => action.id === actionId ? { ...action, status: 'approved', approvalRequired: false, approvedAt } : action)
-      } : previous)
-      setNotice('已允许这一次委派；系统会在再次核对目标智能体状态后派发。')
-      setReload(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '委派批准结果未确认，请刷新后重试。') }
-    finally { setBusy('') }
+      const response = await request({ scope: 'hub', method: 'GET', action: 'room_detail', params })
+      if (selectedRoomRef.current !== targetRoomId) return
+      if (Number(response.contractVersion) !== 2) throw new Error('房间详情合同版本不匹配，请更新网站端和启动器。')
+      const incoming = normalizeRoomDetail(response)
+      detailRevision.current = incoming.detailRevision ?? detailRevision.current
+      latestMessageSeq.current = Math.max(latestMessageSeq.current, ...incoming.messages.map(message => message.seq), 0)
+      setDetail(previous => previous?.room.id === targetRoomId ? mergeRoomDetail(previous, incoming, direction !== 'earlier') : previous)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : direction === 'earlier' ? '更早消息加载失败。' : '新消息追赶失败。') }
+    finally { setBusy(current => current === operation ? '' : current) }
   }
 
-  if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>会话群需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
-  if (!supported) return <div className="aw-unavailable"><Users size={36} /><h2>请升级启动器</h2><p>当前内核没有会话群通信接口，不能安全创建或派发群任务。</p></div>
-  if (!signedIn) return <div className="aw-login"><Users size={20} /><div><strong>登录后使用智能体会话群</strong><p>会话群只组合当前账号已有的智能体、授权项目和原生会话。</p></div><button className="primary-button" onClick={onLogin}>登录 AI历史书</button></div>
+  if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>多智能会话需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
+  if (!supported) return <div className="aw-unavailable"><Users size={36} /><h2>请升级启动器</h2><p>当前内核没有多智能房间通信接口，不能安全创建房间或派发任务。</p></div>
+  if (!signedIn) return <div className="aw-login"><Users size={20} /><div><strong>登录后使用多智能会话</strong><p>房间共享公共聊天记录，每位成员保留自己的工作记忆和独立原生会话。</p></div><button className="primary-button" onClick={onLogin}>登录 AI历史书</button></div>
 
-  return <section className="asg-workspace" data-mobile-pane={mobilePane} aria-label="智能体会话群">
-    <div className="asg-toolbar"><div><strong>会话群</strong><span>复用原实例协作，不新增目录授权</span></div><button className="small-button" disabled={Boolean(busy)} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} />刷新</button></div>
-    {(error || syncError) && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{error || syncError}</span><button onClick={() => { setError(''); setSyncError(''); setReload(value => value + 1) }}>重试</button></div>}
+  return <section className="arm-workspace" data-mobile-pane={mobilePane} aria-label="多智能会话">
+    <div className="arm-toolbar">
+      <div><strong>多智能会话</strong><span>在同一房间公开沟通，由主控持续推进任务闭环</span></div>
+      <button className="small-button" disabled={Boolean(busy)} onClick={() => setReload(value => value + 1)}><RefreshCw size={14} />刷新</button>
+    </div>
+    {error && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{error}</span>{/登录|会话.*过期/.test(error) && <button onClick={onLogin}>重新登录</button>}<button onClick={() => { setError(''); setReload(value => value + 1) }}>重试</button></div>}
     {notice && <div className="aw-feedback" role="status"><CheckCircle2 size={16} /><span>{notice}</span><button onClick={() => setNotice('')}>知道了</button></div>}
-    <nav className="asg-mobile-nav" aria-label="会话群分栏"><button aria-current={mobilePane === 'groups' ? 'page' : undefined} onClick={() => setMobilePane('groups')}>群</button><button aria-current={mobilePane === 'roles' ? 'page' : undefined} disabled={!selectedGroupId} onClick={() => setMobilePane('roles')}>成员</button><button aria-current={mobilePane === 'activity' ? 'page' : undefined} disabled={!selectedGroupId} onClick={() => setMobilePane('activity')}>任务</button></nav>
-    <div className="asg-panes">
-      <aside className="asg-pane asg-group-pane">
-        <header className="asg-pane-heading"><h2>我的会话群</h2><button className="aw-icon-button" aria-label="新建会话群" onClick={openCreate}><Plus size={17} /></button></header>
-        <div className="asg-list">{groups.map(group => <button className={`asg-group-row ${selectedGroupId === group.id ? 'selected' : ''}`} key={group.id} aria-pressed={selectedGroupId === group.id} onClick={() => chooseGroup(group.id)}><Users size={18} /><span><strong>{group.name}</strong><small>{group.roleCount} 个角色 · {group.mode === 'coordinator' ? '主控协调' : '我来指挥'}</small><Status value={group.status} /></span></button>)}{!groups.length && <div className="aw-inline-empty">{loading ? '正在读取会话群…' : '还没有会话群。先选择 2–6 个已有角色创建一个。'}</div>}</div>
-        <div className="asg-pane-foot"><button className="small-button" onClick={openCreate}><Plus size={14} />新建会话群</button></div>
-      </aside>
-      <aside className="asg-pane asg-role-pane">
-        <header className="asg-pane-heading"><button className="asg-back aw-icon-button" aria-label="返回会话群列表" onClick={() => setMobilePane('groups')}><ArrowLeft size={17} /></button><h2>成员与角色</h2>{detail && <button className="aw-icon-button" aria-label="编辑会话群" onClick={openEdit}><Pencil size={16} /></button>}</header>
-        {!detail ? <div className="aw-inline-empty">{selectedGroupId ? '正在读取成员…' : '选择一个会话群查看成员与原生会话。'}</div> : <>
-          <div className="asg-group-meta"><strong>{detail.group.name}</strong><span>{detail.group.mode === 'coordinator' ? '主控协调' : '我来指挥'} · 最多 {detail.group.maxTurns} 次角色调用</span></div>
-          <div className="asg-role-list">{detail.roles.map(role => <article className="asg-role-row" key={role.id}><Bot size={18} /><div><div className="asg-role-title"><strong>{role.name}</strong><Status value={role.status} /></div><p>{role.responsibility || '尚未填写职责'}</p><small>{role.agentName} · {role.projectName}</small><small>{role.nativeSessionTitle}</small>{role.message && <small>{role.message}</small>}</div></article>)}</div>
-          <div className="asg-role-actions"><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑群与角色</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />停用并移除</button><button className="primary-button asg-mobile-next" onClick={() => setMobilePane('activity')}>查看群任务</button></div>
-          {confirmDelete && <div className="asg-delete-confirm" role="alert"><p>会话群将从列表移除并停用；任务正文、角色结果和待派发内容会立即清理，只保留状态、哈希与必要审计。不会删除原生项目、会话或智能体。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'group_delete'} onClick={() => void deleteGroup()}>{busy === 'group_delete' ? '停用中…' : '确认停用并清理正文'}</button></div>}
-        </>}
-      </aside>
-      <main className="asg-pane asg-activity-pane">
-        <header className="asg-activity-heading"><button className="asg-back aw-icon-button" aria-label="返回成员列表" onClick={() => setMobilePane('roles')}><ArrowLeft size={17} /></button><div><h2>{detail?.group.name || '群任务'}</h2><p>{detail ? `${detail.roles.length} 个角色 · ${activeRun ? groupStatusLabel(activeRun.status) : '暂无进行中任务'}` : '选择会话群后开始'}</p></div>{detail && <Status value={activeRun?.status || detail.group.status} />}</header>
-        <div className="asg-activity" tabIndex={0} aria-label="会话群任务与动作记录">{detail?.window && (detail.window.hasMoreRuns || detail.window.hasMoreActions) && <p className="asg-window-note">为控制同步体积，仅显示最近 {detail.window.maxRuns} 次运行与 {detail.window.maxActions} 个动作；更早记录仅保留审计状态。</p>}{detail?.runs.map(run => <article className="asg-run" key={run.id}><header><div><strong>{run.contentAvailable ? run.instruction || '群任务' : '历史群任务（正文已清理）'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header><p>{run.contentAvailable ? run.finalText || run.summary || groupStatusLabel(run.status) : `正文已按最近 10 次保留策略清理${run.contentPrunedAt ? ` · ${timestamp(run.contentPrunedAt)}` : ''}`}</p>{run.contentTruncated && <small className="asg-truncated">任务正文过长，当前只显示安全截断后的部分。</small>}<div className="asg-run-meta"><span>{run.mode === 'coordinator' ? '主控协调' : `发送给 ${run.targetRoleIds.length || '所选'} 个角色`}</span><span>上限 {run.maxTurns} 次</span></div>{detail.actions.filter(action => action.runId === run.id).map(action => <ActionRecord action={action} run={run} role={action.roleId ? roleById.get(action.roleId) : undefined} busy={Boolean(busy)} onApprove={() => void approveDelegate(run.id, action.id)} onReject={() => void cancelRun(run.id)} key={action.id} />)}{groupRunActive(run.status) && run.status !== 'cancel_requested' && !detail.actions.some(action => action.runId === run.id && action.status === 'awaiting_user_approval') && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />取消群任务</button>}</article>)}{detail && !detail.runs.length && <div className="asg-empty"><MessageSquare size={25} /><strong>还没有群任务</strong><p>选择角色并发送一条明确任务。系统会保留原生会话边界和执行上限。</p></div>}{!detail && <div className="asg-empty"><Users size={25} /><strong>选择一个会话群</strong><p>任务、角色动作和最终结果会显示在这里。</p></div>}</div>
-        <form className="asg-composer" onSubmit={event => void send(event)}>
-          {detail && <div className="asg-dispatch-options"><label>运行方式<select value={dispatchMode} onChange={event => { setDispatchMode(event.target.value as AgentSessionGroupMode); submission.current = undefined }}><option value="manual">我来指挥</option><option value="coordinator">主控协调</option></select></label>{dispatchMode === 'coordinator' && <label>主控角色<select value={coordinatorRoleId} onChange={event => { setCoordinatorRoleId(event.target.value); submission.current = undefined }}><option value="">请选择主控</option>{detail.roles.map(role => <option value={role.id} key={role.id}>{role.name} · {groupStatusLabel(role.status)}</option>)}</select></label>}<label>最多调用<input type="number" min={1} max={12} value={maxTurns} onChange={event => { setMaxTurns(boundedTurns(event.target.value)); submission.current = undefined }} /></label></div>}
-          {detail && dispatchMode === 'manual' && <fieldset className="asg-targets"><legend>发送给角色</legend>{detail.roles.map(role => <label key={role.id} data-ready={groupRoleReady(role.canDispatch)}><input type="checkbox" checked={targetRoleIds.includes(role.id)} disabled={!groupRoleReady(role.canDispatch)} onChange={event => { setTargetRoleIds(previous => event.target.checked ? [...previous, role.id] : previous.filter(id => id !== role.id)); submission.current = undefined }} /><span>{role.name}</span><small>{groupStatusLabel(role.status)}</small></label>)}</fieldset>}
-          {detail && dispatchMode === 'coordinator' && <p className="asg-composer-hint">主控只能建议委派给群内现有角色；每一次实际委派都会先展示目标项目、原生会话和任务内容，由你明确允许。</p>}
-          {activeRun && <p className="asg-composer-hint">当前群任务为“{groupStatusLabel(activeRun.status)}”。结束或取消确认后才能提交下一条。</p>}
-          <label className="aw-sr-only" htmlFor="asg-instruction">会话群任务内容</label><textarea id="asg-instruction" value={instruction} maxLength={8000} disabled={!detail || Boolean(activeRun) || busy === 'group_send'} placeholder={dispatchMode === 'coordinator' ? '描述目标，让主控在限定次数内规划、委派并汇总…' : '描述任务，并选择一个或多个角色…'} onChange={event => { setInstruction(event.target.value); submission.current = undefined }} />
-          <div className="asg-composer-footer"><span>{detail && dispatchMode === 'manual' && !manualTargetsWithinLimit ? `已选 ${targetRoleIds.length} 个角色，最大调用 ${maxTurns} 次` : !sendReady && detail ? dispatchMode === 'manual' ? '请选择至少一个已就绪角色' : !coordinator ? '请选择已就绪的主控角色' : coordinatorOfflineRoles.length ? `${coordinatorOfflineRoles.length} 个参与角色未就绪：${coordinatorOfflineRoles.map(role => role.name).join('、')}` : '请选择已就绪的主控角色' : `${instruction.length}/8000 · 点击发送`}</span><button type="submit" className="primary-button" disabled={!detail || Boolean(activeRun) || Boolean(busy) || !instruction.trim() || !sendReady}>{busy === 'group_send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'group_send' ? '发送中' : '发送群任务'}</button></div>
-        </form>
-      </main>
+    <label className="arm-mobile-room-picker">当前房间<select value={selectedRoomId} onChange={event => chooseRoom(event.target.value)}><option value="">选择房间</option>{rooms.map(room => <option value={room.id} key={room.id}>{room.name}</option>)}</select></label>
+    <nav className="arm-mobile-nav" aria-label="多智能会话视图">
+      <button aria-current={mobilePane === 'chat' ? 'page' : undefined} onClick={() => setMobilePane('chat')}><MessageSquare size={15} />聊天</button>
+      <button aria-current={mobilePane === 'tasks' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('tasks')}><ClipboardList size={15} />任务动态</button>
+      <button aria-current={mobilePane === 'members' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('members')}><Users size={15} />成员</button>
+    </nav>
+
+    <div className="arm-stage">
+      <div className="arm-panes">
+        <aside className="arm-room-rail" aria-label="房间列表">
+          <header><h2>房间</h2><button className="aw-icon-button" aria-label="新建房间" onClick={openCreate}><Plus size={17} /></button></header>
+          <div className="arm-room-list">{rooms.map(room => <button className={`arm-room-row ${room.id === selectedRoomId ? 'selected' : ''}`} aria-pressed={room.id === selectedRoomId} key={room.id} onClick={() => chooseRoom(room.id)}><span className="arm-room-avatar" aria-hidden="true">{room.name.slice(0, 1)}</span><span><strong>{room.name}</strong><Status value={room.latestRunStatus || room.status} /></span></button>)}{!rooms.length && <div className="arm-inline-empty">{loading ? '正在读取房间…' : '还没有房间。创建一个，让主控和成员在公共聊天里协作。'}</div>}</div>
+          <button className="arm-new-room" onClick={openCreate}><Plus size={14} />新建房间</button>
+        </aside>
+
+        <aside className="arm-task-ledger" aria-label="任务动态">
+          <header><div><h2>任务动态</h2><p>{ledgerSummary}</p></div></header>
+          <div className="arm-ledger-scroll">
+            {detail?.window?.hasMoreActions && <p className="arm-window-note">当前显示最近 {detail.window.maxActions} 条动作，更早记录保留在服务端审计中。</p>}
+            {detail?.runs.map(run => {
+              const runActions = detail.actions.filter(action => action.runId === run.id)
+              const sourceMessage = detail.messages.find(message => message.id === run.rootMessageId)
+              return <article className="arm-run" key={run.id}>
+                <header><div><strong>{sourceMessage?.body || '房间任务'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header>
+                {run.requiresApproval && run.approvalId && <div className="arm-run-approval" role="alert">
+                  <strong>整项任务尚未执行</strong>
+                  <p>允许后，@{coordinator?.mentionHandle || '主控'} 可在本房间已选成员与授权项目内分派、复核并汇总；本次无需逐条批准委派。</p>
+                  <small>成员可修改各自授权项目；发布、发送、破坏性删除、扩大范围或读取凭据仍必须停下并另行询问。各本机运行时权限是最终技术边界。</small>
+                  <div><button className="primary-button" disabled={Boolean(busy)} onClick={() => void approveRun(run)}>{busy === `room_approve:${run.id}` ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}允许整项任务</button><button className="small-button danger" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}>拒绝并停止</button></div>
+                </div>}
+                {run.requiresApproval && !run.approvalId && <div className="arm-run-proof-error" role="alert"><CircleAlert size={14} /><span>批准凭证缺失，本轮保持未执行。请刷新；仍未恢复时停止本轮。</span></div>}
+                {runActions.length > 0 && <ol className="arm-action-list">{runActions.map(action => <TaskAction action={action} member={action.memberId ? membersById.get(action.memberId) : undefined} coordinator={coordinator} key={action.id} />)}</ol>}
+                {!runActions.length && !run.requiresApproval && <p className="arm-run-summary">{run.errorCode ? `任务未完成：${run.errorCode}` : roomStatusLabel(run.status)}</p>}
+                {roomRunActive(run.status) && run.status !== 'cancel_requested' && !run.requiresApproval && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />停止整项任务</button>}
+              </article>
+            })}
+            {detail && !detail.runs.length && <div className="arm-ledger-empty"><ClipboardList size={24} /><strong>尚无任务动态</strong><p>在右侧说出需求。未 @ 成员时，主控会先接手。</p></div>}
+            {!detail && <div className="arm-ledger-empty"><ClipboardList size={24} /><strong>选择一个房间</strong><p>任务分派与完成结果会集中显示在这里。</p></div>}
+          </div>
+        </aside>
+
+        <main className="arm-chat-pane" aria-label="公共聊天">
+          <header className="arm-chat-heading">
+            <div><h2>{detail?.room.name || '公共聊天'}</h2><p>{detail ? `未 @ 时由 @${coordinator?.mentionHandle || '主控'} 接手 · 公共记录对全部成员可见` : '选择房间后开始协作'}</p></div>
+            {detail && <div><button className="small-button arm-task-button" onClick={() => setMobilePane('tasks')}><ClipboardList size={14} />任务动态</button><button className="small-button" aria-expanded={membersOpen} onClick={() => setMembersOpen(value => !value)}><Users size={14} />成员</button></div>}
+          </header>
+          <div className="arm-messages" ref={messageScroll} tabIndex={0} aria-label="房间公共聊天记录">
+            {detail?.window?.hasEarlierMessages && <button className="arm-history-button" disabled={Boolean(busy)} onClick={() => void loadMessageWindow('earlier')}>{busy === 'room_messages_earlier' ? '加载中…' : '加载更早消息'}</button>}
+            {detail?.window?.hasLaterMessages && <div className="arm-catchup" role="status"><span>新消息较多，当前按每批 {detail.window.maxMessages} 条安全追赶。</span><button className="small-button" disabled={Boolean(busy)} onClick={() => void loadMessageWindow('later')}>{busy === 'room_messages_later' ? '追赶中…' : '继续追上新消息'}</button></div>}
+            {detail?.messages.map(message => {
+              const author = message.authorMemberId ? membersById.get(message.authorMemberId) : undefined
+              return <article className={`arm-message ${message.authorType}`} key={message.id}>
+                <div className="arm-message-byline"><strong>{message.authorType === 'user' ? '你' : message.authorType === 'system' ? '房间系统' : author?.displayName || message.authorName || '房间成员'}</strong>{author && <span>@{author.mentionHandle}</span>}<time>{timestamp(message.createdAt)}</time></div>
+                <div className="arm-message-body"><MessageBody message={message} members={membersById} /></div>
+              </article>
+            })}
+            {detail && !detail.messages.length && <div className="arm-chat-empty"><MessageSquare size={26} /><strong>从一条公开消息开始</strong><p>直接说需求会交给主控；输入 @ 可指定成员。所有成员共享这里的记录，各自工作记忆仍独立保留。</p></div>}
+            {!detail && <div className="arm-chat-empty"><Users size={26} /><strong>选择或新建一个房间</strong><p>每位成员会在首次参与时创建专属原生会话。</p></div>}
+          </div>
+          <form className="arm-composer" onSubmit={event => void send(event)}>
+            {mentionQuery && <ul className="arm-mention-list" id="arm-mention-options" role="listbox" aria-label="选择要通知的成员">
+              {mentionOptions.length ? mentionOptions.map((member, index) => <li id={`arm-mention-${member.id}`} role="option" aria-selected={index === mentionQuery.active} key={member.id} onMouseDown={event => { event.preventDefault(); selectMention(member) }}><Bot size={15} /><span><strong>@{member.mentionHandle}</strong><small>{member.displayName} · {roomStatusLabel(member.status)}</small></span></li>) : <li className="arm-mention-empty" role="option" aria-disabled="true">没有匹配的房间成员。继续输入会作为普通文字发送。</li>}
+            </ul>}
+            {detail && <div className="arm-route-preview"><AtSign size={14} /><span>{routePreview}</span>{mentionedMembers.some(member => !member.canDispatch) && <small>离线成员会先显示“等待连接”，不会阻止消息公开。</small>}</div>}
+            <label className="aw-sr-only" htmlFor="arm-message-input">发到房间公共聊天</label>
+            <textarea ref={textarea} id="arm-message-input" value={draft} maxLength={8000} disabled={!detail || busy === 'room_send'} placeholder="说出需求；输入 @ 指定成员…" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded={Boolean(mentionQuery)} aria-controls={mentionQuery ? 'arm-mention-options' : undefined} aria-activedescendant={mentionQuery && mentionOptions[mentionQuery.active] ? `arm-mention-${mentionOptions[mentionQuery.active]!.id}` : undefined} onChange={event => changeDraft(event.target.value, event.target.selectionStart)} onKeyDown={composerKeyDown} />
+            <div className="arm-composer-footer"><span>Enter 发送 · Shift + Enter 换行 · {draft.length}/8000</span><button type="submit" className="primary-button" disabled={!detail || Boolean(busy) || !draft.trim() || !coordinator}>{busy === 'room_send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'room_send' ? '发送中' : '发到房间'}</button></div>
+          </form>
+        </main>
+      </div>
+
+      {detail && (membersOpen || mobilePane === 'members') && <aside className="arm-member-drawer open" aria-label="房间成员">
+        <header><div><h2>成员</h2><p>公共记录共享，工作记忆与原生会话彼此独立</p></div><button className="aw-icon-button arm-drawer-close" aria-label="关闭成员面板" onClick={() => { setMembersOpen(false); setMobilePane('chat') }}><X size={18} /></button></header>
+        <div className="arm-member-list">{detail.members.map(member => <article className="arm-member" key={member.id}>
+          <div className="arm-member-title"><span className="arm-member-avatar"><Bot size={16} /></span><div><strong>{member.displayName}</strong><small>@{member.mentionHandle}{member.id === detail.room.coordinatorMemberId ? ' · 主控' : ''}</small></div><Status value={member.sessionState === 'ready' ? member.status : member.sessionState} /></div>
+          <p>{member.responsibility}</p><small>{member.agentName} · {member.projectName}</small><small>{member.sessionLabel}</small>{member.statusMessage && <small>{member.statusMessage}</small>}
+          <div className="arm-session-state"><Wrench size={13} /><span>{member.sessionState === 'pending' ? '会话待创建：成员首次参与时自动准备' : member.sessionState === 'broken' ? '会话需修复：请检查本机智能体与项目授权' : '会话已就绪：独立工作记忆持续保留'}</span></div>
+        </article>)}</div>
+        <footer><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑房间</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />停用房间</button></footer>
+        {confirmDelete && <div className="arm-delete-confirm" role="alert"><p>停用后不再接收新消息；不会删除智能体、授权项目或已创建的原生会话。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'room_delete'} onClick={() => void deleteRoom()}>{busy === 'room_delete' ? '停用中…' : '确认停用'}</button></div>}
+      </aside>}
     </div>
 
-    <dialog className="asg-editor" ref={dialog} aria-labelledby="asg-editor-title" onCancel={event => { event.preventDefault(); closeEditor() }}>
+    <dialog className="arm-editor" ref={dialog} aria-labelledby="arm-editor-title" onCancel={event => { event.preventDefault(); closeEditor() }}>
       {editor && <form onSubmit={event => void saveEditor(event)}>
-        <header><div><h2 id="asg-editor-title">{editor.groupId ? '编辑会话群' : '新建会话群'}</h2><p>只组合已有授权；保存不会自动启动智能体。</p></div><button type="button" className="aw-icon-button" aria-label="关闭会话群编辑" onClick={closeEditor}><X size={19} /></button></header>
-        <div className="asg-editor-body">
+        <header><div><h2 id="arm-editor-title">{editor.roomId ? '编辑房间' : '新建多智能房间'}</h2><p>选择已有智能体和授权项目；专属原生会话会在成员首次参与时创建。</p></div><button type="button" className="aw-icon-button" aria-label="关闭房间编辑" onClick={closeEditor}><X size={19} /></button></header>
+        <div className="arm-editor-body">
           {editorError && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{editorError}</span></div>}
-          {candidateTruncation && <p className="asg-candidate-note" role="status">候选列表仅显示{candidateTruncation}。若找不到旧会话，请先同步本机并刷新。</p>}
-          <div className="asg-editor-settings"><label>群名称<input value={editor.name} maxLength={80} autoFocus onChange={event => updateEditor({ name: event.target.value })} /></label><label>默认运行方式<select value={editor.mode} onChange={event => updateEditor({ mode: event.target.value as AgentSessionGroupMode })}><option value="manual">我来指挥</option><option value="coordinator">主控协调</option></select></label><label>最大执行次数<input type="number" min={1} max={12} value={editor.maxTurns} onChange={event => updateEditor({ maxTurns: boundedTurns(event.target.value) })} /></label>{editor.mode === 'coordinator' && <label>默认主控<select value={editor.coordinatorRoleId} onChange={event => updateEditor({ coordinatorRoleId: event.target.value })}><option value="">请选择主控角色</option>{editor.roles.filter(role => role.name.trim()).map(role => <option value={role.id} key={role.id}>{role.name}</option>)}</select></label>}</div>
-          <div className="asg-editor-heading"><div><h3>角色与原生会话</h3><p>同一智能体可承担多个角色，但必须选择不同原生会话。</p></div><button type="button" className="small-button" disabled={editor.roles.length >= 6} onClick={() => updateEditor({ roles: [...editor.roles, blankRole()] })}><Plus size={14} />添加角色</button></div>
-          <div className="asg-role-editors">{editor.roles.map((role, index) => {
-            const agent = candidates.find(item => item.id === role.agentId)
-            const project = agent?.projects.find(item => item.id === role.projectId)
-            const duplicate = editor.roles.some((other, otherIndex) => otherIndex !== index && other.agentId === role.agentId && other.nativeSessionId === role.nativeSessionId && Boolean(role.nativeSessionId))
-            return <fieldset className="asg-role-editor" data-duplicate={duplicate} key={role.id}><legend>角色 {index + 1}</legend><div className="asg-role-editor-title"><label>角色名称<input value={role.name} maxLength={60} onChange={event => updateRole(index, { name: event.target.value })} /></label><button type="button" className="aw-icon-button danger" aria-label={`移除角色 ${index + 1}`} disabled={editor.roles.length <= 2} onClick={() => updateEditor({ roles: editor.roles.filter((_, roleIndex) => roleIndex !== index), coordinatorRoleId: editor.coordinatorRoleId === role.id ? '' : editor.coordinatorRoleId })}><Trash2 size={15} /></button></div><label>职责<textarea value={role.responsibility} maxLength={500} onChange={event => updateRole(index, { responsibility: event.target.value })} /></label><div className="asg-role-binding"><label>智能体<select value={role.agentId} onChange={event => updateRole(index, { agentId: event.target.value, projectId: '', nativeSessionId: '' })}><option value="">选择已有智能体</option>{candidates.map(item => <option value={item.id} key={item.id}>{item.name} · {groupStatusLabel(item.status)}</option>)}</select></label><label>授权项目<select value={role.projectId} disabled={!agent} onChange={event => updateRole(index, { projectId: event.target.value, nativeSessionId: '' })}><option value="">选择项目</option>{agent?.projects.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>原生会话<select value={role.nativeSessionId} disabled={!project} onChange={event => updateRole(index, { nativeSessionId: event.target.value })}><option value="">选择原生会话</option>{project?.sessions.map(item => <option value={item.id} key={item.id}>{item.title}</option>)}</select></label></div>{agent?.message && <small>{agent.message}</small>}{duplicate && <small role="alert">此智能体和原生会话已被另一个角色使用。</small>}</fieldset>
+          {candidateTruncation && <p className="arm-candidate-note" role="status">候选目录仅显示{candidateTruncation}；找不到项目时请先同步本机。</p>}
+          <label className="arm-room-name">房间名称<input value={editor.name} maxLength={80} autoFocus placeholder="例如：新产品发布室" onChange={event => updateEditor({ name: event.target.value })} /></label>
+          <div className="arm-editor-heading"><div><h3>成员与身份</h3><p>名称和 @名称只属于这个房间；同一智能体也可承担不同身份。</p></div><button type="button" className="small-button" onClick={() => updateEditor({ members: [...editor.members, blankMember(editor.members.length)] })}><Plus size={14} />添加成员</button></div>
+          <div className="arm-member-editors">{editor.members.map((member, index) => {
+            const agent = candidateCatalog?.agents.find(item => item.id === member.agentId)
+            return <fieldset className="arm-member-editor" key={member.id}>
+              <legend>{member.displayName.trim() || `新成员 ${index + 1}`}</legend>
+              <div className="arm-member-editor-title"><label>显示名称<input value={member.displayName} maxLength={60} placeholder="例如：前端" onChange={event => updateMember(index, { displayName: event.target.value })} /></label><label>@名称<div className="arm-handle-input"><span>@</span><input value={member.mentionHandle} maxLength={40} placeholder={`agent-${index + 1}`} onChange={event => updateMember(index, { mentionHandle: event.target.value.replace(/^@/, '') })} /></div></label><button type="button" className="aw-icon-button danger" aria-label={`移除成员 ${member.displayName || index + 1}`} disabled={editor.members.length <= 1} onClick={() => { const members = editor.members.filter((_, memberIndex) => memberIndex !== index); updateEditor({ members, coordinatorMemberId: editor.coordinatorMemberId === member.id ? members[0]?.id || '' : editor.coordinatorMemberId }) }}><Trash2 size={15} /></button></div>
+              <label>职责<textarea value={member.responsibility} maxLength={500} placeholder="说明这个身份负责什么、向谁汇报" onChange={event => updateMember(index, { responsibility: event.target.value })} /></label>
+              <div className="arm-member-binding"><label>已有智能体<select value={member.agentId} onChange={event => updateMember(index, { agentId: event.target.value, projectId: '' })}><option value="">选择智能体</option>{candidateCatalog?.agents.map(item => <option value={item.id} key={item.id}>{item.name} · {roomStatusLabel(item.status)}</option>)}</select></label><label>授权项目<select value={member.projectId} disabled={!agent} onChange={event => updateMember(index, { projectId: event.target.value })}><option value="">选择项目</option>{agent?.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>独立会话名称<input value={member.sessionLabel} maxLength={80} placeholder="例如：前端执行会话" onChange={event => updateMember(index, { sessionLabel: event.target.value })} /></label></div>
+              <label className="arm-coordinator-choice"><input type="radio" name="coordinator" checked={editor.coordinatorMemberId === member.id} onChange={() => updateEditor({ coordinatorMemberId: member.id })} />设为主控：没有 @ 指定成员时，由此成员接手并继续分派</label>
+              {agent?.statusMessage && <small>{agent.statusMessage}</small>}
+            </fieldset>
           })}</div>
         </div>
-        <footer><span>{editor.roles.length}/6 个角色</span><button type="button" className="small-button" onClick={closeEditor}>取消</button><button type="submit" className="primary-button" disabled={Boolean(editorValidation) || Boolean(busy)}>{busy === 'group_create' || busy === 'group_update' ? <LoaderCircle size={15} className="spin" /> : null}{editor.groupId ? '保存设置' : '创建会话群'}</button></footer>
+        <footer><span className="arm-editor-guidance" data-error={Boolean(editorValidation)} aria-live="polite">{editorValidation || '保存不会扩大项目授权，也不会立即启动离线智能体。'}</span><button type="button" className="small-button" onClick={closeEditor}>取消</button><button type="submit" className="primary-button" disabled={Boolean(editorValidation) || Boolean(busy)}>{busy === 'room_create' || busy === 'room_update' ? <LoaderCircle size={15} className="spin" /> : null}{editor.roomId ? '保存房间' : '创建房间'}</button></footer>
       </form>}
     </dialog>
   </section>

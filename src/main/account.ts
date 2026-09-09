@@ -106,7 +106,7 @@ export class AccountService {
     const allowed = request.scope === 'hub'
       ? [
           'bootstrap', 'agent_state', 'session_history', 'activate_sync', 'request_sync', 'request_session_history', 'send_task', 'cancel_task',
-          'group_list', 'group_detail', 'group_create', 'group_update', 'group_delete', 'group_send', 'group_cancel', 'group_approve'
+          'room_list', 'room_detail', 'room_create', 'room_update', 'room_delete', 'room_send', 'room_cancel', 'room_approve'
         ]
       : request.scope === 'checkin' ? ['checkin_status', 'claim_checkin'] : ['', 'command']
     if (!localHost && !allowed.includes(action)) throw new Error('此操作只能在本机绑定流程执行')
@@ -117,7 +117,9 @@ export class AccountService {
     const url = new URL(`https://ailishishu.com/ailishishu-stats/api/${request.scope === 'hub' ? 'agent-hub' : request.scope === 'checkin' ? 'wallet' : 'agent-devices'}.php`)
     if (request.method === 'GET') {
       for (const [key, value] of Object.entries(request.params || {})) {
-        if (!['agentId', 'projectId', 'sessionId', 'groupId', 'afterRevision'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
+        if (!['agentId', 'projectId', 'sessionId', 'roomId', 'afterRevision', 'afterMessageSeq', 'beforeMessageSeq'].includes(key) || typeof value !== 'string' || value.length > 128) throw new Error('工作台查询参数无效')
+        if (key === 'afterRevision' && !/^[a-f0-9]{64}$/.test(value)) throw new Error('工作台查询参数无效')
+        if (['afterMessageSeq', 'beforeMessageSeq'].includes(key) && !/^(0|[1-9][0-9]{0,18})$/.test(value)) throw new Error('工作台查询参数无效')
         url.searchParams.set(key, value)
       }
       if (action) url.searchParams.set('action', action)
