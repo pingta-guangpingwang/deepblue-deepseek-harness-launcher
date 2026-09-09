@@ -35,6 +35,7 @@ export function waitForExit(child) {
 }
 
 export async function readBoundedProcessText(stream, maximumBytes = DEFAULT_DIAGNOSTIC_BYTES) {
+  stream.setEncoding?.('utf8');
   let body = '';
   const maximum = Math.max(1024, Number(maximumBytes) || DEFAULT_DIAGNOSTIC_BYTES);
   for await (const chunk of stream) {

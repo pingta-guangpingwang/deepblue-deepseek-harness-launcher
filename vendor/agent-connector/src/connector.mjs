@@ -12,7 +12,7 @@ import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 
-const CONNECTOR_VERSION = '0.10.7';
+const CONNECTOR_VERSION = '0.10.8';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -641,7 +641,17 @@ export class AgentConnector {
     if (!local || !taskId) { await this.removeCommand(command.id); return; }
     local._localStatus = 'preparing';
     await this.persist();
-    const project = this.resolveProject(command);
+    let project = this.resolveProject(command);
+    if (!project && this.projects.length === 0) {
+      // A readiness heartbeat can activate polling before the first catalog
+      // scan. Resolve against the authorized local roots before rejecting work.
+      try { await this.refreshLocalCatalog(); }
+      catch {
+        await this.rejectRunCommand(command, '首次读取本机授权项目目录失败，尚未执行任务，请刷新后重试。', 'project_catalog_unavailable');
+        return;
+      }
+      project = this.resolveProject(command);
+    }
     if (!project) {
       await this.rejectRunCommand(command, '任务引用的项目不在本机显式白名单中，已拒绝执行。', 'project_not_allowlisted');
       return;

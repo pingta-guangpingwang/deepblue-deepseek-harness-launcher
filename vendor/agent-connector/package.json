@@ -1,6 +1,6 @@
 {
   "name": "@shenlan/agent-connector",
-  "version": "0.10.7",
+  "version": "0.10.8",
   "private": true,
   "description": "由智能体 Skill 自动安装和维护的深蓝无界面同步服务",
   "type": "module",

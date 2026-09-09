@@ -26,11 +26,13 @@ const POWERSHELL_BRIDGE = [
   "if(-not [IO.Path]::IsPathRooted($exe) -or [IO.Path]::GetExtension($exe) -ne '.exe'){throw 'Claude executable must be an absolute .exe path'}",
   "Set-Location -LiteralPath ([string]$spec.cwd)",
   "$argv=@($spec.arguments | ForEach-Object {[string]$_})",
-  "& $exe @argv",
+  "$OutputEncoding=New-Object System.Text.UTF8Encoding($false)",
+  "[Console]::OutputEncoding=$OutputEncoding",
+  "[string]$spec.prompt | & $exe @argv",
   'exit $LASTEXITCODE'
 ].join(';');
 
-async function spawnClaude(executable, argumentsList, options) {
+export async function spawnClaude(executable, argumentsList, options) {
   if (process.platform !== 'win32') return { child: spawnRuntime(executable, argumentsList, options), specPath: '' };
   if (!path.isAbsolute(executable) || path.extname(executable).toLowerCase() !== '.exe') {
     throw new Error('Windows 上 runtimeExecutable 必须填写 Claude Code 原生 claude.exe 的绝对路径，不能使用 claude.cmd');
@@ -38,7 +40,10 @@ async function spawnClaude(executable, argumentsList, options) {
   const directory = options.outputDirectory || os.tmpdir();
   await mkdir(directory, { recursive: true });
   const specPath = path.join(directory, `.claude-launch-${randomUUID()}.json`);
-  await writeFile(specPath, JSON.stringify({ executable, arguments: argumentsList, cwd: options.cwd }), { encoding: 'utf8', mode: 0o600 });
+  // PowerShell 5's native argv quoting can truncate multiline prompts with
+  // embedded quotes. Keep flags in argv and send the complete UTF-8 prompt
+  // through stdin; the private launch spec is removed after the child exits.
+  await writeFile(specPath, JSON.stringify({ executable, arguments: argumentsList.slice(0, -1), prompt: argumentsList[argumentsList.length - 1], cwd: options.cwd }), { encoding: 'utf8', mode: 0o600 });
   const encoded = Buffer.from(POWERSHELL_BRIDGE, 'utf16le').toString('base64');
   const env = { ...options.env, SHENLAN_CLAUDE_LAUNCH_SPEC: specPath };
   const child = spawnRuntime('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { cwd: options.cwd, env });
@@ -46,6 +51,7 @@ async function spawnClaude(executable, argumentsList, options) {
 }
 
 async function readClaudeResult(stream, maximum = 2 * 1024 * 1024) {
+  stream.setEncoding?.('utf8');
   let body = '';
   for await (const chunk of stream) {
     body += chunk.toString('utf8');
