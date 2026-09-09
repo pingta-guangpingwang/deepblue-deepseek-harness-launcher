@@ -12,7 +12,7 @@ import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 
-const CONNECTOR_VERSION = '0.10.5';
+const CONNECTOR_VERSION = '0.10.6';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -126,6 +126,12 @@ export class AgentConnector {
     this.projects = [];
     this.running = false;
     this.draining = false;
+    this.handoffPaused = false;
+    this.handoffPromise = null;
+    this.handoffFrozen = false;
+    this.executionPromises = new Set();
+    this.heartbeatPromises = new Set();
+    this.runRuntimeTask = options.runRuntimeTask || runRuntimeTask;
     this.pollTimer = null;
     this.heartbeatTimer = null;
     this.pollBusy = false;
@@ -268,6 +274,14 @@ export class AgentConnector {
   }
 
   async heartbeat(options = {}) {
+    if (this.handoffFrozen) return;
+    const operation = this.heartbeatInternal(options);
+    this.heartbeatPromises.add(operation);
+    try { return await operation; }
+    finally { this.heartbeatPromises.delete(operation); }
+  }
+
+  async heartbeatInternal(options = {}) {
     if (!this.state) return;
     let becameActive = false;
     const response = await this.serializeMutation(async () => {
@@ -373,7 +387,7 @@ export class AgentConnector {
 
   schedulePoll(delay = this.pollDelay()) {
     clearTimeout(this.pollTimer);
-    if (!this.running) return;
+    if (!this.running || this.handoffPaused) return;
     this.pollTimer = setTimeout(async () => {
       try { await this.pollOnce(); }
       catch (error) { this.logger.error?.(`指令轮询失败：${error.message}`); }
@@ -383,7 +397,7 @@ export class AgentConnector {
 
   scheduleHeartbeat() {
     clearTimeout(this.heartbeatTimer);
-    if (!this.running) return;
+    if (!this.running || this.handoffFrozen) return;
     this.heartbeatTimer = setTimeout(async () => {
       try { await this.heartbeat(); }
       catch (error) { this.logger.error?.(`心跳失败：${error.message}`); }
@@ -392,7 +406,7 @@ export class AgentConnector {
   }
 
   async pollOnce() {
-    if (!this.running || this.pollBusy) return;
+    if (!this.running || this.pollBusy || this.handoffPaused) return;
     this.pollBusy = true;
     try {
       const activeBeforeRequest = this.syncIsActive();
@@ -424,31 +438,48 @@ export class AgentConnector {
   }
 
   async drainCommandsOnce() {
+    if (this.handoffPaused) return;
     const cancellations = this.state.pendingCommands.filter((command) => command.command_type === 'cancel_task' && command._localStatus !== 'running');
-    for (const command of cancellations) await this.handleCancelCommand(command);
+    for (const command of cancellations) await this.retrySyncCommand(command, () => this.handleCancelCommand(command));
+    // Submit newly requested work before historical sync maintenance. Final
+    // pending records still reserve their own session lane, never replay work.
+    if (!this.draining) {
+      const runnable = selectRunnableCommands(this.state.pendingCommands, this.runningTasks,
+        runtimeTaskConcurrency(this.config?.adapterCode, this.config?.maxConcurrentTasks || 4), Date.now(), commandExecutionLane);
+      for (const { command, laneKey } of runnable) void this.executeRunCommand(command, laneKey).catch(error => this.logger.error?.(`任务准备未完成：${error.message}`));
+    }
     const finals = this.state.pendingCommands.filter((command) => command._localStatus === 'final_pending');
-    for (const command of finals) await this.flushFinal(command);
+    for (const command of finals.filter(command => !(command._syncRetryAt > Date.now())).slice(0, 2)) await this.retrySyncCommand(command, () => this.flushFinal(command));
     const maintenance = this.state.pendingCommands.filter((command) => ['refresh_snapshot', 'refresh_session_history'].includes(command.command_type) && !['running', 'preparing', 'final_pending'].includes(command._localStatus));
-    for (const command of maintenance) {
-      if (command.command_type === 'refresh_snapshot') {
-        await this.sendSnapshot(command.id);
-        await this.removeCommand(command.id);
-      } else await this.handleHistoryCommand(command);
+    for (const command of maintenance.filter(command => !(command._syncRetryAt > Date.now())).slice(-3).reverse()) {
+      await this.retrySyncCommand(command, async () => {
+        if (command.command_type === 'refresh_snapshot') {
+          await this.sendSnapshot(command.id);
+          await this.removeCommand(command.id);
+        } else await this.handleHistoryCommand(command);
+      });
     }
     const unsupported = this.state.pendingCommands.filter((command) => !['run_task', 'cancel_task', 'refresh_snapshot', 'refresh_session_history'].includes(command.command_type));
     for (const command of unsupported) {
       this.logger.warn?.(`忽略不支持的指令类型：${String(command.command_type || 'unknown')}`);
       await this.removeCommand(command.id);
     }
-    if (this.draining) return;
-    const runnable = selectRunnableCommands(
-      this.state.pendingCommands,
-      this.runningTasks,
-      runtimeTaskConcurrency(this.config?.adapterCode, this.config?.maxConcurrentTasks || 4),
-      Date.now(),
-      commandExecutionLane
-    );
-    for (const { command, laneKey } of runnable) void this.executeRunCommand(command, laneKey);
+  }
+
+  async retrySyncCommand(command, operation) {
+    if (Number(command._syncRetryAt || 0) > Date.now()) return;
+    try { await operation(); }
+    catch (error) {
+      // Retain the exact command/result. Retry sync, never agent execution.
+      const pending = this.findPendingCommand(command.id);
+      if (pending) {
+        pending._syncRetryCount = Math.min(10, Number(pending._syncRetryCount || 0) + 1);
+        pending._syncRetryAt = Date.now() + Math.min(300000, 5000 * 2 ** pending._syncRetryCount);
+        pending._syncError = { status: Number(error.status) || 0, code: /^[a-z0-9_]{1,80}$/i.test(error.code || '') ? error.code : 'sync_failed' };
+        await this.persist();
+      }
+      this.logger.error?.(`旧记录同步暂缓，已保留并退避重试：${error.message}`);
+    }
   }
 
   async removeCommand(commandId) {
@@ -545,7 +576,7 @@ export class AgentConnector {
     local._localStatus = 'final_pending';
     local._localFinal = final;
     await this.persist();
-    await this.flushFinal(local).catch((error) => this.logger.error?.(`最终回复等待重试：${error.message}`));
+    await this.retrySyncCommand(local, () => this.flushFinal(local));
   }
 
   async flushFinal(command) {
@@ -583,6 +614,13 @@ export class AgentConnector {
   }
 
   async executeRunCommand(command, reservedLaneKey = '') {
+    const operation = this.executeRunCommandInternal(command, reservedLaneKey);
+    this.executionPromises.add(operation);
+    try { return await operation; }
+    finally { this.executionPromises.delete(operation); }
+  }
+
+  async executeRunCommandInternal(command, reservedLaneKey = '') {
     const taskId = taskIdOf(command);
     const local = this.findPendingCommand(command.id);
     if (!local || !taskId) { await this.removeCommand(command.id); return; }
@@ -634,6 +672,10 @@ export class AgentConnector {
     this.runningTasks.set(taskId, { commandId: command.id, runtimeSessionId: resumeSessionId, sourceRuntimeSessionId, laneKey, control });
     let attachmentBundle = { root: '', files: [] };
     try {
+      // Revalidate the runtime lease before receiving attachments, but keep the
+      // user-visible task delivered until the actual agent process can start.
+      await this.reportTaskEvent(taskId, 'delivered', '本机已接收任务，正在准备附件', 5);
+      if (control.cancelled) throw new Error('任务在执行前已取消');
       let lastAttachmentProgress = '';
       const onAttachmentProgress = async (progress) => {
         if (control.cancelled || progress.summary === lastAttachmentProgress) return;
@@ -656,7 +698,11 @@ export class AgentConnector {
         lastProgress = progress.summary;
         await this.reportTaskEvent(taskId, 'running', progress.summary, progress.progressPercent).catch((error) => this.logger.error?.(`进度上报失败：${error.message}`));
       };
-      const result = await runRuntimeTask(this.config.adapterCode, {
+      // This acknowledgement is the final execution gate. A fenced, revoked or
+      // offline Connector must fail here before the local agent is invoked.
+      await this.reportTaskEvent(taskId, 'running', `${this.profile.label} 已确认本次任务执行权限`, 10);
+      if (control.cancelled) throw new Error('任务在执行前已取消');
+      const result = await this.runRuntimeTask(this.config.adapterCode, {
         runtimeRequestId: `${this.state.installationId}:${taskId}`,
         executable: this.config.runtimeExecutable,
         executableArgs: this.config.runtimeExecutableArgs,
@@ -782,6 +828,51 @@ export class AgentConnector {
       await this.removeCommand(queued.id);
     }
     await this.removeCommand(command.id);
+  }
+
+  async prepareHandoff({ timeoutMs = 60000 } = {}) {
+    if (this.handoffPromise) return this.handoffPromise;
+    if (!this.running) throw new Error('同步服务尚未就绪，不能交接');
+    const previousDraining = this.draining;
+    this.handoffPreviousDraining = previousDraining;
+    this.handoffPaused = true;
+    this.draining = true;
+    clearTimeout(this.pollTimer);
+    this.handoffPromise = (async () => {
+      const deadline = Date.now() + Math.max(1, Math.min(60000, timeoutMs));
+      // Setting handoffPaused is synchronous. In-flight polling/maintenance is
+      // allowed to finish, but cannot dispatch another run_task after this point.
+      while (this.pollBusy || this.commandDrainPromise || this.runningTasks.size || this.executionPromises.size
+        || this.state.pendingCommands.some(command => ['preparing', 'running'].includes(command._localStatus))) {
+        if (Date.now() >= deadline) throw new Error('现有任务尚未结束，交接已取消；任务继续运行');
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      this.handoffFrozen = true;
+      clearTimeout(this.heartbeatTimer);
+      await Promise.allSettled([...this.heartbeatPromises]);
+      await this.mutationQueue;
+      await this.persist();
+      return { pendingCommands: this.state.pendingCommands.length };
+    })();
+    try { return await this.handoffPromise; }
+    catch (error) {
+      this.handoffPromise = null;
+      this.handoffPaused = false;
+      this.handoffFrozen = false;
+      this.draining = previousDraining;
+      if (this.running) { this.schedulePoll(0); this.scheduleHeartbeat(); }
+      throw error;
+    }
+  }
+
+  cancelPreparedHandoff() {
+    if (!this.handoffPaused || !this.running) return;
+    this.handoffPromise = null;
+    this.handoffPaused = false;
+    this.handoffFrozen = false;
+    this.draining = Boolean(this.handoffPreviousDraining);
+    this.schedulePoll(0);
+    this.scheduleHeartbeat();
   }
 
   async stop() {

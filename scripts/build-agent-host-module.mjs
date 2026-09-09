@@ -43,15 +43,33 @@ async function resetManagedDirectory(relative) {
   await mkdir(target, { recursive: true });
   return target;
 }
-async function treeFingerprint(directory, prefix = '', digest = createHash('sha256'), totals = { size: 0 }) {
+function deterministicBytes(relative, bytes) {
+  return /\.(?:cjs|css|js|json|md|mjs|txt|ts|tsx|ya?ml)$/i.test(relative)
+    ? Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'))
+    : bytes;
+}
+async function copyDeterministicTree(sourceRoot, destinationRoot, prefix = '') {
+  await mkdir(destinationRoot, { recursive: true });
+  for (const name of (await readdir(sourceRoot)).sort()) {
+    const sourceFile = path.join(sourceRoot, name);
+    const destinationFile = path.join(destinationRoot, name);
+    const relative = prefix + name;
+    const entry = await lstat(sourceFile);
+    if (entry.isSymbolicLink()) throw new Error(`Source symlinks are not packaged: ${relative}`);
+    if (entry.isDirectory()) await copyDeterministicTree(sourceFile, destinationFile, relative + '/');
+    else if (entry.isFile()) await writeFile(destinationFile, deterministicBytes(relative, await readFile(sourceFile)));
+    else throw new Error(`Unsupported source file: ${relative}`);
+  }
+}
+async function treeFingerprint(directory, prefix = '', digest = createHash('sha256'), totals = { size: 0 }, normalizeText = false) {
   for (const name of (await readdir(directory)).sort()) {
     const file = path.join(directory, name);
     const relative = prefix + name;
     if (relative === 'module.json') continue;
     const entry = await lstat(file);
     if (entry.isSymbolicLink()) throw new Error(`Source/build symlinks are not packaged: ${relative}`);
-    if (entry.isDirectory()) await treeFingerprint(file, relative + '/', digest, totals);
-    else if (entry.isFile()) { const bytes = await readFile(file); totals.size += bytes.length; digest.update(relative).update('\0').update(bytes); }
+    if (entry.isDirectory()) await treeFingerprint(file, relative + '/', digest, totals, normalizeText);
+    else if (entry.isFile()) { const raw = await readFile(file); const bytes = normalizeText ? deterministicBytes(relative, raw) : raw; totals.size += bytes.length; digest.update(relative).update('\0').update(bytes); }
     else throw new Error(`Unsupported source/build file: ${relative}`);
   }
   return { digest, size: totals.size };
@@ -69,8 +87,8 @@ if (!sourceEntry.isDirectory() || sourceEntry.isSymbolicLink()) throw new Error(
 if (!await lstat(path.join(sourceDirectory, 'host-child.mjs')).then(entry => entry.isFile() && !entry.isSymbolicLink())) throw new Error('Connector snapshot is missing the Agent Host child entry');
 const expectedOutputReal = path.join(rootReal, 'out', 'agent-host');
 if (sourceReal === expectedOutputReal || isWithin(expectedOutputReal, sourceReal)) throw new Error('Connector source cannot be inside the generated output directory');
-const sourceTree = await treeFingerprint(sourceDirectory, 'src/');
-sourceTree.digest.update('package.json\0').update(await readFile(path.join(source, 'package.json')));
+const sourceTree = await treeFingerprint(sourceDirectory, 'src/', createHash('sha256'), { size: 0 }, true);
+sourceTree.digest.update('package.json\0').update(deterministicBytes('package.json', await readFile(path.join(source, 'package.json'))));
 const sourceSha256 = sourceTree.digest.digest('hex');
 const wsDirectory = path.dirname(require.resolve('ws/package.json'));
 
@@ -80,15 +98,15 @@ if (syncVendor) {
   // Copy only reviewed source and package metadata. Resetting this exact source
   // tree ensures upstream-deleted adapters/scripts cannot survive a later sync.
   await resetManagedDirectory('vendor/agent-connector/src');
-  await cp(sourceDirectory, path.join(vendored, 'src'), { recursive: true });
-  await cp(path.join(source, 'package.json'), path.join(vendored, 'package.json'));
+  await copyDeterministicTree(sourceDirectory, path.join(vendored, 'src'));
+  await writeFile(path.join(vendored, 'package.json'), deterministicBytes('package.json', await readFile(path.join(source, 'package.json'))));
   await writeFile(path.join(vendored, 'README.md'), `# Vendored AI历史书 connector\n\nSource: ${upstream} (packages/agent-connector).\n\n${licenseNote}\nThe upstream package metadata currently declares no license field; maintainers must verify the existing authorization before redistributing it. No additional MIT statement is introduced here.\n\nThis source snapshot is copied mechanically after connector tests; do not maintain a divergent second implementation. Only src and package metadata are synchronized, excluding private configurations, credentials, node_modules and runtime state. Removed upstream source files are removed from this snapshot on synchronization.\n\nStandalone build: run \`npm ci\` at the launcher repository root, then \`npm run agent-host:build\`.\nUpdate: set \`AILISHISHU_CONNECTOR_SOURCE\` to the reviewed upstream package and run \`node scripts/build-agent-host-module.mjs --vendor-from-source\`.\n\nSnapshot package: ${connector.name}@${connector.version}\nSource SHA-256 (src plus package.json): ${sourceSha256}\n`);
 }
 await resetManagedDirectory('out/agent-host');
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/service.ts')], outfile: path.join(output, 'host-service.cjs'), bundle: true, platform: 'node', target: 'node22', format: 'cjs', external: ['electron'], sourcemap: false });
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-companion-entry.ts')], outfile: path.join(output, 'native-companion.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-task-runner.ts')], outfile: path.join(output, 'native-task-runner.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
-await cp(path.join(source, 'src'), path.join(output, 'connector'), { recursive: true });
+await copyDeterministicTree(path.join(source, 'src'), path.join(output, 'connector'));
 await cp(wsDirectory, path.join(output, 'node_modules/ws'), { recursive: true });
 await writeFile(path.join(output, 'SOURCE.json'), JSON.stringify({ source: upstream, sourcePath: 'packages/agent-connector', package: connector.name, connectorVersion: connector.version, sourceSha256, authorization: licenseNote, moduleProtocol: 1 }, null, 2));
 

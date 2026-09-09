@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ensureQClawGateway } from './qclaw-gateway.mjs';
 import { containsForbiddenRuntimeArgument } from './config.mjs';
 import { parseQClawResult, safeFinalReply } from './privacy.mjs';
 import { attachControl, childEnvironmentWithoutSecret, closeControl, readBoundedProcessText, spawnRuntime, validateInstruction, waitForExit } from './runner-common.mjs';
@@ -25,6 +26,9 @@ async function readBounded(stream, maximum = 2 * 1024 * 1024) {
 
 export async function runQClawTask({ executable, executableArgs = [], project, instruction, resumeSessionId = '', interactionKeyEnv, qclawStateDir = '', qclawConfigPath = '', onProgress = async () => {}, control = {} }) {
   const argumentsList = buildQClawArguments({ executableArgs, project, instruction, resumeSessionId });
+  await onProgress({ summary: '正在启动并验证 QClaw 本机网关', progressPercent: 15 });
+  await ensureQClawGateway({ executable, executableArgs, project, interactionKeyEnv, qclawStateDir, qclawConfigPath });
+  if (control.cancelled) throw new Error('QClaw 任务已取消');
   const additions = {};
   if (qclawStateDir) additions.OPENCLAW_STATE_DIR = qclawStateDir;
   if (qclawConfigPath) additions.OPENCLAW_CONFIG_PATH = qclawConfigPath;

@@ -5,6 +5,7 @@ import { ConnectorApi } from './api.mjs';
 import { loadConfigObject } from './config.mjs';
 import { safeRuntimeDiagnostic } from './runtime-diagnostics.mjs';
 import { acquireServiceLock } from './service-manager.mjs';
+import { probeRuntimeHealth } from './runtime-health.mjs';
 
 // Local parent IPC is the only configuration input. No credential-bearing file,
 // command-line flag or inherited environment variable is needed for host mode.
@@ -16,6 +17,7 @@ export class HostChildController {
     this.loadConfig = options.loadConfig || loadConfigObject;
     this.lock = options.lock || acquireServiceLock;
     this.now = options.now || Date.now;
+    this.probeRuntime = options.probeRuntime || probeRuntimeHealth;
     this.connector = null;
     this.phase = 'stopped';
     this.instanceId = '';
@@ -23,6 +25,7 @@ export class HostChildController {
     this.localPaths = [];
     this.lastHeartbeatAt = 0;
     this.lastTransportFailure = false;
+    this.transportError = '';
     this.lastSnapshot = '';
     this.error = '';
     this.releaseLock = null;
@@ -55,7 +58,7 @@ export class HostChildController {
       runtimeReady: ['stopped', 'failed'].includes(phase) ? false : this.runtimeReady,
       lastCatalogAt: this.connector?.lastLocalCatalogAt || null,
       lastSyncedAt: this.connector?.lastCatalogSyncAt ? new Date(this.connector.lastCatalogSyncAt).toISOString() : null,
-      ...(this.error ? { error: this.error } : {})
+      ...(this.error || this.transportError ? { error: this.error || this.transportError } : {})
     };
     const serialized = JSON.stringify(message);
     if (force || serialized !== this.lastSnapshot) { this.lastSnapshot = serialized; this.send(message); }
@@ -63,9 +66,9 @@ export class HostChildController {
   }
 
   async tick() {
-    if (!this.healthBusy && this.phase === 'ready' && this.connector?.codexHost?.isReady && this.now() - this.lastHealthAt >= 5000) {
+    if (!this.healthBusy && this.phase === 'ready' && this.connector && this.now() - this.lastHealthAt >= 30000) {
       this.healthBusy = true;
-      try { this.runtimeReady = await this.connector.codexHost.isReady(); }
+      try { this.runtimeReady = await this.probeRuntime(this.connector.config, this.connector); }
       catch { this.runtimeReady = false; }
       finally { this.lastHealthAt = this.now(); this.healthBusy = false; }
     }
@@ -115,16 +118,28 @@ export class HostChildController {
     api.request = async (...args) => {
       try {
         const response = await request(...args);
-        this.lastTransportFailure = false;
+        if (['register', 'heartbeat', 'commands', 'sync_state'].includes(args[0])) {
+          this.lastTransportFailure = false; this.transportError = '';
+        }
         if (args[0] === 'heartbeat') this.lastHeartbeatAt = this.now();
         this.emitStatus();
         return response;
-      } catch (error) { this.lastTransportFailure = true; this.emitStatus(); throw error; }
+      } catch (error) {
+        // A rejected historical task receipt does not mean the device went
+        // offline. Only control-plane availability determines connectivity.
+        if (['register', 'heartbeat', 'commands', 'sync_state'].includes(args[0]) || error.status === 401 || error.status === 403) {
+          this.lastTransportFailure = true;
+          this.transportError = this.redact(error.message);
+        }
+        this.emitStatus(); throw error;
+      }
     };
     const logger = Object.fromEntries(['info', 'warn', 'error'].map((level) => [level, (value) => this.send({ type: 'log', instanceId: this.instanceId, level, message: this.redact(value) })]));
     this.connector = this.createConnector(config, { api, logger });
     await this.connector.start();
-    this.runtimeReady = this.connector.codexHost?.isReady ? await this.connector.codexHost.isReady() : null;
+    try { this.runtimeReady = await this.probeRuntime(config, this.connector); }
+    catch { this.runtimeReady = false; }
+    this.lastHealthAt = this.now();
     this.phase = this.stopRequested ? 'stopping' : 'ready';
     this.emitStatus(true);
   }

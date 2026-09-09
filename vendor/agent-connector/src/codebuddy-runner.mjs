@@ -31,7 +31,7 @@ export function buildCodeBuddyArguments({ executableArgs = [], sandbox = 'worksp
   return [...executableArgs, '-p', '--output-format', 'json', '--effort', 'medium', ...permission, ...attachmentScope, ...session, prompt];
 }
 
-async function spawnCodeBuddy(executable, argumentsList, options) {
+export async function spawnCodeBuddy(executable, argumentsList, options) {
   if (process.platform !== 'win32' || !/\.(?:cmd|bat)$/i.test(executable)) {
     return { child: spawnRuntime(executable, argumentsList, options), specPath: '' };
   }

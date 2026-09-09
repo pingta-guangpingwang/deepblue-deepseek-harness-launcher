@@ -6,6 +6,8 @@ import { AgentConnector } from './connector.mjs';
 import { defaultConfigPath, initConfig, loadConfig, supportedAdapters } from './config.mjs';
 import { LocalStateStore } from './state.mjs';
 import { CodexAppServerHost } from './codex-app-server.mjs';
+import { access } from 'node:fs/promises';
+import { handoffMarkerPath, startServiceControl } from './service-control.mjs';
 import { acquireServiceLock, adoptServiceConfig, registerAutoStart, registerIdeMcpServer, servicePaths, serviceStatus, startDetachedService, stopService, writeServiceConfig } from './service-manager.mjs';
 
 function usage() {
@@ -64,10 +66,12 @@ function assertNodeVersion() {
 
 async function runService(configPath) {
   const config = await loadConfig(configPath);
+  if (await access(handoffMarkerPath(config.configPath)).then(() => true).catch(() => false)) throw new Error('此旧同步服务已交接到启动器，请在启动器中启动对应智能体；恢复独立服务前须先停用启动器托管并确认回滚');
   const paths = servicePaths(config.adapterCode, { home: path.dirname(config.configPath) });
   const releaseLock = await acquireServiceLock(paths.lock);
   const connector = new AgentConnector(config);
   let stopping = false;
+  let control;
   const stop = async (signal) => {
     if (stopping) return;
     stopping = true;
@@ -79,10 +83,12 @@ async function runService(configPath) {
   process.once('SIGTERM', () => { void stop('SIGTERM'); });
   try {
     await connector.start();
+    control = await startServiceControl({ config, connector, stop });
     process.stdout.write(`深蓝同步服务已上线；${config.adapterCode} 已同步 ${config.projects.length} 个显式项目。\n`);
     await connector.waitUntilStopped();
   } finally {
     await connector.stop().catch(() => {});
+    await control?.close();
     await releaseLock();
   }
   return 0;

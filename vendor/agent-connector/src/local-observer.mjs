@@ -16,16 +16,19 @@ export async function codexSessionOwnership(runtimeHome, sessionId) {
     return 'unavailable';
   }
 }
+export function localRuntimeHomes(environment, home) {
+  return {
+    codex: environment.CODEX_HOME || path.join(home, '.codex'),
+    'claude-code': environment.CLAUDE_CONFIG_DIR || path.join(home, '.claude'),
+    qclaw: environment.OPENCLAW_STATE_DIR || path.join(home, '.qclaw')
+  };
+}
 export class LocalObserver {
   constructor(environment = process.env) { this.environment = environment; this.sessions = new Map(); }
   async scan() {
     const home = this.environment.USERPROFILE || this.environment.HOME;
     if (!home) throw new Error('无法定位本机用户目录');
-    const homes = {
-      codex: this.environment.CODEX_HOME || path.join(home, '.codex'),
-      'claude-code': this.environment.CLAUDE_CONFIG_DIR || path.join(home, '.claude'),
-      qclaw: this.environment.OPENCLAW_STATE_DIR || path.join(home, '.openclaw')
-    };
+    const homes = localRuntimeHomes(this.environment, home);
     const projects = [], sessions = [], errors = [];
     const next = new Map();
     for (const [adapter, runtimeHome] of Object.entries(homes)) {

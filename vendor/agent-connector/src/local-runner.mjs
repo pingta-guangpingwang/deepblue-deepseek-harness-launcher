@@ -4,8 +4,17 @@ import { mkdir, copyFile, rm } from 'node:fs/promises';
 import { runRuntimeTask, terminateAgent, attachmentInstruction } from './runtime-runner.mjs';
 import { safeRuntimeDiagnostic } from './runtime-diagnostics.mjs';
 
+export function localTaskOutputDirectory(outputDirectory, allowedRoot = process.env.SHENLAN_LOCAL_TASK_ROOT) {
+  if (!path.isAbsolute(String(outputDirectory || '')) || !path.isAbsolute(String(allowedRoot || ''))) throw new Error('本机任务目录未授权');
+  const root = path.resolve(String(allowedRoot));
+  const target = path.resolve(String(outputDirectory));
+  const relative = path.relative(root, target);
+  if (!relative || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.includes(path.sep) || !/^[a-f0-9-]{36}$/i.test(relative)) throw new Error('本机任务目录超出启动器授权范围');
+  return target;
+}
+
 export async function runLocalTask(message, onProgress, control = {}) {
-  const root = path.resolve(message.outputDirectory);
+  const root = localTaskOutputDirectory(message.outputDirectory);
   const attachmentsRoot = path.join(root, 'attachments');
   await mkdir(attachmentsRoot, { recursive: true });
   const attachments = [];

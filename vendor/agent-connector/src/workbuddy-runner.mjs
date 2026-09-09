@@ -1,13 +1,24 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { access } from 'node:fs/promises';
+import { access, unlink } from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { safeFinalReply } from './privacy.mjs';
-import { childEnvironmentWithoutSecret, closeControl, validateInstruction } from './runner-common.mjs';
+import { childEnvironmentWithoutSecret, closeControl, validateInstruction, terminateRuntime } from './runner-common.mjs';
+import { spawnCodeBuddy } from './codebuddy-runner.mjs';
 
 const hosts = new Map();
+
+async function stopOwnedGateway(host) {
+  if (host.child.exitCode !== null) return;
+  const control = { child: host.child, closed: false };
+  const done = new Promise(resolve => host.child.once('close', resolve));
+  terminateRuntime(control);
+  let timer;
+  try { await Promise.race([done, new Promise(resolve => { timer = setTimeout(resolve, 7000); })]); }
+  finally { clearTimeout(timer); closeControl(control); }
+}
 
 async function availablePort() {
   return new Promise((resolve, reject) => {
@@ -28,11 +39,11 @@ async function workBuddyCli(configured = '') {
   throw new Error('找不到 WorkBuddy 本机 Gateway，请重新运行 WorkBuddy Skill 安装自检');
 }
 
-async function waitReady(baseUrl, child) {
+async function waitReady(baseUrl, child, host) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error('WorkBuddy Gateway 启动后立即退出');
-    const ok = await fetch(`${baseUrl}/api/openapi.json`, { headers: { 'X-CodeBuddy-Request': '1' } }).then((response) => response.ok).catch(() => false);
+    if (host.spawnError || child.exitCode !== null) throw new Error('WorkBuddy Gateway 启动失败，请检查本机运行环境');
+    const ok = await fetch(`${baseUrl}/api/openapi.json`, { signal: AbortSignal.timeout(1500), headers: host.headers }).then((response) => response.ok).catch(() => false);
     if (ok) return;
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
@@ -40,20 +51,40 @@ async function waitReady(baseUrl, child) {
 }
 
 async function hostFor(project, executable, interactionKeyEnv) {
-  const key = process.platform === 'win32' ? project.path.toLowerCase() : project.path;
+  const identity = `${executable || 'workbuddy'}\0${project.path}`;
+  const key = process.platform === 'win32' ? identity.toLowerCase() : identity;
   const previous = hosts.get(key);
   if (previous && previous.child.exitCode === null) return previous;
   const cli = await workBuddyCli(executable === 'workbuddy' ? '' : executable);
   const port = await availablePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const child = spawn(process.execPath, [cli, '--serve', '--host', '127.0.0.1', '--port', String(port)], {
-    cwd: project.path, env: childEnvironmentWithoutSecret(interactionKeyEnv), shell: false, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore']
-  });
-  const host = { child, baseUrl, projectPath: project.path };
+  // Per-process credential: never expose it in URLs, logs, renderer state or disk.
+  const password = randomBytes(32).toString('hex');
+  const args = ['--serve', '--host', '127.0.0.1', '--port', String(port)];
+  const options = { cwd: project.path, env: { ...childEnvironmentWithoutSecret(interactionKeyEnv), CODEBUDDY_GATEWAY_AUTH: 'password', CODEBUDDY_GATEWAY_PASSWORD: password } };
+  const launched = /\.(cmd|bat|exe)$/i.test(cli)
+    ? await spawnCodeBuddy(cli, args, options)
+    : { child: spawn(process.execPath, [cli, ...args], { ...options, shell: false, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore'] }), specPath: '' };
+  const child = launched.child;
+  child.stdout?.resume(); child.stderr?.resume();
+  const host = { child, baseUrl, projectPath: project.path, headers: { 'X-CodeBuddy-Request': '1', Authorization: `Bearer ${password}` } };
+  child.once('error', () => { host.spawnError = true; });
   hosts.set(key, host);
-  child.once('close', () => { if (hosts.get(key) === host) hosts.delete(key); });
-  await waitReady(baseUrl, child);
+  child.once('close', () => { if (hosts.get(key) === host) hosts.delete(key); if (launched.specPath) void unlink(launched.specPath).catch(() => {}); });
+  try { await waitReady(baseUrl, child, host); }
+  catch (error) { if (hosts.get(key) === host) hosts.delete(key); await stopOwnedGateway(host); throw error; }
   return host;
+}
+
+export function gatewayAccountReady(body) {
+  // This is provider account state, not merely the Gateway password login.
+  return (body?.data || body)?.authenticated === true;
+}
+
+export async function probeWorkBuddyRuntime({ project, executable, interactionKeyEnv }) {
+  const host = await hostFor(project, executable, interactionKeyEnv);
+  const response = await fetch(`${host.baseUrl}/api/v1/auth/account/status`, { headers: host.headers, signal: AbortSignal.timeout(5000) });
+  return response.ok && gatewayAccountReady(await response.json());
 }
 
 function eventDataBlocks(text) {
@@ -86,19 +117,19 @@ export async function runWorkBuddyTask({ executable, project, instruction, resum
   const body = {
     version: '1.0', id: runId, type: 'message', source: { platform: 'shenlan', sender: { id: 'remote-user' }, conversation: { id: conversationId } }, payload: { text: validateInstruction(instruction) }
   };
-  const headers = { 'Content-Type': 'application/json', 'X-CodeBuddy-Request': '1', 'X-Shenlan-Trace': randomBytes(12).toString('hex') };
-  const created = await fetch(`${host.baseUrl}/api/v1/runs`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const headers = { ...host.headers, 'Content-Type': 'application/json', 'X-Shenlan-Trace': randomBytes(12).toString('hex') };
+  const created = await fetch(`${host.baseUrl}/api/v1/runs`, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
   if (!created.ok) throw new Error(`WorkBuddy Gateway 拒绝任务（HTTP ${created.status}）`);
   const createdBody = await created.json().catch(() => ({}));
   const actualRunId = workBuddyRunId(createdBody, runId);
   control.closed = false; control.cancelled = false;
   control.cancel = async () => {
     control.cancelled = true;
-    await fetch(`${host.baseUrl}/api/v1/runs/${encodeURIComponent(actualRunId)}/cancel`, { method: 'POST', headers: { 'X-CodeBuddy-Request': '1' } }).catch(() => {});
+    await fetch(`${host.baseUrl}/api/v1/runs/${encodeURIComponent(actualRunId)}/cancel`, { method: 'POST', headers: host.headers, signal: AbortSignal.timeout(5000) }).catch(() => {});
   };
   await onProgress({ summary: 'WorkBuddy 已通过本机 Gateway 开始处理', progressPercent: 35 });
   try {
-    const stream = await fetch(`${host.baseUrl}/api/v1/runs/${encodeURIComponent(actualRunId)}/stream`, { headers: { 'X-CodeBuddy-Request': '1', Accept: 'text/event-stream' } });
+    const stream = await fetch(`${host.baseUrl}/api/v1/runs/${encodeURIComponent(actualRunId)}/stream`, { headers: { ...host.headers, Accept: 'text/event-stream' } });
     if (!stream.ok) throw new Error(`WorkBuddy 结果流连接失败（HTTP ${stream.status}）`);
     const text = await stream.text();
     const parsed = finalFromEvents(eventDataBlocks(text));
@@ -109,5 +140,5 @@ export async function runWorkBuddyTask({ executable, project, instruction, resum
 export async function shutdownWorkBuddyHosts() {
   const running = [...hosts.values()];
   hosts.clear();
-  for (const host of running) if (host.child.exitCode === null) host.child.kill('SIGTERM');
+  await Promise.all(running.map(stopOwnedGateway));
 }

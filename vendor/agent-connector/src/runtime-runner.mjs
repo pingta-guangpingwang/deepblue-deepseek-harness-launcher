@@ -5,7 +5,7 @@ import { runCodexAppServerTask } from './codex-app-server.mjs';
 import { runClaudeTask } from './claude-runner.mjs';
 import { runCodeBuddyTask } from './codebuddy-runner.mjs';
 import { runQClawTask } from './qclaw-runner.mjs';
-import { runIdeAgentTask } from './ide-agent-runner.mjs';
+import { shutdownQClawGateways } from './qclaw-gateway.mjs';
 import { runWorkBuddyTask, shutdownWorkBuddyHosts } from './workbuddy-runner.mjs';
 import { terminateRuntime } from './runner-common.mjs';
 import { classifyRuntimeException, classifyRuntimeFailure, runtimeSessionAvailability } from './runtime-diagnostics.mjs';
@@ -42,7 +42,7 @@ export const RUNTIME_PROFILES = Object.freeze({
   trae: {
     label: 'TRAE', sessionLabel: 'TRAE 任务会话',
     maxConcurrentTasks: 1,
-    capabilities: ['projects', 'sessions', 'task.create', 'task.attachments', 'fileChanges']
+    capabilities: ['projects', 'sessions']
   }
 });
 
@@ -100,12 +100,12 @@ export function runRuntimeTask(adapterCode, options) {
   if (adapterCode === 'qclaw') return runQClawTask(options);
   if (adapterCode === 'workbuddy') return runWorkBuddyTask(options);
   if (adapterCode === 'codebuddy') return runCodeBuddyTask(options);
-  if (adapterCode === 'trae') return runIdeAgentTask({ ...options, adapterCode });
+  if (adapterCode === 'trae') throw new Error('TRAE 远程交互暂不支持：原窗口发送接口拒绝当前账号，请使用其他已就绪智能体。');
   if (adapterCode === 'codex' && options.codexHost) return runCodexAppServerTask({ ...options, host: options.codexHost });
   if (adapterCode === 'codex') return runCodexTask({ ...options, outputDirectory: options.outputDirectory });
   throw new Error(`不支持的智能体运行时：${adapterCode}`);
 }
 
 export const terminateAgent = terminateRuntime;
-export const shutdownRuntimeHosts = shutdownWorkBuddyHosts;
+export const shutdownRuntimeHosts = async () => { await Promise.all([shutdownWorkBuddyHosts(), shutdownQClawGateways()]); };
 export { classifyRuntimeException, classifyRuntimeFailure, runtimeSessionAvailability };
