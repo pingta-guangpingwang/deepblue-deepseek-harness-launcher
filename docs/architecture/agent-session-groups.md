@@ -29,8 +29,8 @@
 
 - `GET room_list`：返回 `{contractVersion:2, rooms, candidates:{agents,projects,truncated,limits:{candidateAgents,projects,maxMembers}}}`。成员上限只用于禁用“添加成员”并给出文字原因，不在主界面展示数字。
 - `GET room_detail`：查询参数为 `roomId`，以及可选的 `afterRevision` 与一个消息方向游标；`afterMessageSeq`、`beforeMessageSeq` 不得同时出现。`detailRevision` 是 64 位十六进制哈希；房间 `definitionRevision/stateRevision` 是数字。
-- `POST room_create`：`{clientRequestId,name,coordinatorMemberId,maxSteps,defaultAccess:"workspace_write",members}`。
-- `POST room_update`：在创建字段之外增加 `{roomId,expectedDefinitionRevision}`。
+- `POST room_create`：`{clientRequestId,name,coordinatorMemberId,maxSteps,defaultAccess:"workspace_write",members}`。成功回执是完整 v2 `room_detail` 结构并增加 `replayed:boolean`；房间编号以嵌套的 `room.id` 为准。
+- `POST room_update`：在创建字段之外增加 `{roomId,expectedDefinitionRevision}`；成功回执同样必须是完整详情，且嵌套的 `room.id` 必须等于请求房间。
 - `POST room_delete`：`{roomId,clientRequestId}`。它会立即永久清理公共聊天、任务正文与结果、成员名称、职责和会话标签且无法恢复；不会删除智能体、授权项目、本地文件或原生会话。确认层必须在请求前逐项说明，网络结果不明时按房间复用同一请求编号。
 - `POST room_send`：`{roomId,clientRequestId,expectedDefinitionRevision,content,replyToMessageId?,access:"workspace_write"}`。`content` 仅含 `{type:'text',text}` 或 `{type:'mention',memberId}`。
 - `POST room_approve`：`{roomId,runId,approvalId}`；不能随批准请求改写正文、成员、项目或权限。
@@ -40,7 +40,7 @@
 
 消息的 `mentions` 是 `{memberId,displayName,mentionHandle}` 对象数组；正文渲染仍以 `segments` 的稳定 `memberId` 为准。详情窗口分别声明 `hasEarlierMessages` 和 `hasLaterMessages`：前者只控制“加载更早消息”，后者使用 `afterMessageSeq` 分批追上新消息，不能混成一个 `hasMore`。
 
-房间、run 和发送回执采用严格解析，不把字符串数字转成版本、不截断越界 `maxSteps`，也不把其他权限或批准策略强制改写为安全值后继续显示。房间固定为 `contractVersion=2 + status=active + defaultAccess=workspace_write + approvalPolicy=bounded_run`；run 的房间、主控、定义版本、步数和成员范围必须与当前房间一致。详情窗口精确读取 `actionCount/hasMoreActions`，服务端以 `LIMIT 101` 区分完整的 100 条窗口与更多记录。
+房间、run 和 mutation 回执采用严格解析，不把字符串数字转成版本、不截断越界 `maxSteps`，也不把其他权限或批准策略强制改写为安全值后继续显示。房间固定为 `contractVersion=2 + status=active + defaultAccess=workspace_write + approvalPolicy=bounded_run`；只有仍活动的 run 必须匹配当前房间定义和成员。历史终态 run 只校验公开冻结字段的格式与安全策略、不再和当前成员重比，并保持只读；完整冻结 scope 与 `scope_hash` 仍由服务端校验。详情中的 `messageCount/actionCount` 必须分别等于本次返回的消息/动作数组长度，且不超过 50/100；`hasMoreActions` 单独表示服务端还有更早动作。消息页按游标合并，最近 20 个 run 和最近 100 条 action 每次直接采用服务端权威窗口，不能在长开会话中无限累积。
 
 ## 执行与批准
 
@@ -57,6 +57,7 @@
 
 - `0.10.34` 及更旧基础内核必须在任何 `room_*` 请求前 fail closed；多智能会话最低基础版本仍为 `0.10.35`。
 - 房间切换时，旧房间延迟返回的详情、消息窗口、发送、批准或取消响应不得写入新房间；发送和删除的结果不明请求编号按“房间 + 规范负载”保留，切换返回后仍复用。
+- `room_list` 在当前房间被删除后自动选择其他房间时，必须执行完整房间切换重置；旧房间草稿和结构化 @ token 不得带入新房间。
 - 任一 mutating 请求在途时，发送器正文仍可编辑，但不能并发提交。旧消息确认成功时，只清理仍与已发送内容相同的草稿，绝不能删除用户在等待期间输入的新文字。
 - 取消界面采用服务端真实回执状态；幂等重放若已经是 `cancelled/completed/failed/unknown`，必须显示该终态或不确定态，不能一律写成 `cancel_requested`。
 - 合成 fixture 必须显式标注，不得把 UI 结果冒充真实多智能联调。正式发布还需要真实账号、真实多成员、同智能体多专属会话、断网恢复、审批、取消、分页、权限和安装版验收。

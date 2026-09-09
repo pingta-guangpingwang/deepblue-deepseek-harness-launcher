@@ -41,11 +41,16 @@ const history = Array.from({ length: 8 }, (_, index) => ({ external_message_id: 
 let expired = false
 let delay = 0
 let roomSendDelay = 0
+let roomReceiptDelay = 0
 let failNextSend = false
 let failNextRoomSend = false
 let failNextRoomDelete = false
 let invalidNextRoomSend = ''
 let nextCancelStatus = 'cancel_requested'
+let malformedNextDetail = false
+let malformedNextRoomSave = false
+let raceNextApprove = false
+let raceNextCancel = false
 let activeReads = 0
 let maxActiveReads = 0
 let roomSequence = 6
@@ -74,11 +79,11 @@ const qaRoomDetails = new Map<string, RoomFixtureDetail>([[ROOM_ID, {
     { id: REVIEW_ID, display_name: '复核', mention_handle: '复核', responsibility: '检查证据与发布门禁并向主控汇报', agent_id: 'qa-claude', agent_name: 'Claude Code · 复核', adapter_code: 'claude-code', project_id: 'qa-claude-project', project_name: '技术说明文档', session_label: '发布复核会话', native_session_id: null, session_state: 'pending', runtime_status: 'offline', can_dispatch: false, readiness_source: 'host', status_message: '电脑连接后自动创建专属会话' }
   ],
   messages: [
-    { id: MESSAGE_ONE_ID, seq: 1, run_id: COMPLETE_RUN_ID, author_type: 'user', message_type: 'user', body: '请完成发布准备并给出可核验结论。', segments: [{ type: 'text', text: '请完成发布准备并给出可核验结论。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:31:00+08:00' },
-    { id: MESSAGE_TWO_ID, seq: 2, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'coordinator', body: '我已拆分界面实现与发布复核，两项结果都会回到这里。', segments: [{ type: 'text', text: '我已拆分界面实现与发布复核，两项结果都会回到这里。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:32:00+08:00' },
-    { id: MESSAGE_THREE_ID, seq: 3, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: FRONTEND_ID, author_name: '前端', message_type: 'report', body: '@总控 界面已完成，桌面与手机布局均通过。', segments: [{ type: 'mention', memberId: COORDINATOR_ID }, { type: 'text', text: ' 界面已完成，桌面与手机布局均通过。' }], mentions: [{ memberId: COORDINATOR_ID, displayName: '主控', mentionHandle: '总控' }], content_available: true, created_at: '2026-09-09T08:34:00+08:00' },
-    { id: MESSAGE_FOUR_ID, seq: 4, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'final', body: '发布准备已闭环；真实环境门禁仍单独列出。', segments: [{ type: 'text', text: '发布准备已闭环；真实环境门禁仍单独列出。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:36:00+08:00' },
-    { id: MESSAGE_FIVE_ID, seq: 5, run_id: UNKNOWN_RUN_ID, author_type: 'user', message_type: 'user', body: '@复核 请确认中断后的任务结果。', segments: [{ type: 'mention', memberId: REVIEW_ID }, { type: 'text', text: ' 请确认中断后的任务结果。' }], mentions: [{ memberId: REVIEW_ID, displayName: '复核', mentionHandle: '复核' }], content_available: true, created_at: '2026-09-09T08:40:00+08:00' }
+    { id: MESSAGE_ONE_ID, room_id: ROOM_ID, seq: 51, run_id: COMPLETE_RUN_ID, author_type: 'user', message_type: 'user', body: '请完成发布准备并给出可核验结论。', segments: [{ type: 'text', text: '请完成发布准备并给出可核验结论。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:31:00+08:00' },
+    { id: MESSAGE_TWO_ID, room_id: ROOM_ID, seq: 52, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'coordinator', body: '我已拆分界面实现与发布复核，两项结果都会回到这里。', segments: [{ type: 'text', text: '我已拆分界面实现与发布复核，两项结果都会回到这里。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:32:00+08:00' },
+    { id: MESSAGE_THREE_ID, room_id: ROOM_ID, seq: 53, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: FRONTEND_ID, author_name: '前端', message_type: 'report', body: '@总控 界面已完成，桌面与手机布局均通过。', segments: [{ type: 'mention', memberId: COORDINATOR_ID }, { type: 'text', text: ' 界面已完成，桌面与手机布局均通过。' }], mentions: [{ memberId: COORDINATOR_ID, displayName: '主控', mentionHandle: '总控' }], content_available: true, created_at: '2026-09-09T08:34:00+08:00' },
+    { id: MESSAGE_FOUR_ID, room_id: ROOM_ID, seq: 54, run_id: COMPLETE_RUN_ID, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'final', body: '发布准备已闭环；真实环境门禁仍单独列出。', segments: [{ type: 'text', text: '发布准备已闭环；真实环境门禁仍单独列出。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:36:00+08:00' },
+    { id: MESSAGE_FIVE_ID, room_id: ROOM_ID, seq: 55, run_id: UNKNOWN_RUN_ID, author_type: 'user', message_type: 'user', body: '@复核 请确认中断后的任务结果。', segments: [{ type: 'mention', memberId: REVIEW_ID }, { type: 'text', text: ' 请确认中断后的任务结果。' }], mentions: [{ memberId: REVIEW_ID, displayName: '复核', mentionHandle: '复核' }], content_available: true, created_at: '2026-09-09T08:40:00+08:00' }
   ],
   runs: [
     { id: UNKNOWN_RUN_ID, room_id: ROOM_ID, root_message_id: MESSAGE_FIVE_ID, routing_kind: 'direct', coordinator_member_id: COORDINATOR_ID, target_member_ids: [REVIEW_ID], definition_revision: 3, max_steps: 12, approval_policy: 'bounded_run', access: 'workspace_write', status: 'unknown', step_count: 1, requires_approval: false, approval_id: UNKNOWN_APPROVAL_ID, approved_at: '2026-09-09T08:39:00+08:00', error_code: 'dispatch_uncertain', content_available: true, created_at: '2026-09-09T08:40:00+08:00' },
@@ -90,7 +95,7 @@ const qaRoomDetails = new Map<string, RoomFixtureDetail>([[ROOM_ID, {
     { id: 'action-front', run_id: COMPLETE_RUN_ID, member_id: FRONTEND_ID, member_name: '前端', ordinal: 2, action_type: 'delegate', status: 'completed', task_status: 'completed', summary: '界面实现已完成', context_through_seq: 4, created_at: '2026-09-09T08:33:00+08:00' },
     { id: 'action-review', run_id: COMPLETE_RUN_ID, member_id: REVIEW_ID, member_name: '复核', ordinal: 3, action_type: 'delegate', status: 'reserved', task_status: 'queued', summary: '等待成员连接后复核发布证据', context_through_seq: 4, created_at: '2026-09-09T08:33:30+08:00' }
   ],
-  window: { max_messages: 50, max_actions: 100, message_count: 55, action_count: 4, has_earlier_messages: true, has_later_messages: false, has_more_actions: false }
+  window: { max_messages: 50, max_actions: 100, message_count: 5, action_count: 4, has_earlier_messages: true, has_later_messages: false, has_more_actions: false }
 }]])
 const secondRoom = { contract_version: 2, id: SECOND_ROOM_ID, name: '内容复盘室', coordinator_member_id: COORDINATOR_ID, max_steps: 12, default_access: 'workspace_write', approval_policy: 'bounded_run', definition_revision: 1, state_revision: 0, status: 'active', latest_run_status: 'idle', updated_at: '2026-09-09T09:00:00+08:00' }
 qaRooms.push(secondRoom)
@@ -100,15 +105,27 @@ qaRoomDetails.set(SECOND_ROOM_ID, {
     { id: COORDINATOR_ID, display_name: '主控', mention_handle: '总控', responsibility: '推进内容复盘', agent_id: 'qa-codex', agent_name: 'Codex · 网站开发', adapter_code: 'codex', project_id: 'qa-codex-project', project_name: 'AI历史书网站', session_label: '内容复盘主控', native_session_id: 'native-retro-control', session_state: 'ready', runtime_status: 'ready', can_dispatch: true, readiness_source: 'host' },
     { id: FRONTEND_ID, display_name: '整理', mention_handle: '整理', responsibility: '整理公共记录', agent_id: 'qa-qclaw', agent_name: 'QClaw · 启动器', adapter_code: 'qclaw', project_id: 'qa-qclaw-project', project_name: '启动器界面', session_label: '内容整理会话', native_session_id: 'native-retro-editor', session_state: 'ready', runtime_status: 'ready', can_dispatch: true, readiness_source: 'host' }
   ],
-  messages: [{ id: 'second-message-1', seq: 1, author_type: 'system', message_type: 'system', body: '这是第二个合成房间。', segments: [{ type: 'text', text: '这是第二个合成房间。' }], mentions: [], content_available: true, created_at: '2026-09-09T09:00:00+08:00' }],
+  messages: [{ id: '7'.repeat(32), room_id: SECOND_ROOM_ID, seq: 1, author_type: 'system', message_type: 'system', body: '这是第二个合成房间。', segments: [{ type: 'text', text: '这是第二个合成房间。' }], mentions: [], content_available: true, created_at: '2026-09-09T09:00:00+08:00' }],
   runs: [], actions: [], window: { max_messages: 50, max_actions: 100, message_count: 1, action_count: 0, has_earlier_messages: false, has_later_messages: false, has_more_actions: false }
 })
 const roomRequests = new Map<string, { messageId: string; runId: string; approvalId: string }>()
+const roomSaveRequests = new Map<string, string>()
 const roomRevisions = new Map<string, number>([[ROOM_ID, 12], [SECOND_ROOM_ID, 1]])
 const roomRevision = (roomId: string): number => roomRevisions.get(roomId) || 0
 const roomDetailRevision = (roomId: string): string => roomRevision(roomId).toString(16).padStart(64, '0')
 const bumpRoom = (roomId: string): void => { roomRevisions.set(roomId, roomRevision(roomId) + 1); const item = qaRoomDetails.get(roomId); if (item) item.room.state_revision = roomRevision(roomId) }
 const hexId = (value: number): string => value.toString(16).padStart(32, '0')
+function roomDetailPayload(roomId: string, overrides: Partial<RoomFixtureDetail> = {}): Record<string, unknown> {
+  const detail = qaRoomDetails.get(roomId)
+  if (!detail) return { ok: false, message: '房间不存在' }
+  const room = overrides.room || detail.room
+  const members = overrides.members || detail.members
+  const messages = overrides.messages || detail.messages
+  const runs = overrides.runs || detail.runs
+  const actionRows = overrides.actions || detail.actions
+  const window = { ...detail.window, ...(overrides.window || {}), message_count: messages.length, action_count: actionRows.length }
+  return { ok: true, contractVersion: 2, changed: true, detailRevision: roomDetailRevision(roomId), room: structuredClone(room), members: structuredClone(members), messages: structuredClone(messages), runs: structuredClone(runs), actions: structuredClone(actionRows), window: structuredClone(window) }
+}
 const candidates = {
   agents: host.agents.map(agent => ({ id: agent.id, display_name: agent.name, adapter_code: agent.adapter, runtime_status: agent.runtimeStatus, can_dispatch: ['ready', 'busy'].includes(agent.runtimeStatus), readiness_source: 'host' })),
   projects: host.agents.map(agent => ({ id: `${agent.id}-project`, agent_id: agent.id, source_name: agent.id === 'qa-codex' ? 'AI历史书网站' : agent.id === 'qa-qclaw' ? '启动器界面' : '技术说明文档' })),
@@ -129,16 +146,23 @@ const fixture = {
   setExpired(value: boolean) { expired = value },
   setDelay(value: number) { delay = value },
   setRoomSendDelay(value: number) { roomSendDelay = value },
+  setRoomReceiptDelay(value: number) { roomReceiptDelay = value },
   failSend() { failNextSend = true },
   failRoomSend() { failNextRoomSend = true },
   failRoomDelete() { failNextRoomDelete = true },
   invalidRoomSendOnce(kind: string) { invalidNextRoomSend = kind },
+  malformNextRoomSave() { malformedNextRoomSave = true },
   setNextCancelStatus(status: string) { nextCancelStatus = status },
+  malformNextRoomDetail() { malformedNextDetail = true },
+  hideRoomFromList(roomId: string) { const index = qaRooms.findIndex(item => item.id === roomId); if (index >= 0) qaRooms.splice(index, 1) },
+  raceApproveReceiptOnce() { raceNextApprove = true },
+  raceCancelReceiptOnce() { raceNextCancel = true },
   get maxActiveReads() { return maxActiveReads },
   appendHistory() { history.push({ external_message_id: `native-${history.length}`, message_role: 'assistant', body_text: `新增合成消息 ${history.length}`, occurred_at: '2026-09-09 10:00:00' }) },
   disconnect() { host.connection = 'offline'; host.agents[0]!.status = 'failed'; host.agents[0]!.runtimeStatus = 'failed' },
   settleLatestRun() { const detail = qaRoomDetails.get(ROOM_ID); const run = detail?.runs[0]; if (detail && run) { run.status = 'cancelled'; run.requires_approval = false; detail.room.latest_run_status = 'cancelled'; detail.room.active_run_id = null; bumpRoom(ROOM_ID) } },
   queueCatchup() { const detail = qaRoomDetails.get(ROOM_ID); if (detail) { catchupRemaining = 2; detail.window.has_later_messages = true; bumpRoom(ROOM_ID) } },
+  appendAuthoritativeNext() { const detail = qaRoomDetails.get(ROOM_ID); if (detail) { const seq = Math.max(...detail.messages.map(item => Number(item.seq) || 0), 0) + 1; detail.messages.push({ id: hexId(800 + seq), room_id: ROOM_ID, seq, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'progress', body: '紧随其后的权威消息没有被分页跳过。', segments: [{ type: 'text', text: '紧随其后的权威消息没有被分页跳过。' }], mentions: [], content_available: true, created_at: new Date().toISOString() }); detail.window.message_count = Number(detail.window.message_count || 0) + 1; bumpRoom(ROOM_ID) } },
   requestManage() { initialSource = 'cloud'; manageRequest += 1; renderWorkspace() },
   remount() { mountVersion += 1; renderWorkspace() }
 }
@@ -163,25 +187,29 @@ window.launcher = parameters.has('legacy') ? undefined : {
         const roomId = request.params?.roomId || ''
         const detail = qaRoomDetails.get(roomId)
         if (!detail) return { ok: false, message: '房间不存在' }
+        if (malformedNextDetail) { malformedNextDetail = false; const malformed = roomDetailPayload(roomId); (malformed.room as Record<string, unknown>).approval_policy = 'per_action'; return malformed }
         const after = Number(request.params?.afterMessageSeq || 0)
         const before = Number(request.params?.beforeMessageSeq || 0)
         if (before) {
-          const old = { id: 'message-0', seq: 0, author_type: 'system', message_type: 'system', body: '更早记录已按需加载。', segments: [{ type: 'text', text: '更早记录已按需加载。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:00:00+08:00' }
+          const old = { id: hexId(50), room_id: roomId, seq: before - 1, author_type: 'system', message_type: 'system', body: '更早记录已按需加载。', segments: [{ type: 'text', text: '更早记录已按需加载。' }], mentions: [], content_available: true, created_at: '2026-09-09T08:00:00+08:00' }
           const window = { ...detail.window, has_earlier_messages: false }
-          return { ok: true, contractVersion: 2, changed: true, detailRevision: roomDetailRevision(roomId), room: structuredClone(detail.room), members: structuredClone(detail.members), messages: [old], runs: [], actions: [], window: structuredClone(window) }
+          return roomDetailPayload(roomId, { messages: [old], window })
         }
         if (after) {
           if (detail.window.has_later_messages === true && catchupRemaining > 0) {
-            const next = { id: `message-${after + 1}`, seq: after + 1, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'progress', body: '已追上下一批公开进度。', segments: [{ type: 'text', text: '已追上下一批公开进度。' }], mentions: [], content_available: true, created_at: new Date().toISOString() }
+            const next = { id: hexId(600 + after + 1), room_id: roomId, seq: after + 1, author_type: 'member', author_member_id: COORDINATOR_ID, author_name: '主控', message_type: 'progress', body: '已追上下一批公开进度。', segments: [{ type: 'text', text: '已追上下一批公开进度。' }], mentions: [], content_available: true, created_at: new Date().toISOString() }
             detail.messages.push(next); catchupRemaining -= 1; detail.window.has_later_messages = catchupRemaining > 0; bumpRoom(roomId)
-            return { ok: true, contractVersion: 2, changed: true, detailRevision: roomDetailRevision(roomId), room: structuredClone(detail.room), members: structuredClone(detail.members), messages: [next], runs: [], actions: [], window: structuredClone(detail.window) }
+            return roomDetailPayload(roomId, { messages: [next] })
           }
           if (String(request.params?.afterRevision || '') === roomDetailRevision(roomId)) return { ok: true, contractVersion: 2, changed: false, detailRevision: roomDetailRevision(roomId) }
         }
-        return { ok: true, contractVersion: 2, changed: true, detailRevision: roomDetailRevision(roomId), ...structuredClone(detail) }
+        return roomDetailPayload(roomId)
       }
       if (request.action === 'room_create' || request.action === 'room_update') {
         const body = request.body || {}
+        const clientRequestId = String(body.clientRequestId || '')
+        const replayRoomId = roomSaveRequests.get(clientRequestId)
+        if (replayRoomId) return { ...roomDetailPayload(replayRoomId), replayed: true }
         const input = Array.isArray(body.members) ? body.members as Array<Record<string, unknown>> : []
         if (input.some(member => !/^[a-f0-9]{32}$/.test(String(member.id || '')))) return { ok: false, message: '成员编号必须为 32 位小写十六进制' }
         const roomId = request.action === 'room_create' ? hexId(roomSequence++) : String(body.roomId || '')
@@ -192,9 +220,12 @@ window.launcher = parameters.has('legacy') ? undefined : {
         qaRoomDetails.set(roomId, { room, members, messages: previous?.messages || [], runs: previous?.runs || [], actions: previous?.actions || [], window: previous?.window || { max_messages: 50, max_actions: 100, message_count: 0, action_count: 0, has_earlier_messages: false, has_later_messages: false, has_more_actions: false } })
         roomRevisions.set(roomId, Number(room.state_revision))
         const index = qaRooms.findIndex(item => item.id === roomId); if (index >= 0) qaRooms[index] = room; else qaRooms.push(room)
-        return { ok: true, contractVersion: 2, roomId, room: structuredClone(room) }
+        roomSaveRequests.set(clientRequestId, roomId)
+        const response = { ...roomDetailPayload(roomId), replayed: false }
+        if (malformedNextRoomSave) { malformedNextRoomSave = false; return { ...response, replayed: 'false' } }
+        return response
       }
-      if (request.action === 'room_delete') { if (failNextRoomDelete) { failNextRoomDelete = false; throw new Error('网络中断，房间删除结果尚未确认。') }; const roomId = String(request.body?.roomId || ''); const index = qaRooms.findIndex(item => item.id === roomId); if (index >= 0) qaRooms.splice(index, 1); qaRoomDetails.delete(roomId); return { ok: true, contractVersion: 2, roomId } }
+      if (request.action === 'room_delete') { if (failNextRoomDelete) { failNextRoomDelete = false; throw new Error('网络中断，房间删除结果尚未确认。') }; const roomId = String(request.body?.roomId || ''); const index = qaRooms.findIndex(item => item.id === roomId); if (index >= 0) qaRooms.splice(index, 1); qaRoomDetails.delete(roomId); return { ok: true, contractVersion: 2, roomId, status: 'deleted', replayed: false } }
       if (request.action === 'room_send') {
         if (roomSendDelay) await new Promise(resolve => setTimeout(resolve, roomSendDelay))
         if (failNextRoomSend) { failNextRoomSend = false; throw new Error('网络中断，房间消息发送结果尚未确认；内容已保留。') }
@@ -213,20 +244,26 @@ window.launcher = parameters.has('legacy') ? undefined : {
         runSequence += 1
         const messageId = hexId(100 + runSequence); const runId = hexId(200 + runSequence); const approvalId = hexId(300 + runSequence); const content = Array.isArray(body.content) ? body.content as Array<Record<string, unknown>> : []
         const targetIds = content.filter(item => item.type === 'mention').map(item => String(item.memberId || '')).filter(Boolean)
-        const message = { id: messageId, seq: Math.max(...detail.messages.map(item => Number(item.seq) || 0), 0) + 1, run_id: runId, author_type: 'user', message_type: 'user', body: roomBody(detail, content), segments: structuredClone(content), mentions: targetIds.map(memberId => { const target = detail.members.find(member => member.id === memberId); return { memberId, displayName: target?.display_name, mentionHandle: target?.mention_handle } }), content_available: true, created_at: new Date().toISOString() }
-        const run = { id: runId, room_id: roomId, root_message_id: messageId, routing_kind: targetIds.length ? 'direct' : 'coordinator', coordinator_member_id: detail.room.coordinator_member_id, target_member_ids: targetIds, definition_revision: detail.room.definition_revision, max_steps: detail.room.max_steps, approval_policy: 'bounded_run', access: body.access, status: 'awaiting_approval', step_count: 0, requires_approval: true, approval_id: approvalId, content_available: true, created_at: new Date().toISOString() }
+        const runTargetIds = targetIds.length ? targetIds : [String(detail.room.coordinator_member_id)]
+        const message = { id: messageId, room_id: roomId, seq: Math.max(...detail.messages.map(item => Number(item.seq) || 0), 0) + 1, run_id: runId, author_type: 'user', message_type: 'user', body: roomBody(detail, content), segments: structuredClone(content), mentions: targetIds.map(memberId => { const target = detail.members.find(member => member.id === memberId); return { memberId, displayName: target?.display_name, mentionHandle: target?.mention_handle } }), content_available: true, created_at: new Date().toISOString() }
+        const run = { id: runId, room_id: roomId, root_message_id: messageId, routing_kind: targetIds.length ? 'direct' : 'coordinator', coordinator_member_id: detail.room.coordinator_member_id, target_member_ids: runTargetIds, definition_revision: detail.room.definition_revision, max_steps: detail.room.max_steps, approval_policy: 'bounded_run', access: body.access, status: 'awaiting_approval', step_count: 0, requires_approval: true, approval_id: approvalId, content_available: true, created_at: new Date().toISOString() }
         detail.messages.push(message); detail.runs.unshift(run); detail.room.active_run_id = runId; detail.room.latest_run_status = 'awaiting_approval'; detail.window.message_count = Number(detail.window.message_count || 0) + 1; bumpRoom(roomId); roomRequests.set(clientRequestId, { messageId, runId, approvalId })
+        if (roomReceiptDelay) await new Promise(resolve => setTimeout(resolve, roomReceiptDelay))
         return { ok: true, contractVersion: 2, messageId, runId, status: 'awaiting_approval', requiresApproval: true, approvalId, replayed: false }
       }
       if (request.action === 'room_approve') {
         const roomId = String(request.body?.roomId || ''); const runId = String(request.body?.runId || ''); const detail = qaRoomDetails.get(roomId); const run = detail?.runs.find(item => item.id === runId)
         if (!detail || !run || run.approval_id !== request.body?.approvalId) return { ok: false, message: '待批准任务不存在或状态已变化' }
-        run.status = 'queued'; run.requires_approval = false; run.approved_at = new Date().toISOString(); detail.room.latest_run_status = 'queued'
+        const approvedAt = new Date().toISOString()
+        run.status = raceNextApprove ? 'completed' : 'queued'; run.requires_approval = false; run.approved_at = approvedAt; detail.room.latest_run_status = run.status
+        if (raceNextApprove) { detail.room.active_run_id = null; run.completed_at = new Date().toISOString() }
         const targets = (run.target_member_ids as string[]).length ? run.target_member_ids as string[] : [String(run.coordinator_member_id)]
-        targets.forEach((memberId, index) => detail.actions.unshift({ id: `approved-action-${runSequence}-${index}`, run_id: runId, member_id: memberId, ordinal: index + 1, action_type: index ? 'direct' : 'coordinate', status: 'queued', task_status: 'queued', summary: detail.members.find(member => member.id === memberId)?.can_dispatch ? '等待领取' : '等待连接', created_at: new Date().toISOString() }))
-        bumpRoom(roomId); return { ok: true, contractVersion: 2, runId, status: 'queued' }
+        targets.forEach((memberId, index) => detail.actions.unshift({ id: `approved-action-${runSequence}-${index}`, run_id: runId, member_id: memberId, ordinal: index + 1, action_type: index ? 'direct' : 'coordinate', status: run.status === 'completed' ? 'completed' : 'queued', task_status: run.status === 'completed' ? 'completed' : 'queued', summary: run.status === 'completed' ? '已完成' : detail.members.find(member => member.id === memberId)?.can_dispatch ? '等待领取' : '等待连接', created_at: new Date().toISOString() }))
+        bumpRoom(roomId)
+        if (raceNextApprove) { raceNextApprove = false; await new Promise(resolve => setTimeout(resolve, 3600)) }
+        return { ok: true, contractVersion: 2, roomId, runId, approvalId: request.body?.approvalId, status: 'queued', approvedAt, replayed: false }
       }
-      if (request.action === 'room_cancel') { const roomId = String(request.body?.roomId || ''); const runId = String(request.body?.runId || ''); const detail = qaRoomDetails.get(roomId); const run = detail?.runs.find(item => item.id === runId); const status = nextCancelStatus; nextCancelStatus = 'cancel_requested'; if (detail && run) { run.status = status; run.cancel_requested_at = new Date().toISOString(); detail.room.latest_run_status = status; if (['cancelled', 'completed', 'failed'].includes(status)) detail.room.active_run_id = null; bumpRoom(roomId) } return { ok: true, contractVersion: 2, runId, status, cancelRequestedAt: new Date().toISOString() } }
+      if (request.action === 'room_cancel') { const roomId = String(request.body?.roomId || ''); const runId = String(request.body?.runId || ''); const detail = qaRoomDetails.get(roomId); const run = detail?.runs.find(item => item.id === runId); const receiptStatus = nextCancelStatus; nextCancelStatus = 'cancel_requested'; const serverStatus = raceNextCancel ? 'completed' : receiptStatus; const cancelRequestedAt = new Date().toISOString(); if (detail && run) { run.status = serverStatus; run.cancel_requested_at = cancelRequestedAt; detail.room.latest_run_status = serverStatus; if (['cancelled', 'completed', 'failed'].includes(serverStatus)) detail.room.active_run_id = null; bumpRoom(roomId) } if (raceNextCancel) { raceNextCancel = false; await new Promise(resolve => setTimeout(resolve, 3600)) } return { ok: true, contractVersion: 2, roomId, runId, status: receiptStatus, cancelRequestedAt, replayed: false } }
       if (request.action === 'send_task') { if (failNextSend) { failNextSend = false; throw new Error('网络中断，发送结果尚未确认；内容已保留。') }; const task = { id: 'qa-task', project_id: request.body?.projectId, session_id: request.body?.sessionId, client_request_id: request.body?.clientRequestId, request_text: request.body?.instruction, status: 'queued', created_at: new Date().toISOString() }; tasks.push(task); return { ok: true, taskId: 'qa-task', status: 'queued' } }
       return { ok: true }
     } finally { activeReads -= 1 }

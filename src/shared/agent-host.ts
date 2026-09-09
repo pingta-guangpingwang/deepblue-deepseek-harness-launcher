@@ -100,6 +100,7 @@ export interface AgentRoomMember {
 }
 export interface AgentRoomMessage {
   id: string
+  roomId: string
   seq: number
   runId?: string
   actionId?: string

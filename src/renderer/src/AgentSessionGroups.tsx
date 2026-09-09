@@ -32,21 +32,22 @@ const rows = (value: unknown): JsonRecord[] => Array.isArray(value) ? value.map(
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
 const field = (row: JsonRecord, ...keys: string[]): unknown => keys.map(key => row[key]).find(value => value !== undefined && value !== null)
 const bool = (value: unknown): boolean => value === true || Number(value) === 1
+class RoomContractError extends Error {}
 function exactInteger(value: unknown, label: string, minimum: number, maximum = Number.MAX_SAFE_INTEGER): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum || value > maximum) throw new Error(`${label}无效，请刷新并确认网站端已更新。`)
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum || value > maximum) throw new RoomContractError(`${label}无效，请刷新并确认网站端已更新。`)
   return value
 }
 function exactId(value: unknown, label: string): string {
   const id = text(value)
-  if (!ID_PATTERN.test(id)) throw new Error(`${label}无效，请刷新并确认网站端已更新。`)
+  if (!ID_PATTERN.test(id)) throw new RoomContractError(`${label}无效，请刷新并确认网站端已更新。`)
   return id
 }
 function exactWorkspaceAccess(value: unknown, label: string): AgentRoomAccess {
-  if (value !== 'workspace_write') throw new Error(`${label}必须使用受整项批准保护的工作区权限。`)
+  if (value !== 'workspace_write') throw new RoomContractError(`${label}必须使用受整项批准保护的工作区权限。`)
   return 'workspace_write'
 }
 function exactApprovalPolicy(value: unknown, label: string): 'bounded_run' {
-  if (value !== 'bounded_run') throw new Error(`${label}缺少整项批准策略，已停止显示和执行。`)
+  if (value !== 'bounded_run') throw new RoomContractError(`${label}缺少整项批准策略，已停止显示和执行。`)
   return 'bounded_run'
 }
 
@@ -59,15 +60,18 @@ export function roomStatusLabel(value: string): string {
 }
 
 export function roomRunActive(status: string): boolean { return ACTIVE_RUNS.has(status) }
+export function roomRunCanApprove(run: AgentRoomRun, room: AgentRoomSummary): boolean {
+  return run.status === 'awaiting_approval' && run.requiresApproval === true && Boolean(run.approvalId) && run.roomId === room.id && run.definitionRevision === room.definitionRevision && run.coordinatorMemberId === room.coordinatorMemberId && run.maxSteps === room.maxSteps && run.access === 'workspace_write' && run.approvalPolicy === 'bounded_run'
+}
 
 export function normalizeRoomSummary(value: unknown): AgentRoomSummary {
   const row = object(value)
-  if (field(row, 'contract_version', 'contractVersion') !== 2) throw new Error('房间合同版本不是 v2，已停止显示和执行。')
+  if (field(row, 'contract_version', 'contractVersion') !== 2) throw new RoomContractError('房间合同版本不是 v2，已停止显示和执行。')
   const id = exactId(field(row, 'id', 'room_id', 'roomId'), '房间编号')
   const coordinatorMemberId = exactId(field(row, 'coordinator_member_id', 'coordinatorMemberId'), '房间主控编号')
   const activeRunId = text(field(row, 'active_run_id', 'activeRunId')) || undefined
-  if (activeRunId && !ID_PATTERN.test(activeRunId)) throw new Error('房间活动任务编号无效，请刷新并确认网站端已更新。')
-  if (row.status !== 'active') throw new Error('房间生命周期状态无效，已停止显示和执行。')
+  if (activeRunId && !ID_PATTERN.test(activeRunId)) throw new RoomContractError('房间活动任务编号无效，请刷新并确认网站端已更新。')
+  if (row.status !== 'active') throw new RoomContractError('房间生命周期状态无效，已停止显示和执行。')
   return {
     contractVersion: 2,
     id,
@@ -112,30 +116,38 @@ function normalizeMember(value: unknown): AgentRoomMember {
 
 function normalizeSegments(value: unknown, fallbackBody: string): AgentRoomMessageSegment[] {
   const segments = rows(value).flatMap((row): AgentRoomMessageSegment[] => {
-    if (row.type === 'mention' && text(field(row, 'member_id', 'memberId'))) return [{ type: 'mention', memberId: text(field(row, 'member_id', 'memberId')) }]
+    if (row.type === 'mention') return [{ type: 'mention', memberId: exactId(field(row, 'member_id', 'memberId'), '消息提及成员编号') }]
     if (row.type === 'text' && typeof row.text === 'string') return [{ type: 'text', text: row.text }]
     return []
   })
   return segments.length ? segments : fallbackBody ? [{ type: 'text', text: fallbackBody }] : []
 }
 
-function normalizeMessage(value: unknown): AgentRoomMessage {
+function normalizeMessage(value: unknown, expectedRoomId: string): AgentRoomMessage {
   const row = object(value)
   const body = text(field(row, 'body', 'body_text', 'bodyText'))
   const author = text(field(row, 'author_type', 'authorType'))
+  const roomId = exactId(field(row, 'room_id', 'roomId'), '消息房间编号')
+  if (roomId !== expectedRoomId) throw new RoomContractError('消息作用域与当前房间不一致，已停止显示。')
+  const runId = text(field(row, 'run_id', 'runId')) || undefined
+  const actionId = text(field(row, 'action_id', 'actionId')) || undefined
+  const authorMemberId = text(field(row, 'author_member_id', 'authorMemberId')) || undefined
+  const replyToMessageId = text(field(row, 'reply_to_message_id', 'replyToMessageId')) || undefined
+  for (const [id, label] of [[runId, '消息任务编号'], [actionId, '消息动作编号'], [authorMemberId, '消息作者成员编号'], [replyToMessageId, '回复消息编号']] as const) if (id && !ID_PATTERN.test(id)) throw new RoomContractError(`${label}无效，请刷新并确认网站端已更新。`)
   return {
-    id: text(field(row, 'id', 'message_id', 'messageId')),
-    seq: Math.max(0, Number(field(row, 'seq', 'message_seq', 'messageSeq')) || 0),
-    runId: text(field(row, 'run_id', 'runId')) || undefined,
-    actionId: text(field(row, 'action_id', 'actionId')) || undefined,
+    id: exactId(field(row, 'id', 'message_id', 'messageId'), '消息编号'),
+    roomId,
+    seq: exactInteger(field(row, 'seq', 'message_seq', 'messageSeq'), '消息序号', 1),
+    runId,
+    actionId,
     authorType: author === 'member' || author === 'system' ? author : 'user',
-    authorMemberId: text(field(row, 'author_member_id', 'authorMemberId')) || undefined,
+    authorMemberId,
     authorName: text(field(row, 'author_name', 'authorName')) || undefined,
     messageType: text(field(row, 'message_type', 'messageType')) || 'chat',
-    replyToMessageId: text(field(row, 'reply_to_message_id', 'replyToMessageId')) || undefined,
+    replyToMessageId,
     body,
     segments: normalizeSegments(row.segments, body),
-    mentions: rows(row.mentions).map(item => ({ memberId: text(field(item, 'member_id', 'memberId')), displayName: text(field(item, 'display_name', 'displayName')), mentionHandle: text(field(item, 'mention_handle', 'mentionHandle')).replace(/^@/, '') })).filter(item => item.memberId),
+    mentions: rows(row.mentions).map(item => ({ memberId: exactId(field(item, 'member_id', 'memberId'), '消息提及成员编号'), displayName: text(field(item, 'display_name', 'displayName')), mentionHandle: text(field(item, 'mention_handle', 'mentionHandle')).replace(/^@/, '') })),
     createdAt: text(field(row, 'created_at', 'createdAt')) || undefined,
     contentAvailable: field(row, 'content_available', 'contentAvailable') !== false,
     contentPrunedAt: text(field(row, 'content_pruned_at', 'contentPrunedAt')) || undefined,
@@ -147,31 +159,33 @@ function normalizeRun(value: unknown, room: AgentRoomSummary, memberIds: Set<str
   const row = object(value)
   const id = exactId(field(row, 'id', 'run_id', 'runId'), '房间任务编号')
   const roomId = exactId(field(row, 'room_id', 'roomId'), '任务房间编号')
-  if (roomId !== room.id) throw new Error('任务作用域与当前房间不一致，已停止显示和批准。')
+  if (roomId !== room.id) throw new RoomContractError('任务作用域与当前房间不一致，已停止显示和批准。')
   const rootMessageId = exactId(field(row, 'root_message_id', 'rootMessageId'), '任务根消息编号')
   const coordinatorMemberId = exactId(field(row, 'coordinator_member_id', 'coordinatorMemberId'), '任务主控编号')
   const rawTargets = field(row, 'target_member_ids', 'targetMemberIds')
-  if (!Array.isArray(rawTargets)) throw new Error('任务目标成员无效，已停止显示和批准。')
+  if (!Array.isArray(rawTargets)) throw new RoomContractError('任务目标成员无效，已停止显示和批准。')
   const targetMemberIds = rawTargets.map(value => exactId(value, '任务目标成员编号'))
-  if (new Set(targetMemberIds).size !== targetMemberIds.length) throw new Error('任务目标成员重复，已停止显示和批准。')
+  if (new Set(targetMemberIds).size !== targetMemberIds.length) throw new RoomContractError('任务目标成员重复，已停止显示和批准。')
   const definitionRevision = exactInteger(field(row, 'definition_revision', 'definitionRevision'), '任务定义版本', 1)
   const maxSteps = exactInteger(field(row, 'max_steps', 'maxSteps'), '任务安全步数', 1, 12)
   const routingKind = text(field(row, 'routing_kind', 'routingKind'))
-  if (!['direct', 'coordinator'].includes(routingKind)) throw new Error('任务路由类型无效，已停止显示和执行。')
-  if (routingKind === 'direct' && !targetMemberIds.length) throw new Error('直接任务缺少目标成员，已停止显示和执行。')
+  if (!['direct', 'coordinator'].includes(routingKind)) throw new RoomContractError('任务路由类型无效，已停止显示和执行。')
+  if (routingKind === 'direct' && !targetMemberIds.length) throw new RoomContractError('直接任务缺少目标成员，已停止显示和执行。')
   const status = text(row.status)
-  if (!RUN_STATUSES.has(status)) throw new Error('任务状态无效，请刷新并确认网站端已更新。')
+  if (!RUN_STATUSES.has(status)) throw new RoomContractError('任务状态无效，请刷新并确认网站端已更新。')
   const stepCount = exactInteger(field(row, 'step_count', 'stepCount'), '任务执行步数', 0, maxSteps)
   const requiresValue = field(row, 'requires_approval', 'requiresApproval')
-  if (typeof requiresValue !== 'boolean') throw new Error('任务批准状态无效，已停止显示和执行。')
+  if (typeof requiresValue !== 'boolean') throw new RoomContractError('任务批准状态无效，已停止显示和执行。')
   const requiresApproval = requiresValue
   const rawApprovalId = field(row, 'approval_id', 'approvalId')
   const approvalId = rawApprovalId === null || rawApprovalId === undefined || rawApprovalId === '' ? undefined : exactId(rawApprovalId, '任务批准凭证')
   const approvedAt = text(field(row, 'approved_at', 'approvedAt')) || undefined
-  if (requiresApproval && (!approvalId || status !== 'awaiting_approval' || approvedAt)) throw new Error('任务批准状态与凭证不一致，已停止显示和执行。')
-  if (!requiresApproval && status === 'awaiting_approval') throw new Error('任务批准状态与凭证不一致，已停止显示和执行。')
-  if (['queued', 'running', 'unknown', 'completed'].includes(status) && !approvedAt) throw new Error('任务缺少整项批准记录，已停止显示和执行。')
-  if (definitionRevision !== room.definitionRevision || coordinatorMemberId !== room.coordinatorMemberId || maxSteps !== room.maxSteps || !memberIds.has(coordinatorMemberId) || targetMemberIds.some(memberId => !memberIds.has(memberId))) throw new Error('任务的成员或房间作用域已变化，已停止显示和批准。')
+  if (requiresApproval && (!approvalId || status !== 'awaiting_approval' || approvedAt)) throw new RoomContractError('任务批准状态与凭证不一致，已停止显示和执行。')
+  if (!requiresApproval && status === 'awaiting_approval') throw new RoomContractError('任务批准状态与凭证不一致，已停止显示和执行。')
+  if (['queued', 'running', 'unknown', 'completed'].includes(status) && !approvedAt) throw new RoomContractError('任务缺少整项批准记录，已停止显示和执行。')
+  if (ACTIVE_RUNS.has(status) && routingKind === 'direct' && targetMemberIds.length > maxSteps) throw new RoomContractError('当前直接任务的目标成员超过安全步数，已停止显示和批准。')
+  if (ACTIVE_RUNS.has(status) && routingKind === 'coordinator' && (targetMemberIds.length !== 1 || targetMemberIds[0] !== coordinatorMemberId)) throw new RoomContractError('当前主控任务的目标范围无效，已停止显示和批准。')
+  if (ACTIVE_RUNS.has(status) && (definitionRevision !== room.definitionRevision || coordinatorMemberId !== room.coordinatorMemberId || maxSteps !== room.maxSteps || !memberIds.has(coordinatorMemberId) || targetMemberIds.some(memberId => !memberIds.has(memberId)))) throw new RoomContractError('当前任务的成员或房间作用域已变化，已停止显示和批准。')
   return {
     id,
     roomId,
@@ -203,8 +217,10 @@ function normalizeRun(value: unknown, room: AgentRoomSummary, memberIds: Set<str
 
 function normalizeAction(value: unknown): AgentRoomAction {
   const row = object(value)
+  const id = text(field(row, 'id', 'action_id', 'actionId'))
+  if (!id) throw new RoomContractError('任务动态编号无效，请刷新并确认网站端已更新。')
   return {
-    id: text(field(row, 'id', 'action_id', 'actionId')),
+    id,
     runId: text(field(row, 'run_id', 'runId')),
     memberId: text(field(row, 'member_id', 'memberId')) || undefined,
     memberName: text(field(row, 'member_name', 'memberName')) || undefined,
@@ -237,35 +253,41 @@ function sortRoomRuns(runs: AgentRoomRun[], messages: AgentRoomMessage[]): Agent
 
 export function normalizeRoomDetail(value: unknown): AgentRoomDetail {
   const response = object(value)
-  if (response.contractVersion !== 2) throw new Error('房间详情合同版本不是 v2，已停止显示和执行。')
+  if (response.contractVersion !== 2) throw new RoomContractError('房间详情合同版本不是 v2，已停止显示和执行。')
   const rawWindow = object(response.window)
-  if (!Object.keys(rawWindow).length) throw new Error('房间详情缺少有界窗口信息，已停止显示。')
-  if (!Array.isArray(response.members) || !Array.isArray(response.messages) || !Array.isArray(response.runs) || !Array.isArray(response.actions)) throw new Error('房间详情列表不完整，已停止显示。')
+  if (!Object.keys(rawWindow).length) throw new RoomContractError('房间详情缺少有界窗口信息，已停止显示。')
+  if (!Array.isArray(response.members) || !Array.isArray(response.messages) || !Array.isArray(response.runs) || !Array.isArray(response.actions)) throw new RoomContractError('房间详情列表不完整，已停止显示。')
   const room = normalizeRoomSummary(response.room)
   const members = rows(response.members).map(normalizeMember)
   const memberIds = new Set(members.map(member => member.id))
-  if (memberIds.size !== members.length) throw new Error('房间成员编号重复，已停止显示和执行。')
-  if (!memberIds.has(room.coordinatorMemberId)) throw new Error('房间主控不在当前成员作用域内，已停止显示和执行。')
-  const messages = rows(response.messages).map(normalizeMessage).filter(message => message.id).sort((left, right) => left.seq - right.seq)
+  if (memberIds.size !== members.length) throw new RoomContractError('房间成员编号重复，已停止显示和执行。')
+  if (!memberIds.has(room.coordinatorMemberId)) throw new RoomContractError('房间主控不在当前成员作用域内，已停止显示和执行。')
+  const messages = rows(response.messages).map(message => normalizeMessage(message, room.id)).sort((left, right) => left.seq - right.seq)
+  if (new Set(messages.map(message => message.id)).size !== messages.length || new Set(messages.map(message => message.seq)).size !== messages.length) throw new RoomContractError('房间消息编号或序号重复，已停止显示。')
   const runs = sortRoomRuns(rows(response.runs).map(run => normalizeRun(run, room, memberIds)), messages)
+  if (runs.length > 20) throw new RoomContractError('房间任务窗口超过最近 20 项，请刷新并确认网站端已更新。')
+  const actions = rows(response.actions).map(normalizeAction).sort((left, right) => left.ordinal - right.ordinal)
   const detailRevision = text(field(response, 'detail_revision', 'detailRevision'))
-  if (!DETAIL_REVISION_PATTERN.test(detailRevision)) throw new Error('房间详情版本无效，请刷新并确认网站端已更新。')
+  if (!DETAIL_REVISION_PATTERN.test(detailRevision)) throw new RoomContractError('房间详情版本无效，请刷新并确认网站端已更新。')
+  const maxMessages = exactInteger(field(rawWindow, 'max_messages', 'maxMessages'), '消息窗口上限', 1, 50)
+  const maxActions = exactInteger(field(rawWindow, 'max_actions', 'maxActions'), '任务动态窗口上限', 1, 100)
   const window = {
-    maxMessages: exactInteger(field(rawWindow, 'max_messages', 'maxMessages'), '消息窗口上限', 1),
-    maxActions: exactInteger(field(rawWindow, 'max_actions', 'maxActions'), '任务动态窗口上限', 1),
-    messageCount: exactInteger(field(rawWindow, 'message_count', 'messageCount'), '消息窗口计数', 0),
-    actionCount: exactInteger(field(rawWindow, 'action_count', 'actionCount'), '任务动态计数', 0),
+    maxMessages,
+    maxActions,
+    messageCount: exactInteger(field(rawWindow, 'message_count', 'messageCount'), '消息窗口计数', 0, maxMessages),
+    actionCount: exactInteger(field(rawWindow, 'action_count', 'actionCount'), '任务动态计数', 0, maxActions),
     hasEarlierMessages: field(rawWindow, 'has_earlier_messages', 'hasEarlierMessages'),
     hasLaterMessages: field(rawWindow, 'has_later_messages', 'hasLaterMessages'),
     hasMoreActions: field(rawWindow, 'has_more_actions', 'hasMoreActions')
   }
-  if ([window.hasEarlierMessages, window.hasLaterMessages, window.hasMoreActions].some(flag => typeof flag !== 'boolean')) throw new Error('房间窗口分页标记无效，请刷新并确认网站端已更新。')
+  if ([window.hasEarlierMessages, window.hasLaterMessages, window.hasMoreActions].some(flag => typeof flag !== 'boolean')) throw new RoomContractError('房间窗口分页标记无效，请刷新并确认网站端已更新。')
+  if (window.messageCount !== messages.length || window.actionCount !== actions.length) throw new RoomContractError('房间窗口计数与返回内容不一致，已停止显示。')
   return {
     room,
     members,
     messages,
     runs,
-    actions: rows(response.actions).map(normalizeAction).filter(action => action.id).sort((left, right) => left.ordinal - right.ordinal),
+    actions,
     detailRevision,
     window: window as AgentRoomDetail['window']
   }
@@ -282,21 +304,20 @@ export function mergeRoomDetail(current: AgentRoomDetail | undefined, incoming: 
   if (current.room.id !== incoming.room.id) return current
   const window = incoming.window || current.window
   const messages = mergeById(current.messages, incoming.messages).sort((left, right) => left.seq - right.seq)
-  const runs = sortRoomRuns(mergeById(current.runs, incoming.runs), messages)
   return {
     ...incoming,
     room: incoming.room.id ? incoming.room : current.room,
-    members: incoming.members.length ? incoming.members : current.members,
+    members: incoming.members,
     messages,
-    runs,
-    actions: mergeById(current.actions, incoming.actions).sort((left, right) => left.ordinal - right.ordinal),
+    runs: sortRoomRuns(incoming.runs, messages),
+    actions: incoming.actions,
     window: window && preserveEarlierMessages && current.window ? { ...window, hasEarlierMessages: current.window.hasEarlierMessages || window.hasEarlierMessages } : window
   }
 }
 
 function normalizeCandidates(value: unknown): CandidateCatalog {
   const catalog = object(value)
-  if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects)) throw new Error('房间候选目录不完整，请刷新并确认网站端已更新。')
+  if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects)) throw new RoomContractError('房间候选目录不完整，请刷新并确认网站端已更新。')
   const projects = rows(catalog.projects).map(row => ({ id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目' })).filter(project => project.id && project.agentId)
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
@@ -364,9 +385,55 @@ export function roomMessageSignature(value: { roomId: string; content: AgentRoom
 
 export function normalizeRoomSendResponse(value: unknown): { messageId: string; runId: string; approvalId: string; replayed: boolean } {
   const response = object(value)
-  if (response.contractVersion !== 2 || response.status !== 'awaiting_approval' || response.requiresApproval !== true) throw new Error('消息可能已经进入房间，但服务端未返回严格的 v2 整项批准状态。请刷新确认；Launcher 不会启动本轮。')
-  if (typeof response.replayed !== 'boolean') throw new Error('房间发送幂等状态无效，请刷新确认；Launcher 不会启动本轮。')
+  if (response.contractVersion !== 2 || response.status !== 'awaiting_approval' || response.requiresApproval !== true) throw new RoomContractError('消息可能已经进入房间，但服务端未返回严格的 v2 整项批准状态。请刷新确认；Launcher 不会启动本轮。')
+  if (typeof response.replayed !== 'boolean') throw new RoomContractError('房间发送幂等状态无效，请刷新确认；Launcher 不会启动本轮。')
   return { messageId: exactId(response.messageId, '新消息编号'), runId: exactId(response.runId, '新任务编号'), approvalId: exactId(response.approvalId, '整项批准凭证'), replayed: response.replayed }
+}
+
+export function normalizeRoomSaveResponse(value: unknown, expectedRoomId?: string): { detail: AgentRoomDetail; roomId: string; replayed: boolean } {
+  const response = object(value)
+  if (response.contractVersion !== 2 || typeof response.replayed !== 'boolean') throw new RoomContractError('房间保存回执合同无效，表单已保留；请重新同步后重试同一请求。')
+  const detail = normalizeRoomDetail(response)
+  const roomId = detail.room.id
+  if (expectedRoomId !== undefined && roomId !== expectedRoomId) throw new RoomContractError('房间保存回执与目标房间不匹配，表单已保留；请重新同步后重试同一请求。')
+  return { detail, roomId, replayed: response.replayed }
+}
+
+function exactMutationIdentity(response: JsonRecord, expectedRoomId: string, expectedRunId?: string): { roomId: string; runId?: string; replayed: boolean } {
+  if (response.contractVersion !== 2 || typeof response.replayed !== 'boolean') throw new RoomContractError('房间操作回执合同无效，请刷新对账。')
+  const roomId = exactId(response.roomId, '回执房间编号')
+  if (roomId !== expectedRoomId) throw new RoomContractError('房间操作回执与当前房间不匹配，请刷新对账。')
+  const runId = expectedRunId === undefined ? undefined : exactId(response.runId, '回执任务编号')
+  if (expectedRunId !== undefined && runId !== expectedRunId) throw new RoomContractError('房间操作回执与当前任务不匹配，请刷新对账。')
+  return { roomId, runId, replayed: response.replayed }
+}
+
+export function normalizeRoomApproveResponse(value: unknown, expectedRoomId: string, expectedRunId: string, expectedApprovalId: string): { status: string; approvedAt: string; replayed: boolean } {
+  const response = object(value)
+  const identity = exactMutationIdentity(response, expectedRoomId, expectedRunId)
+  if (exactId(response.approvalId, '回执批准凭证') !== expectedApprovalId) throw new RoomContractError('批准回执凭证与当前任务不匹配，请刷新对账。')
+  const status = text(response.status)
+  if (!['queued', 'running', 'completed', 'failed', 'cancelled', 'unknown', 'cancel_requested'].includes(status)) throw new RoomContractError('批准回执状态无效，请刷新对账。')
+  const approvedAt = text(response.approvedAt)
+  if (!approvedAt || !Number.isFinite(Date.parse(approvedAt))) throw new RoomContractError('批准回执缺少有效批准时间，请刷新对账。')
+  return { status, approvedAt, replayed: identity.replayed }
+}
+
+export function normalizeRoomCancelResponse(value: unknown, expectedRoomId: string, expectedRunId: string): { status: string; cancelRequestedAt?: string; replayed: boolean } {
+  const response = object(value)
+  const identity = exactMutationIdentity(response, expectedRoomId, expectedRunId)
+  const status = text(response.status)
+  if (!['cancel_requested', 'cancelled', 'completed', 'failed', 'unknown'].includes(status)) throw new RoomContractError('服务器返回了无法确认的取消状态，请刷新对账。')
+  const cancelRequestedAt = text(response.cancelRequestedAt) || undefined
+  if (cancelRequestedAt && !Number.isFinite(Date.parse(cancelRequestedAt))) throw new RoomContractError('取消回执时间无效，请刷新对账。')
+  return { status, cancelRequestedAt, replayed: identity.replayed }
+}
+
+export function normalizeRoomDeleteResponse(value: unknown, expectedRoomId: string): { replayed: boolean } {
+  const response = object(value)
+  const identity = exactMutationIdentity(response, expectedRoomId)
+  if (response.status !== 'deleted') throw new RoomContractError('删除回执未确认永久清理完成，请刷新对账。')
+  return { replayed: identity.replayed }
 }
 
 function timestamp(value?: string): string {
@@ -405,6 +472,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [syncBlocked, setSyncBlocked] = useState(false)
   const [notice, setNotice] = useState('')
   const [reload, setReload] = useState(0)
   const [mobilePane, setMobilePane] = useState<'chat' | 'tasks' | 'members'>('chat')
@@ -424,6 +492,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const latestMessageSeq = useRef(0)
   const unchangedPolls = useRef(0)
   const lastDetailActive = useRef(false)
+  const unsafeSync = useRef(false)
+  const syncGeneration = useRef(0)
+  const detailRequestSequence = useRef(0)
+  const manualWindowPending = useRef(false)
   const sending = useRef(false)
   const saving = useRef(false)
   const draftRef = useRef('')
@@ -439,9 +511,15 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     return response
   }
 
+  function freezeUnsafeSync(clearRoomList = false): void {
+    syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false; unsafeSync.current = true; setSyncBlocked(true); setBusy(''); setDetail(undefined); detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false
+    if (clearRoomList) { setRooms([]); selectedRoomRef.current = ''; setSelectedRoomId('') }
+  }
+
   useEffect(() => {
     accountEpoch.current += 1
-    setRooms([]); setSelectedRoomId(''); selectedRoomRef.current = ''; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
+    syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
+    setRooms([]); setSelectedRoomId(''); selectedRoomRef.current = ''; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setSyncBlocked(false); unsafeSync.current = false; setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
     detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear()
   }, [userId, signedIn])
 
@@ -450,17 +528,28 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     const epoch = accountEpoch.current
     let disposed = false
     async function load(): Promise<void> {
+      const generation = syncGeneration.current
       setLoading(true)
       try {
         const response = await request({ scope: 'hub', method: 'GET', action: 'room_list' })
-        if (disposed || epoch !== accountEpoch.current) return
-        if (response.contractVersion !== 2) throw new Error('网站端尚未启用多智能房间 v2，请稍后更新。')
-        if (!Array.isArray(response.rooms)) throw new Error('网站端房间列表不完整，请稍后更新。')
+        if (disposed || epoch !== accountEpoch.current || generation !== syncGeneration.current) return
+        if (response.contractVersion !== 2) throw new RoomContractError('网站端尚未启用多智能房间 v2，请稍后更新。')
+        if (!Array.isArray(response.rooms)) throw new RoomContractError('网站端房间列表不完整，请稍后更新。')
         const nextRooms = rows(response.rooms).map(normalizeRoomSummary).filter(room => room.id)
         setRooms(nextRooms); setCandidateCatalog(normalizeCandidates(response.candidates))
-        setSelectedRoomId(previous => { const next = previous && nextRooms.some(room => room.id === previous) ? previous : nextRooms[0]?.id || ''; selectedRoomRef.current = next; return next })
+        const previousRoomId = selectedRoomRef.current
+        const nextRoomId = previousRoomId && nextRooms.some(room => room.id === previousRoomId) ? previousRoomId : nextRooms[0]?.id || ''
+        if (nextRoomId !== previousRoomId) chooseRoom(nextRoomId)
+        else setSelectedRoomId(nextRoomId)
+        if (!nextRooms.length) { unsafeSync.current = false; setSyncBlocked(false) }
         setError('')
-      } catch (cause) { if (!disposed && epoch === accountEpoch.current) setError(cause instanceof Error ? cause.message : '无法读取多智能房间。') }
+      } catch (cause) {
+        if (!disposed && epoch === accountEpoch.current && generation === syncGeneration.current) {
+          setSyncBlocked(true)
+          if (cause instanceof RoomContractError) freezeUnsafeSync(true)
+          setError(cause instanceof Error ? cause.message : '无法读取多智能房间。')
+        }
+      }
       finally { if (!disposed && epoch === accountEpoch.current) setLoading(false) }
     }
     void load()
@@ -474,17 +563,20 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     let timer: ReturnType<typeof setTimeout>
     async function load(): Promise<void> {
       if (document.hidden) { timer = setTimeout(() => void load(), 4000); return }
+      if (manualWindowPending.current) { timer = setTimeout(() => void load(), 500); return }
+      const generation = syncGeneration.current
+      const requestSequence = ++detailRequestSequence.current
       let nextDelay = lastDetailActive.current ? 3000 : Math.min(30000, 7000 * Math.pow(2, Math.max(0, unchangedPolls.current - 1)))
       try {
         const params: Record<string, string> = { roomId: selectedRoomId }
         if (detailRevision.current !== '') params.afterRevision = String(detailRevision.current)
         if (latestMessageSeq.current) params.afterMessageSeq = String(latestMessageSeq.current)
         const response = await request({ scope: 'hub', method: 'GET', action: 'room_detail', params })
-        if (disposed || epoch !== accountEpoch.current || selectedRoomRef.current !== selectedRoomId) return
-        if (response.contractVersion !== 2) throw new Error('房间详情合同版本不匹配，请更新网站端和启动器。')
-        if (response.changed === false) { unchangedPolls.current = Math.min(4, unchangedPolls.current + 1); return }
+        if (disposed || epoch !== accountEpoch.current || selectedRoomRef.current !== selectedRoomId || generation !== syncGeneration.current || requestSequence !== detailRequestSequence.current) return
+        if (response.contractVersion !== 2) throw new RoomContractError('房间详情合同版本不匹配，请更新网站端和启动器。')
+        if (response.changed === false) { unchangedPolls.current = Math.min(4, unchangedPolls.current + 1); if (!unsafeSync.current) { setSyncBlocked(false); setError('') }; return }
         const incoming = normalizeRoomDetail(response)
-        if (incoming.room.id !== selectedRoomId) throw new Error('返回的房间与当前选择不匹配，请刷新。')
+        if (incoming.room.id !== selectedRoomId) throw new RoomContractError('返回的房间与当前选择不匹配，请刷新。')
         detailRevision.current = incoming.detailRevision ?? detailRevision.current
         latestMessageSeq.current = Math.max(latestMessageSeq.current, ...incoming.messages.map(message => message.seq), 0)
         unchangedPolls.current = 0
@@ -492,8 +584,16 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
         setDetail(previous => mergeRoomDetail(previous, incoming))
         setRooms(previous => previous.map(room => room.id === incoming.room.id ? { ...room, ...incoming.room } : room))
         nextDelay = lastDetailActive.current ? 3000 : 7000
+        if (unsafeSync.current) setEditorError('')
+        unsafeSync.current = false; setSyncBlocked(false)
         setError('')
-      } catch (cause) { if (!disposed && epoch === accountEpoch.current && selectedRoomRef.current === selectedRoomId) setError(cause instanceof Error ? cause.message : '房间同步失败。') }
+      } catch (cause) {
+        if (!disposed && epoch === accountEpoch.current && selectedRoomRef.current === selectedRoomId && generation === syncGeneration.current && requestSequence === detailRequestSequence.current) {
+          setSyncBlocked(true)
+          if (cause instanceof RoomContractError) freezeUnsafeSync()
+          setError(cause instanceof Error ? cause.message : '房间同步失败。')
+        }
+      }
       finally { if (!disposed && epoch === accountEpoch.current) timer = setTimeout(() => void load(), nextDelay) }
     }
     void load()
@@ -527,6 +627,8 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const memberLimitReached = Boolean(editor && candidateCatalog && editor.members.length >= candidateCatalog.limits.maxMembers)
 
   function chooseRoom(roomId: string): void {
+    syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
+    setBusy(current => current.startsWith('room_messages_') ? '' : current)
     selectedRoomRef.current = roomId; setSelectedRoomId(roomId); setDetail(undefined); setError(''); setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setMentionQuery(undefined); setMobilePane('chat'); setMembersOpen(false)
     detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false
   }
@@ -548,11 +650,12 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
 
   async function saveEditor(event: FormEvent): Promise<void> {
     event.preventDefault()
-    if (!editor || saving.current || busy) return
+    if (!editor || saving.current || busy || syncBlocked) return
     const validation = validateRoomDraft(editor)
     if (validation) { setEditorError(validation); return }
     const action = editor.roomId ? 'room_update' : 'room_create'
     const epoch = accountEpoch.current
+    const generation = syncGeneration.current
     const members = editor.members.map(member => ({ ...member, displayName: member.displayName.trim(), mentionHandle: member.mentionHandle.trim().replace(/^@/, ''), responsibility: member.responsibility.trim(), sessionLabel: member.sessionLabel.trim() }))
     const body: Record<string, unknown> = { ...(editor.roomId ? { roomId: editor.roomId, expectedDefinitionRevision: editor.expectedDefinitionRevision } : {}), name: editor.name.trim(), coordinatorMemberId: editor.coordinatorMemberId, maxSteps: editor.maxSteps, defaultAccess: editor.defaultAccess, members }
     const signature = JSON.stringify(body)
@@ -561,29 +664,38 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     saving.current = true; setBusy(action); setEditorError(''); setError(''); setNotice('')
     try {
       const response = await request({ scope: 'hub', method: 'POST', action, body })
-      if (epoch !== accountEpoch.current) return
-      const roomId = text(response.roomId) || text(object(response.room).id) || editor.roomId || ''
+      if (epoch !== accountEpoch.current || generation !== syncGeneration.current) return
+      const receipt = normalizeRoomSaveResponse(response, editor.roomId)
       setEditor(undefined); editorSubmission.current = undefined
-      setNotice(editor.roomId ? '房间设置已保存。新成员的独立会话会在首次需要时创建。' : '房间已创建。每位成员的独立会话将在首次参与时按需创建。')
-      if (roomId) chooseRoom(roomId)
+      chooseRoom(receipt.roomId)
+      detailRevision.current = receipt.detail.detailRevision || ''
+      latestMessageSeq.current = Math.max(...receipt.detail.messages.map(message => message.seq), 0)
+      lastDetailActive.current = receipt.detail.runs.some(run => roomRunActive(run.status))
+      setDetail(receipt.detail)
+      setRooms(previous => previous.some(room => room.id === receipt.roomId) ? previous.map(room => room.id === receipt.roomId ? receipt.detail.room : room) : [...previous, receipt.detail.room])
+      unsafeSync.current = false; setSyncBlocked(false)
+      setNotice(receipt.replayed ? '已确认此前相同的房间保存请求，未重复创建或更新。' : editor.roomId ? '房间设置已保存。新成员的独立会话会在首次需要时创建。' : '房间已创建。每位成员的独立会话将在首次参与时按需创建。')
       setReload(value => value + 1)
-    } catch (cause) { if (epoch === accountEpoch.current) setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') }
+    } catch (cause) { if (epoch === accountEpoch.current && generation === syncGeneration.current) { if (cause instanceof RoomContractError) freezeUnsafeSync(); setEditorError(cause instanceof Error ? cause.message : '保存失败，表单内容已保留。') } }
     finally { saving.current = false; setBusy(current => current === action ? '' : current) }
   }
 
   async function deleteRoom(): Promise<void> {
-    if (!detail || busy) return
+    if (!detail || busy || syncBlocked) return
     const targetRoomId = detail.room.id
+    const generation = syncGeneration.current
     let clientRequestId = deleteSubmissions.current.get(targetRoomId)
     if (!clientRequestId) { if (deleteSubmissions.current.size >= 32) deleteSubmissions.current.delete(deleteSubmissions.current.keys().next().value as string); clientRequestId = crypto.randomUUID(); deleteSubmissions.current.set(targetRoomId, clientRequestId) }
     setBusy('room_delete'); setError(''); setNotice('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'room_delete', body: { roomId: targetRoomId, clientRequestId } })
-      if (selectedRoomRef.current !== targetRoomId) return
+      const response = await request({ scope: 'hub', method: 'POST', action: 'room_delete', body: { roomId: targetRoomId, clientRequestId } })
+      if (selectedRoomRef.current !== targetRoomId || generation !== syncGeneration.current) return
+      const { replayed } = normalizeRoomDeleteResponse(response, targetRoomId)
       deleteSubmissions.current.delete(targetRoomId)
       for (const key of sendSubmissions.current.keys()) if (key.startsWith(`${targetRoomId}\0`)) sendSubmissions.current.delete(key)
-      selectedRoomRef.current = ''; setSelectedRoomId(''); setDetail(undefined); setConfirmDelete(false); setMembersOpen(false); setMobilePane('chat'); setNotice('房间及其公共记录已永久清理；本机智能体、项目、文件和原生会话保持不变。'); setReload(value => value + 1)
-    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '删除房间结果未确认，请重试同一操作。') }
+      const nextRoomId = rooms.find(room => room.id !== targetRoomId)?.id || ''
+      chooseRoom(nextRoomId); setRooms(previous => previous.filter(room => room.id !== targetRoomId)); setConfirmDelete(false); setNotice(replayed ? '已确认此前删除请求完成：房间公共记录已永久清理。' : '房间及其公共记录已永久清理；本机智能体、项目、文件和原生会话保持不变。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId && generation === syncGeneration.current) { if (cause instanceof RoomContractError) freezeUnsafeSync(); setError(cause instanceof Error ? cause.message : '删除房间结果未确认，请重试同一操作。') } }
     finally { setBusy(current => current === 'room_delete' ? '' : current) }
   }
 
@@ -628,11 +740,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     event?.preventDefault()
     const submittedDraft = draftRef.current
     const submittedTokens = [...mentionTokensRef.current]
-    if (!detail || sending.current || busy || !submittedDraft.trim() || !coordinator) return
+    if (!detail || sending.current || busy || syncBlocked || !submittedDraft.trim() || !coordinator) return
     if (!signedIn) { onLogin(); return }
     const targetRoomId = detail.room.id
-    const submittedMemberIds = [...new Set(submittedTokens.map(token => token.memberId).filter(memberId => membersById.has(memberId)))]
-    const submittedMembers = submittedMemberIds.map(id => membersById.get(id)).filter((member): member is AgentRoomMember => Boolean(member))
+    const generation = syncGeneration.current
     const content = buildRoomMessageContent(submittedDraft, submittedTokens.filter(token => membersById.has(token.memberId)))
     const payload = { roomId: detail.room.id, content, access: 'workspace_write' as const, expectedDefinitionRevision: detail.room.definitionRevision }
     const signature = roomMessageSignature(payload)
@@ -645,81 +756,98 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     sending.current = true; setBusy('room_send'); setError(''); setNotice('')
     try {
       const response = await request({ scope: 'hub', method: 'POST', action: 'room_send', body: { ...payload, clientRequestId } })
-      if (selectedRoomRef.current !== targetRoomId) return
-      const { messageId, runId, approvalId, replayed } = normalizeRoomSendResponse(response)
-      const status = 'awaiting_approval'
-      const optimisticMessage: AgentRoomMessage = { id: messageId, seq: latestMessageSeq.current + 1, runId, authorType: 'user', messageType: 'user', body: submittedDraft, segments: content, mentions: submittedMembers.map(member => ({ memberId: member.id, displayName: member.displayName, mentionHandle: member.mentionHandle })), createdAt: new Date().toISOString(), contentAvailable: true }
-      const optimisticRun: AgentRoomRun = { id: runId, roomId: detail.room.id, rootMessageId: messageId, routingKind: submittedMemberIds.length ? 'direct' : 'coordinator', coordinatorMemberId: detail.room.coordinatorMemberId, targetMemberIds: submittedMemberIds, definitionRevision: detail.room.definitionRevision, maxSteps: detail.room.maxSteps, approvalPolicy: 'bounded_run', status, stepCount: 0, access: 'workspace_write', requiresApproval: true, approvalId, createdAt: new Date().toISOString(), contentAvailable: true }
-      lastDetailActive.current = roomRunActive(optimisticRun.status)
-      latestMessageSeq.current = optimisticMessage.seq
-      setDetail(previous => {
-        if (previous?.room.id !== targetRoomId) return previous
-        const messages = mergeById(previous.messages, [optimisticMessage]).sort((left, right) => left.seq - right.seq)
-        return { ...previous, room: { ...previous.room, activeRunId: runId, latestRunStatus: status }, messages, runs: sortRoomRuns(mergeById(previous.runs, [optimisticRun]), messages) }
-      })
+      if (selectedRoomRef.current !== targetRoomId || generation !== syncGeneration.current) return
+      const { replayed } = normalizeRoomSendResponse(response)
       sendSubmissions.current.delete(attemptKey)
       if (draftRef.current === submittedDraft && JSON.stringify(mentionTokensRef.current) === JSON.stringify(submittedTokens)) { draftRef.current = ''; mentionTokensRef.current = []; setDraft(''); setMentionTokens([]); setMentionQuery(undefined) }
       setNotice(replayed ? '已找回同一条房间消息，没有重复创建。' : '消息已公开到房间；确认整项任务后主控才会开始执行。'); setReload(value => value + 1)
-    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '发送结果未确认；内容和请求编号均已保留。') }
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId && generation === syncGeneration.current) { if (cause instanceof RoomContractError) freezeUnsafeSync(); setError(cause instanceof Error ? cause.message : '发送结果未确认；内容和请求编号均已保留。') } }
     finally { sending.current = false; setBusy(current => current === 'room_send' ? '' : current) }
   }
 
   async function approveRun(run: AgentRoomRun): Promise<void> {
-    if (!detail || !run.approvalId || busy) return
+    if (!detail || !roomRunCanApprove(run, detail.room) || !run.approvalId || busy || syncBlocked) return
     const targetRoomId = detail.room.id
+    const generation = syncGeneration.current
+    const expectedStatus = run.status
+    const expectedApprovalId = run.approvalId
     const operation = `room_approve:${run.id}`
     setBusy(operation); setError(''); setNotice('')
     try {
-      await request({ scope: 'hub', method: 'POST', action: 'room_approve', body: { roomId: detail.room.id, runId: run.id, approvalId: run.approvalId } })
-      if (selectedRoomRef.current !== targetRoomId) return
-      setDetail(previous => previous?.room.id === targetRoomId ? { ...previous, room: { ...previous.room, activeRunId: run.id, latestRunStatus: 'queued' }, runs: previous.runs.map(item => item.id === run.id ? { ...item, status: 'queued', requiresApproval: false, approvedAt: new Date().toISOString() } : item) } : previous)
-      lastDetailActive.current = true
-      setNotice('已允许整项任务；主控会在冻结的成员与项目范围内继续推进。'); setReload(value => value + 1)
-    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '批准结果未确认，请刷新后重试。') }
+      const response = await request({ scope: 'hub', method: 'POST', action: 'room_approve', body: { roomId: detail.room.id, runId: run.id, approvalId: run.approvalId } })
+      if (selectedRoomRef.current !== targetRoomId || generation !== syncGeneration.current) return
+      const receipt = normalizeRoomApproveResponse(response, targetRoomId, run.id, expectedApprovalId)
+      setDetail(previous => {
+        if (previous?.room.id !== targetRoomId) return previous
+        const currentRun = previous.runs.find(item => item.id === run.id)
+        if (!currentRun || currentRun.status !== expectedStatus || currentRun.approvalId !== expectedApprovalId || !roomRunCanApprove(currentRun, previous.room)) return previous
+        const runs = previous.runs.map(item => item.id === run.id ? { ...item, status: receipt.status, requiresApproval: false, approvedAt: receipt.approvedAt } : item)
+        const activeRun = runs.find(item => roomRunActive(item.status))
+        lastDetailActive.current = Boolean(activeRun)
+        return { ...previous, room: { ...previous.room, activeRunId: activeRun?.id, latestRunStatus: receipt.status }, runs }
+      })
+      setNotice(receipt.replayed ? `已按服务器现有状态对账：${roomStatusLabel(receipt.status)}。` : '整项批准回执已确认；若同步已先推进，界面会保留更新的状态。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId && generation === syncGeneration.current) { if (cause instanceof RoomContractError) freezeUnsafeSync(); setError(cause instanceof Error ? cause.message : '批准结果未确认，请刷新后重试。') } }
     finally { setBusy(current => current === operation ? '' : current) }
   }
 
   async function cancelRun(runId: string): Promise<void> {
-    if (!detail || busy) return
+    if (!detail || busy || syncBlocked) return
     const targetRoomId = detail.room.id
+    const generation = syncGeneration.current
+    const expectedStatus = detail.runs.find(run => run.id === runId)?.status
+    if (!expectedStatus) return
     const operation = `room_cancel:${runId}`
     setBusy(operation); setError(''); setNotice('')
     try {
       const response = await request({ scope: 'hub', method: 'POST', action: 'room_cancel', body: { roomId: detail.room.id, runId } })
-      if (selectedRoomRef.current !== targetRoomId) return
-      if (response.contractVersion !== 2) throw new Error('取消回执合同版本不匹配，请刷新对账。')
-      const status = text(response.status)
-      if (!['cancel_requested', 'cancelled', 'completed', 'failed', 'unknown'].includes(status)) throw new Error('服务器返回了无法确认的取消状态，请刷新对账。')
-      if (exactId(response.runId, '取消任务编号') !== runId) throw new Error('取消回执与当前任务不匹配，请刷新对账。')
-      const nextRuns = detail.runs.map(run => run.id === runId ? { ...run, status, cancelRequestedAt: text(response.cancelRequestedAt) || run.cancelRequestedAt || new Date().toISOString() } : run)
-      const nextActive = nextRuns.find(run => roomRunActive(run.status))
-      setDetail(previous => previous?.room.id === targetRoomId ? { ...previous, room: { ...previous.room, activeRunId: nextActive?.id, latestRunStatus: status }, runs: nextRuns } : previous)
-      lastDetailActive.current = Boolean(nextActive)
-      setNotice(status === 'cancel_requested' ? '已请求停止整项任务；本机回执前保持“取消中”。' : status === 'cancelled' ? '整项任务已取消。' : status === 'completed' ? '任务已在取消前完成，已按真实终态保留。' : status === 'failed' ? '任务已结束为失败，无需重复取消。' : '取消结果仍待确认，请继续对账。'); setReload(value => value + 1)
-    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : '取消请求未确认，请重试。') }
+      if (selectedRoomRef.current !== targetRoomId || generation !== syncGeneration.current) return
+      const receipt = normalizeRoomCancelResponse(response, targetRoomId, runId)
+      setDetail(previous => {
+        if (previous?.room.id !== targetRoomId) return previous
+        const currentRun = previous.runs.find(run => run.id === runId)
+        if (!currentRun || currentRun.status !== expectedStatus || !roomRunActive(currentRun.status)) return previous
+        const runs = previous.runs.map(run => run.id === runId ? { ...run, status: receipt.status, cancelRequestedAt: receipt.cancelRequestedAt || run.cancelRequestedAt || new Date().toISOString() } : run)
+        const activeRun = runs.find(run => roomRunActive(run.status))
+        lastDetailActive.current = Boolean(activeRun)
+        return { ...previous, room: { ...previous.room, activeRunId: activeRun?.id, latestRunStatus: receipt.status }, runs }
+      })
+      setNotice(receipt.status === 'cancel_requested' ? '已请求停止整项任务；本机回执前保持“取消中”。' : receipt.status === 'cancelled' ? '整项任务已取消。' : receipt.status === 'completed' ? '任务已在取消前完成，已按真实终态保留。' : receipt.status === 'failed' ? '任务已结束为失败，无需重复取消。' : '取消结果仍待确认，请继续对账。'); setReload(value => value + 1)
+    } catch (cause) { if (selectedRoomRef.current === targetRoomId && generation === syncGeneration.current) { if (cause instanceof RoomContractError) freezeUnsafeSync(); setError(cause instanceof Error ? cause.message : '取消请求未确认，请重试。') } }
     finally { setBusy(current => current === operation ? '' : current) }
   }
 
   async function loadMessageWindow(direction: 'earlier' | 'later'): Promise<void> {
-    if (!detail || busy) return
+    if (!detail || busy || syncBlocked || manualWindowPending.current) return
     const targetRoomId = detail.room.id
     const seqs = detail.messages.map(message => message.seq).filter(value => value > 0)
     if (!seqs.length) return
+    const generation = syncGeneration.current
+    const requestSequence = ++detailRequestSequence.current
     const params: Record<string, string> = { roomId: detail.room.id }
     params[direction === 'earlier' ? 'beforeMessageSeq' : 'afterMessageSeq'] = String(direction === 'earlier' ? Math.min(...seqs) : Math.max(...seqs))
     const operation = `room_messages_${direction}`
+    manualWindowPending.current = true
     setBusy(operation); setError('')
     try {
       const response = await request({ scope: 'hub', method: 'GET', action: 'room_detail', params })
-      if (selectedRoomRef.current !== targetRoomId) return
-      if (response.contractVersion !== 2) throw new Error('房间详情合同版本不匹配，请更新网站端和启动器。')
-      if (response.changed === false) return
+      if (selectedRoomRef.current !== targetRoomId || generation !== syncGeneration.current || requestSequence !== detailRequestSequence.current) return
+      if (response.contractVersion !== 2) throw new RoomContractError('房间详情合同版本不匹配，请更新网站端和启动器。')
+      if (response.changed === false) { if (!unsafeSync.current) { setSyncBlocked(false); setError('') }; return }
       const incoming = normalizeRoomDetail(response)
+      if (incoming.room.id !== targetRoomId) throw new RoomContractError('返回的房间与当前选择不匹配，请刷新。')
       detailRevision.current = incoming.detailRevision ?? detailRevision.current
       latestMessageSeq.current = Math.max(latestMessageSeq.current, ...incoming.messages.map(message => message.seq), 0)
       setDetail(previous => previous?.room.id === targetRoomId ? mergeRoomDetail(previous, incoming, direction !== 'earlier') : previous)
-    } catch (cause) { if (selectedRoomRef.current === targetRoomId) setError(cause instanceof Error ? cause.message : direction === 'earlier' ? '更早消息加载失败。' : '新消息追赶失败。') }
-    finally { setBusy(current => current === operation ? '' : current) }
+      unsafeSync.current = false; setSyncBlocked(false)
+    } catch (cause) {
+      if (selectedRoomRef.current === targetRoomId && generation === syncGeneration.current && requestSequence === detailRequestSequence.current) {
+        setSyncBlocked(true)
+        if (cause instanceof RoomContractError) freezeUnsafeSync()
+        setError(cause instanceof Error ? cause.message : direction === 'earlier' ? '更早消息加载失败。' : '新消息追赶失败。')
+      }
+    }
+    finally { if (generation === syncGeneration.current && requestSequence === detailRequestSequence.current) { manualWindowPending.current = false; setBusy(current => current === operation ? '' : current) } }
   }
 
   if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>多智能会话需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
@@ -755,18 +883,19 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
             {detail?.runs.map(run => {
               const runActions = detail.actions.filter(action => action.runId === run.id)
               const sourceMessage = detail.messages.find(message => message.id === run.rootMessageId)
+              const canApprove = roomRunCanApprove(run, detail.room)
               return <article className="arm-run" key={run.id}>
                 <header><div><strong>{sourceMessage?.body || '房间任务'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header>
-                {run.requiresApproval && run.approvalId && <div className="arm-run-approval" role="alert">
+                {canApprove && <div className="arm-run-approval" role="alert">
                   <strong>整项任务尚未执行</strong>
                   <p>允许后，@{coordinator?.mentionHandle || '主控'} 可在本房间已选成员与授权项目内分派、复核并汇总；本次无需逐条批准委派。</p>
                   <small>成员可修改各自授权项目；发布、发送、破坏性删除、扩大范围或读取凭据仍必须停下并另行询问。各本机运行时权限是最终技术边界。</small>
-                  <div><button className="primary-button" disabled={Boolean(busy)} onClick={() => void approveRun(run)}>{busy === `room_approve:${run.id}` ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}允许整项任务</button><button className="small-button danger" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}>拒绝并停止</button></div>
+                  <div><button className="primary-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void approveRun(run)}>{busy === `room_approve:${run.id}` ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}允许整项任务</button><button className="small-button danger" disabled={Boolean(busy) || syncBlocked} onClick={() => void cancelRun(run.id)}>拒绝并停止</button></div>
                 </div>}
-                {run.requiresApproval && !run.approvalId && <div className="arm-run-proof-error" role="alert"><CircleAlert size={14} /><span>批准凭证缺失，本轮保持未执行。请刷新；仍未恢复时停止本轮。</span></div>}
+                {run.status === 'awaiting_approval' && !canApprove && <div className="arm-run-proof-error" role="alert"><CircleAlert size={14} /><span>批准凭证或当前作用域不匹配，本轮保持未执行。请刷新；仍未恢复时停止本轮。</span></div>}
                 {runActions.length > 0 && <ol className="arm-action-list">{runActions.map(action => <TaskAction action={action} member={action.memberId ? membersById.get(action.memberId) : undefined} coordinator={coordinator} key={action.id} />)}</ol>}
                 {!runActions.length && !run.requiresApproval && <p className="arm-run-summary">{run.errorCode ? `任务未完成：${run.errorCode}` : roomStatusLabel(run.status)}</p>}
-                {roomRunActive(run.status) && run.status !== 'cancel_requested' && !run.requiresApproval && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />停止整项任务</button>}
+                {roomRunActive(run.status) && run.status !== 'cancel_requested' && !run.requiresApproval && <button className="aw-text-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void cancelRun(run.id)}><Square size={12} />停止整项任务</button>}
               </article>
             })}
             {detail && !detail.runs.length && <div className="arm-ledger-empty"><ClipboardList size={24} /><strong>尚无任务动态</strong><p>在右侧说出需求。未 @ 成员时，主控会先接手。</p></div>}
@@ -780,8 +909,8 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
             {detail && <div><button className="small-button arm-task-button" onClick={() => setMobilePane('tasks')}><ClipboardList size={14} />任务动态</button><button className="small-button" aria-expanded={membersOpen} onClick={() => setMembersOpen(value => !value)}><Users size={14} />成员</button></div>}
           </header>
           <div className="arm-messages" ref={messageScroll} tabIndex={0} aria-label="房间公共聊天记录">
-            {detail?.window?.hasEarlierMessages && <button className="arm-history-button" disabled={Boolean(busy)} onClick={() => void loadMessageWindow('earlier')}>{busy === 'room_messages_earlier' ? '加载中…' : '加载更早消息'}</button>}
-            {detail?.window?.hasLaterMessages && <div className="arm-catchup" role="status"><span>新消息较多，当前按每批 {detail.window.maxMessages} 条安全追赶。</span><button className="small-button" disabled={Boolean(busy)} onClick={() => void loadMessageWindow('later')}>{busy === 'room_messages_later' ? '追赶中…' : '继续追上新消息'}</button></div>}
+            {detail?.window?.hasEarlierMessages && <button className="arm-history-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void loadMessageWindow('earlier')}>{busy === 'room_messages_earlier' ? '加载中…' : '加载更早消息'}</button>}
+            {detail?.window?.hasLaterMessages && <div className="arm-catchup" role="status"><span>新消息较多，当前按每批 {detail.window.maxMessages} 条安全追赶。</span><button className="small-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void loadMessageWindow('later')}>{busy === 'room_messages_later' ? '追赶中…' : '继续追上新消息'}</button></div>}
             {detail?.messages.map(message => {
               const author = message.authorMemberId ? membersById.get(message.authorMemberId) : undefined
               return <article className={`arm-message ${message.authorType}`} key={message.id}>
@@ -799,7 +928,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
             {detail && <div className="arm-route-preview"><AtSign size={14} /><span>{routePreview}</span>{mentionedMembers.some(member => !member.canDispatch) && <small>离线成员会先显示“等待连接”，不会阻止消息公开。</small>}</div>}
             <label className="aw-sr-only" htmlFor="arm-message-input">发到房间公共聊天</label>
             <textarea ref={textarea} id="arm-message-input" value={draft} maxLength={8000} disabled={!detail} placeholder="说出需求；输入 @ 指定成员…" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded={Boolean(mentionQuery)} aria-controls={mentionQuery ? 'arm-mention-options' : undefined} aria-activedescendant={mentionQuery && mentionOptions[mentionQuery.active] ? `arm-mention-${mentionOptions[mentionQuery.active]!.id}` : undefined} onChange={event => changeDraft(event.target.value, event.target.selectionStart)} onKeyDown={composerKeyDown} />
-            <div className="arm-composer-footer"><span>Enter 发送 · Shift + Enter 换行 · {draft.length}/8000</span><button type="submit" className="primary-button" disabled={!detail || Boolean(busy) || !draft.trim() || !coordinator}>{busy === 'room_send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'room_send' ? '发送中' : '发到房间'}</button></div>
+            <div className="arm-composer-footer"><span>{syncBlocked ? '同步状态未确认，当前仅可阅读和编辑草稿' : 'Enter 发送 · Shift + Enter 换行'} · {draft.length}/8000</span><button type="submit" className="primary-button" disabled={!detail || Boolean(busy) || syncBlocked || !draft.trim() || !coordinator}>{busy === 'room_send' ? <LoaderCircle size={15} className="spin" /> : <Send size={15} />}{busy === 'room_send' ? '发送中' : '发到房间'}</button></div>
           </form>
         </main>
       </div>
@@ -811,8 +940,8 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
           <p>{member.responsibility}</p><small>{member.agentName} · {member.projectName}</small><small>{member.sessionLabel}</small>{member.statusMessage && <small>{member.statusMessage}</small>}
           <div className="arm-session-state"><Wrench size={13} /><span>{member.sessionState === 'pending' ? '会话待创建：成员首次参与时自动准备' : member.sessionState === 'broken' ? '会话需修复：请检查本机智能体与项目授权' : '会话已就绪：独立工作记忆持续保留'}</span></div>
         </article>)}</div>
-        <footer><button className="small-button" onClick={openEdit}><Pencil size={14} />编辑房间</button><button className="small-button danger" onClick={() => setConfirmDelete(true)}><Trash2 size={14} />删除房间并清理记录</button></footer>
-        {confirmDelete && <div className="arm-delete-confirm" role="alert"><strong>删除房间并清理记录？</strong><p>公共聊天正文、任务文本与结果、成员显示名称、@名称、职责和会话标签会立即永久清理且无法恢复。智能体、授权项目、本地文件和已创建的原生会话不会删除。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'room_delete'} onClick={() => void deleteRoom()}>{busy === 'room_delete' ? '永久清理中…' : '删除并永久清理'}</button></div>}
+        <footer><button className="small-button" disabled={syncBlocked} onClick={openEdit}><Pencil size={14} />编辑房间</button><button className="small-button danger" disabled={syncBlocked} onClick={() => setConfirmDelete(true)}><Trash2 size={14} />删除房间并清理记录</button></footer>
+        {confirmDelete && <div className="arm-delete-confirm" role="alert"><strong>删除房间并清理记录？</strong><p>公共聊天正文、任务文本与结果、成员显示名称、@名称、职责和会话标签会立即永久清理且无法恢复。智能体、授权项目、本地文件和已创建的原生会话不会删除。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'room_delete' || syncBlocked} onClick={() => void deleteRoom()}>{busy === 'room_delete' ? '永久清理中…' : '删除并永久清理'}</button></div>}
       </aside>}
     </div>
 
@@ -820,10 +949,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
       {editor && <form onSubmit={event => void saveEditor(event)}>
         <header><div><h2 id="arm-editor-title">{editor.roomId ? '编辑房间' : '新建多智能房间'}</h2><p>选择已有智能体和授权项目；专属原生会话会在成员首次参与时创建。</p></div><button type="button" className="aw-icon-button" aria-label="关闭房间编辑" onClick={closeEditor}><X size={19} /></button></header>
         <div className="arm-editor-body">
-          {editorError && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{editorError}</span></div>}
+          {editorError && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{editorError}</span>{syncBlocked && <button type="button" onClick={() => { setError(''); setReload(value => value + 1) }}>重新同步</button>}</div>}
           {candidateTruncation && <p className="arm-candidate-note" role="status">候选目录仅显示{candidateTruncation}；找不到项目时请先同步本机。</p>}
           <label className="arm-room-name">房间名称<input value={editor.name} maxLength={80} autoFocus placeholder="例如：新产品发布室" onChange={event => updateEditor({ name: event.target.value })} /></label>
-          <div className="arm-editor-heading"><div><h3>成员与身份</h3><p>名称和 @名称只属于这个房间；同一智能体也可承担不同身份。</p></div><div className="arm-editor-add"><span id="arm-member-limit" aria-live="polite">{memberLimitReached ? '此房间已达到当前服务允许的成员上限。' : ''}</span><button type="button" className="small-button" disabled={memberLimitReached} aria-describedby="arm-member-limit" onClick={() => updateEditor({ members: [...editor.members, blankMember(editor.members.length)] })}><Plus size={14} />添加成员</button></div></div>
+          <div className="arm-editor-heading"><div><h3>成员与身份</h3><p>名称和 @名称只属于这个房间；同一智能体也可承担不同身份。</p></div><div className="arm-editor-add"><span id="arm-member-limit" aria-live="polite">{memberLimitReached ? '此房间已达到当前服务允许的成员上限。' : ''}</span><button type="button" className="small-button" disabled={memberLimitReached || syncBlocked} aria-describedby="arm-member-limit" onClick={() => updateEditor({ members: [...editor.members, blankMember(editor.members.length)] })}><Plus size={14} />添加成员</button></div></div>
           <div className="arm-member-editors">{editor.members.map((member, index) => {
             const agent = candidateCatalog?.agents.find(item => item.id === member.agentId)
             return <fieldset className="arm-member-editor" key={member.id}>
@@ -836,7 +965,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
             </fieldset>
           })}</div>
         </div>
-        <footer><span className="arm-editor-guidance" data-error={Boolean(editorValidation)} aria-live="polite">{editorValidation || '保存不会扩大项目授权，也不会立即启动离线智能体。'}</span><button type="button" className="small-button" onClick={closeEditor}>取消</button><button type="submit" className="primary-button" disabled={Boolean(editorValidation) || Boolean(busy)}>{busy === 'room_create' || busy === 'room_update' ? <LoaderCircle size={15} className="spin" /> : null}{editor.roomId ? '保存房间' : '创建房间'}</button></footer>
+        <footer><span className="arm-editor-guidance" data-error={Boolean(editorValidation) || syncBlocked} aria-live="polite">{syncBlocked ? '同步合同未确认，房间设置已冻结；刷新成功后再保存。' : editorValidation || '保存不会扩大项目授权，也不会立即启动离线智能体。'}</span><button type="button" className="small-button" onClick={closeEditor}>取消</button><button type="submit" className="primary-button" disabled={Boolean(editorValidation) || Boolean(busy) || syncBlocked}>{busy === 'room_create' || busy === 'room_update' ? <LoaderCircle size={15} className="spin" /> : null}{editor.roomId ? '保存房间' : '创建房间'}</button></footer>
       </form>}
     </dialog>
   </section>
