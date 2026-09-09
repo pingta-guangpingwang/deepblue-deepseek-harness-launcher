@@ -123,6 +123,8 @@ export function verifyRuntimeCatalogManifest(manifest, publicKey, expectedKeyId 
   try {
     if (!isRecord(manifest) || JSON.stringify(Object.keys(manifest).sort()) !== JSON.stringify(['algorithm', 'keyId', 'payload', 'signature']) || manifest.keyId !== expectedKeyId || manifest.algorithm !== 'ed25519' || manifest.payload?.schemaVersion !== 2) return false
     if (typeof manifest.payload.generatedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(manifest.payload.generatedAt)) return false
+    const generatedAt = Date.parse(manifest.payload.generatedAt)
+    if (!Number.isFinite(generatedAt) || new Date(generatedAt).toISOString() !== manifest.payload.generatedAt) return false
     if (typeof manifest.signature !== 'string' || !/^[A-Za-z0-9+/]{86}==$/.test(manifest.signature)) return false
     const signature = Buffer.from(manifest.signature, 'base64')
     if (signature.length !== 64 || signature.toString('base64') !== manifest.signature) return false
