@@ -30,7 +30,7 @@
 2. 群成员记录 `roleId → agentId + projectId + nativeSessionId`。首条任务先预留角色会话槽；拿到原生 sessionId 后持久化，再接受该角色后续任务。
 3. 同项目写入默认串行；现有会话 lane 串行规则继续生效。不同角色不等于允许同时修改同一目录。
 4. 每条群消息有稳定 clientRequestId；每次角色调用派生固定任务幂等键。断网重试查原任务，不创建替代任务。
-5. 状态明确分为 queued、running、awaiting_approval、completed、failed、cancel_requested、cancelled。仅本机完成回执可标记 completed；进度不能代替结果。
+5. 状态明确分为 queued、running、awaiting_approval、unknown、completed、failed、cancel_requested、cancelled。仅本机完成回执可标记 completed；进度不能代替结果。
 6. 主控回复使用严格结构化动作：`delegate(roleId, instruction)` 或 `finish(summary)`。普通文字不是命令；不合法、越权或超过轮数的委派停止并显示原因。
 7. 默认最多 6 次角色调用，用户可在开始前设置 1–12 次；主控规划/汇总也计入上限。限制单次上下文和输出，不允许无界自我对话。
 8. 取消先停止后续派发，再对实际已创建任务发送取消；未收到本机停止回执时保持“取消中”。重启后根据任务 ID 对账，不重放已成功任务。
@@ -43,13 +43,13 @@
 - 两个不同智能体完成一次“规划 → 执行 → 复核”，以及同智能体两个角色的会话隔离。
 - 双击提交、网络中断/进程重启、未知执行结果、跨用户/跨项目、取消竞态、无效主控命令、达到轮数限制。
 - 桌面与手机截图：创建、成员离线、执行中、停止中、失败、完成；验证输入区和关键按钮不被挤出视口。
-- 签名发布 agent-host/UI 模块；基础安装器只有 IPC 不兼容时才升级。新数据库迁移先登记，禁止修改已发布迁移。
+- 签名发布 agent-host/UI 模块；只有主进程安全合同、IPC 或原生依赖变化时才升级基础安装器。新数据库迁移先登记，禁止修改已发布迁移。
 
 ## 2026-09-09 启动器本地 UI 纵向切片
 
 启动器已增加本地“会话群”页签和合成数据验收，仍不代表生产 API 已发布。界面继续使用工作台三栏：群列表、成员与角色、群任务与动作；`390×844` 下按群、成员、任务逐层进入，任务输入区固定在可见区域内。
 
-当前公共基础启动器 `0.10.34` 的主进程请求 allowlist 不认识 `group_*` 和 GET `groupId`，单独热更新 launcher-ui/agent-host 仍会在发网前拒绝请求。本分支把基础版本提升到 `0.10.35`，UI 同时按 `snapshot.launcherVersion >= 0.10.35` 自门禁；这只是界面能力检查，现有模块 metadata 的最低版本声明尚未改为或实现这项门禁，不得宣称模块安装器会替代检查。公开时必须先发布并验证包含 allowlist 的 `0.10.35` 基础启动器，再发布/启用会话群 UI，且必须等待服务端合同就绪。
+当前公共基础启动器 `0.10.34` 的主进程请求 allowlist 不认识 `group_*` 和 GET `groupId`，单独热更新 launcher-ui/agent-host 仍会在发网前拒绝请求。本分支把基础版本提升到 `0.10.35`，UI 同时按 `snapshot.launcherVersion >= 0.10.35` 自门禁；这只是界面能力检查，现有模块 metadata 的最低版本声明尚未改为或实现这项门禁，不得宣称模块安装器会替代检查。公开顺序必须是：先完成并验证服务端迁移、API 和受监督 Worker，再发布包含 allowlist 和内置 UI 的 `0.10.35` 基础启动器，最后才更新公共 launcher-ui 热更新清单。
 
 Launcher 通过现有 `agentWorkspaceRequest` 使用以下固定动作：
 
