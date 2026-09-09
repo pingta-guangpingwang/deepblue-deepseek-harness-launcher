@@ -12,7 +12,7 @@ import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 
-const CONNECTOR_VERSION = '0.10.6';
+const CONNECTOR_VERSION = '0.10.7';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -146,6 +146,9 @@ export class AgentConnector {
     this.runtimeFingerprint = '';
     this.runtimeLease = randomBytes(32).toString('hex');
     this.previousRuntimeLease = '';
+    this.runtimeStatus = 'unknown';
+    this.runtimeMode = options.runtimeMode === 'launcher_hosted' ? 'launcher_hosted' : 'standalone';
+    this.runtimeStatusFresh = false;
     this.codexHost = options.codexHost || null;
     this.disconnectSent = false;
     this.mutationQueue = Promise.resolve();
@@ -159,6 +162,11 @@ export class AgentConnector {
   updateRevision(response) {
     const revision = Number(response && response.stateRevision);
     if (Number.isFinite(revision)) this.state.stateRevision = Math.max(this.state.stateRevision, revision);
+  }
+
+  setRuntimeStatus(status) {
+    this.runtimeStatus = ['ready', 'busy', 'needs_login', 'not_installed', 'unavailable', 'stopped', 'running', 'error', 'starting'].includes(status) ? status : 'unknown';
+    this.runtimeStatusFresh = true;
   }
 
   syncIsActive(now = Date.now()) {
@@ -253,6 +261,7 @@ export class AgentConnector {
           adapterCode: this.config.adapterCode,
           connectorVersion: CONNECTOR_VERSION,
           runtimeFingerprint: this.runtimeFingerprint,
+          runtimeMode: this.runtimeMode,
           runtimeLabel: this.config.runtimeLabel,
           osFamily: platform(),
           architecture: arch(),
@@ -285,10 +294,16 @@ export class AgentConnector {
     if (!this.state) return;
     let becameActive = false;
     const response = await this.serializeMutation(async () => {
+      const runtimeChecked = this.runtimeStatusFresh;
+      this.runtimeStatusFresh = false;
       const response = await this.api.request('heartbeat', {
         method: 'POST',
         idempotencyKey: `heartbeat:${this.state.installationId}:${Math.floor(Date.now() / 10000)}`,
-        body: { status: this.runningTasks.size ? 'working' : 'online' }
+        body: {
+          status: this.runningTasks.size ? 'working' : 'online',
+          runtimeStatus: this.runningTasks.size && this.runtimeStatus === 'ready' ? 'busy' : this.runtimeStatus,
+          runtimeChecked
+        }
       });
       this.updateRevision(response);
       becameActive = this.applySyncDirective(response);

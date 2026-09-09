@@ -6,7 +6,7 @@ import { childEnvironmentWithoutSecret, terminateRuntime, waitForExit } from './
 import { safeFinalReply } from './privacy.mjs';
 import { safeRuntimeDiagnostic } from './runtime-diagnostics.mjs';
 
-const CLIENT_VERSION = '0.10.6';
+const CLIENT_VERSION = '0.10.7';
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 function sleep(milliseconds) {

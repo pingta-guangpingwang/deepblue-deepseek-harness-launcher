@@ -52,7 +52,7 @@ export class ConnectorApi {
           authorization: `Bearer ${this.interactionKey}`,
           'x-agent-runtime-fingerprint': this.runtimeFingerprint,
           'x-agent-runtime-lease': this.runtimeLease,
-          'user-agent': 'shenlan-agent-connector/0.10.6'
+          'user-agent': 'shenlan-agent-connector/0.10.7'
         };
         if (/^[a-f0-9]{64}$/.test(this.previousRuntimeLease)) headers['x-agent-previous-runtime-lease'] = this.previousRuntimeLease;
         const init = { method, headers, signal: controller.signal };

@@ -68,9 +68,13 @@ export class HostChildController {
   async tick() {
     if (!this.healthBusy && this.phase === 'ready' && this.connector && this.now() - this.lastHealthAt >= 30000) {
       this.healthBusy = true;
-      try { this.runtimeReady = await this.probeRuntime(this.connector.config, this.connector); }
-      catch { this.runtimeReady = false; }
-      finally { this.lastHealthAt = this.now(); this.healthBusy = false; }
+      try {
+        try { this.runtimeReady = await this.probeRuntime(this.connector.config, this.connector); }
+        catch { this.runtimeReady = false; }
+        if (this.phase !== 'ready' || this.stopRequested || !this.connector) return;
+        this.connector.setRuntimeStatus?.(this.runtimeReady === true ? 'ready' : this.runtimeReady === false ? 'error' : 'unknown');
+        await this.connector.heartbeat({ synchronizeIfActivated: false }).catch(() => {});
+      } finally { this.lastHealthAt = this.now(); this.healthBusy = false; }
     }
     this.emitStatus();
   }
@@ -135,10 +139,14 @@ export class HostChildController {
       }
     };
     const logger = Object.fromEntries(['info', 'warn', 'error'].map((level) => [level, (value) => this.send({ type: 'log', instanceId: this.instanceId, level, message: this.redact(value) })]));
-    this.connector = this.createConnector(config, { api, logger });
+    this.connector = this.createConnector(config, { api, logger, runtimeMode: 'launcher_hosted' });
     await this.connector.start();
     try { this.runtimeReady = await this.probeRuntime(config, this.connector); }
     catch { this.runtimeReady = false; }
+    if(!this.stopRequested){
+      this.connector.setRuntimeStatus?.(this.runtimeReady === true ? 'ready' : this.runtimeReady === false ? 'error' : 'unknown');
+      await this.connector.heartbeat({ synchronizeIfActivated: false }).catch(() => {});
+    }
     this.lastHealthAt = this.now();
     this.phase = this.stopRequested ? 'stopping' : 'ready';
     this.emitStatus(true);

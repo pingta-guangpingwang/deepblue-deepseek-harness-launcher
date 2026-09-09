@@ -8,6 +8,7 @@ import { LocalStateStore } from './state.mjs';
 import { CodexAppServerHost } from './codex-app-server.mjs';
 import { access } from 'node:fs/promises';
 import { handoffMarkerPath, startServiceControl } from './service-control.mjs';
+import { probeRuntimeHealth } from './runtime-health.mjs';
 import { acquireServiceLock, adoptServiceConfig, registerAutoStart, registerIdeMcpServer, servicePaths, serviceStatus, startDetachedService, stopService, writeServiceConfig } from './service-manager.mjs';
 
 function usage() {
@@ -72,9 +73,22 @@ async function runService(configPath) {
   const connector = new AgentConnector(config);
   let stopping = false;
   let control;
+  let healthTimer;
+  let healthBusy = false;
+  const refreshHealth = async () => {
+    if (healthBusy || !connector.running) return;
+    healthBusy = true;
+    try {
+      const ready = await probeRuntimeHealth(config, connector).catch(() => false);
+      if (stopping || !connector.running) return;
+      connector.setRuntimeStatus(ready === true ? 'ready' : ready === false ? 'error' : 'unknown');
+      await connector.heartbeat({ synchronizeIfActivated: false }).catch(() => {});
+    } finally { healthBusy = false; }
+  };
   const stop = async (signal) => {
     if (stopping) return;
     stopping = true;
+    clearInterval(healthTimer);
     process.stdout.write(`\n收到 ${signal}，正在安全停止同步服务…\n`);
     await connector.stop().catch(() => {});
     await releaseLock();
@@ -83,10 +97,14 @@ async function runService(configPath) {
   process.once('SIGTERM', () => { void stop('SIGTERM'); });
   try {
     await connector.start();
+    await refreshHealth();
+    healthTimer = setInterval(() => { void refreshHealth(); }, 30000);
+    healthTimer.unref();
     control = await startServiceControl({ config, connector, stop });
     process.stdout.write(`深蓝同步服务已上线；${config.adapterCode} 已同步 ${config.projects.length} 个显式项目。\n`);
     await connector.waitUntilStopped();
   } finally {
+    clearInterval(healthTimer);
     await connector.stop().catch(() => {});
     await control?.close();
     await releaseLock();
