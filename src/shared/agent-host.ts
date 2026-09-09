@@ -82,6 +82,8 @@ export interface AgentSessionGroupRole {
   nativeSessionId: string
   nativeSessionTitle: string
   status: string
+  canDispatch: boolean
+  dispatchErrorCode?: string
   readinessSource?: 'host' | 'standalone' | string
   message?: string
 }
@@ -114,6 +116,7 @@ export interface AgentSessionGroupAction {
   summary: string
   finalText?: string
   errorCode?: string
+  approvalInstruction?: string
   approvalRequired?: boolean
   approvalReason?: string
   approvedAt?: string
@@ -129,6 +132,7 @@ export interface AgentSessionGroupDetailWindow {
   hasMoreActions: boolean
   maxRunBodyChars: number
   maxActionInstructionChars: number
+  maxApprovalInstructionChars: number
   maxActionResultChars: number
 }
 export interface AgentSessionGroupDetail {

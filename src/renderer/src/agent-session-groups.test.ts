@@ -7,17 +7,17 @@ describe('agent session group contracts', () => {
   it('normalizes snake-case group detail without inventing completion', () => {
     const detail = normalizeSessionGroupDetail({
       group: { id: 'group-a', name: '发布协作组', control_mode: 'coordinator', coordinator_role_id: 'role-a', max_turns: 8, role_count: 2, status: 'running' },
-      roles: [{ id: 'role-a', role_name: '规划', responsibility: '拆解任务', agent_id: 'agent-a', agent_name: 'Codex', project_id: 'project-a', project_name: '主站', native_session_id: 'session-a', native_session_title: '发布计划', runtime_status: 'ready', readiness_source: 'host' }],
+      roles: [{ id: 'role-a', role_name: '规划', responsibility: '拆解任务', agent_id: 'agent-a', agent_name: 'Codex', project_id: 'project-a', project_name: '主站', native_session_id: 'session-a', native_session_title: '发布计划', runtime_status: 'ready', can_dispatch: true, readiness_source: 'host' }],
       runs: [{ id: 'run-a', request_text: null, final_text: null, content_available: false, content_pruned_at: '2026-09-09T09:00:00+08:00', content_truncated: 1, status: 'cancel_requested', latest_summary: '等待本机停止', client_request_id: 'request-a', target_role_ids: ['role-a'], max_turns: 8 }],
-      actions: [{ id: 'action-b', run_id: 'run-a', role_id: 'role-a', ordinal: 2, action_type: 'finish', status: 'awaiting_user_approval', instruction: '给出结论', approval_required: 1, approval_reason: 'cross_project_write_capable_delegate', content_truncated: true }, { id: 'action-a', run_id: 'run-a', role_id: 'role-a', ordinal: 1, action_type: 'delegate', effective_status: 'failed', task_status: 'unknown', latest_summary: '派发失败', error_code: 'agent_offline' }],
+      actions: [{ id: 'action-b', run_id: 'run-a', role_id: 'role-a', ordinal: 2, action_type: 'delegate', status: 'awaiting_user_approval', instruction: '给出结论', approval_instruction: '只复核本次结论', approval_required: 1, approval_reason: 'cross_project_write_capable_delegate', content_truncated: true }, { id: 'action-a', run_id: 'run-a', role_id: 'role-a', ordinal: 1, action_type: 'delegate', effective_status: 'failed', task_status: 'unknown', latest_summary: '派发失败', error_code: 'agent_offline' }],
       detail_revision: 'f'.repeat(64),
-      window: { max_runs: 12, max_actions: 144, run_count: 15, action_count: 160, has_more_runs: true, has_more_actions: true, max_run_body_chars: 8000, max_action_instruction_chars: 4000, max_action_result_chars: 8000 }
+      window: { max_runs: 12, max_actions: 144, run_count: 15, action_count: 160, has_more_runs: true, has_more_actions: true, max_run_body_chars: 8000, max_action_instruction_chars: 4000, max_approval_instruction_chars: 8000, max_action_result_chars: 8000 }
     })
     expect(detail.group).toMatchObject({ id: 'group-a', mode: 'coordinator', coordinatorRoleId: 'role-a', maxTurns: 8, status: 'running' })
-    expect(detail.roles[0]).toMatchObject({ name: '规划', agentName: 'Codex', nativeSessionId: 'session-a', status: 'ready', readinessSource: 'host' })
+    expect(detail.roles[0]).toMatchObject({ name: '规划', agentName: 'Codex', nativeSessionId: 'session-a', status: 'ready', canDispatch: true, readinessSource: 'host' })
     expect(detail.runs[0]).toMatchObject({ id: 'run-a', status: 'cancel_requested', clientRequestId: 'request-a', contentAvailable: false, contentPrunedAt: '2026-09-09T09:00:00+08:00', contentTruncated: true })
     expect(detail.actions[0]).toMatchObject({ id: 'action-a', ordinal: 1, runId: 'run-a', actionType: 'delegate', status: 'failed', taskStatus: 'unknown', errorCode: 'agent_offline' })
-    expect(detail.actions[1]).toMatchObject({ id: 'action-b', ordinal: 2, instruction: '给出结论', approvalRequired: true, approvalReason: 'cross_project_write_capable_delegate', contentTruncated: true })
+    expect(detail.actions[1]).toMatchObject({ id: 'action-b', ordinal: 2, instruction: '给出结论', approvalInstruction: '只复核本次结论', approvalRequired: true, approvalReason: 'cross_project_write_capable_delegate', contentTruncated: true })
     expect(detail).toMatchObject({ detailRevision: 'f'.repeat(64), window: { maxRuns: 12, maxActions: 144, runCount: 15, actionCount: 160, hasMoreRuns: true, hasMoreActions: true } })
     expect(groupRunActive(detail.runs[0]!.status)).toBe(true)
   })
@@ -43,10 +43,11 @@ describe('agent session group contracts', () => {
     expect(groupStatusLabel('unknown')).toBe('结果待确认')
     expect(groupStatusLabel('failed')).toBe('失败')
     expect(groupStatusLabel('completed')).toBe('已完成')
-    expect(groupRoleReady('ready')).toBe(true)
-    expect(groupRoleReady('busy')).toBe(true)
-    expect(groupRoleReady('online')).toBe(false)
-    expect(groupRoleReady('working')).toBe(false)
+    expect(groupRoleReady(true)).toBe(true)
+    expect(groupRoleReady(false)).toBe(false)
+    expect(groupRoleReady('ready')).toBe(false)
+    expect(groupRoleReady(undefined)).toBe(false)
+    expect(normalizeSessionGroupDetail({ group: { id: 'g' }, roles: [{ id: 'r', runtime_status: 'ready' }], runs: [], actions: [] }).roles[0]?.canDispatch).toBe(false)
     expect(groupRoleReady('offline')).toBe(false)
     expect(groupRunActive('unknown')).toBe(true)
     expect(normalizeSessionGroupSummary({ id: 'g', maxTurns: 99 }).maxTurns).toBe(12)

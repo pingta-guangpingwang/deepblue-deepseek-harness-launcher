@@ -17,7 +17,7 @@ import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSession
 type JsonRecord = Record<string, unknown>
 interface CandidateSession { id: string; projectId: string; title: string }
 interface CandidateProject { id: string; name: string; sessions: CandidateSession[] }
-interface CandidateAgent { id: string; name: string; adapter: string; status: string; readinessSource?: string; projects: CandidateProject[]; message?: string }
+interface CandidateAgent { id: string; name: string; adapter: string; status: string; canDispatch: boolean; dispatchErrorCode?: string; readinessSource?: string; projects: CandidateProject[]; message?: string }
 interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean; sessions: boolean }; limits: { agents: number; projects: number; sessions: number } }
 interface GroupEditorState {
   groupId?: string
@@ -46,7 +46,7 @@ export function groupStatusLabel(value: string): string {
   } as Record<string, string>)[value] || value || '待检查'
 }
 
-export function groupRoleReady(status: string): boolean { return ['ready', 'busy'].includes(status) }
+export function groupRoleReady(canDispatch: unknown): boolean { return canDispatch === true }
 export function groupRunActive(status: string): boolean { return ACTIVE_RUNS.has(status) }
 
 export function normalizeSessionGroupSummary(value: unknown): AgentSessionGroupSummary {
@@ -82,6 +82,8 @@ function normalizeRole(value: unknown): AgentSessionGroupRole {
     nativeSessionId: text(field(row, 'native_session_id', 'nativeSessionId', 'session_id', 'sessionId')),
     nativeSessionTitle: text(field(row, 'native_session_title', 'nativeSessionTitle', 'session_title', 'sessionTitle')) || '原生会话',
     status: text(field(row, 'runtime_status', 'runtimeStatus', 'status', 'agent_status', 'agentStatus')) || 'unknown',
+    canDispatch: field(row, 'can_dispatch', 'canDispatch') === true || Number(field(row, 'can_dispatch', 'canDispatch')) === 1,
+    dispatchErrorCode: text(field(row, 'dispatch_error_code', 'dispatchErrorCode')) || undefined,
     readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined,
     message: text(field(row, 'message', 'status_message', 'statusMessage')) || undefined
   }
@@ -123,6 +125,7 @@ function normalizeAction(value: unknown): AgentSessionGroupAction {
     summary: text(field(row, 'summary', 'latest_summary', 'latestSummary')),
     finalText: text(field(row, 'final_text', 'finalText')) || undefined,
     errorCode: text(field(row, 'error_code', 'errorCode')) || undefined,
+    approvalInstruction: text(field(row, 'approval_instruction', 'approvalInstruction')) || undefined,
     approvalRequired: field(row, 'approval_required', 'approvalRequired') === true || Number(field(row, 'approval_required', 'approvalRequired')) === 1,
     approvalReason: text(field(row, 'approval_reason', 'approvalReason')) || undefined,
     approvedAt: text(field(row, 'approved_at', 'approvedAt')) || undefined,
@@ -149,6 +152,7 @@ export function normalizeSessionGroupDetail(value: unknown): AgentSessionGroupDe
       hasMoreActions: field(rawWindow, 'has_more_actions', 'hasMoreActions') === true,
       maxRunBodyChars: Math.max(0, Number(field(rawWindow, 'max_run_body_chars', 'maxRunBodyChars')) || 0),
       maxActionInstructionChars: Math.max(0, Number(field(rawWindow, 'max_action_instruction_chars', 'maxActionInstructionChars')) || 0),
+      maxApprovalInstructionChars: Math.max(0, Number(field(rawWindow, 'max_approval_instruction_chars', 'maxApprovalInstructionChars')) || 0),
       maxActionResultChars: Math.max(0, Number(field(rawWindow, 'max_action_result_chars', 'maxActionResultChars')) || 0)
     } : undefined
   }
@@ -187,7 +191,7 @@ function normalizeFlattenedCandidates(value: unknown): CandidateCatalog | undefi
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
     const projects = sourceProjects.filter(project => project.agentId === id).map(project => ({ id: project.id, name: project.name, sessions: sourceSessions.filter(session => session.projectId === project.id && (!session.agentId || session.agentId === id)).map(({ id: sessionId, projectId, title }) => ({ id: sessionId, projectId, title })) }))
-    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus')) || 'unknown', readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined, projects, message: text(field(row, 'status_message', 'statusMessage', 'message')) || undefined }
+    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus')) || 'unknown', canDispatch: field(row, 'can_dispatch', 'canDispatch') === true || Number(field(row, 'can_dispatch', 'canDispatch')) === 1, dispatchErrorCode: text(field(row, 'dispatch_error_code', 'dispatchErrorCode')) || undefined, readinessSource: text(field(row, 'readiness_source', 'readinessSource')) || undefined, projects, message: text(field(row, 'status_message', 'statusMessage', 'message')) || undefined }
   }).filter(agent => agent.id)
   const truncated = object(catalog.truncated)
   const limits = object(catalog.limits)
@@ -213,11 +217,14 @@ function Status({ value }: { value: string }): React.JSX.Element {
   return <span className={`asg-status ${tone}`}><i aria-hidden="true" />{groupStatusLabel(value)}</span>
 }
 
-function ActionRecord({ action, role, busy, onApprove, onReject }: { action: AgentSessionGroupAction; role?: AgentSessionGroupRole; busy: boolean; onApprove(): void; onReject(): void }): React.JSX.Element {
+function ActionRecord({ action, run, role, busy, onApprove, onReject }: { action: AgentSessionGroupAction; run: AgentSessionGroupRun; role?: AgentSessionGroupRole; busy: boolean; onApprove(): void; onReject(): void }): React.JSX.Element {
   const roleName = role?.name || '群编排'
   const awaitingApproval = action.approvalRequired === true && action.status === 'awaiting_user_approval'
-  const hasCopy = Boolean(action.instruction || action.summary || action.finalText || action.errorCode)
-  return <div className={`asg-action ${awaitingApproval ? 'needs-approval' : ''}`}><span>{roleName}</span><div className="asg-action-copy">{awaitingApproval ? <div className="asg-approval" role="alert"><strong>主控请求委派，尚未执行</strong><p>{role?.agentName || '智能体'} · {role?.projectName || '项目'} · {role?.nativeSessionTitle || '原生会话'}</p><p><strong>拟派任务：</strong>{action.instruction || '未提供任务内容'}</p><small>该智能体拥有当前项目的实际操作能力；只有你明确允许后才会派发。</small><div><button className="primary-button" disabled={busy} onClick={onApprove}>{busy ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}允许委派</button><button className="small-button danger" disabled={busy} onClick={onReject}>拒绝并停止</button></div></div> : <>{action.instruction && <p><strong>任务：</strong>{action.instruction}</p>}{action.summary && <p>{action.summary}</p>}{action.finalText && <p><strong>结果：</strong>{action.finalText}</p>}{action.errorCode && <code>错误：{action.errorCode}</code>}{!hasCopy && <p>{action.actionType}</p>}</>}{action.contentTruncated && <small className="asg-truncated">内容过长，当前只显示安全截断后的部分。</small>}</div><Status value={action.status} /></div>
+  const coordinatorStart = action.approvalReason === 'coordinator_run_write_capable'
+  const approvalInstruction = action.approvalInstruction || (coordinatorStart ? run.instruction : action.instruction)
+  const visibleInstruction = action.actionType === 'coordinator' ? (action.ordinal === 1 ? run.instruction : '主控根据上一角色结果继续规划与汇总') : action.instruction
+  const hasCopy = Boolean(visibleInstruction || action.summary || action.finalText || action.errorCode)
+  return <div className={`asg-action ${awaitingApproval ? 'needs-approval' : ''}`}><span>{roleName}</span><div className="asg-action-copy">{awaitingApproval ? <div className="asg-approval" role="alert"><strong>{coordinatorStart ? '主控准备开始本轮规划，尚未执行' : '主控请求委派，尚未执行'}</strong><p>{role?.agentName || '智能体'} · {role?.projectName || '项目'} · {role?.nativeSessionTitle || '原生会话'}</p><p><strong>{coordinatorStart ? '本轮任务：' : '拟派任务：'}</strong>{approvalInstruction || '未提供任务内容'}</p><small>{coordinatorStart ? `该主控拥有当前项目的实际操作能力。允许后，仅在本轮最多 ${run.maxTurns} 次调用范围内负责规划与汇总；对其他角色的委派仍会逐次询问你。` : '该智能体拥有当前项目的实际操作能力；只有你明确允许后才会派发。'}</small><div><button className="primary-button" disabled={busy} onClick={onApprove}>{busy ? <LoaderCircle size={14} className="spin" /> : <CheckCircle2 size={14} />}{coordinatorStart ? '允许主控开始' : '允许委派'}</button><button className="small-button danger" disabled={busy} onClick={onReject}>拒绝并停止</button></div></div> : <>{visibleInstruction && <p><strong>任务：</strong>{visibleInstruction}</p>}{action.summary && <p>{action.summary}</p>}{action.finalText && <p><strong>结果：</strong>{action.finalText}</p>}{action.errorCode && <code>错误：{action.errorCode}</code>}{!hasCopy && <p>{action.actionType}</p>}</>}{action.contentTruncated && <small className="asg-truncated">内容过长，当前只显示安全截断后的部分。</small>}</div><Status value={action.status} /></div>
 }
 
 export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
@@ -285,7 +292,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
         let nextCandidates = flattened?.agents
         if (!nextCandidates) {
           const bootstrap = await request({ scope: 'hub', method: 'GET', action: 'bootstrap' })
-          const agents = rows(bootstrap.agents).map(row => ({ id: text(row.id), name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(row.status) || 'unknown' })).filter(agent => agent.id)
+          const agents = rows(bootstrap.agents).map(row => ({ id: text(row.id), name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(row.status) || 'unknown', canDispatch: false, message: '当前服务未提供可验证的运行时状态，请升级 Connector 后刷新。' })).filter(agent => agent.id)
           nextCandidates = await Promise.all(agents.map(async agent => {
             try {
               const response = await request({ scope: 'hub', method: 'GET', action: 'agent_state', params: { agentId: agent.id } })
@@ -294,12 +301,12 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
               const projects = rows(state.projects).map(row => { const id = text(row.id); return { id, name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目', sessions: sessions.filter(session => session.projectId === id) } }).filter(project => project.id)
               return { ...agent, projects }
             } catch (cause) {
-              return { ...agent, projects: [], message: cause instanceof Error ? cause.message : '项目与会话暂不可读' }
+              return { ...agent, canDispatch: false, projects: [], message: cause instanceof Error ? cause.message : '项目与会话暂不可读' }
             }
           }))
         }
         if (!current()) return
-        setGroups(nextGroups); setCandidates(nextCandidates); setCandidateCatalog(flattened)
+        setGroups(nextGroups); setCandidates(nextCandidates || []); setCandidateCatalog(flattened)
         setSelectedGroupId(previous => previous && nextGroups.some(group => group.id === previous) ? previous : nextGroups[0]?.id || '')
         setSyncError('')
       } catch (cause) { if (current()) setSyncError(cause instanceof Error ? cause.message : '无法读取会话群。') }
@@ -363,10 +370,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const roleById = useMemo(() => new Map((detail?.roles || []).map(role => [role.id, role])), [detail?.roles])
   const editorValidation = editor ? validateSessionGroupDraft(editor) : ''
   const coordinator = detail?.roles.find(role => role.id === coordinatorRoleId)
-  const manualTargetsReady = targetRoleIds.length > 0 && targetRoleIds.every(id => groupRoleReady(roleById.get(id)?.status || 'offline'))
+  const manualTargetsReady = targetRoleIds.length > 0 && targetRoleIds.every(id => groupRoleReady(roleById.get(id)?.canDispatch))
   const manualTargetsWithinLimit = targetRoleIds.length <= maxTurns
-  const coordinatorOfflineRoles = detail?.roles.filter(role => !groupRoleReady(role.status)) || []
-  const coordinatorReady = Boolean(coordinator && groupRoleReady(coordinator.status) && coordinatorOfflineRoles.length === 0)
+  const coordinatorOfflineRoles = detail?.roles.filter(role => !groupRoleReady(role.canDispatch)) || []
+  const coordinatorReady = Boolean(coordinator && groupRoleReady(coordinator.canDispatch) && coordinatorOfflineRoles.length === 0)
   const sendReady = dispatchMode === 'manual' ? manualTargetsReady && manualTargetsWithinLimit : coordinatorReady
   const candidateTruncation = candidateCatalog ? (['agents', 'projects', 'sessions'] as const).filter(key => candidateCatalog.truncated[key]).map(key => `${{ agents: '智能体', projects: '项目', sessions: '会话' }[key]}最近 ${candidateCatalog.limits[key] || '有限'} 项`).join('、') : ''
 
@@ -491,10 +498,10 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
       </aside>
       <main className="asg-pane asg-activity-pane">
         <header className="asg-activity-heading"><button className="asg-back aw-icon-button" aria-label="返回成员列表" onClick={() => setMobilePane('roles')}><ArrowLeft size={17} /></button><div><h2>{detail?.group.name || '群任务'}</h2><p>{detail ? `${detail.roles.length} 个角色 · ${activeRun ? groupStatusLabel(activeRun.status) : '暂无进行中任务'}` : '选择会话群后开始'}</p></div>{detail && <Status value={activeRun?.status || detail.group.status} />}</header>
-        <div className="asg-activity" tabIndex={0} aria-label="会话群任务与动作记录">{detail?.window && (detail.window.hasMoreRuns || detail.window.hasMoreActions) && <p className="asg-window-note">为控制同步体积，仅显示最近 {detail.window.maxRuns} 次运行与 {detail.window.maxActions} 个动作；更早记录仅保留审计状态。</p>}{detail?.runs.map(run => <article className="asg-run" key={run.id}><header><div><strong>{run.contentAvailable ? run.instruction || '群任务' : '历史群任务（正文已清理）'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header><p>{run.contentAvailable ? run.finalText || run.summary || groupStatusLabel(run.status) : `正文已按最近 10 次保留策略清理${run.contentPrunedAt ? ` · ${timestamp(run.contentPrunedAt)}` : ''}`}</p>{run.contentTruncated && <small className="asg-truncated">任务正文过长，当前只显示安全截断后的部分。</small>}<div className="asg-run-meta"><span>{run.mode === 'coordinator' ? '主控协调' : `发送给 ${run.targetRoleIds.length || '所选'} 个角色`}</span><span>上限 {run.maxTurns} 次</span></div>{detail.actions.filter(action => action.runId === run.id).map(action => <ActionRecord action={action} role={action.roleId ? roleById.get(action.roleId) : undefined} busy={Boolean(busy)} onApprove={() => void approveDelegate(run.id, action.id)} onReject={() => void cancelRun(run.id)} key={action.id} />)}{groupRunActive(run.status) && run.status !== 'cancel_requested' && !detail.actions.some(action => action.runId === run.id && action.status === 'awaiting_user_approval') && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />取消群任务</button>}</article>)}{detail && !detail.runs.length && <div className="asg-empty"><MessageSquare size={25} /><strong>还没有群任务</strong><p>选择角色并发送一条明确任务。系统会保留原生会话边界和执行上限。</p></div>}{!detail && <div className="asg-empty"><Users size={25} /><strong>选择一个会话群</strong><p>任务、角色动作和最终结果会显示在这里。</p></div>}</div>
+        <div className="asg-activity" tabIndex={0} aria-label="会话群任务与动作记录">{detail?.window && (detail.window.hasMoreRuns || detail.window.hasMoreActions) && <p className="asg-window-note">为控制同步体积，仅显示最近 {detail.window.maxRuns} 次运行与 {detail.window.maxActions} 个动作；更早记录仅保留审计状态。</p>}{detail?.runs.map(run => <article className="asg-run" key={run.id}><header><div><strong>{run.contentAvailable ? run.instruction || '群任务' : '历史群任务（正文已清理）'}</strong><time>{timestamp(run.createdAt)}</time></div><Status value={run.status} /></header><p>{run.contentAvailable ? run.finalText || run.summary || groupStatusLabel(run.status) : `正文已按最近 10 次保留策略清理${run.contentPrunedAt ? ` · ${timestamp(run.contentPrunedAt)}` : ''}`}</p>{run.contentTruncated && <small className="asg-truncated">任务正文过长，当前只显示安全截断后的部分。</small>}<div className="asg-run-meta"><span>{run.mode === 'coordinator' ? '主控协调' : `发送给 ${run.targetRoleIds.length || '所选'} 个角色`}</span><span>上限 {run.maxTurns} 次</span></div>{detail.actions.filter(action => action.runId === run.id).map(action => <ActionRecord action={action} run={run} role={action.roleId ? roleById.get(action.roleId) : undefined} busy={Boolean(busy)} onApprove={() => void approveDelegate(run.id, action.id)} onReject={() => void cancelRun(run.id)} key={action.id} />)}{groupRunActive(run.status) && run.status !== 'cancel_requested' && !detail.actions.some(action => action.runId === run.id && action.status === 'awaiting_user_approval') && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancelRun(run.id)}><Square size={12} />取消群任务</button>}</article>)}{detail && !detail.runs.length && <div className="asg-empty"><MessageSquare size={25} /><strong>还没有群任务</strong><p>选择角色并发送一条明确任务。系统会保留原生会话边界和执行上限。</p></div>}{!detail && <div className="asg-empty"><Users size={25} /><strong>选择一个会话群</strong><p>任务、角色动作和最终结果会显示在这里。</p></div>}</div>
         <form className="asg-composer" onSubmit={event => void send(event)}>
           {detail && <div className="asg-dispatch-options"><label>运行方式<select value={dispatchMode} onChange={event => { setDispatchMode(event.target.value as AgentSessionGroupMode); submission.current = undefined }}><option value="manual">我来指挥</option><option value="coordinator">主控协调</option></select></label>{dispatchMode === 'coordinator' && <label>主控角色<select value={coordinatorRoleId} onChange={event => { setCoordinatorRoleId(event.target.value); submission.current = undefined }}><option value="">请选择主控</option>{detail.roles.map(role => <option value={role.id} key={role.id}>{role.name} · {groupStatusLabel(role.status)}</option>)}</select></label>}<label>最多调用<input type="number" min={1} max={12} value={maxTurns} onChange={event => { setMaxTurns(boundedTurns(event.target.value)); submission.current = undefined }} /></label></div>}
-          {detail && dispatchMode === 'manual' && <fieldset className="asg-targets"><legend>发送给角色</legend>{detail.roles.map(role => <label key={role.id} data-ready={groupRoleReady(role.status)}><input type="checkbox" checked={targetRoleIds.includes(role.id)} disabled={!groupRoleReady(role.status)} onChange={event => { setTargetRoleIds(previous => event.target.checked ? [...previous, role.id] : previous.filter(id => id !== role.id)); submission.current = undefined }} /><span>{role.name}</span><small>{groupStatusLabel(role.status)}</small></label>)}</fieldset>}
+          {detail && dispatchMode === 'manual' && <fieldset className="asg-targets"><legend>发送给角色</legend>{detail.roles.map(role => <label key={role.id} data-ready={groupRoleReady(role.canDispatch)}><input type="checkbox" checked={targetRoleIds.includes(role.id)} disabled={!groupRoleReady(role.canDispatch)} onChange={event => { setTargetRoleIds(previous => event.target.checked ? [...previous, role.id] : previous.filter(id => id !== role.id)); submission.current = undefined }} /><span>{role.name}</span><small>{groupStatusLabel(role.status)}</small></label>)}</fieldset>}
           {detail && dispatchMode === 'coordinator' && <p className="asg-composer-hint">主控只能建议委派给群内现有角色；每一次实际委派都会先展示目标项目、原生会话和任务内容，由你明确允许。</p>}
           {activeRun && <p className="asg-composer-hint">当前群任务为“{groupStatusLabel(activeRun.status)}”。结束或取消确认后才能提交下一条。</p>}
           <label className="aw-sr-only" htmlFor="asg-instruction">会话群任务内容</label><textarea id="asg-instruction" value={instruction} maxLength={8000} disabled={!detail || Boolean(activeRun) || busy === 'group_send'} placeholder={dispatchMode === 'coordinator' ? '描述目标，让主控在限定次数内规划、委派并汇总…' : '描述任务，并选择一个或多个角色…'} onChange={event => { setInstruction(event.target.value); submission.current = undefined }} />
