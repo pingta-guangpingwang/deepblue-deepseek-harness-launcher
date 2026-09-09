@@ -49,9 +49,10 @@
     "verify:skins": "node scripts/verify-skin-catalog.mjs",
     "verify:pets": "node scripts/verify-pet-catalog.mjs",
     "verify:pets:remote": "node scripts/verify-remote-pet-catalogs.mjs",
-    "package": "npm run build && electron-builder --dir",
-    "dist:win": "npm run build && electron-builder --dir && powershell.exe -NoProfile -File scripts/build-windows-variants.ps1",
-    "dist:mac": "npm run build && electron-builder --mac dmg zip"
+    "electron:ensure": "node scripts/ensure-electron-dist.mjs",
+    "package": "npm run electron:ensure && npm run build && electron-builder --dir",
+    "dist:win": "npm run electron:ensure && npm run build && electron-builder --dir && powershell.exe -NoProfile -File scripts/build-windows-variants.ps1",
+    "dist:mac": "npm run electron:ensure && npm run build && electron-builder --mac dmg zip"
   },
   "dependencies": {
     "@deepseek-ai/cordis-plugin-group": "1.0.1",
