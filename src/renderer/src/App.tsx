@@ -109,6 +109,8 @@ import { classifyLauncherFeature, trackLauncherAnalytics, type LauncherFeature }
 import { CommunityPage } from './CommunityPage'
 import { AgentWorkspacePage } from './AgentWorkspacePage'
 import { AgentConnectionStatus } from './AgentConnectionStatus'
+import { useLauncherAppearance } from './launcher-appearance'
+import { LAUNCHER_SKINS } from '../../shared/launcher-skins'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
@@ -1942,7 +1944,7 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
 }): ReactNode {
   const [draft, setDraft] = useState(snapshot.settings)
   const [portText, setPortText] = useState(String(snapshot.settings.port))
-  useEffect(() => { setDraft(snapshot.settings); setPortText(String(snapshot.settings.port)) }, [snapshot.settings])
+  useEffect(() => { setDraft(snapshot.settings); setPortText(String(snapshot.settings.port)) }, [JSON.stringify(snapshot.settings)])
   const parsedPort = Number(portText)
   const portError = !/^\d{4,5}$/.test(portText) || !Number.isSafeInteger(parsedPort) || parsedPort < 1024 || parsedPort > 65535
     ? '请输入 1024—65535 之间的整数端口'
@@ -1952,6 +1954,12 @@ function SettingsPage({ snapshot, actionMessage, onSave, onChooseStorage, onOpen
   }
   return (
     <div className="settings-layout">
+      <Card className="source-settings" title="启动器外观">
+        <p className="card-intro">只改变启动器和聊天窗口，不会替换 Harness 网页的皮肤。选择后保存生效，已打开的聊天窗口同步更新。</p>
+        <label className="field-label"><span>明暗模式</span><select aria-label="明暗模式" value={draft.theme} onChange={event => setDraft({ ...draft, theme: event.target.value as LauncherSettings['theme'] })}><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></label>
+        <div className="launcher-skin-grid">{LAUNCHER_SKINS.map(skin => <button type="button" key={skin.id} className="launcher-skin-choice" aria-pressed={(draft.launcherSkin || 'deepseek') === skin.id} onClick={() => setDraft({ ...draft, launcherSkin: skin.id })}><span className="launcher-skin-preview" style={{ background: skin.canvas }} aria-hidden="true"><i style={{ background: skin.accent }} /><span><b style={{ background: '#ffffff' }} /><b style={{ background: skin.bubble }} /></span></span><strong>{skin.name}</strong><small>{skin.description}</small></button>)}</div>
+        <div className="settings-actions"><span>以下全部设置将一起保存。</span><button className="primary-button" disabled={Boolean(portError)} onClick={() => onSave({ ...draft, port: parsedPort })}><Check size={16} />保存设置</button></div>
+      </Card>
       <Card className="source-settings installation-settings" title="程序与运行资源">
         <div className="installation-row">
           <span className="installation-symbol"><AppWindow size={19} /></span>
@@ -2013,7 +2021,8 @@ export default function App(): ReactNode {
   const [agentManageRequest, setAgentManageRequest] = useState(0)
   const [busy, setBusy] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const theme = useLauncherAppearance(snapshot.settings)
   const [storageError, setStorageError] = useState('')
   const [settingsMessage, setSettingsMessage] = useState('')
   const [updateCenterOpen, setUpdateCenterOpen] = useState(false)
@@ -2038,10 +2047,6 @@ export default function App(): ReactNode {
       setSnapshotReady(true)
     })
   }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   useEffect(() => {
     if (!window.launcher || !snapshotReady) return
@@ -2387,7 +2392,7 @@ export default function App(): ReactNode {
   }
 
   return (
-    <div className="app-shell" onClickCapture={captureFeatureClick} onDoubleClickCapture={captureFeatureDoubleClick}>
+    <div className={classNames('app-shell', sidebarCollapsed && 'sidebar-collapsed')} onClickCapture={captureFeatureClick} onDoubleClickCapture={captureFeatureDoubleClick}>
       <aside className={classNames('sidebar', sidebarOpen && 'sidebar-open')}>
         <div className="brand"><BrandMark /><div><strong>DeepSeek</strong><span>深蓝 Harness 启动器</span></div></div>
         <nav>{navigation.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => activatePage(item.id)}><Icon size={18} /><span>{item.label}</span>{page === item.id && <i />}</button> })}</div>)}</nav>
@@ -2404,7 +2409,7 @@ export default function App(): ReactNode {
 
       <main className="main-area">
         <header className="titlebar">
-          <button className="mobile-menu" aria-label="打开导航" onClick={() => setSidebarOpen(true)}><Menu /></button>
+          <button className="mobile-menu" aria-label="切换导航" onClick={() => { if (window.matchMedia('(max-width: 860px)').matches) { setSidebarCollapsed(false); setSidebarOpen(value => !value) } else setSidebarCollapsed(value => !value) }}><Menu /></button>
           <div className="title-copy">
             <h1>{currentPage.title}</h1>
             {page === 'home'
@@ -2414,7 +2419,7 @@ export default function App(): ReactNode {
           <div className="title-actions">
             <span className={classNames('distribution-badge', snapshot.distributionMode)}>{snapshot.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}</span>
             <button onClick={checkSources}>{busy === 'sources' || updateOperationActive ? <LoaderCircle className="spin" size={18} /> : <Bell size={18} />}<span>{busy === 'sources' ? '检查中…' : updateOperationActive ? '更新进度' : '检查更新'}</span></button>
-            <button aria-label="切换主题" onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
+            <button aria-label="切换主题" disabled={Boolean(busy)} onClick={() => saveSettings({ ...snapshot.settings, theme: theme === 'light' ? 'dark' : 'light' })}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
             <button aria-label="打开设置" onClick={() => setPage('settings')}><Settings size={18} /></button>
           </div>
           <WindowControls />

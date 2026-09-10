@@ -6,6 +6,7 @@ import { DshClient, dshEventsSince, dshSessionRows } from './dsh-rpc.mjs';
 import { safeFinalReply } from './privacy.mjs';
 import { validateInstruction } from './runner-common.mjs';
 import { redactSensitiveText, unwrapRemoteInstruction } from './session-history.mjs';
+import { openDshApprovalBridge } from './dsh-native-approvals.mjs';
 
 const sessionsInFlight = new Set();
 const keyPath = value => process.platform === 'win32' ? value.toLowerCase() : value;
@@ -64,7 +65,7 @@ function assertPermissions(events, sandbox) {
   if (mode !== sandbox || !['ask', 'never'].includes(policy)) throw new Error('DSH 原生沙箱未确认；不会以更高权限发送任务');
 }
 
-export async function runDshTask({ dshHost, project, instruction, sandbox = 'workspace-write', resumeSessionId = '', runtimeRequestId = randomUUID(), onProgress = async () => {}, control = {} }, operations = {}) {
+export async function runDshTask({ dshHost, project, instruction, sandbox = 'workspace-write', resumeSessionId = '', runtimeRequestId = randomUUID(), onProgress = async () => {}, onSession, onEvent, onApproval, fullOutput = false, managedPermissions = false, control = {} }, operations = {}) {
   const client = operations.client || new DshClient(dshHost?.endpoint);
   const sleep = operations.sleep || delay;
   const deadline = Date.now() + (operations.timeoutMs || 30 * 60 * 1000);
@@ -77,8 +78,8 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
   if (sessionsInFlight.has(lock)) throw Object.assign(new Error('DSH 当前会话已有远程任务'), { dshSessionBusy: true });
   sessionsInFlight.add(lock);
   const rpcId = `shenlan-prompt-${digest}`;
-  let sent = false, attempted = false, baseline = -1, ownTurn = null, cancelRequested = false;
-  const result = (outcome, cancelled = false) => ({ sessionId, resumeSessionId, finalReply: safeFinalReply(outcome.reply || ''), exitCode: !cancelled && !outcome.foreign && outcome.reason?.kind === 'completed' ? 0 : 1, cancelled, diagnostic: outcome.foreign ? 'DSH 同一轮混入其他用户消息，结果未作为当前远程任务确认' : outcome.reason?.kind === 'completed' ? '' : `DSH 本轮未完成：${String(outcome.reason?.kind || 'unknown').replace(/[^a-z-]/g, '')}`, signal: '' });
+  let sent = false, attempted = false, baseline = -1, ownTurn = null, cancelRequested = false, bridge, lastEventSeq = -1;
+  const result = (outcome, cancelled = false) => ({ sessionId, resumeSessionId, finalReply: fullOutput ? outcome.reply || '' : safeFinalReply(outcome.reply || ''), exitCode: !cancelled && !outcome.foreign && outcome.reason?.kind === 'completed' ? 0 : 1, cancelled, diagnostic: outcome.foreign ? 'DSH 同一轮混入其他用户消息，结果未作为当前远程任务确认' : outcome.reason?.kind === 'completed' ? '' : `DSH 本轮未完成：${String(outcome.reason?.kind || 'unknown').replace(/[^a-z-]/g, '')}`, signal: '' });
   try {
     await probeDshHost({ dshHost }, client);
     let rows = dshSessionRows(await client.call('session.list'));
@@ -98,12 +99,19 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
     if (previous.terminal) return result(previous);
     sent = previous.owned; attempted = previous.owned;
     if (existing.running && !previous.owned) throw Object.assign(new Error('DSH 会话正在本机执行；不会插入或接管现有任务'), { dshSessionBusy: true });
+    await onSession?.(sessionId);
     if (!previous.owned) {
+      if (managedPermissions) {
+        const selected = await client.call('commands/execute', { args: { agentId: sessionId, line: '/permission ' + sandbox, images: [] } });
+        if (selected?.result?.kind !== 'success') throw new Error('DSH 未确认当前会话的受限权限设置');
+        events = await dshEventsSince(client, sessionId);
+      }
       // Inspect durable native facts; do not send slash commands over prompt.
       // Some 0.1.1 builds treat that text as a real model prompt, not a command.
       assertPermissions(events, sandbox);
       baseline = events.at(-1)?.seq ?? -1;
     }
+    lastEventSeq = baseline;
     control.cancel = async () => {
       if (!sent || cancelRequested) return;
       const current = dshTurnOutcome(await dshEventsSince(client, sessionId, baseline), rpcId);
@@ -113,6 +121,11 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
       await client.call('session.cancel', { sessionId });
       cancelRequested = true;
     };
+    if (typeof onApproval === 'function') {
+      bridge = await (operations.openApprovalBridge || openDshApprovalBridge)({ ...dshHost, projectRoot: project.path, sessionId,
+        readEvents: () => dshEventsSince(client, sessionId, baseline),
+        isOwned: rows => { const outcome = dshTurnOutcome(rows, rpcId); return outcome.owned && !outcome.foreign && !outcome.terminal; }, onApproval, onProgress });
+    }
     if (control.cancelled && !previous.owned) return result({ reason: { kind: 'aborted' } }, true);
     await onProgress({ summary: 'DSH 原生会话与项目权限已确认', progressPercent: 20 });
     if (!previous.owned) {
@@ -124,11 +137,18 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
     sent = true;
     let approvalNotified = false;
     while (Date.now() < deadline) {
-      const outcome = dshTurnOutcome(await dshEventsSince(client, sessionId, baseline), rpcId);
+      const currentEvents = await dshEventsSince(client, sessionId, baseline);
+      const outcome = dshTurnOutcome(currentEvents, rpcId);
+      if (onEvent && outcome.owned && !outcome.foreign) for (const event of currentEvents) {
+        if (event.seq <= lastEventSeq) continue;
+        lastEventSeq = event.seq;
+        if (['assistant/message', 'tool/call', 'tool/result', 'approval/asked', 'approval/decided', 'turn/start', 'turn/end', 'todo/write', 'goal/change', 'plan/mode'].includes(event.type) || event.type === 'user/message' && event.data?.source?.kind === 'user') await onEvent({ source: 'deepseek-harness', type: event.type, nativeSeq: event.seq, occurredAt: new Date(event.time).toISOString(), data: event.data });
+      }
       if (outcome.owned) ownTurn = outcome.turn;
       if (outcome.terminal) return result(outcome, cancelRequested && outcome.reason?.kind === 'aborted');
       if (outcome.foreign && outcome.owned) throw new Error('DSH 当前远程回合混入本机消息；不会确认结果或中断本机任务');
-      if (outcome.pendingApproval && !approvalNotified) { approvalNotified = true; await onProgress({ summary: 'DSH 正等待本机权限确认，请在原生窗口处理；远程不会自动批准', progressPercent: 50 }); }
+      if (bridge?.failure) { await control.cancel(); throw new Error('DSH 审批通道中断，已停止本轮且不会自动重发'); }
+      if (outcome.pendingApproval && !approvalNotified) { approvalNotified = true; await onProgress({ summary: onApproval ? 'DSH 正等待本地总控审核本次操作' : 'DSH 正等待本机权限确认，请在原生窗口处理；远程不会自动批准', progressPercent: 50 }); }
       if (control.cancelled) await control.cancel();
       await sleep(operations.pollIntervalMs ?? 1000);
     }
@@ -139,6 +159,7 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
     if (attempted) error.taskMayHaveExecuted = true;
     throw error;
   } finally {
+    await bridge?.close();
     control.closed = true; delete control.cancel;
     sessionsInFlight.delete(lock);
   }

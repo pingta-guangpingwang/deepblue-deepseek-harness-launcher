@@ -15,6 +15,7 @@ function freshState() {
     codexHostToken: '',
     codexManagerSessionId: '',
     retiredCodexSessionIds: [],
+    localOnlyRuntimeIds: [],
     sessions: {},
     sessionRelays: {},
     pendingCommands: []
@@ -31,6 +32,7 @@ function validateState(state) {
     ? [...new Set(state.retiredCodexSessionIds.map((item) => String(item || '').trim().slice(0, 191)).filter(Boolean))].slice(0, 32)
     : [];
   if (!Array.isArray(state.pendingCommands)) state.pendingCommands = [];
+  state.localOnlyRuntimeIds = Array.isArray(state.localOnlyRuntimeIds) ? [...new Set(state.localOnlyRuntimeIds.filter(value => typeof value === 'string' && value.length > 0 && value.length <= 191))] : [];
   state.stateRevision = Math.max(0, Number(state.stateRevision || 0));
   state.registered = Boolean(state.registered);
   state.syncMode = state.syncMode === 'active' ? 'active' : 'standby';

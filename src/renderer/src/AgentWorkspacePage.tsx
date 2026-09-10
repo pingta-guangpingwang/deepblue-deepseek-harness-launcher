@@ -1,13 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { ChatMessage } from './ChatMessage'
+import { ConversationControls } from './ConversationControls'
 import { ArrowDown, ArrowLeft, Bot, CheckCircle2, CircleAlert, Folder, FolderPlus, LoaderCircle, LogIn, MessageSquare, Monitor, Pause, Play, Plus, RefreshCw, Send, Settings2, Square, Unplug } from 'lucide-react'
 import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentAdapter, AgentHostAction, AgentHostSnapshot, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-workspace.css'
 import { LocalAgentWorkspace } from './LocalAgentWorkspace'
 import { AgentSessionGroups } from './AgentSessionGroups'
+import { LocalGroupsSwitch } from './LocalRoomWorkspace'
 
 // Existing DeepSeek operation-table design: device → native project/session → conversation.
-// The launcher is an authenticated view of website IDs, not a second conversation database.
+// Legacy cloud rooms retain their old boundary. New local rooms use the signed
+// Host capability and keep their complete authoritative history on this device.
 type JsonRecord = Record<string, unknown>
 export interface WorkspaceAgent { id: string; name: string; adapter: string; status: string }
 export interface WorkspaceProject { id: string; name: string }
@@ -88,18 +92,21 @@ export function AgentWorkspacePage(props: { snapshot: LauncherSnapshot; onLogin(
   const [source, setSource] = useState<'local' | 'cloud' | 'groups'>(props.initialSource || 'local')
   useEffect(() => { if (props.initialSource) setSource(props.initialSource) }, [props.initialSource])
   useEffect(() => { if (props.manageRequest) setSource('cloud') }, [props.manageRequest])
-  return <div className="agent-workspace"><nav className="aw-toolbar aw-source-tabs" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button><button className={source === 'groups' ? 'primary-button' : 'small-button'} aria-pressed={source === 'groups'} onClick={() => setSource('groups')} title="创建或进入多智能体协作房间">群聊（多智能会话）</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : source === 'cloud' ? <CloudAgentWorkspace {...props} /> : <AgentSessionGroups snapshot={props.snapshot} onLogin={props.onLogin} />}</div></div>
+  return <div className="agent-workspace"><nav className="aw-toolbar aw-source-tabs" aria-label="工作台数据来源"><button className={source === 'local' ? 'primary-button' : 'small-button'} aria-pressed={source === 'local'} onClick={() => setSource('local')}>本机项目与对话</button><button className={source === 'cloud' ? 'primary-button' : 'small-button'} aria-pressed={source === 'cloud'} onClick={() => setSource('cloud')}>网站同步与托管</button><button className={source === 'groups' ? 'primary-button' : 'small-button'} aria-pressed={source === 'groups'} onClick={() => setSource('groups')} title="创建或进入多智能体协作房间">群聊（多智能会话）</button></nav><div className="aw-source-content">{source === 'local' ? <LocalAgentWorkspace {...props} /> : source === 'cloud' ? <CloudAgentWorkspace {...props} /> : <LocalGroupsSwitch snapshot={props.snapshot} onLogin={props.onLogin} />}</div></div>
 }
-export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManageRequestHandled }: { snapshot: LauncherSnapshot; onLogin(): void; manageRequest?: number; onManageRequestHandled?(request: number): void }): React.JSX.Element {
+export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManageRequestHandled, initialAgentId = '', initialProjectId = '', initialSessionId = '', detached = false }: { snapshot: LauncherSnapshot; onLogin(): void; manageRequest?: number; onManageRequestHandled?(request: number): void; initialAgentId?: string; initialProjectId?: string; initialSessionId?: string; detached?: boolean }): React.JSX.Element {
   const api = window.launcher
   const supported = Boolean(api?.agentHostState && api.agentHostAction && api.agentWorkspaceRequest)
   const signedIn = snapshot.account.status === 'signed_in'
   const userId = snapshot.account.user?.id || ''
   const [host, setHost] = useState<AgentHostSnapshot>()
   const [cloudAgents, setCloudAgents] = useState<WorkspaceAgent[]>([])
-  const [agentId, setAgentId] = useState('')
-  const [projectId, setProjectId] = useState('')
-  const [sessionId, setSessionId] = useState('')
+  const [agentId, setAgentId] = useState(initialAgentId)
+  const [projectId, setProjectId] = useState(initialProjectId)
+  const [sessionId, setSessionId] = useState(initialSessionId)
+  const [hideAgents, setHideAgents] = useState(detached)
+  const [hideSessions, setHideSessions] = useState(detached)
+  const chatPane = useRef<HTMLElement>(null)
   const [data, setData] = useState<WorkspaceData>()
   const [history, setHistory] = useState<WorkspaceMessage[]>([])
   const [instruction, setInstruction] = useState('')
@@ -117,10 +124,10 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
     setManage(true)
     onManageRequestHandled?.(manageRequest)
   }, [manageRequest, onManageRequestHandled])
-  const hostManagement = workspaceHostManagement(host, manage, Boolean(busy))
+  const hostManagement = { ...workspaceHostManagement(host, manage, Boolean(busy)), ...(detached ? { visible: false } : {}) }
   const [confirmAction, setConfirmAction] = useState<AgentHostAction>()
   const [importAgentId, setImportAgentId] = useState('')
-  const [mobilePane, setMobilePane] = useState<'agents' | 'sessions' | 'conversation'>('agents')
+  const [mobilePane, setMobilePane] = useState<'agents' | 'sessions' | 'conversation'>(detached ? 'conversation' : 'agents')
   const [newContent, setNewContent] = useState(false)
   const [acknowledgedTasks, setAcknowledgedTasks] = useState<WorkspaceTask[]>([])
   const scroll = useRef<HTMLDivElement>(null)
@@ -165,7 +172,7 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
   useLayoutEffect(() => {
     generation.current += 1
     setHost(undefined); setCloudAgents([]); setData(undefined); setHistory([]); setAcknowledgedTasks([])
-    setAgentId(''); setProjectId(''); setSessionId(''); setInstruction(''); setError(''); setSyncError(''); setNotice(''); setBusy('')
+    setAgentId(initialAgentId); setProjectId(initialProjectId); setSessionId(initialSessionId); setInstruction(''); setError(''); setSyncError(''); setNotice(''); setBusy('')
     submission.current = undefined; pendingNewTask.current = ''; activatedAt.current = {}; historyRequested.current = {}
   }, [userId, signedIn])
 
@@ -189,6 +196,7 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
         const nextAgents = rows(bootstrap.agents).map(normalizeWorkspaceAgent).filter(agent => agent.id)
         setCloudAgents(previous => sameData(previous, nextAgents))
         if (!agentId) {
+          if (detached) throw new Error('原智能体不可用，请回主窗口重新选择')
           const first = nextHost.agents[0]?.id || nextAgents[0]?.id
           if (first) setAgentId(first)
           return
@@ -210,13 +218,14 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
           return
         }
         if (!projectId || !nextData.projects.some(project => project.id === projectId)) {
+          if (detached) throw new Error('原项目暂不可用；不会切换到其他项目')
           setProjectId(nextData.projects[0]?.id || '')
           setSessionId('')
           return
         }
         if (sessionId) {
           const validSession = nextData.sessions.some(session => session.id === sessionId && session.projectId === projectId)
-          if (!validSession) { setSessionId(''); setHistory([]); return }
+          if (!validSession) { if (detached) throw new Error('原会话暂不可用，请稍后刷新'); setSessionId(''); setHistory([]); return }
           if (['online', 'working'].includes(nextData.agent.status) && Date.now() - (historyRequested.current[sessionId] || 0) > 60000) {
             await request({ scope: 'hub', method: 'POST', action: 'request_session_history', body: { agentId, sessionId } })
             historyRequested.current[sessionId] = Date.now()
@@ -365,8 +374,8 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
       {importAgentId && <div className="aw-confirm aw-import-confirm" role="region" aria-label="确认智能体项目授权"><p>允许启动器接收此智能体的远程任务，并访问以下原授权项目？不会强制终止旧服务中的任务；关联后仍需主动启动。</p><ul>{host?.legacyCandidates?.find(item => item.adapter === agents.find(agent => agent.id === importAgentId)?.adapter)?.projectRoots.map(root => <li className="aw-local-path" key={root}>{root}</li>)}</ul><button className="small-button" disabled={Boolean(busy)} onClick={() => setImportAgentId('')}>取消</button><button className="primary-button" disabled={Boolean(busy)} onClick={() => void hostAction({ action: 'import_existing', agentId: importAgentId })}>授权并关联原实例</button></div>}
     </div></div>}
     {!(signedIn && hostManagement.visible) && <>
-    <nav className="aw-mobile-nav" aria-label="工作台分栏"><button aria-current={mobilePane === 'agents' ? 'page' : undefined} onClick={() => setMobilePane('agents')}>智能体</button><button aria-current={mobilePane === 'sessions' ? 'page' : undefined} onClick={() => setMobilePane('sessions')}>项目与会话</button><button aria-current={mobilePane === 'conversation' ? 'page' : undefined} onClick={() => setMobilePane('conversation')}>对话</button></nav>
-    <div className="aw-panes">
+    <nav className="aw-mobile-nav" aria-label="工作台分栏"><button aria-current={mobilePane === 'agents' ? 'page' : undefined} onClick={() => { setHideAgents(false); setMobilePane('agents') }}>智能体</button><button aria-current={mobilePane === 'sessions' ? 'page' : undefined} onClick={() => { setHideSessions(false); setMobilePane('sessions') }}>项目与会话</button><button aria-current={mobilePane === 'conversation' ? 'page' : undefined} onClick={() => setMobilePane('conversation')}>对话</button></nav>
+    <div className="aw-panes" data-hide-first={hideAgents} data-hide-second={hideSessions}>
       <aside className="aw-agent-pane">
         <header className="aw-pane-heading"><h2>我的智能体</h2><button className="aw-icon-button" aria-label="添加智能体" onClick={() => { setManage(true); void hostAction({ action: 'discover' }) }}><Plus size={17} /></button></header>
         <div className="aw-agent-list">{agents.map(agent => {
@@ -381,11 +390,12 @@ export function CloudAgentWorkspace({ snapshot, onLogin, manageRequest, onManage
         <div className="aw-session-list">{sessions.map(session => <button key={session.id} className={`aw-session-row ${sessionId === session.id ? 'selected' : ''}`} aria-pressed={sessionId === session.id} onClick={() => selectSession(session.id)}><MessageSquare size={16} /><span><strong>{session.title}</strong><small>{workspaceStatusLabel(session.status)}</small></span></button>)}{!sessions.length && <div className="aw-inline-empty">{!agentId ? '选择左侧智能体。' : !projectId ? '添加授权目录并启动后，项目会自动同步到这里。' : '这个项目还没有同步会话。可直接新建，或点击同步本机。'}</div>}</div>
         {selectedBinding && <div className="aw-agent-control"><div><span>运行环境</span><StateLabel value={selectedBinding.runtimeStatus} /></div><p>{selectedBinding.message || (selectedBinding.busy ? '正在处理任务，停止或重启会中断执行。' : '只启动已授权的本机运行环境。')}</p><div className="aw-control-buttons"><button className="primary-button" disabled={Boolean(busy) || !host?.enabled || selectedBinding.runtimeStatus === 'unavailable'} onClick={() => void hostAction({ action: ['stopped', 'failed'].includes(selectedBinding.status) ? 'start' : 'stop', agentId })}>{['stopped', 'failed'].includes(selectedBinding.status) ? <Play size={14} /> : <Square size={14} />}{['stopped', 'failed'].includes(selectedBinding.status) ? '启动' : '停止'}</button><button className="small-button" disabled={Boolean(busy) || !host?.enabled || selectedBinding.runtimeStatus === 'unavailable'} onClick={() => void hostAction({ action: 'restart', agentId })}>重启</button><button className="aw-icon-button danger" disabled={Boolean(busy)} aria-label="移除智能体托管绑定" onClick={() => { setManage(true); setConfirmAction({ action: 'remove_agent', agentId }) }}><Unplug size={14} /></button></div></div>}
       </aside>
-      <main className="aw-conversation-pane">
+      <main className="aw-conversation-pane" ref={chatPane}>
+        <ConversationControls pane={chatPane} detached={detached} target={agentId && projectId ? { kind: 'cloud-session', agentId, projectId, sessionId: sessionId || undefined, title: selectedSession?.title || selectedProject?.name || selectedAgentName } : undefined} lists={[{ name: '智能体', collapsed: hideAgents, toggle: () => setHideAgents(value => !value) }, { name: '会话列表', collapsed: hideSessions, toggle: () => setHideSessions(value => !value) }]} />
         <header className="aw-conversation-heading"><button className="aw-back aw-icon-button" aria-label="返回项目会话" onClick={() => setMobilePane('sessions')}><ArrowLeft size={17} /></button><div><h2>{selectedSession?.title || (selectedProject ? '新建会话' : selectedAgentName)}</h2><p><Folder size={13} />{selectedProject?.name || '选择项目后开始'}<span>·</span>{activeCount ? `${activeCount} 个任务处理中` : '原生会话同步'}</p></div><button className="small-button" disabled={!agentId || !runtimeOnline || Boolean(busy)} onClick={() => void refreshNative()}><RefreshCw size={14} className={busy === 'refresh' ? 'spin' : ''} />同步本机</button></header>
         <div className="aw-messages" ref={scroll} tabIndex={0} aria-label="智能体对话内容" onScroll={() => { if (!scroll.current) return; stickToBottom.current = workspaceNearBottom(scroll.current.scrollHeight, scroll.current.scrollTop, scroll.current.clientHeight); if (stickToBottom.current) setNewContent(false) }}>
           {!timeline.length && <Empty title={loading ? '正在同步工作台' : selectedProject ? selectedSession ? '读取最近对话' : '从这个项目开始' : '先选择一个本机项目'}>{selectedProject ? '这里与手机网页使用同一份任务与会话。完整原生记录仍保存在你的电脑中。' : '左侧选择智能体，再选择已授权的项目。没有手工填密钥，也不会把任意目录交给远程执行。'}</Empty>}
-          {timeline.map(row => <article className={`aw-message ${row.role}`} key={row.id}><div className="aw-message-byline"><strong>{row.role === 'user' ? '你' : selectedAgentName}</strong><time>{timeLabel(row.time)}</time></div><div className="aw-message-body">{row.text}</div>{row.task && <div className="aw-task-status"><StateLabel value={row.task.status} />{row.task.progress !== undefined && ACTIVE_TASKS.has(row.task.status) && <progress value={row.task.progress} max={100} aria-label={`任务进度 ${row.task.progress}%`} />}{row.task.status === 'awaiting_approval' && <small>请在本机智能体内确认权限</small>}{ACTIVE_TASKS.has(row.task.status) && row.task.status !== 'cancel_requested' && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancel(row.task!.id)}>取消任务</button>}</div>}</article>)}
+          {timeline.map(row => <ChatMessage role={row.role === 'user' ? 'user' : row.role === 'assistant' ? 'assistant' : 'system'} key={row.id} name={row.role === 'user' ? '你' : selectedAgentName} time={timeLabel(row.time)} text={row.text}>{row.task && <div className="aw-task-status"><StateLabel value={row.task.status} />{row.task.progress !== undefined && ACTIVE_TASKS.has(row.task.status) && <progress value={row.task.progress} max={100} aria-label={`任务进度 ${row.task.progress}%`} />}{row.task.status === 'awaiting_approval' && <small>请在本机智能体内确认权限</small>}{ACTIVE_TASKS.has(row.task.status) && row.task.status !== 'cancel_requested' && <button className="aw-text-button" disabled={Boolean(busy)} onClick={() => void cancel(row.task!.id)}>取消任务</button>}</div>}</ChatMessage>)}
         </div>
         {newContent && <button className="aw-new-content" onClick={() => { if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; stickToBottom.current = true; setNewContent(false) }}><ArrowDown size={14} />有新内容，回到最新</button>}
         <form className="aw-composer" onSubmit={event => void send(event)}>

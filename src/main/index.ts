@@ -5,12 +5,17 @@ import { LauncherController } from './controller'
 import { launcherDataPaths, readConfig, setLauncherStorageRoot } from './config'
 import { selectLauncherUi, type LauncherUiSelection } from './launcher-ui'
 import type { LauncherSettings, ModelProviderDraft, MultimodalTestRequest } from '../shared/types'
+import { ConversationWindows } from './conversation-windows'
+import type { ConversationTarget } from '../shared/conversation'
 
 let mainWindow: BrowserWindow | undefined
 let controller: LauncherController | undefined
 let tray: Tray | undefined
 let quitting = false
 let launcherUi: LauncherUiSelection | undefined
+let viewOwner: string | undefined
+const conversationWindows = new ConversationWindows((target) => createConversationWindow(target), () => { if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible() && !controller?.isDesktopExperienceActive()) mainWindow.close() })
+const currentOwner = (): string => controller?.getSnapshot()?.account?.user?.id || ''
 
 if (process.env.DSH_LAUNCHER_DISABLE_HARDWARE_ACCELERATION === '1') {
   app.disableHardwareAcceleration()
@@ -185,7 +190,7 @@ function createWindow(ui = launcherUi, loadContents = true): BrowserWindow {
   })
   window.once('ready-to-show', () => window.show())
   window.on('close', (event) => {
-    if (!quitting && controller?.isDesktopExperienceActive()) {
+    if (!quitting && (controller?.isDesktopExperienceActive() || conversationWindows.size > 0)) {
       event.preventDefault()
       window.hide()
       syncDesktopTray()
@@ -199,10 +204,32 @@ function createWindow(ui = launcherUi, loadContents = true): BrowserWindow {
   return window
 }
 
+function createConversationWindow(target: ConversationTarget): BrowserWindow {
+  const window = new BrowserWindow({ width: 980, height: 820, minWidth: 480, minHeight: 500, show: false, frame: false, title: target.title,
+    backgroundColor: '#f7f8fa', icon: appIconPath(), webPreferences: { preload: path.join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false } })
+  window.once('ready-to-show', () => window.show())
+  window.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) void shell.openExternal(url); return { action: 'deny' } })
+  window.webContents.on('will-navigate', event => event.preventDefault())
+  window.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') { event.preventDefault(); window.setFullScreen(!window.isFullScreen()) }
+    if (input.type === 'keyDown' && input.key === 'Escape' && window.isFullScreen()) { event.preventDefault(); window.setFullScreen(false) }
+  })
+  setImmediate(() => {
+    if (window.isDestroyed()) return
+    if (process.env.ELECTRON_RENDERER_URL) { const url = new URL(process.env.ELECTRON_RENDERER_URL); url.searchParams.set('conversation', '1'); void window.loadURL(url.href) }
+    else void window.loadFile(launcherUi?.entry || path.join(__dirname, '../renderer/index.html'), { query: { conversation: '1' } })
+  })
+  return window
+}
+
 function registerIpc(): void {
   const requireLauncherSender = (event: Electron.IpcMainInvokeEvent): void => {
-    if (!mainWindow || event.sender.id !== mainWindow.webContents.id || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error('只允许启动器主界面调用工作台')
+    const owned = mainWindow && event.sender.id === mainWindow.webContents.id || conversationWindows.context(event.sender.id, currentOwner())
+    if (!owned || event.senderFrame !== event.sender.mainFrame) throw new Error('只允许启动器受信任主界面或独立会话窗口调用工作台')
   }
+  ipcMain.handle('launcher:open-conversation', (event, target) => { requireLauncherSender(event); return conversationWindows.open(target, currentOwner()) })
+  ipcMain.handle('launcher:conversation-context', event => { requireLauncherSender(event); return conversationWindows.context(event.sender.id, currentOwner()) || null })
+  ipcMain.handle('launcher:focus-main', event => { requireLauncherSender(event); mainWindow?.show(); mainWindow?.focus() })
   ipcMain.handle('launcher:agent-host-state', (event) => { requireLauncherSender(event); return controller?.agentHostState() })
   ipcMain.handle('launcher:agent-host-action', async (event, action) => { requireLauncherSender(event); const state = await controller?.agentHostAction(action); syncDesktopTray(); return state })
   ipcMain.handle('launcher:agent-workspace-request', (event, request) => { requireLauncherSender(event); return controller?.agentWorkspaceRequest(request) })
@@ -210,7 +237,7 @@ function registerIpc(): void {
   ipcMain.on('desktop-pet:drag-move', (event, position: unknown) => controller?.moveDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('desktop-pet:drag-end', (event, position: unknown) => controller?.endDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('desktop-pet:deepseek-balance', (event) => controller?.desktopPetDeepSeekBalance(event.sender.id))
-  ipcMain.handle('launcher:get-snapshot', () => controller?.getSnapshot())
+  ipcMain.handle('launcher:get-snapshot', event => { requireLauncherSender(event); return controller?.getSnapshot() })
   ipcMain.handle('launcher:refresh-environment', () => controller?.refreshEnvironment())
   ipcMain.handle('launcher:check-sources', () => controller?.checkSources())
   ipcMain.handle('launcher:start', () => controller?.startHarness())
@@ -227,7 +254,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:create-shortcuts', () => controller?.createShortcuts())
   ipcMain.handle('launcher:open-path', (_event, target: string) => controller?.openPath(target))
   ipcMain.handle('launcher:open-external', (_event, url: string) => controller?.openExternal(url))
-  ipcMain.handle('launcher:save-settings', (_event, patch: Partial<LauncherSettings>) => controller?.saveSettings(patch))
+  ipcMain.handle('launcher:save-settings', (event, patch: Partial<LauncherSettings>) => { requireLauncherSender(event); return controller?.saveSettings(patch) })
   ipcMain.handle('launcher:plugin-action', (_event, action, packageSpec) => controller?.pluginAction(action, packageSpec))
   ipcMain.handle('launcher:refresh-discovery', () => controller?.refreshDiscovery())
   ipcMain.handle('launcher:news-detail', (_event, id: string) => controller?.newsDetail(id))
@@ -297,16 +324,19 @@ function registerIpc(): void {
     syncDesktopTray()
     return snapshot
   })
-  ipcMain.handle('window:action', (_event, action: 'minimize' | 'maximize' | 'close') => {
-    if (!mainWindow) return
-    if (action === 'minimize') mainWindow.minimize()
-    if (action === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
+  ipcMain.handle('window:action', (event, action: 'minimize' | 'maximize' | 'close' | 'fullscreen') => {
+    requireLauncherSender(event)
+    const target = BrowserWindow.fromWebContents(event.sender)
+    if (!target) return
+    if (action === 'minimize') target.minimize()
+    if (action === 'maximize') target.isMaximized() ? target.unmaximize() : target.maximize()
+    if (action === 'fullscreen') target.setFullScreen(!target.isFullScreen())
     if (action === 'close') {
-      if (controller?.isDesktopExperienceActive()) {
-        mainWindow.hide()
+      if (target === mainWindow && controller?.isDesktopExperienceActive()) {
+        target.hide()
         syncDesktopTray()
       } else {
-        mainWindow.close()
+        target.close()
       }
     }
   })
@@ -345,7 +375,10 @@ if (!hasSingleInstanceLock) {
     // complete snapshot. Existing content-addressed UI modules can execute
     // immediately from disk and must never observe an undefined controller state.
     mainWindow = createWindow(launcherUi, false)
-    controller = new LauncherController(mainWindow, launcherUi)
+    controller = new LauncherController(mainWindow, launcherUi, (channel, payload) => {
+      if (channel === 'launcher:snapshot') { const owner = currentOwner(); if (viewOwner !== undefined && viewOwner !== owner) conversationWindows.closeAll(); viewOwner = owner }
+      conversationWindows.broadcast(channel, payload)
+    })
     await controller.initialize()
     loadWindowContents(mainWindow, launcherUi)
     syncDesktopTray()

@@ -417,6 +417,7 @@ export interface WorkspaceEntry {
 }
 
 export interface LauncherSettings {
+  launcherSkin?: import('./launcher-skins').LauncherSkin
   workspace: string
   storageRoot: string
   storageSetupCompleted: boolean
@@ -811,7 +812,10 @@ export interface LauncherApi {
   clearPet(): Promise<LauncherSnapshot>
   importPet(): Promise<LauncherSnapshot>
   removeCustomPet(petId: string): Promise<LauncherSnapshot>
-  windowAction(action: 'minimize' | 'maximize' | 'close'): Promise<void>
+  openConversation?(target: import('./conversation').ConversationTarget): Promise<{ windowId: number; reused: boolean }>
+  getConversationContext?(): Promise<import('./conversation').ConversationTarget | null>
+  focusMainWindow?(): Promise<void>
+  windowAction(action: 'minimize' | 'maximize' | 'close' | 'fullscreen'): Promise<void>
   onSnapshot(listener: (snapshot: LauncherSnapshot) => void): () => void
 }
 

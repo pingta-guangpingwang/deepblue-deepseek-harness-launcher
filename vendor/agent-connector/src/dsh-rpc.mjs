@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-const METHODS = new Set(['host.describe', 'workspace.list', 'session.list', 'session.create', 'session.history', 'session.models', 'session.prompt', 'session.cancel', 'session.rename']);
+const METHODS = new Set(['host.describe', 'workspace.list', 'session.list', 'session.create', 'session.history', 'session.models', 'session.prompt', 'session.cancel', 'session.rename', 'commands/list', 'commands/execute']);
 export function validateDshEndpoint(value) {
   let url;
   try { url = new URL(String(value)); } catch { throw new Error('DSH 本机服务地址无效'); }
@@ -18,6 +18,7 @@ export class DshClient {
   }
   async call(method, payload = {}, { rpcId = randomUUID(), signal } = {}) {
     if (!METHODS.has(method)) throw new Error('DSH 方法不在远程任务许可范围内');
+    if (method === 'commands/execute' && !['/permission', '/permission read-only', '/permission workspace-write'].includes(payload?.args?.line)) throw new Error('DSH 只允许查询或设置当前会话的受限权限');
     const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs);
     const response = await this.fetch(`${this.endpoint}/api/${method}`, {
       method: 'POST', redirect: 'error', credentials: 'omit', signal: requestSignal,

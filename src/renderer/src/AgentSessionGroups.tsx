@@ -3,6 +3,8 @@ import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, LoaderCircle, Me
 import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentRoomAccess, AgentRoomAction, AgentRoomDetail, AgentRoomMember, AgentRoomMemberInput, AgentRoomMessage, AgentRoomMessageSegment, AgentRoomRun, AgentRoomSummary, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-session-groups.css'
+import { ChatMessage } from './ChatMessage'
+import { ConversationControls } from './ConversationControls'
 import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
@@ -460,13 +462,16 @@ function TaskAction({ action, member, coordinator }: { action: AgentRoomAction; 
   return <li className="arm-action-row"><div><strong>{route}</strong><Status value={status} /></div><p>{action.summary || action.instruction || roomStatusLabel(action.status)}</p>{waitingForConnection && <small>消息已经进入公共聊天；成员连接后会继续领取。</small>}{action.errorCode && <code>{action.errorCode}</code>}</li>
 }
 
-export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSnapshot; onLogin(): void }): React.JSX.Element {
+export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', detached = false }: { snapshot: LauncherSnapshot; onLogin(): void; initialRoomId?: string; detached?: boolean }): React.JSX.Element {
   const signedIn = snapshot.account.status === 'signed_in'
   const userId = snapshot.account.user?.id || ''
   const baseSupported = launcherSupportsAgentSessionGroups(snapshot.launcherVersion)
   const supported = baseSupported && Boolean(window.launcher?.agentWorkspaceRequest)
   const [rooms, setRooms] = useState<AgentRoomSummary[]>([])
-  const [selectedRoomId, setSelectedRoomId] = useState('')
+  const [selectedRoomId, setSelectedRoomId] = useState(initialRoomId)
+  const [hideRooms, setHideRooms] = useState(detached)
+  const [hideTasks, setHideTasks] = useState(detached)
+  const chatPane = useRef<HTMLElement>(null)
   const [detail, setDetail] = useState<AgentRoomDetail>()
   const [candidateCatalog, setCandidateCatalog] = useState<CandidateCatalog>()
   const [loading, setLoading] = useState(true)
@@ -487,7 +492,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   const textarea = useRef<HTMLTextAreaElement>(null)
   const messageScroll = useRef<HTMLDivElement>(null)
   const accountEpoch = useRef(0)
-  const selectedRoomRef = useRef('')
+  const selectedRoomRef = useRef(initialRoomId)
   const detailRevision = useRef('')
   const latestMessageSeq = useRef(0)
   const unchangedPolls = useRef(0)
@@ -519,7 +524,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
   useEffect(() => {
     accountEpoch.current += 1
     syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
-    setRooms([]); setSelectedRoomId(''); selectedRoomRef.current = ''; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setSyncBlocked(false); unsafeSync.current = false; setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
+    setRooms([]); setSelectedRoomId(initialRoomId); selectedRoomRef.current = initialRoomId; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setSyncBlocked(false); unsafeSync.current = false; setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
     detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear()
   }, [userId, signedIn])
 
@@ -538,7 +543,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
         const nextRooms = rows(response.rooms).map(normalizeRoomSummary).filter(room => room.id)
         setRooms(nextRooms); setCandidateCatalog(normalizeCandidates(response.candidates))
         const previousRoomId = selectedRoomRef.current
-        const nextRoomId = previousRoomId && nextRooms.some(room => room.id === previousRoomId) ? previousRoomId : nextRooms[0]?.id || ''
+        const nextRoomId = detached ? initialRoomId : previousRoomId && nextRooms.some(room => room.id === previousRoomId) ? previousRoomId : nextRooms[0]?.id || ''
         if (nextRoomId !== previousRoomId) chooseRoom(nextRoomId)
         else setSelectedRoomId(nextRoomId)
         if (!nextRooms.length) { unsafeSync.current = false; setSyncBlocked(false) }
@@ -864,19 +869,19 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     <label className="arm-mobile-room-picker">当前房间<select value={selectedRoomId} onChange={event => chooseRoom(event.target.value)}><option value="">选择房间</option>{rooms.map(room => <option value={room.id} key={room.id}>{room.name}</option>)}</select></label>
     <nav className="arm-mobile-nav" aria-label="多智能会话视图">
       <button aria-current={mobilePane === 'chat' ? 'page' : undefined} onClick={() => setMobilePane('chat')}><MessageSquare size={15} />聊天</button>
-      <button aria-current={mobilePane === 'tasks' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('tasks')}><ClipboardList size={15} />任务动态</button>
+      <button aria-current={mobilePane === 'tasks' ? 'page' : undefined} disabled={!detail} onClick={() => { setHideTasks(false); setMobilePane('tasks') }}><ClipboardList size={15} />任务动态</button>
       <button aria-current={mobilePane === 'members' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('members')}><Users size={15} />成员</button>
     </nav>
 
     <div className="arm-stage">
-      <div className="arm-panes">
-        <aside className="arm-room-rail" aria-label="房间列表">
+      <div className="arm-panes" data-hide-first={hideRooms} data-hide-second={hideTasks}>
+        <aside className="arm-room-rail" hidden={hideRooms} aria-label="房间列表">
           <header><h2>房间</h2><button className="aw-icon-button" aria-label="新建房间" onClick={openCreate}><Plus size={17} /></button></header>
           <div className="arm-room-list">{rooms.map(room => <button className={`arm-room-row ${room.id === selectedRoomId ? 'selected' : ''}`} aria-pressed={room.id === selectedRoomId} key={room.id} onClick={() => chooseRoom(room.id)}><span className="arm-room-avatar" aria-hidden="true">{room.name.slice(0, 1)}</span><span><strong>{room.name}</strong><Status value={room.latestRunStatus || room.status} /></span></button>)}{!rooms.length && <div className="arm-inline-empty">{loading ? '正在读取房间…' : '还没有房间。创建一个，让主控和成员在公共聊天里协作。'}</div>}</div>
           <button className="arm-new-room" onClick={openCreate}><Plus size={14} />新建房间</button>
         </aside>
 
-        <aside className="arm-task-ledger" aria-label="任务动态">
+        <aside className="arm-task-ledger" hidden={hideTasks} aria-label="任务动态">
           <header><div><h2>任务动态</h2><p>{ledgerSummary}</p></div></header>
           <div className="arm-ledger-scroll">
             {detail?.window?.hasMoreActions && <p className="arm-window-note">当前显示最近 {detail.window.maxActions} 条动作，更早记录保留在服务端审计中。</p>}
@@ -903,7 +908,8 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
           </div>
         </aside>
 
-        <main className="arm-chat-pane" aria-label="公共聊天">
+        <main className="arm-chat-pane" ref={chatPane} aria-label="公共聊天">
+          <ConversationControls pane={chatPane} detached={detached} target={selectedRoomId ? { kind: 'legacy-room', roomId: selectedRoomId, title: detail?.room.name || '公共聊天' } : undefined} lists={[{ name: '房间列表', collapsed: hideRooms, toggle: () => setHideRooms(value => !value) }, { name: '任务动态', collapsed: hideTasks, toggle: () => setHideTasks(value => !value) }]} />
           <header className="arm-chat-heading">
             <div><h2>{detail?.room.name || '公共聊天'}</h2><p>{detail ? `未 @ 时由 @${coordinator?.mentionHandle || '主控'} 接手 · 公共记录对全部成员可见` : '选择房间后开始协作'}</p></div>
             {detail && <div><button className="small-button arm-task-button" onClick={() => setMobilePane('tasks')}><ClipboardList size={14} />任务动态</button><button className="small-button" aria-expanded={membersOpen} onClick={() => setMembersOpen(value => !value)}><Users size={14} />成员</button></div>}
@@ -913,10 +919,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
             {detail?.window?.hasLaterMessages && <div className="arm-catchup" role="status"><span>新消息较多，当前按每批 {detail.window.maxMessages} 条安全追赶。</span><button className="small-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void loadMessageWindow('later')}>{busy === 'room_messages_later' ? '追赶中…' : '继续追上新消息'}</button></div>}
             {detail?.messages.map(message => {
               const author = message.authorMemberId ? membersById.get(message.authorMemberId) : undefined
-              return <article className={`arm-message ${message.authorType}`} key={message.id}>
-                <div className="arm-message-byline"><strong>{message.authorType === 'user' ? '你' : message.authorType === 'system' ? '房间系统' : author?.displayName || message.authorName || '房间成员'}</strong>{author && <span>@{author.mentionHandle}</span>}<time>{timestamp(message.createdAt)}</time></div>
-                <div className="arm-message-body"><MessageBody message={message} members={membersById} /></div>
-              </article>
+              return <ChatMessage key={message.id} role={message.authorType === 'user' ? 'user' : message.authorType === 'system' ? 'system' : 'assistant'} name={message.authorType === 'user' ? '你' : message.authorType === 'system' ? '房间系统' : author?.displayName || message.authorName || '房间成员'} badge={author ? `@${author.mentionHandle}` : undefined} time={timestamp(message.createdAt)} text={message.body} richBody={<MessageBody message={message} members={membersById} />} />
             })}
             {detail && !detail.messages.length && <div className="arm-chat-empty"><MessageSquare size={26} /><strong>从一条公开消息开始</strong><p>直接说需求会交给主控；输入 @ 可指定成员。所有成员共享这里的记录，各自工作记忆仍独立保留。</p></div>}
             {!detail && <div className="arm-chat-empty"><Users size={26} /><strong>选择或新建一个房间</strong><p>每位成员会在首次参与时创建专属原生会话。</p></div>}

@@ -23,6 +23,8 @@ import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { AgentHostBridge } from './agent-host-bridge'
+import { ProjectDirectoryPicker } from './project-directory-picker'
+import { normalizeLauncherSkin } from '../shared/launcher-skins'
 import type { AgentHostAction, AgentWorkspaceRequest } from '../shared/agent-host'
 import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
 import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
@@ -100,6 +102,7 @@ function pluginPackageName(packageSpec: string): string {
 }
 
 export class LauncherController {
+  private readonly projectDirectoryPicker = new ProjectDirectoryPicker()
   private config!: PersistedConfig
   private snapshot!: LauncherSnapshot
   private service?: ChildProcessWithoutNullStreams
@@ -122,7 +125,7 @@ export class LauncherController {
   private readonly browserHandoff = new HarnessBrowserHandoff()
   private agentHost?: AgentHostBridge
 
-  constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection) {}
+  constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection, private readonly onViewEvent: (channel: string, payload?: unknown) => void = () => {}) {}
 
   async initialize(): Promise<void> {
     this.config = await readConfig()
@@ -242,11 +245,16 @@ export class LauncherController {
         nodePath: runtime.node, launcherVersion: app.getVersion(),
         ownerId: () => this.accountService.state().user?.id,
         request: (request) => this.accountService.agentWorkspaceRequest(request, true),
-        chooseDirectory: async () => {
-          const result = await dialog.showOpenDialog(this.window, { title: '授权智能体访问此项目（不会授权其他文件夹）', properties: ['openDirectory'] })
-          return result.canceled ? undefined : result.filePaths[0]
-        },
-        onChange: () => { if (!this.window.isDestroyed()) this.window.webContents.send('launcher:agent-host-changed') }
+        chooseDirectory: () => this.projectDirectoryPicker.choose(async () => {
+          if (this.window.isDestroyed()) throw new Error('主窗口已关闭，请重新打开启动器')
+          this.log('INFO', '项目目录选择：已打开原生窗口')
+          try {
+            const result = await dialog.showOpenDialog(this.window, { title: '授权智能体访问此项目（不会授权其他文件夹）', defaultPath: path.normalize(this.config.settings.workspace), properties: ['openDirectory', 'dontAddToRecent'] })
+            this.log('INFO', result.canceled ? '项目目录选择：用户取消，未授权项目' : '项目目录选择：返回选择，正在验证范围')
+            return result.canceled ? undefined : result.filePaths[0]
+          } catch (error) { this.log('WARN', '项目目录选择：原生窗口调用失败，未授权项目'); throw error }
+        }),
+        onChange: () => { if (!this.window.isDestroyed()) this.window.webContents.send('launcher:agent-host-changed'); this.onViewEvent('launcher:agent-host-changed') }
       }, path.join(__dirname, '../agent-host'))
       await this.agentHost.initialize()
     } catch (error) { this.log('WARN', `智能体托管模块暂不可用：${error instanceof Error ? error.message : String(error)}`) }
@@ -1042,6 +1050,8 @@ export class LauncherController {
     this.config.settings = {
       ...this.config.settings,
       ...safePatch,
+      launcherSkin: normalizeLauncherSkin(safePatch.launcherSkin ?? this.config.settings.launcherSkin),
+      theme: ['light','dark','system'].includes(String(safePatch.theme ?? this.config.settings.theme)) ? (safePatch.theme ?? this.config.settings.theme) : 'light',
       port: nextPort,
       skinCatalogUrl: FIXED_SKIN_CATALOG_URL,
       petCatalogUrl: FIXED_PET_CATALOG_URL
@@ -2408,5 +2418,6 @@ export class LauncherController {
 
   private emit(): void {
     if (!this.window.isDestroyed()) this.window.webContents.send('launcher:snapshot', this.getSnapshot())
+    this.onViewEvent('launcher:snapshot', this.getSnapshot())
   }
 }

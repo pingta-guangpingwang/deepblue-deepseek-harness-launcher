@@ -65,6 +65,9 @@ const api: LauncherApi = {
   importPet: () => ipcRenderer.invoke('launcher:import-pet'),
   removeCustomPet: (petId) => ipcRenderer.invoke('launcher:remove-custom-pet', petId),
   windowAction: (action) => ipcRenderer.invoke('window:action', action),
+  openConversation: (target) => ipcRenderer.invoke('launcher:open-conversation', target),
+  getConversationContext: () => ipcRenderer.invoke('launcher:conversation-context'),
+  focusMainWindow: () => ipcRenderer.invoke('launcher:focus-main'),
   onSnapshot: (listener: (snapshot: LauncherSnapshot) => void) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: LauncherSnapshot): void => listener(snapshot)
     ipcRenderer.on('launcher:snapshot', wrapped)

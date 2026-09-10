@@ -12,6 +12,18 @@ vi.mock('electron', () => ({ safeStorage: {
 } }))
 vi.mock('node:child_process', async (original) => ({ ...await original<typeof import('node:child_process')>(), fork: mocks.fork }))
 vi.mock('./legacy-bindings', async (original) => ({ ...await original<typeof import('./legacy-bindings')>(), readLegacyBinding: mocks.readLegacyBinding }))
+// The local director has separate IPC/online-channel integration coverage.
+// Keep these lifecycle counts scoped to native agent workers, not that reader.
+vi.mock('./local-control', () => ({ LocalControlBridge: class {
+  snapshot() { return { supported: true, protocol: 1, version: 0, rooms: [], catalog: [], busy: false } }
+  isBusy() { return false }
+  isActive() { return false }
+  async connectOnline() {}
+  async refreshContext() {}
+  async request() { return this.snapshot() }
+  stopOnline() {}
+  async close() {}
+} }))
 
 import { AgentHostService, resolveAgentLaunch } from './service'
 import type { AgentWorkspaceRequest } from '../../shared/agent-host'
@@ -81,12 +93,50 @@ async function until(predicate: () => boolean): Promise<void> {
   throw new Error('mock test condition did not settle')
 }
 beforeEach(() => {
+  // Failed spy assertions can print fork options; never put inherited secrets in them.
+  for (const key of Object.keys(process.env)) if (/token|secret|password|api.?key|auth.?key/i.test(key)) vi.stubEnv(key, 'synthetic-test-environment')
   mocks.fork.mockReset()
   mocks.readLegacyBinding.mockReset()
   mocks.readLegacyBinding.mockRejectedValue(new Error('no legacy binding'))
   mocks.encryptionAvailable.mockReturnValue(true)
   mocks.encrypt.mockClear()
   mocks.fork.mockImplementation(() => { const child = new FakeChild(); queueMicrotask(() => child.emit('message', { type: 'ready', protocolVersion: 1 })); return child })
+})
+
+it('cancelling project selection returns immediately without starting a director or changing grants', async () => {
+  const f = await fixture()
+  const options = (f.service as unknown as { options: { chooseDirectory(): Promise<string | undefined> } }).options
+  options.chooseDirectory = async () => undefined
+  const before = await readFile(path.join(f.storageDir, 'host-state.enc'))
+  const result = await f.service.action({ action: 'local_control', command: 'authorize_project', input: { adapter: 'codex' }, requestId: '1'.repeat(32) })
+  expect(result.localControl?.lastResult).toEqual({ requestId: '1'.repeat(32), result: { cancelled: true } })
+  expect(await readFile(path.join(f.storageDir, 'host-state.enc'))).toEqual(before)
+  expect(mocks.fork).not.toHaveBeenCalled()
+})
+
+it('creates only a fresh managed empty project and reuses the same request without opening a picker', async () => {
+  const f = await fixture()
+  const options = (f.service as unknown as { options: { chooseDirectory(): Promise<string | undefined> } }).options
+  options.chooseDirectory = async () => { throw new Error('Native picker must not open') }
+  const input = { action: 'local_control' as const, command: 'authorize_project' as const, input: { adapter: 'codex', createEmpty: true }, requestId: '3'.repeat(32) }
+  await f.service.action(input)
+  const target = path.join(await realpath(f.storageDir), 'local-projects', 'codex-' + input.requestId)
+  expect(await realpath(target)).toBe(target)
+  const fs = await import('node:fs/promises')
+  expect(await fs.readdir(target)).toEqual([])
+  await f.service.action(input)
+  const projects = (f.service as unknown as { saved: { localProjects: Array<{path:string}> } }).saved.localProjects
+  expect(projects.filter(project => project.path === target)).toHaveLength(1)
+  expect(f.service.snapshot().localCatalog?.projects.filter(project => project.path === target)).toHaveLength(1)
+  await expect(f.service.action({ ...input, requestId: '../outside' })).rejects.toThrow('编号无效')
+})
+
+it('does not grant a selected project if the account changes while the dialog is open', async () => {
+  const f = await fixture()
+  const options = (f.service as unknown as { options: { chooseDirectory(): Promise<string | undefined> } }).options
+  options.chooseDirectory = async () => { f.setOwner('owner-B'); return f.binding.projectRoots[0] }
+  await expect(f.service.action({ action: 'local_control', command: 'authorize_project', input: { adapter: 'codex' }, requestId: '2'.repeat(32) })).rejects.toThrow('账号已切换')
+  expect(mocks.fork).not.toHaveBeenCalled()
 })
 afterEach(async () => {
   vi.useRealTimers()
@@ -436,6 +486,32 @@ describe('AgentHostService local authorization and child protocol', () => {
 })
 
 describe('Windows npm shim resolution', () => {
+  it('supports the official Claude native executable without shell-running its npm shim', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'launcher-claude-native-')); roots.push(root)
+    const packageRoot = path.join(root, 'node_modules/@anthropic-ai/claude-code'); await mkdir(path.join(packageRoot, 'bin'), { recursive: true })
+    await writeFile(path.join(root, 'claude.cmd'), 'not executed'); await writeFile(path.join(packageRoot, 'package.json'), JSON.stringify({ name: '@anthropic-ai/claude-code', bin: { claude: 'bin/claude.exe' } })); await writeFile(path.join(packageRoot, 'bin/claude.exe'), 'not executed')
+    vi.stubEnv('Path', root); vi.stubEnv('PATH', root)
+    expect(await resolveAgentLaunch('claude-code', process.execPath)).toEqual({ executable: await realpath(path.join(packageRoot, 'bin/claude.exe')), args: [] })
+  })
+  it('resumes a new local conversation using its own native ID and blocks an unconfirmed continuation', async () => {
+    const f = await fixture()
+    const cli = path.join(f.root, 'AppData/Local/OpenAI/Codex/bin', 'a'.repeat(16)); await mkdir(cli, { recursive: true }); await writeFile(path.join(cli, 'codex.exe'), 'not executed')
+    vi.stubEnv('USERPROFILE', await realpath(f.root))
+    const internal = f.service as unknown as { state: { localCatalog: import('../../shared/agent-host').LocalCatalog }; localChildren: Map<string, FakeChild> }
+    internal.state.localCatalog = { scannedAt: '', errors: [], projects: [{ id: 'project', adapter: 'codex', name: 'synthetic', path: f.binding.projectRoots[0]!, lastActivityAt: '' }], sessions: [] }
+    const conversationId = '4'.repeat(32), nativeId = '33333333-3333-4333-8333-333333333333'
+    const input = { action: 'send_local' as const, projectId: 'project', conversationId, instruction: 'remember', requestId: '00000000-0000-4000-8000-000000000001' }
+    await f.service.action(input)
+    const first = [...internal.localChildren.values()][0]!
+    expect(first.send.mock.calls[0]![0].resumeSessionId).toBe('')
+    first.emit('message', { type: 'result', result: { exitCode: 0, sessionId: nativeId, finalReply: 'remembered' } }); first.exit(0)
+    await f.service.action({ ...input, instruction: 'recall', requestId: '00000000-0000-4000-8000-000000000002' })
+    const second = [...internal.localChildren.values()][0]!
+    expect(second.send.mock.calls[0]![0].resumeSessionId).toBe(nativeId)
+    second.exit(1)
+    expect(f.service.snapshot().localTasks?.at(-1)?.status).toBe('unconfirmed')
+    await expect(f.service.action({ ...input, requestId: '00000000-0000-4000-8000-000000000003' })).rejects.toThrow('结果未确认')
+  })
   it('resolves Cursor under a redirected LocalAppData root without accepting escaping payloads', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'launcher-cursor-root-')); roots.push(root)
     const actual = path.join(root, 'actual'); const redirected = path.join(root, 'redirected')

@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { LauncherLibraryEntry, LauncherSettings, ModelProviderDraft, SourceConfig, WorkspaceEntry } from '../shared/types'
 import { validateHarnessPort } from './port-settings'
+import { normalizeLauncherSkin } from '../shared/launcher-skins'
 
 const defaultSources: SourceConfig[] = [
   {
@@ -86,6 +87,7 @@ function defaults(): PersistedConfig {
       port: 3080,
       autoOpen: true,
       theme: 'light',
+      launcherSkin: 'deepseek',
       channel: 'stable',
       backupBeforeUpdate: true,
       keepBackups: 3,
@@ -150,6 +152,8 @@ export async function readConfig(): Promise<PersistedConfig> {
       settings: {
         ...fallback.settings,
         ...savedSettings,
+        launcherSkin: normalizeLauncherSkin(savedSettings.launcherSkin),
+        theme: ['light','dark','system'].includes(String(savedSettings.theme)) ? savedSettings.theme! : 'light',
         storageRoot,
         storageSetupCompleted,
         port: (() => { try { return validateHarnessPort(savedSettings.port) } catch { return fallback.settings.port } })(),

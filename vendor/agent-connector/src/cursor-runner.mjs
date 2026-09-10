@@ -54,6 +54,15 @@ export function createCursorClient(state, options) {
     .onNotification(acp.methods.client.session.update, ({ params }) => {
       if (params.sessionId !== state.sessionId) return;
       const update = params.update;
+      if (state.capturing && ['tool_call', 'tool_call_update'].includes(update.sessionUpdate) && update.toolCallId) {
+        state.toolCalls ||= new Map();
+        state.toolCalls.set(update.toolCallId, mergeCursorToolCall(state.toolCalls.get(update.toolCallId), update));
+      }
+      if (state.capturing && typeof options.onEvent === 'function' && ['agent_message_chunk', 'user_message_chunk', 'tool_call', 'tool_call_update', 'plan', 'usage_update'].includes(update.sessionUpdate)) {
+        state.eventQueue = (state.eventQueue || Promise.resolve()).then(async () => {
+          if (!state.eventError) await options.onEvent({ source: 'cursor', type: update.sessionUpdate, data: update });
+        }).catch(error => { state.eventError ||= error; });
+      }
       if (state.captureHistory && ['user_message_chunk', 'agent_message_chunk'].includes(update.sessionUpdate) && update.content?.type === 'text') {
         const role = update.sessionUpdate === 'user_message_chunk' ? 'user' : 'assistant';
         const last = state.history.at(-1);
@@ -65,17 +74,39 @@ export function createCursorClient(state, options) {
       if (update.sessionUpdate === 'tool_call') state.reply = '';
       if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
         state.reply += update.content.text;
-        if (state.reply.length > 100000) { state.reply = state.reply.slice(0, 100000); state.truncated = true; }
+        if (!options.fullOutput && state.reply.length > 100000) { state.reply = state.reply.slice(0, 100000); state.truncated = true; }
       }
     })
     .onRequest(acp.methods.client.session.requestPermission, async ({ params }) => {
-      const decision = await cursorPermission(params, options.projectRoot, options.sandbox, state.sessionId);
+      let decision;
+      await state.eventQueue;
+      if (state.eventError) {
+        state.permissionDenied = true;
+        return { outcome: { outcome: 'cancelled' } };
+      }
+      if (typeof options.onApproval === 'function' && params.sessionId === state.sessionId) {
+        const toolCall = mergeCursorToolCall(state.toolCalls?.get(params.toolCall?.toolCallId), params.toolCall);
+        const raw = toolCall.rawInput;
+        const kind = toolCall.kind === 'fetch' ? 'network' : toolCall.kind || 'other';
+        const command = typeof raw === 'string' ? raw : typeof raw?.command === 'string' ? raw.command : typeof raw?.commandLine === 'string' ? raw.commandLine : '';
+        const approved = await options.onApproval({ nativeId: toolCall.toolCallId || '', kind,
+          paths: (toolCall.locations || []).map(item => path.isAbsolute(item.path) ? item.path : path.resolve(options.projectRoot, item.path)),
+          command, destination: typeof raw?.url === 'string' ? raw.url : '', title: toolCall.title || '', rawInput: raw ?? null });
+        const selected = params.options?.find(item => item.kind === (approved?.approved === true ? 'allow_once' : 'reject_once'));
+        decision = selected ? { outcome: { outcome: 'selected', optionId: selected.optionId } } : { outcome: { outcome: 'cancelled' } };
+      } else decision = await cursorPermission(params, options.projectRoot, options.sandbox, state.sessionId);
       const selected = params.options?.find(item => item.optionId === decision.outcome.optionId);
       if (selected?.kind !== 'allow_once') state.permissionDenied = true;
       return decision;
     })
     .onRequest('cursor/ask_question', value => value, () => ({ outcome: { outcome: 'skipped', reason: '请在群聊最终回复中提出需要用户补充的问题。' } }))
     .onRequest('cursor/create_plan', value => value, () => ({ outcome: 'rejected', reason: '远程连接不自动批准额外计划，请向用户说明。' }));
+}
+
+// ACP updates are partial. An absent/null field retains the last supplied value;
+// an explicitly supplied empty object/array replaces it (never reuse stale input).
+export function mergeCursorToolCall(previous = {}, incoming = {}) {
+  return { ...previous, ...Object.fromEntries(Object.entries(incoming || {}).filter(([, value]) => value !== undefined && value !== null)) };
 }
 
 async function initialize(ctx, state) {
@@ -130,18 +161,23 @@ export async function cursorWorkflow(ctx, state, options) {
     state.sessionId = session.sessionId;
   }
   const mode = sandbox === 'read-only' ? 'ask' : 'agent';
+  await options.onSession?.(state.sessionId);
   state.stage = 'mode';
   if (!session.modes?.availableModes?.some(item => item.id === mode)) throw new Error('Cursor 没有提供要求的执行模式');
   await ctx.request(acp.methods.agent.session.setMode, { sessionId: state.sessionId, modeId: mode });
   control.cancel = () => ctx.notify(acp.methods.agent.session.cancel, { sessionId: state.sessionId });
   await onProgress({ summary: 'Cursor 原生会话已确认，使用官方 ACP 开始处理', progressPercent: 20 });
   if (control.cancelled) return { sessionId: state.sessionId, cancelled: true, exitCode: 1, finalReply: '' };
+  state.toolCalls = new Map(); state.eventError = null;
   state.capturing = true; state.attempted = true;
   state.stage = 'prompt';
   options.onExecute?.();
   const result = await ctx.request(acp.methods.agent.session.prompt, { sessionId: state.sessionId, prompt: [{ type: 'text', text: validateInstruction(options.instruction) }] });
   state.capturing = false;
-  return { sessionId: state.sessionId, resumeSessionId, finalReply: safeFinalReply(state.reply + (state.truncated ? '\n[回复已截断]' : '')), exitCode: result.stopReason === 'end_turn' && !state.permissionDenied && state.reply.trim() ? 0 : 1, cancelled: result.stopReason === 'cancelled', diagnostic: state.permissionDenied ? 'Cursor 请求了当前授权范围以外的操作，已拒绝；没有自动提权。' : result.stopReason === 'end_turn' ? (state.reply.trim() ? '' : 'Cursor 没有返回可确认的最终回复。') : `Cursor 未正常完成：${result.stopReason}`, signal: '' };
+  await state.eventQueue;
+  if (state.eventError) throw state.eventError;
+  const finalReply = options.fullOutput ? state.reply : safeFinalReply(state.reply + (state.truncated ? '\n[回复已截断]' : ''));
+  return { sessionId: state.sessionId, resumeSessionId, finalReply, exitCode: result.stopReason === 'end_turn' && !state.permissionDenied && state.reply.trim() ? 0 : 1, cancelled: result.stopReason === 'cancelled', diagnostic: state.permissionDenied ? 'Cursor 请求了当前授权范围以外的操作，已拒绝；没有自动提权。' : result.stopReason === 'end_turn' ? (state.reply.trim() ? '' : 'Cursor 没有返回可确认的最终回复。') : `Cursor 未正常完成：${result.stopReason}`, signal: '' };
 }
 
 export async function withCursorRuntime(options, operations = {}) {
@@ -154,7 +190,7 @@ export async function withCursorRuntime(options, operations = {}) {
   let timeout = setTimeout(() => terminateRuntime({ child, cancelled: false }), 30000);
   const spawnFailure = new Promise((_, reject) => child.once('error', reject));
   try {
-    const workflow = createCursorClient(state, { projectRoot, sandbox }).connectWith(acp.ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout)), ctx => cursorWorkflow(ctx, state, { ...options, projectRoot, sandbox, onExecute: () => { clearTimeout(timeout); timeout = setTimeout(() => terminateRuntime({ child, cancelled: false }), 30 * 60 * 1000); } }));
+    const workflow = createCursorClient(state, { ...options, projectRoot, sandbox }).connectWith(acp.ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout)), ctx => cursorWorkflow(ctx, state, { ...options, projectRoot, sandbox, onExecute: () => { clearTimeout(timeout); timeout = setTimeout(() => terminateRuntime({ child, cancelled: false }), 30 * 60 * 1000); } }));
     return await Promise.race([workflow, spawnFailure]);
   } catch (cause) {
     const error = new Error('Cursor 本机连接或会话未完成，请检查官方 CLI 登录与原生会话状态。');

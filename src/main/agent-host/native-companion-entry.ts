@@ -68,6 +68,9 @@ async function start(): Promise<void> {
   config = { executor: settings.executor, token: randomBytes(32).toString('hex'), endpoint: process.platform === 'win32' ? `\\\\.\\pipe\\shenlan-codex-${randomBytes(16).toString('hex')}` : path.join(directory, 'relay.sock') }
   // Reuse a live companion. Never steal the address from another Desktop instance.
   if (await desktopRelayRequest({ action: 'status' }, directory, 10000).then(reply => reply.ready).catch(() => false)) return
+  // Codex CLI/app-server sessions inherit MCP configuration too. A headless
+  // instance must not publish a new connection and displace the real Desktop.
+  if (!await ready()) return
   server = net.createServer(socket => {
     let buffer: Buffer = Buffer.alloc(0); let accepted = false
     socket.setTimeout(25000, () => socket.destroy()); socket.on('error', () => {})
@@ -107,7 +110,7 @@ if (!process.argv.includes('--background')) {
     let result: unknown
     if (req.method === 'initialize') result = { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'shenlan-desktop-relay', version: '1.0.0' } }
     else if (req.method === 'tools/list') result = { tools: [{ name: 'shenlan_relay_status', description: '检查深蓝启动器到 Codex 桌面原对话的本机桥接状态', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true } }] }
-    else if (req.method === 'tools/call') { await startup.catch(() => {}); result = { content: [{ type: 'text', text: JSON.stringify({ ready: await desktopRelayRequest({ action: 'status' }).then(r => r.ready).catch(() => false) }) }] } }
+    else if (req.method === 'tools/call') { await startup.catch(() => {}); if (!server) await start().catch(() => {}); result = { content: [{ type: 'text', text: JSON.stringify({ ready: await desktopRelayRequest({ action: 'status' }).then(r => r.ready).catch(() => false) }) }] } }
     else if (req.method === 'ping') result = {}
     else { process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, error: { code: -32601, message: 'Method not found' } }) + '\n'); return }
     process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, result }) + '\n')

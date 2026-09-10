@@ -6,7 +6,7 @@ export interface LocalCatalog {
   errors: string[]
   models?: Array<{ id: string; name: string; adapter: AgentAdapter }>
 }
-export interface LocalTask { id: string; projectId: string; sessionId?: string; requestId: string; status: 'running' | 'delivered' | 'unconfirmed' | 'completed' | 'failed' | 'cancelled'; instruction: string; summary: string; reply?: string; startedAt: string; backend?: 'desktop'; baselineTurnId?: string; baselineItemIds?: string[]; deliveryTurnId?: string; deliveryPrompt?: string }
+export interface LocalTask { id: string; projectId: string; sessionId?: string; conversationId?: string; runtimeSessionId?: string; requestId: string; status: 'running' | 'delivered' | 'unconfirmed' | 'completed' | 'failed' | 'cancelled'; instruction: string; summary: string; reply?: string; startedAt: string; backend?: 'desktop'; baselineTurnId?: string; baselineItemIds?: string[]; deliveryTurnId?: string; deliveryPrompt?: string }
 export interface LocalAgentBinding {
   id: string
   name: string
@@ -21,6 +21,8 @@ export interface LocalAgentBinding {
   lastSyncedAt?: string
 }
 export interface AgentHostSnapshot {
+  localConversationContinuity?: boolean
+  localControl?: import('./local-control').LocalControlSnapshot
   accountConnection?: { status: 'signed_out' | 'checking' | 'connected' | 'failed'; checkedAt?: string; message?: string }
   cloudAgents?: Array<{ id: string; name: string; adapter: string; reportedStatus: string }>
   legacyCandidates?: Array<{ adapter: AgentAdapter; available: boolean; projectRoots: string[]; message: string }>
@@ -41,6 +43,7 @@ export interface AgentHostSnapshot {
   discovered: Array<{ adapter: AgentAdapter; name: string; available: boolean; message: string }>
 }
 export type AgentHostAction =
+  | { action: 'local_control'; command: import('./local-control').LocalControlCommand; input?: Record<string, unknown>; requestId?: string }
   | { action: 'rename_device'; name: string }
   | { action: 'check_connection' }
   | { action: 'discover_existing' }
@@ -50,7 +53,7 @@ export type AgentHostAction =
   | { action: 'read_local_history'; sessionId: string }
   | { action: 'bind_local_project'; projectId: string }
   | { action: 'choose_local_files' }
-  | { action: 'send_local'; projectId: string; sessionId?: string; instruction: string; requestId: string; model?: string; fileIds?: string[] }
+  | { action: 'send_local'; projectId: string; sessionId?: string; conversationId?: string; instruction: string; requestId: string; model?: string; fileIds?: string[] }
   | { action: 'cancel_local'; taskId: string }
   | { action: 'discover' | 'bind_device' | 'pause' | 'resume' | 'revoke_device' }
   | { action: 'add_agent'; adapter: AgentAdapter; name?: string }

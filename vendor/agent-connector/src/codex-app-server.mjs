@@ -44,14 +44,15 @@ function latestActiveTurn(thread) {
   return [...turns].reverse().find((turn) => turn && turn.status === 'inProgress') || null;
 }
 
-function finalAgentText(thread, turnId) {
+export function finalAgentText(thread, turnId, fullOutput = false) {
   const turns = Array.isArray(thread && thread.turns) ? thread.turns : [];
-  const turn = turns.find((item) => item && item.id === turnId) || turns.at(-1);
-  const messages = [];
-  for (const item of Array.isArray(turn && turn.items) ? turn.items : []) {
-    if (item && item.type === 'agentMessage' && item.text) messages.push(String(item.text));
-  }
-  return safeFinalReply(messages.join('\n\n'));
+  const turn = turnId ? turns.find((item) => item && item.id === turnId) : turns.at(-1);
+  const items = (Array.isArray(turn?.items) ? turn.items : []).filter(item => item?.type === 'agentMessage' && item.text);
+  const final = items.filter(item => item.phase === 'final_answer');
+  // Commentary remains in native events, never in a structured final result.
+  // Unphased messages are supported only for older app-server protocols.
+  const messages = (final.length ? final : items.filter(item => !item.phase)).map(item => String(item.text));
+  return fullOutput ? messages.join('\n\n') : safeFinalReply(messages.join('\n\n'));
 }
 
 function isActiveWriterConflict(error) {
@@ -125,7 +126,9 @@ export class CodexAppServerClient extends EventEmitter {
     }
     if (message && message.method && message.id !== undefined) {
       this.emit('serverRequest', message);
-      this.send({ id: message.id, error: { code: -32601, message: '深蓝同步服务不代替用户处理交互式审批' } });
+      if (typeof this.serverRequestHandler === 'function') {
+        Promise.resolve().then(() => this.serverRequestHandler(message)).then(result => this.send({ id: message.id, result })).catch(() => this.send({ id: message.id, error: { code: -32000, message: '本地审批未完成，此请求没有自动批准' } }));
+      } else this.send({ id: message.id, error: { code: -32601, message: '深蓝同步服务不代替用户处理交互式审批' } });
       return;
     }
     if (!message || !message.method) return;
@@ -403,28 +406,58 @@ export async function runCodexAppServerTask({
   attachmentRoot = '',
   threadTitle = '',
   onProgress = async () => {},
+  onSession,
+  onEvent,
+  onApproval,
+  fullOutput = false,
+  outputSchema,
+  reviewer = false,
   control = {}
 }) {
-  const client = await host.createClient();
   control.closed = false;
-  control.cancelled = false;
+  control.cancelled = control.cancelled === true;
   control.child = null;
+  const client = await host.createClient();
   let threadId = resumeSessionId;
   let turnId = '';
   let threadCreated = false;
   let turnSubmissionAttempted = false;
   let lastProgress = '';
+  let eventQueue = Promise.resolve(), eventError;
+  const nativeItems = new Map();
   const onNotification = (message) => {
+    if (message.params?.threadId && message.params.threadId !== threadId || turnId && message.params?.turnId && message.params.turnId !== turnId) return;
+    if (message.params?.item?.id) nativeItems.set(message.params.item.id, message.params.item);
+    if (threadId && typeof onEvent === 'function' && !/reasoning/i.test(message.method) && message.params?.item?.type !== 'reasoning') {
+      eventQueue = eventQueue.then(() => onEvent({ source: 'codex', type: message.method, data: message.params })).catch(error => { eventError = error; void control.cancel?.(); });
+    }
     const progress = progressForNotification(message);
     if (!progress || progress.summary === lastProgress) return;
     lastProgress = progress.summary;
     Promise.resolve(onProgress(progress)).catch(() => {});
   };
   client.on('notification', onNotification);
+  if (typeof onApproval === 'function') client.serverRequestHandler = async message => {
+    const params = message.params || {};
+    if (params.threadId !== threadId || turnId && params.turnId !== turnId) throw new Error('审批不属于当前原生会话');
+    let proposal;
+    if (message.method === 'item/commandExecution/requestApproval' && (!params.kind || params.kind === 'command')) {
+      proposal = { nativeId: String(params.approvalId || message.id), kind: 'execute', command: params.command || '', paths: params.cwd ? [params.cwd] : [], reason: params.reason || '' };
+    } else if (message.method === 'item/fileChange/requestApproval') {
+      const item = nativeItems.get(params.itemId);
+      // A grantRoot asks for a session-wide expansion; never turn it into an
+      // automatic single-file approval, even when the model calls it an edit.
+      if (params.grantRoot) return { decision: 'decline' };
+      proposal = { nativeId: String(message.id), kind: 'edit', paths: (item?.changes || []).map(change => change.path), reason: params.reason || '' };
+    } else throw new Error('原生请求尚不支持由本地总控审核');
+    const result = await onApproval(proposal);
+    return { decision: result?.approved === true ? 'accept' : 'decline' };
+  };
   control.cancel = async () => {
     if (turnId && threadId) await client.request('turn/interrupt', { threadId, turnId }).catch(() => {});
   };
   try {
+    if (control.cancelled) return { sessionId: threadId, finalReply: '', diagnostic: '', resumeSessionId, exitCode: 130, signal: '', cancelled: true };
     if (resumeSessionId) {
       try {
         const resumed = await client.request('thread/resume', { threadId: resumeSessionId, cwd: project.path });
@@ -438,8 +471,9 @@ export async function runCodexAppServerTask({
     } else {
       const started = await client.request('thread/start', {
         cwd: project.path,
-        approvalPolicy: 'never',
+        approvalPolicy: onApproval ? 'on-request' : 'never',
         sandbox: appServerSandbox(sandbox),
+        ...(onApproval ? { config: { approvals_reviewer: 'user', ...(reviewer ? { 'features.shell_tool': false, 'features.unified_exec': false, web_search: 'disabled' } : {}) } } : {}),
         serviceName: 'shenlan_remote_office_user'
       });
       threadId = started && started.thread && started.thread.id || '';
@@ -450,6 +484,7 @@ export async function runCodexAppServerTask({
       await onProgress({ summary: 'Codex 已创建新的原生项目话题', progressPercent: 8 });
     }
     if (!threadId) throw new Error('Codex App Server 没有返回会话 ID');
+    await onSession?.(threadId);
     const nativeInputs = [{ type: 'text', text: instruction }];
     for (const attachment of attachments) {
       if (attachment.mediaKind === 'image') nativeInputs.push({ type: 'localImage', path: attachment.path });
@@ -460,7 +495,8 @@ export async function runCodexAppServerTask({
       threadId,
       input: nativeInputs,
       cwd: project.path,
-      approvalPolicy: 'never',
+      approvalPolicy: onApproval ? 'on-request' : 'never',
+      ...(outputSchema ? { outputSchema } : {}),
       sandboxPolicy: sandboxPolicy(sandbox, project.path, attachmentRoot)
     });
     turnId = startedTurn && startedTurn.turn && startedTurn.turn.id || '';
@@ -472,7 +508,8 @@ export async function runCodexAppServerTask({
     );
     const turn = completed.params.turn || {};
     const thread = await readThread(client, threadId);
-    const finalReply = finalAgentText(thread, turnId);
+    await eventQueue; if (eventError) throw eventError;
+    const finalReply = finalAgentText(thread, turnId, fullOutput);
     const status = String(turn.status || 'failed');
     const diagnostic = turn.error && (turn.error.message || JSON.stringify(turn.error)) || '';
     return {

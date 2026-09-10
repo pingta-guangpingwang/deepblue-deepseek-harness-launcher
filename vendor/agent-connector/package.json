@@ -1,6 +1,6 @@
 {
   "name": "@shenlan/agent-connector",
-  "version": "0.10.10",
+  "version": "0.10.11",
   "private": true,
   "description": "由智能体 Skill 自动安装和维护的深蓝无界面同步服务",
   "type": "module",
@@ -21,7 +21,7 @@
   },
   "scripts": {
     "check": "node --check src/cli.mjs && node --check src/cursor-runner.mjs && node --check src/dsh-rpc.mjs && node --check src/dsh-runner.mjs && node --check src/config.mjs && node --check src/state.mjs && node --check src/api.mjs && node --check src/privacy.mjs && node --check src/session-history.mjs && node --check src/runtime-catalog.mjs && node --check src/runner-common.mjs && node --check src/runtime-diagnostics.mjs && node --check src/attachment-transfer.mjs && node --check src/codex-app-server.mjs && node --check src/codex-runner.mjs && node --check src/claude-runner.mjs && node --check src/qclaw-gateway.mjs && node --check src/qclaw-runner.mjs && node --check src/codebuddy-runner.mjs && node --check src/ide-mcp-server.mjs && node --check src/ide-agent-runner.mjs && node --check src/workbuddy-runner.mjs && node --check src/runtime-health.mjs && node --check src/runtime-runner.mjs && node --check src/local-observer.mjs && node --check src/local-runner.mjs && node --check src/service-control.mjs && node --check src/host-child.mjs && node --check src/connector.mjs && node --check src/service-manager.mjs && node --check test.mjs && node --check adapter-runners.test.mjs && node --check attachment-transfer.test.mjs",
-    "test": "node test.mjs && node app-server.test.mjs && node service-manager.test.mjs && node --test cursor-runner.test.mjs dsh-runner.test.mjs adapter-runners.test.mjs attachment-transfer.test.mjs desktop-routing.test.mjs host-reliability.test.mjs local-observer.test.mjs local-runner.test.mjs qclaw-gateway.test.mjs runtime-health.test.mjs service-handoff.test.mjs",
+    "test": "node test.mjs && node app-server.test.mjs && node service-manager.test.mjs && node --test cursor-runner.test.mjs dsh-runner.test.mjs adapter-runners.test.mjs attachment-transfer.test.mjs desktop-routing.test.mjs host-reliability.test.mjs local-observer.test.mjs local-runner.test.mjs qclaw-gateway.test.mjs runtime-health.test.mjs service-handoff.test.mjs local-control-collaboration.test.mjs local-control-engine.test.mjs local-control-files.test.mjs local-control-private-sessions.test.mjs local-control-store.test.mjs local-control-worktrees.test.mjs",
     "pack:public": "node ../../scripts/build-agent-connector-release.mjs"
   }
 }

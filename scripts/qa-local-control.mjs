@@ -1,0 +1,65 @@
+// Real Electron renderer + preload + Host + SQLite + file transport.
+// Synthetic local room only: no model task, account binding, upload or production writes.
+import { _electron as electron } from 'playwright';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import assert from 'node:assert/strict';
+const root = path.resolve(import.meta.dirname, '..');
+const site = path.resolve(root, '../remove-codex-quota-release');
+const fixtureRoot = 'E:/ObsidianRes/obRes1/AIlishishu/tmp/pdfs/local-control';
+const { LocalDirector } = await import(pathToFileURL(path.join(site, 'packages/agent-connector/src/local-control/child.mjs')));
+const output = path.join(root, 'output/playwright/local-control', String(Date.now()));
+const profile = path.join(output, 'profile'), storage = path.join(output, 'storage'), project = path.join(output, 'synthetic-project');
+await mkdir(profile, { recursive: true }); await mkdir(project, { recursive: true });
+await writeFile(path.join(profile, 'launcher.json'), JSON.stringify({ settings: { storageRoot: storage, storageSetupCompleted: true, autoOpen: false, port: 38973 } }));
+const director = new LocalDirector({ directory: path.join(storage, 'agent-host/local-control'), descriptors: [{ id: 'qa', name: '合成验收成员', adapter: 'codex', projects: [{ id: 'project', path: project, name: '合成验收项目' }] }], execute: async () => { throw new Error('QA must not execute a native task'); } });
+await director.initialize();
+const { roomId } = await director.command('create_room', { name: '本地总控合成验收', members: [{ id: '1'.repeat(32), displayName: '主控', mentionHandle: '主控', agentId: 'qa', projectId: 'project' }] });
+for (let index = 1; index <= 125; index++) director.store.append(roomId, 'message', { authorType: index % 2 ? 'user' : 'assistant', body: `合成历史记录 ${index}：用于分页验收，未调用模型。`, memberId: '1'.repeat(32) });
+await director.command('attach_files', { roomId, paths: [path.join(fixtureRoot, 'local-preview-acceptance.pdf'), path.join(fixtureRoot, 'page-1.png')] });
+await director.close();
+const report = { passed: false, output, synthetic: true, productionWrites: false, checks: [], pageErrors: [] };
+let app;
+try {
+  const env = { ...process.env, APPDATA: path.join(output, 'appdata'), LOCALAPPDATA: path.join(output, 'localappdata'), DSH_LAUNCHER_ALLOW_PARALLEL: '1', DSH_LAUNCHER_DISABLE_HARDWARE_ACCELERATION: '1' }; delete env.ELECTRON_RUN_AS_NODE;
+  app = await electron.launch({ args: [root, `--user-data-dir=${profile}`, '--disable-gpu'], cwd: root, env, timeout: 30000 });
+  const page = await app.firstWindow(); page.on('pageerror', error => report.pageErrors.push(error.message));
+  await page.addLocatorHandler(page.getByRole('button', { name: '关闭连接指引' }), async () => { await page.getByRole('button', { name: '关闭连接指引' }).click(); });
+  await page.addLocatorHandler(page.locator('.runtime-update-dialog'), async () => { await page.keyboard.press('Escape'); });
+  await page.getByRole('button', { name: '智能体工作台', exact: true }).click();
+  await page.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click();
+  await page.getByRole('heading', { name: '本地总控合成验收', exact: true }).waitFor({ timeout: 30000 });
+  report.checks.push('compiled renderer/preload/Host/local director reads the seeded SQLite room');
+  await page.getByRole('button', { name: '加载更早的本地记录' }).click();
+  await page.getByText('合成历史记录 1：用于分页验收，未调用模型。', { exact: true }).waitFor();
+  report.checks.push('125-message history is accessible through real local pagination');
+  const draft = page.getByRole('textbox', { name: '本地协作任务' }); await draft.fill('切换文件时保留的草稿');
+  await page.getByRole('tab', { name: '文件', exact: true }).click();
+  assert.equal(await draft.inputValue(), '切换文件时保留的草稿');
+  const pdfCard = page.locator('.lcr-file').filter({ hasText: 'local-preview-acceptance.pdf' });
+  await pdfCard.getByRole('button', { name: '预览', exact: true }).click();
+  await page.locator('.lcr-pdf-pages[aria-busy="false"] canvas').waitFor();
+  assert.ok(await page.locator('.lcr-pdf canvas').evaluate(canvas => canvas.width > 200 && canvas.height > 200));
+  await page.screenshot({ path: path.join(output, 'desktop-pdf-page-1.png') });
+  await page.getByRole('button', { name: 'PDF 下一页' }).click();
+  await page.getByText('2 / 2 页', { exact: true }).waitFor();
+  await page.locator('.lcr-pdf-pages[aria-busy="false"] canvas[data-rendered-page="2"]').waitFor();
+  await page.screenshot({ path: path.join(output, 'desktop-pdf-page-2.png') });
+  report.checks.push('PDF.js loads local capability URL and renders both real PDF pages');
+  await page.keyboard.press('Escape');
+  await page.locator('.lcr-file').filter({ hasText: 'page-1.png' }).getByRole('button', { name: '预览', exact: true }).click();
+  await page.locator('.lcr-preview img').waitFor();
+  await page.waitForFunction(() => { const image = document.querySelector('.lcr-preview img'); return image?.complete && image.naturalWidth > 0; });
+  await page.screenshot({ path: path.join(output, 'desktop-image.png') });
+  report.checks.push('image decodes through the same real local file service');
+  await page.keyboard.press('Escape'); await page.getByRole('tab', { name: '对话', exact: true }).click();
+  await page.screenshot({ path: path.join(output, 'desktop-room.png') });
+  await page.setViewportSize({ width: 480, height: 850 });
+  await page.screenshot({ path: path.join(output, 'mobile-room.png'), animations: 'disabled' });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  report.checks.push('draft survives content-tab changes; narrow room view does not overflow');
+  assert.deepEqual(report.pageErrors, []);
+  report.passed = true;
+} catch (error) { report.error = error.stack; process.exitCode = 1; }
+finally { await app?.close(); await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2)); }

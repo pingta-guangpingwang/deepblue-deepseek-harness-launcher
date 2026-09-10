@@ -13,8 +13,9 @@ import { cursorSessionHistory } from './cursor-runner.mjs';
 import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
+import { localOnlySessionIds } from './local-control/private-sessions.mjs';
 
-const CONNECTOR_VERSION = '0.10.10';
+const CONNECTOR_VERSION = '0.10.11';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -347,11 +348,14 @@ export class AgentConnector {
     this.projects = await buildProjectCatalog(sources, this.state.installationId, this.config.interactionKeyEnv);
     const previousSessions = { ...this.state.sessions };
     const hiddenRuntimeIds = new Set([
+      ...await localOnlySessionIds(this.config.adapterCode),
+      ...(this.state.localOnlyRuntimeIds || []),
       ...(Array.isArray(this.state.retiredCodexSessionIds) ? this.state.retiredCodexSessionIds : []),
       ...Object.values(this.state.sessionRelays || {}).map((relay) => String(relay && relay.runtimeSessionId || ''))
     ].filter(Boolean));
+    this.state.localOnlyRuntimeIds = [...new Set([...(this.state.localOnlyRuntimeIds || []), ...await localOnlySessionIds(this.config.adapterCode)])];
     for (const [sessionId, session] of Object.entries(this.state.sessions)) {
-      if (session.runtimeDiscovered === true) delete this.state.sessions[sessionId];
+      if (session.runtimeDiscovered === true || hiddenRuntimeIds.has(session.runtimeSessionId || sessionId)) delete this.state.sessions[sessionId];
     }
     for (const session of bindDiscoveredSessions(discovered.sessions, this.projects)) {
       if (hiddenRuntimeIds.has(session.runtimeSessionId)) continue;
@@ -375,6 +379,9 @@ export class AgentConnector {
   async sendSnapshot(commandId = '', options = {}) {
     return this.serializeMutation(async () => {
       if (options.refresh !== false) await this.refreshLocalCatalog();
+      const privateIds = new Set([...(this.state.localOnlyRuntimeIds || []), ...await localOnlySessionIds(this.config.adapterCode)]);
+      this.state.localOnlyRuntimeIds = [...privateIds];
+      for (const [id, session] of Object.entries(this.state.sessions)) if (privateIds.has(session.runtimeSessionId || id)) delete this.state.sessions[id];
       const catalogHash = this.catalogHash();
       if (!commandId && options.onlyIfChanged && this.state.lastCatalogHash === catalogHash) return { skipped: true, stateRevision: this.state.stateRevision };
       for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -527,11 +534,13 @@ export class AgentConnector {
     try {
       await this.refreshLocalCatalog();
       const project = this.resolveProject(command);
-      const session = project ? this.resolveSession(command, project) : null;
+      let session = project ? this.resolveSession(command, project) : null;
+      if (session && (await localOnlySessionIds(this.config.adapterCode)).has(session.runtimeSessionId)) session = null;
       const isDsh = this.config.adapterCode === 'deepseek-harness' && Boolean(session && project);
       const isCursor = this.config.adapterCode === 'cursor' && Boolean(session && project);
       const historyAvailable = isDsh || isCursor || Boolean(session?.historyPath) && ['codex', 'claude-code', 'qclaw', 'codebuddy'].includes(this.config.adapterCode);
-      const messages = isCursor ? await cursorSessionHistory(this.config, project, session) : isDsh ? await readDshSessionHistory(this.config, project, session, 20) : historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
+      let messages = isCursor ? await cursorSessionHistory(this.config, project, session) : isDsh ? await readDshSessionHistory(this.config, project, session, 20) : historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
+      if (session && (await localOnlySessionIds(this.config.adapterCode)).has(session.runtimeSessionId)) messages = [];
       const response = await this.serializeMutation(() => this.api.request('session_history', {
         method: 'POST',
         idempotencyKey: `session-history:${command.id}:${session?.revision || 0}`,
