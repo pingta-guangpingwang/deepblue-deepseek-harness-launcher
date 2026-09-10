@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash, createHmac, createPublicKey } from 'node:crypto'
 import { readFile, realpath, writeFile } from 'node:fs/promises'
 import https from 'node:https'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fetchBoundedBytes } from './bounded-fetch.mjs'
 import { verifyRuntimeCatalogManifest } from './runtime-catalog-validation.mjs'
@@ -62,6 +63,22 @@ async function put(key,body,immutable) {
  })
 }
 async function verify(key,body) {const r=await get(key,Math.max(4096,body.length));assert.equal(r.response.status,200);assert.equal(r.bytes.length,body.length);assert.equal(sha(r.bytes),sha(body));return r}
+async function verifyGithub(item) {
+ const repository='pingta-guangpingwang/deepblue-deepseek-harness-launcher'
+ const metadata=JSON.parse(execFileSync('gh',['api',`repos/${repository}/releases/tags/${item.githubTag}`],{encoding:'utf8',windowsHide:true,maxBuffer:2*1024*1024,timeout:30000}))
+ const asset=metadata.assets.find(a=>a.name===path.basename(item.file));assert.ok(asset)
+ assert.equal(asset.state,'uploaded');assert.equal(asset.size,item.size);assert.equal(asset.digest,'sha256:'+item.sha256)
+ const expected=`https://github.com/${repository}/releases/download/${item.githubTag}/${path.basename(item.file)}`
+ assert.equal(decodeURIComponent(asset.browser_download_url),expected)
+ let current=new URL(asset.browser_download_url)
+ for(let attempt=0;attempt<6;attempt++) {
+  const response=await fetch(current,{method:'HEAD',redirect:'manual',signal:AbortSignal.timeout(30000)})
+  if(response.status>=300&&response.status<400) { const next=new URL(response.headers.get('location'),current);assert.equal(next.protocol,'https:');assert.ok(next.hostname==='github.com'||next.hostname.endsWith('.githubusercontent.com'));assert.ok(!next.username&&!next.password);current=next;continue }
+  assert.equal(response.status,200);assert.equal(Number(response.headers.get('content-length')),item.size)
+  return {method:'github-server-sha256-and-anonymous-head',sha256:item.sha256,size:item.size}
+ }
+ throw Error('GitHub anonymous redirect limit exceeded')
+}
 // Confirm actual overwrite exclusion before relying on immutable release claims.
 const probeKey='release-v2/locks/forbid-overwrite-capability-v1.json',probe=Buffer.from('{"schemaVersion":1,"purpose":"verify x-oss-forbid-overwrite before runtime publication"}\n')
 await verify(probeKey,probe);assert.equal(await put(probeKey,probe,true),409)
@@ -79,9 +96,8 @@ if(mode==='artifacts') {
  assert.equal(gate.passed,true);assert.equal(gate.bootstrapSha256,plan.alias.sha256);assert.equal(gate.shellSha256,plan.items.find(i=>i.file.endsWith('.7z')).sha256)
  for(const item of plan.items) {
   await verify(item.key,bodies.get(item.key))
-  const github=`https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${item.githubTag}/${path.basename(item.file)}`
-  const remote=await fetchBoundedBytes(github,{maxBytes:item.size,allowedRedirectHosts:['github.com','.githubusercontent.com'],maxRedirects:5,timeoutMs:120000})
-  assert.equal(remote.response.status,200);assert.equal(remote.bytes.length,item.size);assert.equal(sha(remote.bytes),item.sha256)
+  const githubVerification=await verifyGithub(item)
+  console.log(JSON.stringify({verified:item.key,oss:'complete-byte-sha256',github:githubVerification.method}))
  }
  const lockKey=`release-v2/locks/manifest-from-${plan.baselineSha256}.json`,lock=Buffer.from(JSON.stringify({schemaVersion:1,fromSha256:plan.baselineSha256,toSha256:sha(candidateBytes),launcherVersion:'0.10.35'})+'\n')
  const status=await put(lockKey,lock,true);assert.ok([200,409].includes(status));await verify(lockKey,lock)
