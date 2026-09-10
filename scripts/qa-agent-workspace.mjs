@@ -21,7 +21,7 @@ try {
   const desktop = await open(1440, 900)
   const errors = []
   desktop.on('pageerror', error => errors.push(error.message))
-  await desktop.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await desktop.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await desktop.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 15000 })
 
   check('Desktop uses room rail, task ledger and public chat', await desktop.locator('.arm-room-rail').isVisible() && await desktop.locator('.arm-task-ledger').isVisible() && await desktop.locator('.arm-chat-pane').isVisible())
@@ -136,7 +136,7 @@ try {
   const mobile = await open(390, 844)
   const mobileErrors = []
   mobile.on('pageerror', error => mobileErrors.push(error.message))
-  await mobile.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await mobile.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await mobile.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 15000 })
   check('Mobile opens chat as the primary room view', await mobile.locator('.arm-chat-pane').isVisible() && !(await mobile.locator('.arm-task-ledger').isVisible()))
   check('Mobile composer remains inside viewport', await mobile.locator('.arm-composer').evaluate(node => node.getBoundingClientRect().bottom <= innerHeight + 1))
@@ -163,7 +163,7 @@ try {
   await mobile.getByRole('button', { name: '关闭房间编辑', exact: true }).click()
 
   const sequencing = await open(1000, 720)
-  await sequencing.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await sequencing.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await sequencing.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   const sequencingComposer = sequencing.locator('#arm-message-input')
   await sequencing.evaluate(() => window.workspaceQa.setRoomReceiptDelay(3600))
@@ -180,7 +180,7 @@ try {
   check('The message immediately after a delayed receipt is not skipped', true)
 
   const deletion = await open(1000, 720)
-  await deletion.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await deletion.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await deletion.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   await deletion.getByRole('button', { name: '成员', exact: true }).click()
   await deletion.getByRole('button', { name: '删除房间并清理记录', exact: true }).click()
@@ -201,7 +201,7 @@ try {
   check('Delete retry preserves one per-room clientRequestId across switching', await deletion.evaluate(() => { const calls = window.workspaceQa.calls.filter(item => item.action === 'room_delete'); return calls.length === 2 && calls[0].body.clientRequestId === calls[1].body.clientRequestId }))
 
   const switchedRetry = await open(1000, 720)
-  await switchedRetry.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await switchedRetry.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await switchedRetry.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   const retryComposer = switchedRetry.locator('#arm-message-input')
   await switchedRetry.evaluate(() => window.workspaceQa.failRoomSend())
@@ -217,7 +217,7 @@ try {
   check('Ambiguous send retry preserves one per-room signature ID across switching', await switchedRetry.evaluate(() => { const calls = window.workspaceQa.calls.filter(item => item.action === 'room_send'); return calls.length === 2 && calls[0].body.clientRequestId === calls[1].body.clientRequestId }))
 
   const fallback = await open(1000, 720)
-  await fallback.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await fallback.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await fallback.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   const fallbackComposer = fallback.locator('#arm-message-input')
   await fallbackComposer.fill('@')
@@ -229,7 +229,7 @@ try {
   check('Automatic room-list fallback clears the prior room draft and structured mentions', await fallbackComposer.inputValue() === '' && await fallback.getByText('A房间敏感草稿', { exact: false }).count() === 0)
 
   const saveReceipt = await open(1000, 720)
-  await saveReceipt.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await saveReceipt.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await saveReceipt.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   await saveReceipt.getByRole('button', { name: /内容复盘室/ }).click()
   await saveReceipt.getByRole('heading', { name: '内容复盘室', exact: true }).waitFor({ timeout: 5000 })
@@ -250,7 +250,7 @@ try {
 
   for (const kind of ['missing_version', 'wrong_version', 'queued', 'running', 'missing_approval', 'bad_ids']) {
     const unsafeApproval = await open(1000, 720)
-    await unsafeApproval.getByRole('button', { name: '多智能会话', exact: true }).click()
+    await unsafeApproval.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
     await unsafeApproval.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
     const unsafeComposer = unsafeApproval.locator('#arm-message-input')
     await unsafeApproval.evaluate(value => window.workspaceQa.invalidRoomSendOnce(value), kind)
@@ -261,7 +261,7 @@ try {
   }
 
   const drift = await open(1000, 720)
-  await drift.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await drift.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await drift.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   const driftComposer = drift.locator('#arm-message-input')
   await driftComposer.fill('创建一个等待批准的任务')
@@ -277,7 +277,7 @@ try {
   check('Unsafe-sync recovery resets hash and message cursors for full validation', await drift.evaluate(start => window.workspaceQa.calls.slice(start).some(item => item.action === 'room_detail' && item.params?.roomId === '1'.repeat(32) && !item.params?.afterRevision && !item.params?.afterMessageSeq && !item.params?.beforeMessageSeq), callsBeforeRecovery) && await driftComposer.isEnabled())
 
   const approveRace = await open(1000, 720)
-  await approveRace.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await approveRace.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await approveRace.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   const approveRaceComposer = approveRace.locator('#arm-message-input')
   await approveRaceComposer.fill('批准回执不得回退轮询终态')
@@ -292,7 +292,7 @@ try {
   check('Delayed approve receipt cannot regress a polled completed run to queued', (await racedRunStatus.textContent())?.trim() === '已完成')
 
   const cancelRace = await open(1000, 720)
-  await cancelRace.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await cancelRace.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await cancelRace.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   await cancelRace.evaluate(() => window.workspaceQa.raceCancelReceiptOnce())
   const cancelRaceRun = cancelRace.locator('.arm-run').filter({ hasText: '@复核 请确认中断后的任务结果' })
@@ -303,7 +303,7 @@ try {
   check('Delayed cancel receipt cannot regress a polled terminal run', (await cancelRaceStatus.textContent())?.trim() === '已完成')
 
   const terminalCancel = await open(1000, 720)
-  await terminalCancel.getByRole('button', { name: '多智能会话', exact: true }).click()
+  await terminalCancel.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
   await terminalCancel.getByRole('heading', { name: '产品发布室', exact: true }).waitFor({ timeout: 5000 })
   await terminalCancel.evaluate(() => window.workspaceQa.setNextCancelStatus('cancelled'))
   const terminalUnknown = terminalCancel.locator('.arm-run').filter({ hasText: '@复核 请确认中断后的任务结果' })
@@ -312,10 +312,12 @@ try {
   check('Terminal cancel replay uses returned cancelled state and clears the active control', await terminalUnknown.getByText('已取消', { exact: true }).isVisible() && await terminalUnknown.getByRole('button', { name: '停止整项任务', exact: true }).count() === 0)
 
   const oldBase = await open(900, 650, '?oldBase=1')
-  await oldBase.getByRole('button', { name: '多智能会话', exact: true }).click()
-  await oldBase.getByRole('heading', { name: '基础启动器需要更新' }).waitFor()
-  check('0.10.34 fail-closed evidence keeps the Multi-agent tab selected', await oldBase.getByRole('button', { name: '多智能会话', exact: true }).getAttribute('aria-pressed') === 'true' && await oldBase.getByRole('button', { name: '本机项目与对话', exact: true }).getAttribute('aria-pressed') === 'false')
-  check('0.10.34 fails closed before every room API call', await oldBase.getByText(/需要 0\.10\.35.*当前为 0\.10\.34/).isVisible() && await oldBase.evaluate(() => window.workspaceQa.calls.every(item => !String(item.action || '').startsWith('room_'))))
+  await oldBase.getByRole('button', { name: '群聊（多智能会话）', exact: true }).click()
+  await oldBase.getByRole('heading', { name: '群聊已在网页版开放' }).waitFor()
+  check('0.10.34 fail-closed evidence keeps the Multi-agent tab selected', await oldBase.getByRole('button', { name: '群聊（多智能会话）', exact: true }).getAttribute('aria-pressed') === 'true' && await oldBase.getByRole('button', { name: '本机项目与对话', exact: true }).getAttribute('aria-pressed') === 'false')
+  check('0.10.34 fails closed before every room API call', await oldBase.getByText(/当前内核 0\.10\.34.*需要 0\.10\.35/).isVisible() && await oldBase.evaluate(() => window.workspaceQa.calls.every(item => !String(item.action || '').startsWith('room_'))))
+  await oldBase.getByRole('button', { name: '打开网页版群聊', exact: true }).click()
+  check('old base opens the fixed working web-room entry without widening native IPC', await oldBase.evaluate(() => window.workspaceQa.calls.some(item => item.action === 'qa_open_external' && item.body?.url === 'https://ailishishu.com/agents/?view=rooms')))
   await oldBase.screenshot({ path: path.join(output, 'old-base-upgrade.png') })
 
   await writeFile(path.join(output, 'report.json'), JSON.stringify({ fixtureOnly: true, checks, failures }, null, 2))

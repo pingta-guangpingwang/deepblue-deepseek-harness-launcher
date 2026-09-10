@@ -1,0 +1,30 @@
+import { _electron as electron } from 'playwright';
+import { mkdir, cp, writeFile, readFile } from 'node:fs/promises';
+import path from 'node:path';
+const root=path.resolve(import.meta.dirname,'..');
+const output=path.join(root,'output/playwright/room-entry-old-kernel-'+Date.now());
+const userData=path.join(output,'user-data'), storage=path.join(output,'storage');
+const record=JSON.parse(await readFile(path.join(root,'release/launcher-ui.generated.json'),'utf8'));
+const moduleRoot=path.join(storage,'runtime/modules/launcher-ui',record.version);
+await mkdir(moduleRoot,{recursive:true});await mkdir(userData,{recursive:true});
+await cp(path.join(root,'out/renderer'),path.join(moduleRoot,'renderer'),{recursive:true});
+await writeFile(path.join(storage,'runtime/modules/state.json'),JSON.stringify({schemaVersion:1,active:{'launcher-ui':record.version},previous:{},installed:{'launcher-ui':[record.version]}}));
+await writeFile(path.join(userData,'launcher.json'),JSON.stringify({settings:{storageRoot:storage,storageSetupCompleted:true,autoOpen:false,port:32889,theme:'light'}}));
+const app=await electron.launch({executablePath:'E:/exe/DeepBlueDeepSeekHarness/shells/0.10.34/深蓝DeepSeekHarness启动器.exe',args:['--user-data-dir='+userData,'--disable-gpu'],env:{...process.env,APPDATA:path.join(output,'appdata'),LOCALAPPDATA:path.join(output,'localappdata')}});
+try{
+ const page=await app.firstWindow();await page.waitForLoadState('domcontentloaded');
+ await page.getByRole('button',{name:'关闭连接指引',exact:true}).waitFor({state:'visible',timeout:15000});
+ await page.getByRole('button',{name:'关闭连接指引',exact:true}).click();
+ const update=page.locator('.runtime-update-dialog');
+ await update.waitFor({state:'visible',timeout:5000}).catch(()=>{});
+ if(await update.isVisible())await update.getByRole('button',{name:/^(关闭|收起，后台更新)$/}).click();
+ await page.getByRole('button',{name:'智能体工作台',exact:true}).click();
+ await page.getByRole('button',{name:'群聊（多智能会话）',exact:true}).click();
+ await page.getByRole('heading',{name:'群聊已在网页版开放',exact:true}).waitFor();
+ const snapshot=await page.evaluate(()=>window.launcher.getSnapshot());
+ if(snapshot.launcherVersion!=='0.10.34'||snapshot.launcherUiVersion!==record.version)throw Error('Real old kernel / new UI identity mismatch');
+ if(!await page.getByRole('button',{name:'打开网页版群聊',exact:true}).isVisible())throw Error('Missing usable entry');
+ await page.screenshot({path:path.join(output,'group-entry.png')});
+ const proof={passed:true,kernel:snapshot.launcherVersion,ui:snapshot.launcherUiVersion,webEntryVisible:true,nativeGatePreserved:true};
+ await writeFile(path.join(output,'report.json'),JSON.stringify(proof,null,2));console.log(JSON.stringify({...proof,output}));
+}finally{await app.close();}

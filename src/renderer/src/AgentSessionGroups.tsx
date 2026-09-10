@@ -21,7 +21,7 @@ interface RoomEditorState {
 export interface RoomMentionToken { memberId: string; start: number; end: number; label: string }
 
 const ACTIVE_RUNS = new Set(['queued', 'running', 'awaiting_approval', 'cancel_requested', 'unknown'])
-const DOWNLOAD_URL = 'https://deepseek.ailishishu.com/'
+export const WEB_GROUPS_URL = 'https://ailishishu.com/agents/?view=rooms'
 const DEFAULT_MAX_STEPS = 12
 const DEFAULT_ACCESS: AgentRoomAccess = 'workspace_write'
 const ID_PATTERN = /^[a-f0-9]{32}$/
@@ -850,7 +850,7 @@ export function AgentSessionGroups({ snapshot, onLogin }: { snapshot: LauncherSn
     finally { if (generation === syncGeneration.current && requestSequence === detailRequestSequence.current) { manualWindowPending.current = false; setBusy(current => current === operation ? '' : current) } }
   }
 
-  if (!baseSupported) return <div className="aw-unavailable"><CircleAlert size={36} /><h2>基础启动器需要更新</h2><p>多智能会话需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本；当前为 {snapshot.launcherVersion || '未知版本'}。仅更新界面模块无法开启受控请求，请先升级基础启动器。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(DOWNLOAD_URL)}>下载新版启动器</button></div>
+  if (!baseSupported) return <div className="aw-unavailable"><Users size={36} /><h2>群聊已在网页版开放</h2><p>点击下方入口，用同一个 AI历史书账号创建房间、选择智能体并开始协作。电脑上的智能体同步服务需要保持运行。</p><button className="primary-button" onClick={() => void window.launcher?.openExternal(WEB_GROUPS_URL)}>打开网页版群聊</button><p>当前内核 {snapshot.launcherVersion || '未知版本'} 保留原有功能；启动器内直接操作群聊需要 {AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION} 或更高版本的正式内核，仅更新界面不会绕过此限制。</p></div>
   if (!supported) return <div className="aw-unavailable"><Users size={36} /><h2>请升级启动器</h2><p>当前内核没有多智能房间通信接口，不能安全创建房间或派发任务。</p></div>
   if (!signedIn) return <div className="aw-login"><Users size={20} /><div><strong>登录后使用多智能会话</strong><p>房间共享公共聊天记录，每位成员保留自己的工作记忆和独立原生会话。</p></div><button className="primary-button" onClick={onLogin}>登录 AI历史书</button></div>
 

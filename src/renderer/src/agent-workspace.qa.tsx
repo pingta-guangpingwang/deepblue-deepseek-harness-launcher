@@ -268,7 +268,7 @@ window.launcher = parameters.has('legacy') ? undefined : {
       return { ok: true }
     } finally { activeReads -= 1 }
   },
-  openExternal: async () => undefined
+  openExternal: async (url: string) => { calls.push({ scope: 'hub', method: 'GET', action: 'qa_open_external', body: { url } }) }
 } as unknown as LauncherApi
 
 const account = { status: 'signed_in' as const, user: { id: 'qa-user', name: '界面测试账号' }, sessionRemembered: true }
