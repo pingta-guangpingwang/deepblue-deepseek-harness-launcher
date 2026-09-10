@@ -56,6 +56,10 @@ if ($LASTEXITCODE -ne 0) {
 $packagedResources = Join-Path $sourceDirectory 'resources\resources'
 New-Item -ItemType Directory -Path $packagedResources -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $releaseDirectory 'runtime-modules.generated.json') -Destination (Join-Path $packagedResources 'runtime-modules.generated.json') -Force
+if ($env:LAUNCHER_EMBEDDED_BASELINE_CATALOG) {
+  & node (Join-Path $PSScriptRoot 'align-embedded-runtime-catalog.mjs') $env:LAUNCHER_EMBEDDED_BASELINE_CATALOG
+  if ($LASTEXITCODE -ne 0) { throw 'Embedded signed dependency alignment failed.' }
+}
 
 Write-Host 'Building the modular Electron UI shell...'
 & npm run shell:build
