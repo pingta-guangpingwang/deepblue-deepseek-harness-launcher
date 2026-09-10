@@ -107,6 +107,16 @@ await build({ entryPoints: [path.join(root, 'src/main/agent-host/service.ts')], 
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-companion-entry.ts')], outfile: path.join(output, 'native-companion.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
 await build({ entryPoints: [path.join(root, 'src/main/agent-host/native-task-runner.ts')], outfile: path.join(output, 'native-task-runner.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', sourcemap: false });
 await copyDeterministicTree(path.join(source, 'src'), path.join(output, 'connector'));
+// The same pinned SDK dependency is used for upstream and vendored builds.
+// Bundle only the Cursor adapter dependency graph; never redistribute Cursor CLI.
+if (await lstat(path.join(source, 'src/cursor-runner.mjs')).then(entry => entry.isFile()).catch(() => false)) {
+  const sdkEntry = require.resolve('@agentclientprotocol/sdk');
+  await build({ entryPoints: [path.join(source, 'src/cursor-runner.mjs')], outfile: path.join(output, 'connector/cursor-runner.mjs'), bundle: true, platform: 'node', target: 'node22', format: 'esm', alias: { '@agentclientprotocol/sdk': sdkEntry, zod: path.dirname(require.resolve('zod/package.json')) }, minify: true, legalComments: 'none', sourcemap: false });
+  const notices = path.join(output, 'third-party-notices');
+  await mkdir(notices, { recursive: true });
+  await cp(path.join(path.dirname(path.dirname(sdkEntry)), 'LICENSE'), path.join(notices, 'ACP-SDK-LICENSE'));
+  await cp(path.join(path.dirname(require.resolve('zod/package.json')), 'LICENSE'), path.join(notices, 'Zod-LICENSE'));
+}
 await cp(wsDirectory, path.join(output, 'node_modules/ws'), { recursive: true });
 await writeFile(path.join(output, 'SOURCE.json'), JSON.stringify({ source: upstream, sourcePath: 'packages/agent-connector', package: connector.name, connectorVersion: connector.version, sourceSha256, authorization: licenseNote, moduleProtocol: 1 }, null, 2));
 

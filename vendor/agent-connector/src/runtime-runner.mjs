@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { runCodexAppServerTask } from './codex-app-server.mjs';
 import { runClaudeTask } from './claude-runner.mjs';
 import { runDshTask } from './dsh-runner.mjs';
+import { runCursorTask } from './cursor-runner.mjs';
 import { runCodeBuddyTask } from './codebuddy-runner.mjs';
 import { runQClawTask } from './qclaw-runner.mjs';
 import { shutdownQClawGateways } from './qclaw-gateway.mjs';
@@ -12,6 +13,10 @@ import { terminateRuntime } from './runner-common.mjs';
 import { classifyRuntimeException, classifyRuntimeFailure, runtimeSessionAvailability } from './runtime-diagnostics.mjs';
 
 export const RUNTIME_PROFILES = Object.freeze({
+  cursor: {
+    label: 'Cursor', sessionLabel: 'Cursor CLI 原生会话', maxConcurrentTasks: 4,
+    capabilities: ['projects', 'sessions', 'task.create', 'task.cancel', 'task.parallel_sessions']
+  },
   'deepseek-harness': {
     label: 'DeepSeek Harness', sessionLabel: 'DSH 原生会话', maxConcurrentTasks: 4,
     capabilities: ['projects', 'sessions', 'task.create', 'task.cancel', 'task.attachments', 'task.parallel_sessions']
@@ -73,6 +78,9 @@ export function buildRuntimeInstruction(adapterCode, { instruction, project, san
   const scope = `只允许在已授权目录 ${project.path} 内工作`;
   const writePolicy = sandbox === 'read-only' ? '本次为只读任务，不得修改文件或外部状态。' : '可以在该目录内完成必要修改，但不得扩大到其他目录。';
   const taskInstruction=attachmentInstruction(instruction,attachments);
+  if (adapterCode === 'cursor') {
+    return ['你正在通过深蓝智能体工作台与 Cursor 官方 ACP 处理项目任务。', scope + '。', writePolicy, '遵循项目内 .cursor/rules 与原生说明。只返回当前任务的最终结果；需要额外权限或信息时在回复中说明。不要更改全局配置、凭据或沙箱，不向外部聊天发送消息。', '', '用户任务：', taskInstruction].join('\n');
+  }
   if (adapterCode === 'deepseek-harness') {
     return ['你正在通过深蓝智能体工作台处理一个 DeepSeek Harness 项目任务。', scope + '。', writePolicy, '遵循项目内的原生规则；使用已有模型与技能。不要改动全局模型、凭据或权限配置，不要向外部聊天频道发送消息。最终直接返回可展示的中文结果。', '', '用户任务：', taskInstruction].join('\n');
   }
@@ -99,6 +107,7 @@ export function buildRuntimeInstruction(adapterCode, { instruction, project, san
 }
 
 export function runRuntimeTask(adapterCode, options) {
+  if (adapterCode === 'cursor') return runCursorTask(options);
   if (adapterCode === 'deepseek-harness') return runDshTask(options);
   if (adapterCode === 'codex' && options.resumeSessionId && process.env.SHENLAN_DESKTOP_RUNNER) {
     const module = process.env.SHENLAN_DESKTOP_RUNNER;

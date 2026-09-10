@@ -36,6 +36,7 @@ export interface AgentHostOptions {
 }
 const ADAPTERS: Record<AgentAdapter, { name: string; command: string }> = {
   'deepseek-harness': { name: 'DeepSeek Harness（内置）', command: 'dsh' },
+  cursor: { name: 'Cursor（官方 Agent CLI）', command: 'cursor-agent' },
   codex: { name: 'Codex', command: 'codex' },
   'claude-code': { name: 'Claude Code', command: 'claude' },
   qclaw: { name: 'QClaw / OpenClaw', command: 'openclaw' },
@@ -66,6 +67,19 @@ function inside(root: string, file: string): boolean {
 }
 export async function resolveAgentLaunch(adapter: AgentAdapter, nodePath: string): Promise<{ executable: string; args: string[] } | undefined> {
   if (adapter === 'deepseek-harness') return undefined // Requires the owning Launcher profile; never pick a random PATH installation.
+  if (adapter === 'cursor' && process.platform === 'win32') {
+    const root = path.join(process.env.LOCALAPPDATA || '', 'cursor-agent', 'versions')
+    if (!path.isAbsolute(root)) return undefined
+    const versions = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter(entry => entry.isDirectory() && /^\d{4}\.\d{2}\.\d{2}(?:-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$/.test(entry.name)).sort((a,b) => b.name.localeCompare(a.name))
+    for (const version of versions.slice(0, 20)) {
+      const base = await realpath(path.join(root, version.name)).catch(() => '')
+      if (!base || !inside(root, base)) continue
+      const executable = await realpath(path.join(base, 'node.exe')).catch(() => '')
+      const entry = await realpath(path.join(base, 'index.js')).catch(() => '')
+      if (executable && entry && inside(base, executable) && inside(base, entry) && (await stat(executable)).isFile() && (await stat(entry)).isFile()) return { executable, args: [entry] }
+    }
+    return undefined // The IDE's cursor.cmd alone is not the Agent CLI.
+  }
   if (adapter === 'codex' && process.platform === 'win32' && process.env.USERPROFILE) {
     // The desktop updater owns this bounded directory. Prefer its matching CLI
     // over a stale npm shim that cannot read the desktop's newer model cache.

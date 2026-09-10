@@ -4,7 +4,7 @@ import { validateDshEndpoint } from './dsh-rpc.mjs';
 
 const DEFAULT_CONFIG_NAME = 'agent-connector.local.json';
 const KEY_PATTERN = /^agh_live_[A-Za-z0-9_-]{32,}$/;
-const SUPPORTED_ADAPTERS = ['codex', 'claude-code', 'qclaw', 'workbuddy', 'codebuddy', 'trae', 'deepseek-harness'];
+const SUPPORTED_ADAPTERS = ['codex', 'claude-code', 'qclaw', 'workbuddy', 'codebuddy', 'trae', 'deepseek-harness', 'cursor'];
 const FORBIDDEN_ARGUMENTS = [
   '--yolo',
   '--dangerously-bypass-approvals-and-sandbox',
@@ -24,6 +24,7 @@ const ADAPTER_DEFAULTS = {
   workbuddy: { executable: 'workbuddy', workspaceKind: 'project' },
   codebuddy: { executable: 'codebuddy', workspaceKind: 'project' },
   'deepseek-harness': { executable: 'dsh', workspaceKind: 'project' },
+  cursor: { executable: 'cursor-agent', workspaceKind: 'project' },
   trae: { executable: 'trae-cn', workspaceKind: 'project' }
 };
 

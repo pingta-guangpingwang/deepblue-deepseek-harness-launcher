@@ -96,7 +96,7 @@ export function classifyRuntimeException(adapterCode, error) {
 }
 
 function runtimeName(adapterCode) {
-  return ({ codex: 'Codex', 'claude-code': 'Claude Code', qclaw: 'QClaw', workbuddy: 'WorkBuddy', codebuddy: 'CodeBuddy', trae: 'TRAE', 'deepseek-harness': 'DeepSeek Harness' })[adapterCode] || '智能体';
+  return ({ codex: 'Codex', 'claude-code': 'Claude Code', qclaw: 'QClaw', workbuddy: 'WorkBuddy', codebuddy: 'CodeBuddy', trae: 'TRAE', 'deepseek-harness': 'DeepSeek Harness', cursor: 'Cursor' })[adapterCode] || '智能体';
 }
 
 function waitForProbe(child) {

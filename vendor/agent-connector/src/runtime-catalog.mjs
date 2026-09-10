@@ -2,6 +2,7 @@ import { open, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { DshClient, dshSessionRows } from './dsh-rpc.mjs';
 import { probeDshHost } from './dsh-runner.mjs';
+import { cursorNativeCatalog } from './cursor-runner.mjs';
 import { semanticSessionTitle, unwrapRemoteInstruction, visibleContentText } from './session-history.mjs';
 
 function pathKey(value) {
@@ -502,6 +503,17 @@ export async function discoverRuntimeCatalog(config, options = {}) {
   const explicitPaths = new Set(explicitDirectories.map(pathKey));
   const projects = new Map();
   const sessions = new Map();
+  if (config.adapterCode === 'cursor') {
+    const rows = await (options.cursorCatalog || cursorNativeCatalog)(config);
+    for (const row of rows) {
+      if (!row || typeof row.sessionId !== 'string' || typeof row.cwd !== 'string') continue;
+      const directory = await authorizedDirectory(row.cwd, normalizedConfig.projectDiscovery, explicitPaths);
+      if (!directory || row.additionalDirectories?.length) continue;
+      const lastActivityAt = isoTime(row.updatedAt);
+      addProject(projects, { path: directory, name: path.basename(directory), workspaceKind: 'project', lastActivityAt });
+      addSession(sessions, { runtimeSessionId: row.sessionId, projectPath: directory, title: cleanLabel(row.title, 'Cursor 原生对话'), titleQuality: row.title ? 'native' : 'fallback', status: 'idle', revision: Math.floor(Date.parse(lastActivityAt) / 1000), lastActivityAt });
+    }
+  }
   if (config.adapterCode === 'deepseek-harness') {
     const client = options.dshClient || new DshClient(config.dshHost?.endpoint);
     await probeDshHost(config, client);

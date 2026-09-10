@@ -1,4 +1,4 @@
-export type AgentAdapter = 'codex' | 'claude-code' | 'qclaw' | 'workbuddy' | 'codebuddy' | 'trae' | 'deepseek-harness'
+export type AgentAdapter = 'codex' | 'claude-code' | 'qclaw' | 'workbuddy' | 'codebuddy' | 'trae' | 'deepseek-harness' | 'cursor'
 export interface LocalCatalog {
   scannedAt: string
   projects: Array<{ id: string; adapter: AgentAdapter; name: string; path: string; lastActivityAt: string }>

@@ -9,11 +9,12 @@ import { AttachmentTransferError, cleanupTaskAttachments, downloadTaskAttachment
 import { bindDiscoveredSessions, discoverRuntimeCatalog, mergeProjectSources } from './runtime-catalog.mjs';
 import { readRuntimeSessionHistory } from './session-history.mjs';
 import { readDshSessionHistory } from './dsh-runner.mjs';
+import { cursorSessionHistory } from './cursor-runner.mjs';
 import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 
-const CONNECTOR_VERSION = '0.10.9';
+const CONNECTOR_VERSION = '0.10.10';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -528,8 +529,9 @@ export class AgentConnector {
       const project = this.resolveProject(command);
       const session = project ? this.resolveSession(command, project) : null;
       const isDsh = this.config.adapterCode === 'deepseek-harness' && Boolean(session && project);
-      const historyAvailable = isDsh || Boolean(session?.historyPath) && ['codex', 'claude-code', 'qclaw', 'codebuddy'].includes(this.config.adapterCode);
-      const messages = isDsh ? await readDshSessionHistory(this.config, project, session, 20) : historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
+      const isCursor = this.config.adapterCode === 'cursor' && Boolean(session && project);
+      const historyAvailable = isDsh || isCursor || Boolean(session?.historyPath) && ['codex', 'claude-code', 'qclaw', 'codebuddy'].includes(this.config.adapterCode);
+      const messages = isCursor ? await cursorSessionHistory(this.config, project, session) : isDsh ? await readDshSessionHistory(this.config, project, session, 20) : historyAvailable ? await readRuntimeSessionHistory(session, this.config.adapterCode, 20) : [];
       const response = await this.serializeMutation(() => this.api.request('session_history', {
         method: 'POST',
         idempotencyKey: `session-history:${command.id}:${session?.revision || 0}`,
