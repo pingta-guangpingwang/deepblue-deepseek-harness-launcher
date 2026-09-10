@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile, symlink } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -436,6 +436,19 @@ describe('AgentHostService local authorization and child protocol', () => {
 })
 
 describe('Windows npm shim resolution', () => {
+  it('resolves Cursor under a redirected LocalAppData root without accepting escaping payloads', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'launcher-cursor-root-')); roots.push(root)
+    const actual = path.join(root, 'actual'); const redirected = path.join(root, 'redirected')
+    const version = path.join(actual, 'cursor-agent', 'versions', '2026.09.08-6caf4ff')
+    await mkdir(version, { recursive: true })
+    await writeFile(path.join(version, 'node.exe'), 'not executed')
+    await writeFile(path.join(version, 'index.js'), '// not executed')
+    await symlink(actual, redirected, 'junction')
+    vi.stubEnv('LOCALAPPDATA', redirected)
+    expect(await resolveAgentLaunch('cursor', process.execPath)).toEqual({ executable: await realpath(path.join(version, 'node.exe')), args: [await realpath(path.join(version, 'index.js'))] })
+    await rm(path.join(version, 'index.js'))
+    expect(await resolveAgentLaunch('cursor', process.execPath)).toBeUndefined()
+  })
   it('resolves only the fixed official package bin to managed Node without executing cmd', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'launcher-agent-shim-')); roots.push(root)
     const packageRoot = path.join(root, 'node_modules', '@openai', 'codex')

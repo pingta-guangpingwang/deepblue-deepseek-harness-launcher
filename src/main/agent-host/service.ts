@@ -68,8 +68,12 @@ function inside(root: string, file: string): boolean {
 export async function resolveAgentLaunch(adapter: AgentAdapter, nodePath: string): Promise<{ executable: string; args: string[] } | undefined> {
   if (adapter === 'deepseek-harness') return undefined // Requires the owning Launcher profile; never pick a random PATH installation.
   if (adapter === 'cursor' && process.platform === 'win32') {
-    const root = path.join(process.env.LOCALAPPDATA || '', 'cursor-agent', 'versions')
-    if (!path.isAbsolute(root)) return undefined
+    const configuredRoot = path.join(process.env.LOCALAPPDATA || '', 'cursor-agent', 'versions')
+    if (!path.isAbsolute(configuredRoot)) return undefined
+    // Packaged Windows parents can redirect LocalAppData. Compare canonical
+    // paths on both sides, while retaining the same bounded official root.
+    const root = await realpath(configuredRoot).catch(() => '')
+    if (!root) return undefined
     const versions = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter(entry => entry.isDirectory() && /^\d{4}\.\d{2}\.\d{2}(?:-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$/.test(entry.name)).sort((a,b) => b.name.localeCompare(a.name))
     for (const version of versions.slice(0, 20)) {
       const base = await realpath(path.join(root, version.name)).catch(() => '')
