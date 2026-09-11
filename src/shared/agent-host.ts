@@ -16,7 +16,7 @@ export interface LocalCatalog {
   errors: string[]
   models?: Array<{ id: string; name: string; adapter: AgentAdapter }>
 }
-export interface LocalTask { id: string; projectId: string; sessionId?: string; conversationId?: string; runtimeSessionId?: string; requestId: string; status: 'running' | 'delivered' | 'unconfirmed' | 'completed' | 'failed' | 'cancelled'; instruction: string; summary: string; reply?: string; startedAt: string; backend?: 'desktop'; baselineTurnId?: string; baselineItemIds?: string[]; deliveryTurnId?: string; deliveryPrompt?: string }
+export interface LocalTask { id: string; projectId: string; sessionId?: string; conversationId?: string; runtimeSessionId?: string; requestId: string; status: 'running' | 'awaiting_approval' | 'delivered' | 'unconfirmed' | 'completed' | 'failed' | 'cancelled'; instruction: string; summary: string; reply?: string; startedAt: string; backend?: 'desktop'; baselineTurnId?: string; baselineItemIds?: string[]; deliveryTurnId?: string; deliveryPrompt?: string }
 export interface LocalAgentBinding {
   id: string
   name: string
@@ -32,6 +32,8 @@ export interface LocalAgentBinding {
   lastSyncedAt?: string
 }
 export interface AgentHostSnapshot {
+  remoteNativeApprovals?: { deviceId: string; agentId: string; snapshot: import('./native-approvals').NativeApprovalSnapshot }
+  nativeApprovals?: import('./native-approvals').NativeApprovalSnapshot
   associations?: AgentAssociation[]
   localConversationContinuity?: boolean
   localControl?: import('./local-control').LocalControlSnapshot
@@ -55,6 +57,9 @@ export interface AgentHostSnapshot {
   discovered: Array<{ adapter: AgentAdapter; name: string; available: boolean; message: string }>
 }
 export type AgentHostAction =
+  | { action: 'remote_native_approvals'; deviceId: string; agentId: string; runtimeSessionId: string; decision?: { id: string; requestHash: string; approved: boolean } }
+  | { action: 'read_native_approvals'; sessionId: string }
+  | { action: 'decide_native_approval'; sessionId: string; id: string; requestHash: string; approved: boolean }
   | { action: 'begin_association'; adapter: AgentAdapter }
   | { action: 'check_associations' }
   | { action: 'local_control'; command: import('./local-control').LocalControlCommand; input?: Record<string, unknown>; requestId?: string }

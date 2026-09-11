@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentHostSnapshot } from '../../shared/agent-host'
 const mock = vi.hoisted(() => ({ relay: vi.fn(), fork: vi.fn(() => { throw new Error('Desktop send must not spawn CLI') }) }))
 vi.mock('./desktop-relay', () => ({ desktopRelayRequest: mock.relay }))
+vi.mock('./native-approvals', () => ({ NativeApprovals: class { isBusy() { return false } close() {} async read(context: { sessionId: string }) { return { sessionId: context.sessionId, status: 'ready', requests: [] } } } }))
 vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(), fork: mock.fork }))
 vi.mock('electron', () => ({ safeStorage: { isEncryptionAvailable: () => true, encryptString: (value: string) => Buffer.from(value), decryptString: (value: Buffer) => value.toString() } }))
 import { AgentHostService } from './service'

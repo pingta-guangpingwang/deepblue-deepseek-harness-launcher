@@ -72,7 +72,7 @@ export class LocalOnlineChannel {
           headers['x-local-sha256'] = file.file.sha256
           if (request.input.download) headers['content-disposition'] = "attachment; filename*=UTF-8''" + encodeURIComponent(file.file.name)
         } else {
-          const allowed = ['snapshot', 'create_room', 'read_room', 'read_event', 'send_room', 'cancel_run', 'reconcile_run', 'accept_run', 'preflight_merge', 'set_permission', 'decide_approval']
+          const allowed = ['snapshot', 'create_room', 'read_room', 'read_event', 'send_room', 'cancel_run', 'reconcile_run', 'accept_run', 'preflight_merge', 'set_permission', 'decide_approval', 'native_approvals', 'native_decide']
           if (!allowed.includes(request.command)) throw new Error('网页不支持此操作')
           const result = await this.options.request(request.command, request.input, request.requestId)
           body = JSON.stringify({ ok: true, result }); headers = { 'content-type': 'application/json; charset=utf-8', 'content-length': String(Buffer.byteLength(body)) }

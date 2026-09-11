@@ -13,6 +13,7 @@ import { resolveBuiltinDshHost, type DshHostSettings } from './dsh-launcher'
 import { readLegacyBinding, prepareLegacyHandoff, LEGACY_ADAPTERS, type LegacyBindingConfig } from './legacy-bindings'
 import { LocalControlBridge } from './local-control'
 import { LocalAssociations } from './local-association'
+import { NativeApprovals, type ApprovalContext } from './native-approvals'
 import type { LocalRuntimeDescriptor } from '../../shared/local-control'
 
 export const AGENT_HOST_PROTOCOL = 1
@@ -164,8 +165,11 @@ export class AgentHostService {
   private localControlResult?: Record<string, unknown>
   private localControlResultOwner?: string
   private associations: LocalAssociations
+  private nativeApprovals: NativeApprovals
+  private remoteApprovalOwner?: string
   constructor(private readonly options: AgentHostOptions) {
     this.associations = new LocalAssociations(path.join(options.storageDir, 'agent-associations'), options.nodePath, process.execPath)
+    this.nativeApprovals = new NativeApprovals(path.join(options.storageDir, 'native-approvals'))
   }
 
   private async checkAssociations(retryInvalid = false): Promise<void> {
@@ -266,6 +270,7 @@ export class AgentHostService {
     const sameOwner = this.saved.ownerUserId === this.options.ownerId()
     return structuredClone({ ...this.state, localConversationContinuity: true, localControl: { ...(this.localControl?.snapshot() || { supported: true, protocol: 1, version: 0, rooms: [], catalog: [], busy: false }), lastResult: this.localControlResultOwner === this.options.ownerId() ? this.localControlResult : undefined }, deviceName: sameOwner ? this.saved.deviceName || hostname() : hostname(), enabled: this.saved.enabled && sameOwner,
       cloudAgents: this.connectionOwner === this.options.ownerId() ? this.state.cloudAgents : [],
+      remoteNativeApprovals: this.remoteApprovalOwner === this.options.ownerId() ? this.state.remoteNativeApprovals : undefined,
       accountConnection: this.connectionOwner === this.options.ownerId() ? this.state.accountConnection : { status: this.options.ownerId() ? 'checking' : 'signed_out' },
       deviceId: sameOwner ? this.saved.deviceId || undefined : undefined,
       ownerUserId: sameOwner ? this.saved.ownerUserId : undefined,
@@ -273,7 +278,7 @@ export class AgentHostService {
       agents: sameOwner ? this.saved.agents.map(({ key: _key, executable: _exe, executableArgs: _args, desiredRunning: _desired, pendingCloudBind: _pending, legacy: _legacy, ...publicBinding }) => publicBinding) : [] })
   }
   isActive(): boolean { return !this.disposed && (this.saved.enabled || this.children.size > 0 || this.localChildren.size > 0 || this.localControl?.isActive() === true) }
-  isBusy(): boolean { return this.saved.agents.some((agent) => agent.busy) || this.localChildren.size > 0 || this.localControl?.isBusy() === true }
+  isBusy(): boolean { return this.saved.agents.some((agent) => agent.busy) || this.localChildren.size > 0 || this.localControl?.isBusy() === true || this.nativeApprovals.isBusy() }
   async suspendForSignOut(): Promise<void> {
     const message = '账号已退出，远程控制已暂停；运行中的任务安全结束后停止同步'
     const changed = this.saved.enabled || this.leaseValidUntil !== 0 || this.state.connection !== 'offline' || this.state.message !== message
@@ -326,6 +331,32 @@ export class AgentHostService {
   }
   private async perform(input: AgentHostAction): Promise<AgentHostSnapshot> {
     if (!input || typeof input.action !== 'string') throw new Error('托管操作无效')
+    if (input.action === 'remote_native_approvals') {
+      const owner = this.options.ownerId()
+      if (!owner) throw new Error('请先登录，再读取远程审批')
+      if (![input.deviceId, input.agentId].every(id => /^[a-f0-9]{32}$/.test(id)) || !/^[a-f0-9-]{36}$/i.test(input.runtimeSessionId)) throw new Error('远程审批归属无效')
+      if (input.decision && (typeof input.decision.approved !== 'boolean' || !/^[a-f0-9]{64}$/.test(input.decision.id) || !/^[a-f0-9]{64}$/.test(input.decision.requestHash))) throw new Error('审批决定无效')
+      const ticket = await this.options.request({ scope: 'devices', method: 'POST', action: 'native_ticket', body: { deviceId: input.deviceId } })
+      const url = new URL(String(ticket.relayUrl || ''))
+      if (url.origin !== 'https://ailishishu.com' || !url.pathname.endsWith('/v2/local') || url.username || url.password || url.search || url.hash || typeof ticket.token !== 'string' || ticket.token.length > 4096 || owner !== this.options.ownerId()) throw new Error('在线审批通道无效')
+      const response = await (this.options.fetch || fetch)(url.href + '/request', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000), headers: { authorization: `Bearer ${ticket.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ command: input.decision ? 'native_decide' : 'native_approvals', input: { agentId: input.agentId, runtimeSessionId: input.runtimeSessionId, ...input.decision }, requestId: randomUUID().replaceAll('-', '') }) })
+      const result = await response.json() as { ok?: boolean; result?: import('../../shared/native-approvals').NativeApprovalSnapshot; message?: string }
+      if (owner !== this.options.ownerId() || this.disposed) throw new Error('账号已切换，忽略旧审批响应')
+      if (!response.ok || !result.ok || result.result?.sessionId !== input.runtimeSessionId) throw new Error(result.message || '远程审批结果未确认，不会自动重发决定')
+      this.state.remoteNativeApprovals = { deviceId: input.deviceId, agentId: input.agentId, snapshot: result.result }
+      this.remoteApprovalOwner = owner
+      return this.snapshot()
+    }
+    if (input.action === 'read_native_approvals' || input.action === 'decide_native_approval') {
+      const owner = this.options.ownerId(), context = await this.approvalContext(input.sessionId)
+      const authorize = (): void => { if (owner !== this.options.ownerId() || this.disposed) throw new Error('账号或运行环境已变化，请重新核对审批') }
+      authorize()
+      if (input.action === 'decide_native_approval') {
+        if (typeof input.approved !== 'boolean' || !/^[a-f0-9]{64}$/.test(input.id) || !/^[a-f0-9]{64}$/.test(input.requestHash)) throw new Error('审批决定无效')
+        this.state.nativeApprovals = await this.nativeApprovals.decide(context, input, authorize)
+      } else this.state.nativeApprovals = await this.nativeApprovals.read(context)
+      authorize(); this.changed(); return this.snapshot()
+    }
     if (input.action === 'local_control') { await this.performLocalControl(input); return this.snapshot() }
     if (input.action === 'check_connection') { await this.checkConnection(true); return this.snapshot() }
     if (input.action === 'choose_local_files') {
@@ -614,7 +645,7 @@ export class AgentHostService {
     const requestOwner = this.options.ownerId()
     const allowed = ['snapshot', 'create_room', 'read_room', 'read_event', 'send_room', 'cancel_run', 'reconcile_run', 'accept_run', 'preflight_merge', 'set_permission', 'decide_approval', 'choose_files', 'preview_file', 'open_file', 'save_file', 'refresh_catalog', 'authorize_project']
     if (!allowed.includes(action.command)) throw new Error('本地总控操作无效')
-    this.localControl ||= new LocalControlBridge({ storageDir: this.options.storageDir, moduleDir: this.options.moduleDir, nodePath: this.options.nodePath, ownerId: this.options.ownerId, descriptors: () => this.localRuntimeDescriptors(), onChange: () => this.changed() })
+    this.localControl ||= new LocalControlBridge({ storageDir: this.options.storageDir, moduleDir: this.options.moduleDir, nodePath: this.options.nodePath, ownerId: this.options.ownerId, descriptors: () => this.localRuntimeDescriptors(), nativeRequest: (command, input) => this.nativeOnlineRequest(command, input), onChange: () => this.changed() })
     if (action.command === 'authorize_project') {
       const adapter = String(action.input?.adapter || '') as AgentAdapter
       if (!['codex', 'claude-code', 'cursor', 'deepseek-harness'].includes(adapter)) throw new Error('请先选择受支持的本机智能体')
@@ -694,7 +725,7 @@ export class AgentHostService {
     const session = input.sessionId ? this.state.localCatalog?.sessions.find(item => item.id === input.sessionId && item.projectId === project.id) : undefined
     if (input.sessionId && !session) throw new Error('会话不属于所选本机项目')
     if (input.conversationId && (input.sessionId || !/^[a-f0-9]{32}$/.test(input.conversationId))) throw new Error('本机新会话标识无效')
-    if (this.state.localTasks?.some(task => ['running', 'delivered'].includes(task.status) && task.projectId === project.id && (task.sessionId || '') === (input.sessionId || '') && (task.conversationId || '') === (input.conversationId || ''))) throw new Error('此对话已有任务运行或等待桌面处理，请等待完成后发送')
+    if (this.state.localTasks?.some(task => ['running', 'awaiting_approval', 'delivered'].includes(task.status) && task.projectId === project.id && (task.sessionId || '') === (input.sessionId || '') && (task.conversationId || '') === (input.conversationId || ''))) throw new Error('此对话已有任务运行或等待桌面处理，请等待完成后发送')
     const instruction = String(input.instruction || '').trim()
     if (!instruction || instruction.length > 12000) throw new Error('请输入任务内容，单次内容请保持在 12000 字符以内；长资料请添加文件')
     if (input.model && !this.state.localCatalog?.models?.some(model => model.adapter === project.adapter && model.id === input.model)) throw new Error('所选模型不在本机智能体目录中，请刷新或使用默认模型')
@@ -758,8 +789,36 @@ export class AgentHostService {
     child.on('exit', () => { this.localChildren.delete(id); if (task.status === 'running') { if (conversation) conversation.status = 'unconfirmed'; update({ status: 'unconfirmed', summary: '本机进程退出，未收到完成确认；不会自动重复执行' }); void this.persistDesktopTasks().catch(() => {}) } this.changed() })
     child.send({ type: 'start', adapter: project.adapter, project: { path: root }, executable: launch.executable, executableArgs: launch.args, outputDirectory: path.join(localTaskRoot, id), instruction, resumeSessionId: conversation?.runtimeSessionId || session?.runtimeSessionId || '', files, model: input.model || '' })
   }
+  private async approvalContext(sessionId: string, nativeId = false): Promise<ApprovalContext> {
+    if (typeof sessionId !== 'string' || sessionId.length > 160) throw new Error('会话编号无效')
+    if (nativeId && !/^[a-f0-9-]{36}$/i.test(sessionId)) throw new Error('原生会话编号无效')
+    if (!this.state.localCatalog?.sessions.some(session => (nativeId ? session.runtimeSessionId : session.id) === sessionId)) {
+      this.state.localCatalog = await this.observe({ type: 'scan' }) as LocalCatalog
+      this.mergeGrantedLocalProjects()
+    }
+    const session = this.state.localCatalog?.sessions.find(session => (nativeId ? session.runtimeSessionId : session.id) === sessionId && session.adapter === 'codex')
+    const project = this.state.localCatalog?.projects.find(project => project.id === session?.projectId && project.adapter === 'codex')
+    if (!session || !project) throw new Error('当前会话没有可核实的 Codex 原生审批通道')
+    return { sessionId, threadId: session.runtimeSessionId, projectPath: await realpath(project.path) }
+  }
+  private async nativeOnlineRequest(command: string, input: Record<string, any>): Promise<Record<string, any>> {
+    if (!['native_approvals', 'native_decide'].includes(command)) throw new Error('不支持的原生操作')
+    const owner = this.options.ownerId()
+    const binding = this.saved.agents.find(binding => binding.id === input.agentId && binding.adapter === 'codex')
+    const authorize = (): void => {
+      this.assertOwner(owner)
+      if (!owner || !binding || !this.saved.enabled || this.disposed || !this.boundAgentIds.has(binding.id) || this.leaseValidUntil <= Date.now() || !this.saved.agents.includes(binding)) throw new Error('设备或智能体授权已经失效')
+    }
+    authorize()
+    const context = await this.approvalContext(input.runtimeSessionId, true)
+    authorize()
+    if (binding!.projectScope !== 'all_native' && !binding!.projectRoots.some(root => inside(root, context.projectPath))) throw new Error('会话不在这个智能体的同步范围内')
+    if (command === 'native_approvals') { const result = await this.nativeApprovals.read(context); authorize(); return result }
+    if (typeof input.approved !== 'boolean' || !/^[a-f0-9]{64}$/.test(input.id) || !/^[a-f0-9]{64}$/.test(input.requestHash)) throw new Error('审批决定无效')
+    return this.nativeApprovals.decide(context, input as { id: string; requestHash: string; approved: boolean }, authorize)
+  }
   private async refreshDesktopTasks(sessionId: string): Promise<void> {
-    const pending = this.state.localTasks?.filter(task => task.backend === 'desktop' && task.sessionId === sessionId && ['running', 'delivered', 'unconfirmed'].includes(task.status)) || []
+    const pending = this.state.localTasks?.filter(task => task.backend === 'desktop' && task.sessionId === sessionId && ['running', 'awaiting_approval', 'delivered', 'unconfirmed'].includes(task.status)) || []
     if (!pending.length) return
     const session = this.state.localCatalog?.sessions.find(item => item.id === sessionId)
     if (!session) return
@@ -775,7 +834,12 @@ export class AgentHostService {
           task.status = 'completed'; task.summary = '桌面原对话任务已完成'
           task.reply = turn.items?.filter(item => item.type === 'agentMessage' && item.phase === 'final_answer').map(item => item.text).join('\n')
         } else if (turn.status === 'failed' || turn.status === 'interrupted') { task.status = 'failed'; task.summary = '桌面原对话执行失败或已中断，请查看原对话' }
-        else { task.status = 'running'; task.summary = '桌面原对话正在执行；需要审批时请在 Codex 处理' }
+        else {
+          const approvals = await this.nativeApprovals.read({ sessionId, threadId: session.runtimeSessionId, projectPath: this.state.localCatalog?.projects.find(project => project.id === session.projectId)?.path || '' })
+          const waiting = approvals.requests.some(request => request.turnId === turn.id && request.state === 'pending')
+          task.status = waiting ? 'awaiting_approval' : 'running'
+          task.summary = waiting ? '原对话等待审批，可在下方批准一次或拒绝' : approvals.status === 'ready' ? '原对话正在执行，审批将同步到此处' : '原对话正在执行；审批通道暂不可用，状态不会被当作审批成功'
+        }
       }
       await this.persistDesktopTasks()
     } catch { /* Read failures do not imply send failures and never trigger resend. */ }
@@ -1050,7 +1114,7 @@ export class AgentHostService {
       }
       if (resolvedPending) await this.persist()
       const owner = this.options.ownerId(), deviceId = this.saved.deviceId
-      this.localControl ||= new LocalControlBridge({ storageDir: this.options.storageDir, moduleDir: this.options.moduleDir, nodePath: this.options.nodePath, ownerId: this.options.ownerId, descriptors: () => this.localRuntimeDescriptors(), onChange: () => this.changed() })
+      this.localControl ||= new LocalControlBridge({ storageDir: this.options.storageDir, moduleDir: this.options.moduleDir, nodePath: this.options.nodePath, ownerId: this.options.ownerId, descriptors: () => this.localRuntimeDescriptors(), nativeRequest: (command, input) => this.nativeOnlineRequest(command, input), onChange: () => this.changed() })
       void this.localControl.connectOnline(channel => this.deviceRequest({ action: 'local_ticket', channel }), () => !this.disposed && this.saved.enabled && this.options.ownerId() === owner && this.saved.deviceId === deviceId).catch(() => {})
       return payload
     }).catch((error) => {
@@ -1115,6 +1179,7 @@ export class AgentHostService {
   async dispose(): Promise<void> {
     if (this.isBusy() || this.starting.size) throw new Error('智能体正在执行任务或启动中，请等空闲后切换托管模块')
     this.disposed = true
+    this.nativeApprovals.close()
     await this.localControl?.close()
     this.observer?.disconnect()
     if (this.timer) clearTimeout(this.timer)

@@ -10,6 +10,7 @@ interface Options {
   ownerId: () => string | undefined
   descriptors: () => Promise<LocalRuntimeDescriptor[]>
   onChange: () => void
+  nativeRequest?: (command: string, input: Reply) => Promise<Reply>
 }
 export class LocalControlBridge {
   private child?: ChildProcess
@@ -87,7 +88,7 @@ export class LocalControlBridge {
     if (!current()) return
     await this.initialize()
     if (!current()) return
-    this.online ||= new LocalOnlineChannel({ ticket, current, request: (command, input, id) => this.request(command, input, id), changed: connected => { this.onlineConnected = connected; this.options.onChange() } })
+    this.online ||= new LocalOnlineChannel({ ticket, current, request: (command, input, id) => command.startsWith('native_') && this.options.nativeRequest ? this.options.nativeRequest(command, input) : this.request(command, input, id), changed: connected => { this.onlineConnected = connected; this.options.onChange() } })
     this.online.start()
   }
   stopOnline(): void { this.online?.stop(); this.online = undefined; this.onlineConnected = false }

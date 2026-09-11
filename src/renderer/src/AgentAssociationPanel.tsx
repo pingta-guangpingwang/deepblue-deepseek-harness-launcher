@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Link2, RefreshCw, X } from 'lucide-react'
 import type { AgentAdapter, AgentHostSnapshot } from '../../shared/agent-host'
+import { AGENT_CATALOG } from '../../shared/agent-catalog'
 
-const adapters: Array<[AgentAdapter, string]> = [['codex', 'Codex'], ['claude-code', 'Claude Code'], ['cursor', 'Cursor'], ['qclaw', 'QClaw / OpenClaw'], ['workbuddy', 'WorkBuddy'], ['codebuddy', 'CodeBuddy'], ['deepseek-harness', 'DeepSeek Harness'], ['trae', 'TRAE']]
-export function AgentAssociationPanel(): React.JSX.Element {
+const adapters = AGENT_CATALOG.map(agent => [agent.id, agent.name] as const)
+export function AgentAssociationPanel({ request }: { request?: { adapter: AgentAdapter; sequence: number } }): React.JSX.Element {
   const dialog = useRef<HTMLDialogElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -12,6 +13,14 @@ export function AgentAssociationPanel(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!request) return
+    setOpen(true); setAdapter(request.adapter)
+    void window.launcher?.agentHostState?.().then(value => {
+      if (value?.associations?.some(item => item.adapter === request.adapter)) setHost(value)
+      else void begin(request.adapter)
+    })
+  }, [request])
   useEffect(() => {
     if (!open) return
     dialog.current?.showModal()
