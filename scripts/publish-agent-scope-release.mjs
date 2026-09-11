@@ -1,0 +1,110 @@
+// One-release operator. Immutable artifacts first; public pointers only after QA.
+import assert from 'node:assert/strict'
+import { createHash, createHmac, createPublicKey } from 'node:crypto'
+import { readFile, realpath, writeFile } from 'node:fs/promises'
+import https from 'node:https'
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
+import { fetchBoundedBytes } from './bounded-fetch.mjs'
+import { verifyRuntimeCatalogManifest } from './runtime-catalog-validation.mjs'
+const mode=process.argv[2], root=path.resolve(import.meta.dirname,'..'), release=path.join(root,'release')
+assert.ok(['check','artifacts','pointers'].includes(mode),'Use check, artifacts or pointers')
+const sha=b=>createHash('sha256').update(b).digest('hex')
+const planBytes=await readFile(path.join(release,'release-agent-scope-plan.json'))
+assert.equal(sha(planBytes),'52c281ea44d477a6b3784964087e14e481c58e7331848a4541b00044e7c84d0f')
+const plan=JSON.parse(planBytes), bucket='ailishishu-deepseek-harness', hostname=bucket+'.oss-cn-beijing.aliyuncs.com'
+const objectPath=key=>'/'+key.split('/').map(encodeURIComponent).join('/'), publicUrl=key=>'https://'+hostname+objectPath(key)
+const catalogKey='release-v2/launcher-manifest.json'
+const candidateBytes=await readFile(path.join(release,'launcher-manifest.agent-scope.json')), candidate=JSON.parse(candidateBytes)
+const beforeBytes=await readFile(path.join(release,'launcher-manifest.before-agent-scope.json')), before=JSON.parse(beforeBytes)
+const key=createPublicKey(await readFile(path.join(root,'resources/runtime-update-public-key.pem')))
+assert.equal(sha(beforeBytes),plan.baselineSha256)
+for(const value of [before,candidate]) assert.ok(verifyRuntimeCatalogManifest(value,key),'Invalid signature or catalog graph')
+assert.equal(candidate.payload.launcher.version,'0.10.35');assert.ok(Date.parse(candidate.payload.generatedAt)>Date.parse(before.payload.generatedAt))
+assert.deepEqual(Object.keys(candidate.payload).sort(),Object.keys(before.payload).sort())
+for(const field of Object.keys(before.payload)) if(!['generatedAt','runtimeModules'].includes(field)) assert.deepEqual(candidate.payload[field],before.payload[field])
+assert.deepEqual(candidate.payload.runtimeModules.map(m=>m.id),before.payload.runtimeModules.map(m=>m.id))
+for(const old of before.payload.runtimeModules) {
+ const current=candidate.payload.runtimeModules.find(m=>m.id===old.id)
+ if(!['agent-host','launcher-ui'].includes(old.id)) assert.deepEqual(current,old)
+ else { const item=plan.items.find(i=>i.file.startsWith('modules/'+old.id+'-'));assert.equal(current.artifacts[0].sha256,item.sha256);assert.equal(current.artifacts[0].size,item.size);assert.deepEqual(current.artifacts[0].mirrors.map(m=>m.id),['oss','github']) }
+}
+assert.deepEqual(candidate.payload.launcher,before.payload.launcher)
+const bodies=new Map()
+for(const item of plan.items) { const b=await readFile(path.join(release,item.file));assert.equal(b.length,item.size);assert.equal(sha(b),item.sha256);bodies.set(item.key,b) }
+const get=async(key,max)=>fetchBoundedBytes(publicUrl(key),{maxBytes:max,redirect:'error',timeoutMs:120000})
+const live=await get(catalogKey,256*1024)
+assert.equal(live.response.status,200);assert.ok([plan.baselineSha256,sha(candidateBytes)].includes(sha(live.bytes)),'Live catalog moved')
+if(mode==='check'){console.log(JSON.stringify({ok:true,mode,items:plan.items.length,baselineSha256:plan.baselineSha256,candidateSha256:sha(candidateBytes)}))}
+else {
+// Credentials stay external and are never logged or accepted inline.
+const profilePath=await realpath(process.env.OSS_PUBLISHER_PROFILE||'')
+const outside=p=>{const r=path.relative(root,p);return r==='..'||r.startsWith('..'+path.sep)||path.isAbsolute(r)}
+assert.ok(outside(profilePath))
+const profile=JSON.parse((await readFile(profilePath,'utf8')).replace(/^\uFEFF/,''))
+const exact=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>keys.includes(k))
+assert.ok(exact(profile,['profile','provider','endpoint','region','bucket','credentialFile','defaultObjectAcl','scope']))
+assert.equal(profile.provider,'aliyun-oss');assert.equal(profile.region,'oss-cn-beijing');assert.equal(profile.bucket,bucket);assert.equal(profile.scope,'bucket-only');assert.equal(profile.defaultObjectAcl,'public-read')
+assert.equal(new URL(profile.endpoint).href,'https://oss-cn-beijing.aliyuncs.com/')
+const credentialPath=await realpath(path.resolve(path.dirname(profilePath),profile.credentialFile)), relative=path.relative(path.dirname(profilePath),credentialPath)
+assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative)&&outside(credentialPath))
+const document=JSON.parse((await readFile(credentialPath,'utf8')).replace(/^\uFEFF/,'')), credential=document.AccessKey
+assert.ok(exact(document,['AccessKey','RequestId'])&&exact(credential,['AccessKeyId','AccessKeySecret','CreateDate','Status']))
+assert.equal(credential.Status,'Active');assert.ok(credential.AccessKeyId&&credential.AccessKeySecret)
+async function put(key,body,immutable) {
+ const type=key.endsWith('.json')?'application/json; charset=utf-8':key.endsWith('.exe')?'application/vnd.microsoft.portable-executable':'application/octet-stream'
+ const date=new Date().toUTCString(),md5=createHash('md5').update(body).digest('base64')
+ const headers={...(immutable?{'x-oss-forbid-overwrite':'true'}:{}),'x-oss-object-acl':'public-read'}
+ const canonical=Object.entries(headers).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}:${v}\n`).join('')
+ const signature=createHmac('sha1',credential.AccessKeySecret).update(`PUT\n${md5}\n${type}\n${date}\n${canonical}/${bucket}/${key}`).digest('base64')
+ return new Promise((resolve,reject)=>{
+  const req=https.request({hostname,port:443,method:'PUT',path:objectPath(key),headers:{Host:hostname,Date:date,'Content-Type':type,'Content-Length':body.length,'Content-MD5':md5,...headers,Authorization:`OSS ${credential.AccessKeyId}:${signature}`}},response=>{response.resume();response.on('end',()=>response.headers['x-oss-version-id']?reject(Error('Versioned bucket unsupported')):resolve(response.statusCode))})
+  req.setTimeout(120000,()=>req.destroy(Error('OSS upload timeout')));req.on('error',reject);req.end(body)
+ })
+}
+async function verify(key,body) {const r=await get(key,Math.max(4096,body.length));assert.equal(r.response.status,200);assert.equal(r.bytes.length,body.length);assert.equal(sha(r.bytes),sha(body));return r}
+async function verifyGithub(item) {
+ const repository='pingta-guangpingwang/deepblue-deepseek-harness-launcher'
+ const metadata=JSON.parse(execFileSync('gh',['api',`repos/${repository}/releases/tags/${item.githubTag}`],{encoding:'utf8',windowsHide:true,maxBuffer:2*1024*1024,timeout:30000}))
+ const asset=metadata.assets.find(a=>a.name===path.basename(item.file));assert.ok(asset)
+ assert.equal(asset.state,'uploaded');assert.equal(asset.size,item.size);assert.equal(asset.digest,'sha256:'+item.sha256)
+ const expected=`https://github.com/${repository}/releases/download/${item.githubTag}/${path.basename(item.file)}`
+ assert.equal(decodeURIComponent(asset.browser_download_url),expected)
+ let current=new URL(asset.browser_download_url)
+ for(let attempt=0;attempt<6;attempt++) {
+  const response=await fetch(current,{method:'HEAD',redirect:'manual',signal:AbortSignal.timeout(30000)})
+  if(response.status>=300&&response.status<400) { const next=new URL(response.headers.get('location'),current);assert.equal(next.protocol,'https:');assert.ok(next.hostname==='github.com'||next.hostname.endsWith('.githubusercontent.com'));assert.ok(!next.username&&!next.password);current=next;continue }
+  assert.equal(response.status,200);assert.equal(Number(response.headers.get('content-length')),item.size)
+  return {method:'github-server-sha256-and-anonymous-head',sha256:item.sha256,size:item.size}
+ }
+ throw Error('GitHub anonymous redirect limit exceeded')
+}
+// Confirm actual overwrite exclusion before relying on immutable release claims.
+const probeKey='release-v2/locks/forbid-overwrite-capability-v1.json',probe=Buffer.from('{"schemaVersion":1,"purpose":"verify x-oss-forbid-overwrite before runtime publication"}\n')
+await verify(probeKey,probe);assert.equal(await put(probeKey,probe,true),409)
+const receipt={mode,createdAt:new Date().toISOString(),candidateSha256:sha(candidateBytes),verified:[]}
+if(mode==='artifacts') {
+ for(const item of plan.items) {
+  const body=bodies.get(item.key),existing=await get(item.key,Math.max(4096,item.size))
+  if(existing.response.status===404) {const status=await put(item.key,body,true);assert.ok([200,409].includes(status),`Upload HTTP ${status}`)}
+  else {assert.equal(existing.response.status,200);assert.equal(sha(existing.bytes),item.sha256,'Immutable object differs')}
+  await verify(item.key,body);receipt.verified.push({key:item.key,sha256:item.sha256,size:item.size});console.log(JSON.stringify(receipt.verified.at(-1)))
+ }
+} else {
+ assert.equal(process.env.CONFIRM_AGENT_SCOPE_RELEASE,'publish-verified-agent-scope-modules')
+ const gate=JSON.parse(await readFile(path.join(release,'release-agent-scope-qa.json'),'utf8'))
+ assert.equal(gate.passed,true);assert.equal(gate.siteVerified,true);assert.deepEqual(gate.artifacts,plan.items.map(item=>({sha256:item.sha256,size:item.size})))
+ for(const item of plan.items) {
+  await verify(item.key,bodies.get(item.key))
+  const githubVerification=await verifyGithub(item)
+  console.log(JSON.stringify({verified:item.key,oss:'complete-byte-sha256',github:githubVerification.method}))
+ }
+ const lockKey=`release-v2/locks/manifest-from-${plan.baselineSha256}.json`,lock=Buffer.from(JSON.stringify({schemaVersion:1,fromSha256:plan.baselineSha256,toSha256:sha(candidateBytes),launcherVersion:'0.10.35'})+'\n')
+ const status=await put(lockKey,lock,true);assert.ok([200,409].includes(status));await verify(lockKey,lock)
+ const check=await get(catalogKey,256*1024);assert.equal(check.response.status,200);assert.ok([plan.baselineSha256,sha(candidateBytes)].includes(sha(check.bytes)))
+ if(sha(check.bytes)!==sha(candidateBytes)) assert.equal(await put(catalogKey,candidateBytes,false),200)
+ await verify(catalogKey,candidateBytes);receipt.verified.push({key:catalogKey,sha256:sha(candidateBytes)})
+}
+await writeFile(path.join(release,`release-agent-scope-${mode}-receipt.json`),JSON.stringify(receipt,null,2)+'\n')
+console.log(JSON.stringify({ok:true,mode,verified:receipt.verified.length}))
+}
