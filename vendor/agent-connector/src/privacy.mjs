@@ -52,7 +52,16 @@ export async function buildProjectCatalog(projects, installationId, interactionK
   return catalog;
 }
 
+// 目录身份指纹：仅 sha256 单向摘要，不含任何明文路径。群聊「共用一个项目文件夹」
+// 用它把不同成员的项目按真实目录归组（盘符/分隔符先归一化再哈希，大小写不敏感）。
+export function projectPathKey(projectPath) {
+  const value = String(projectPath || '').trim();
+  if (!value) return '';
+  return sha256(value.replace(/\\/g, '/').toLowerCase());
+}
+
 export function projectSnapshot(project) {
+  const pathKey = projectPathKey(project.path);
   return {
     id: project.id,
     name: project.name,
@@ -61,7 +70,8 @@ export function projectSnapshot(project) {
       branch: project.branch,
       worktreeName: project.worktreeName,
       repositoryName: project.name,
-      runtimeAgentId: project.runtimeAgentId
+      runtimeAgentId: project.runtimeAgentId,
+      ...(pathKey ? { pathKey } : {})
     },
     revision: 1,
     ...(project.lastActivityAt ? { lastActivityAt: project.lastActivityAt } : {})

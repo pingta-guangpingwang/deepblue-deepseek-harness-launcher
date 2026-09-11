@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRoomMessageContent, mergeRoomDetail, normalizeRoomApproveResponse, normalizeRoomCancelResponse, normalizeRoomDeleteResponse, normalizeRoomDetail, normalizeRoomSaveResponse, normalizeRoomSendResponse, normalizeRoomSummary, reconcileMentionTokens, roomMessageSignature, roomRunActive, roomRunCanApprove, roomStatusLabel, validateRoomDraft } from './AgentSessionGroups'
+import { buildRoomMessageContent, deriveRoomProjectMode, mergeRoomDetail, normalizeRoomApproveResponse, normalizeRoomCancelResponse, normalizeRoomDeleteResponse, normalizeRoomDetail, normalizeRoomSaveResponse, normalizeRoomSendResponse, normalizeRoomSummary, reconcileMentionTokens, resolveSharedProjects, roomMessageSignature, roomRunActive, roomRunCanApprove, roomStatusLabel, sharedFolderOptions, validateRoomDraft } from './AgentSessionGroups'
 
 const ROOM_ID = '1'.repeat(32)
 const OTHER_ROOM_ID = '9'.repeat(32)
@@ -174,6 +174,51 @@ describe('multi-agent room contracts', () => {
     expect(validateRoomDraft(one)).toContain('至少配置主控和一名协作成员')
     expect(validateRoomDraft({ ...one, members: [editorMember(), editorMember({ id: OTHER_MEMBER_ID, displayName: '前端复核', mentionHandle: '前端.复核', agentId: 'agent-b', projectId: 'project-b', sessionLabel: '前端复核会话' })] })).toBe('')
     expect(validateRoomDraft({ ...one, members: [editorMember(), editorMember({ id: OTHER_MEMBER_ID, displayName: '复核', mentionHandle: '主控', agentId: 'agent-b', projectId: 'project-b', sessionLabel: '复核会话' })] })).toContain('已被其他成员使用')
+  })
+
+  it('groups candidate projects into shared folders by directory fingerprint and resolves per-member projects', () => {
+    const FOLDER_A = 'a'.repeat(64)
+    const FOLDER_B = 'b'.repeat(64)
+    const catalog = { agents: [
+      { id: 'agent-a', name: 'Codex', adapter: 'codex', status: 'online', canDispatch: true, projects: [{ id: 'project-a1', agentId: 'agent-a', name: '发布室', pathKey: FOLDER_A }, { id: 'project-a2', agentId: 'agent-a', name: '资料库', pathKey: FOLDER_B }] },
+      { id: 'agent-b', name: 'Claude', adapter: 'claude-code', status: 'online', canDispatch: true, projects: [{ id: 'project-b1', agentId: 'agent-b', name: '发布室副本', pathKey: FOLDER_A }, { id: 'project-b2', agentId: 'agent-b', name: '无指纹项目' }] }
+    ], truncated: { agents: false, projects: false }, limits: { candidateAgents: 12, projects: 600, maxMembers: 6 } }
+    const folders = sharedFolderOptions(catalog)
+    expect(folders.map(folder => folder.pathKey)).toEqual([FOLDER_A, FOLDER_B])
+    expect(folders[0]).toMatchObject({ name: '发布室', agentIds: ['agent-a', 'agent-b'] })
+    const members = [editorMember(), editorMember({ id: OTHER_MEMBER_ID, agentId: 'agent-b' })]
+    const resolved = resolveSharedProjects(catalog, FOLDER_A, members)
+    expect(resolved.get(MEMBER_ID)?.id).toBe('project-a1')
+    expect(resolved.get(OTHER_MEMBER_ID)?.id).toBe('project-b1')
+    expect(resolveSharedProjects(catalog, FOLDER_B, members).has(OTHER_MEMBER_ID)).toBe(false)
+  })
+
+  it('validates shared-folder mode through the catalog and keeps separate mode unchanged', () => {
+    const FOLDER_A = 'a'.repeat(64)
+    const catalog = { agents: [{ id: 'agent-a', name: 'Codex', adapter: 'codex', status: 'online', canDispatch: true, projects: [{ id: 'project-a1', agentId: 'agent-a', name: '发布室', pathKey: FOLDER_A }] }, { id: 'agent-b', name: 'Claude', adapter: 'claude-code', status: 'online', canDispatch: true, projects: [{ id: 'project-b1', agentId: 'agent-b', name: '发布室', pathKey: FOLDER_A }] }], truncated: { agents: false, projects: false }, limits: { candidateAgents: 12, projects: 600, maxMembers: 6 } }
+    const member = (overrides: Record<string, unknown> = {}) => editorMember({ id: OTHER_MEMBER_ID, displayName: '前端复核', mentionHandle: '复核', agentId: 'agent-b', projectId: '', ...overrides })
+    const base = { name: '发布室', coordinatorMemberId: MEMBER_ID, maxSteps: 12, defaultAccess: 'workspace_write' as const, projectMode: 'shared' as const, sharedPathKey: FOLDER_A, members: [editorMember({ projectId: '' }), member()] }
+    expect(validateRoomDraft(base, catalog)).toBe('')
+    expect(validateRoomDraft({ ...base, sharedPathKey: '' }, catalog)).toContain('选择共用项目文件夹')
+    expect(validateRoomDraft(base)).toContain('候选目录尚未同步')
+    expect(validateRoomDraft({ ...base, members: [editorMember({ projectId: '' }), member({ agentId: 'agent-c' })] }, catalog)).toContain('共用文件夹下还没有授权项目')
+    expect(validateRoomDraft({ ...base, members: [editorMember({ projectId: '' }), member()], projectMode: 'separate' })).toContain('选择授权项目')
+  })
+
+  it('derives editor project mode from uniform member directory fingerprints', () => {
+    const FOLDER_A = 'a'.repeat(64)
+    const withKey = (key?: string): { projectPathKey?: string } => ({ projectPathKey: key })
+    expect(deriveRoomProjectMode([withKey(FOLDER_A), withKey(FOLDER_A)])).toEqual({ projectMode: 'shared', sharedPathKey: FOLDER_A })
+    expect(deriveRoomProjectMode([withKey(), withKey(FOLDER_A)])).toEqual({ projectMode: 'separate', sharedPathKey: '' })
+    expect(deriveRoomProjectMode([withKey(FOLDER_A), withKey('b'.repeat(64))]).projectMode).toBe('separate')
+  })
+
+  it('reads directory fingerprints only as strict hex64 in members and candidates', () => {
+    const FOLDER_A = 'a'.repeat(64)
+    const normalized = normalizeRoomDetail(detail({ members: [publicMember({ projectPathKey: FOLDER_A })] }))
+    expect(normalized.members[0]!.projectPathKey).toBe(FOLDER_A)
+    const malformed = normalizeRoomDetail(detail({ members: [publicMember({ projectPathKey: 'not-hex' })] }))
+    expect(malformed.members[0]!.projectPathKey).toBeUndefined()
   })
 
   it('routes only suggestion-selected mentions by stable member id', () => {

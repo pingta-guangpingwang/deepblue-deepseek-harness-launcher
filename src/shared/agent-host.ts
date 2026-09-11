@@ -112,6 +112,7 @@ export interface AgentRoomMember {
   adapterCode: string
   projectId: string
   projectName: string
+  projectPathKey?: string
   sessionLabel: string
   nativeSessionId?: string
   sessionState: AgentRoomSessionState

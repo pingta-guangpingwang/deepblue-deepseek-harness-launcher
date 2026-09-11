@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, Wrench, X } from 'lucide-react'
+import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, FolderPlus, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, Wrench, X } from 'lucide-react'
 import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentRoomAccess, AgentRoomAction, AgentRoomDetail, AgentRoomMember, AgentRoomMemberInput, AgentRoomMessage, AgentRoomMessageSegment, AgentRoomRun, AgentRoomSummary, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-session-groups.css'
@@ -8,9 +8,10 @@ import { ConversationControls } from './ConversationControls'
 import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
-interface CandidateProject { id: string; agentId: string; name: string }
+interface CandidateProject { id: string; agentId: string; name: string; pathKey?: string }
 interface CandidateAgent { id: string; name: string; adapter: string; status: string; canDispatch: boolean; statusMessage?: string; projects: CandidateProject[] }
 interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean }; limits: { candidateAgents: number; projects: number; maxMembers: number } }
+export interface SharedFolderOption { pathKey: string; name: string; agentIds: string[] }
 interface RoomEditorState {
   roomId?: string
   name: string
@@ -18,6 +19,8 @@ interface RoomEditorState {
   maxSteps: number
   defaultAccess: AgentRoomAccess
   expectedDefinitionRevision?: string | number
+  projectMode?: 'shared' | 'separate'
+  sharedPathKey?: string
   members: AgentRoomMemberInput[]
 }
 export interface RoomMentionToken { memberId: string; start: number; end: number; label: string }
@@ -95,6 +98,7 @@ function normalizeMember(value: unknown): AgentRoomMember {
   const row = object(value)
   const sessionState = text(field(row, 'session_state', 'sessionState'))
   const nativeSessionId = text(field(row, 'native_session_id', 'nativeSessionId')) || undefined
+  const projectPathKey = text(field(row, 'project_path_key', 'projectPathKey')) || undefined
   return {
     id: exactId(field(row, 'id', 'member_id', 'memberId'), '房间成员编号'),
     displayName: text(field(row, 'display_name', 'displayName', 'name')) || '未命名成员',
@@ -105,6 +109,7 @@ function normalizeMember(value: unknown): AgentRoomMember {
     adapterCode: text(field(row, 'adapter_code', 'adapterCode')),
     projectId: text(field(row, 'project_id', 'projectId')),
     projectName: text(field(row, 'project_name', 'projectName')) || '未命名项目',
+    ...(projectPathKey && DETAIL_REVISION_PATTERN.test(projectPathKey) ? { projectPathKey } : {}),
     sessionLabel: text(field(row, 'session_label', 'sessionLabel')) || '房间会话',
     nativeSessionId,
     sessionState: sessionState === 'ready' || sessionState === 'broken' ? sessionState : nativeSessionId ? 'ready' : 'pending',
@@ -320,7 +325,7 @@ export function mergeRoomDetail(current: AgentRoomDetail | undefined, incoming: 
 function normalizeCandidates(value: unknown): CandidateCatalog {
   const catalog = object(value)
   if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects)) throw new RoomContractError('房间候选目录不完整，请刷新并确认网站端已更新。')
-  const projects = rows(catalog.projects).map(row => ({ id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目' })).filter(project => project.id && project.agentId)
+  const projects = rows(catalog.projects).map(row => { const pathKey = text(field(row, 'path_key', 'pathKey')) || undefined; return { id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目', ...(pathKey && DETAIL_REVISION_PATTERN.test(pathKey) ? { pathKey } : {}) } }).filter(project => project.id && project.agentId)
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
     return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown', canDispatch: bool(field(row, 'can_dispatch', 'canDispatch')), statusMessage: text(field(row, 'status_message', 'statusMessage')) || undefined, projects: projects.filter(project => project.agentId === id) }
@@ -341,9 +346,44 @@ function normalizeCandidates(value: unknown): CandidateCatalog {
 function newMemberId(): string { return crypto.randomUUID().replaceAll('-', '') }
 function blankMember(index: number): AgentRoomMemberInput { return { id: newMemberId(), displayName: '', mentionHandle: `agent-${index + 1}`, responsibility: '', agentId: '', projectId: '', sessionLabel: '' } }
 
-export function validateRoomDraft(draft: RoomEditorState): string {
+// 按真实目录（pathKey 指纹）把候选项目归组，供「共用一个项目文件夹」选择。
+export function sharedFolderOptions(catalog: CandidateCatalog): SharedFolderOption[] {
+  const folders = new Map<string, { name: string; counts: Map<string, number>; agents: Map<string, boolean>; order: number }>()
+  let order = 0
+  for (const agent of catalog.agents) for (const project of agent.projects) {
+    if (!project.pathKey) continue
+    const folder = folders.get(project.pathKey) || { name: project.name, counts: new Map(), agents: new Map(), order: order++ }
+    folder.counts.set(project.name, (folder.counts.get(project.name) || 0) + 1)
+    folder.agents.set(project.agentId, true)
+    folders.set(project.pathKey, folder)
+  }
+  return [...folders.entries()].map(([pathKey, folder]) => {
+    const preferred = [...folder.counts.entries()].sort((left, right) => right[1] - left[1])[0]
+    return { pathKey, name: preferred ? preferred[0] : folder.name, agentIds: [...folder.agents.keys()] }
+  }).sort((left, right) => folders.get(left.pathKey)!.order - folders.get(right.pathKey)!.order)
+}
+
+// 为每位成员解析其智能体在所选共用文件夹下的项目（site 侧保存校验仍以 projectId 为准）。
+export function resolveSharedProjects(catalog: CandidateCatalog, pathKey: string, members: AgentRoomMemberInput[]): Map<string, CandidateProject> {
+  const resolved = new Map<string, CandidateProject>()
+  for (const member of members) {
+    const project = catalog.agents.find(agent => agent.id === member.agentId)?.projects.find(project => project.pathKey === pathKey)
+    if (project) resolved.set(member.id, project)
+  }
+  return resolved
+}
+
+// 编辑既有房间时，从成员的项目目录指纹推导模式：全部一致 → 共用，否则各自项目。
+export function deriveRoomProjectMode(members: Array<{ projectPathKey?: string }>): { projectMode: 'shared' | 'separate'; sharedPathKey: string } {
+  const keys = members.map(member => member.projectPathKey || '').filter(Boolean)
+  const uniform = keys.length === members.length && keys.every(key => key === keys[0])
+  return uniform ? { projectMode: 'shared', sharedPathKey: keys[0] || '' } : { projectMode: 'separate', sharedPathKey: '' }
+}
+
+export function validateRoomDraft(draft: RoomEditorState, catalog?: CandidateCatalog): string {
   if (!draft.name.trim() || [...draft.name.trim()].length > 80) return '房间名称需为 1–80 个字符。'
   if (draft.members.length < 2) return '请至少配置主控和一名协作成员。'
+  const shared = draft.projectMode === 'shared'
   const handles = new Set<string>()
   for (const member of draft.members) {
     if (!member.displayName.trim() || [...member.displayName.trim()].length > 60) return '每位成员都需要一个清晰的显示名称。'
@@ -352,10 +392,17 @@ export function validateRoomDraft(draft: RoomEditorState): string {
     if (handles.has(handle)) return `@${handle} 已被其他成员使用。`
     handles.add(handle)
     if (!member.responsibility.trim() || [...member.responsibility.trim()].length > 500) return `请填写“${member.displayName.trim()}”的职责。`
-    if (!member.agentId || !member.projectId) return `请为“${member.displayName.trim()}”选择已有智能体和授权项目。`
+    if (!member.agentId) return `请为“${member.displayName.trim()}”选择已有智能体。`
+    if (!shared && !member.projectId) return `请为“${member.displayName.trim()}”选择授权项目。`
     if (!member.sessionLabel.trim() || [...member.sessionLabel.trim()].length > 80) return `请为“${member.displayName.trim()}”命名本房间的独立会话。`
   }
   if (!draft.members.some(member => member.id === draft.coordinatorMemberId)) return '请选择一位房间主控。'
+  if (shared) {
+    if (!draft.sharedPathKey) return '请选择共用项目文件夹，或切换到「成员各自项目」。'
+    if (!catalog) return '候选目录尚未同步，请刷新后再保存房间。'
+    const resolved = resolveSharedProjects(catalog, draft.sharedPathKey, draft.members)
+    for (const member of draft.members) if (!resolved.has(member.id)) return `“${member.displayName.trim()}”所选智能体在共用文件夹下还没有授权项目，请点成员旁的「授权此文件夹」或改用各自项目。`
+  }
   return ''
 }
 
@@ -484,6 +531,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
   const [membersOpen, setMembersOpen] = useState(false)
   const [editor, setEditor] = useState<RoomEditorState>()
   const [editorError, setEditorError] = useState('')
+  const [authorizeNotice, setAuthorizeNotice] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [draft, setDraft] = useState('')
   const [mentionTokens, setMentionTokens] = useState<RoomMentionToken[]>([])
@@ -525,7 +573,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
     accountEpoch.current += 1
     syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
     setRooms([]); setSelectedRoomId(initialRoomId); selectedRoomRef.current = initialRoomId; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setSyncBlocked(false); unsafeSync.current = false; setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
-    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear()
+    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear(); setAuthorizeNotice('')
   }, [userId, signedIn])
 
   useEffect(() => {
@@ -627,9 +675,11 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
     const query = mentionQuery?.query.toLocaleLowerCase() || ''
     return !query || member.mentionHandle.toLocaleLowerCase().includes(query) || member.displayName.toLocaleLowerCase().includes(query)
   })
-  const editorValidation = editor ? validateRoomDraft(editor) : ''
+  const editorValidation = editor ? validateRoomDraft(editor, candidateCatalog) : ''
   const candidateTruncation = candidateCatalog ? [candidateCatalog.truncated.agents ? `智能体最近 ${candidateCatalog.limits.candidateAgents} 项` : '', candidateCatalog.truncated.projects ? `项目最近 ${candidateCatalog.limits.projects} 项` : ''].filter(Boolean).join('、') : ''
   const memberLimitReached = Boolean(editor && candidateCatalog && editor.members.length >= candidateCatalog.limits.maxMembers)
+  const sharedFolders = useMemo(() => candidateCatalog ? sharedFolderOptions(candidateCatalog) : [], [candidateCatalog])
+  const sharedResolution = editor && candidateCatalog && editor.projectMode === 'shared' && editor.sharedPathKey ? resolveSharedProjects(candidateCatalog, editor.sharedPathKey, editor.members) : undefined
 
   function chooseRoom(roomId: string): void {
     syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
@@ -640,28 +690,62 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
 
   function openCreate(): void {
     const members = [{ ...blankMember(0), displayName: '主控', mentionHandle: '主控', responsibility: '理解需求、分派任务、收集汇报并推进到完成', sessionLabel: '主控工作会话' }]
-    setEditorError(''); setEditor({ name: '', coordinatorMemberId: members[0]!.id, maxSteps: DEFAULT_MAX_STEPS, defaultAccess: DEFAULT_ACCESS, members })
+    setEditorError(''); setAuthorizeNotice(''); setEditor({ name: '', coordinatorMemberId: members[0]!.id, maxSteps: DEFAULT_MAX_STEPS, defaultAccess: DEFAULT_ACCESS, projectMode: 'shared', sharedPathKey: '', members })
   }
 
   function openEdit(): void {
     if (!detail) return
-    setEditorError('')
-    setEditor({ roomId: detail.room.id, name: detail.room.name, coordinatorMemberId: detail.room.coordinatorMemberId, maxSteps: detail.room.maxSteps, defaultAccess: detail.room.defaultAccess, expectedDefinitionRevision: detail.room.definitionRevision, members: detail.members.map(member => ({ id: member.id, displayName: member.displayName, mentionHandle: member.mentionHandle, responsibility: member.responsibility, agentId: member.agentId, projectId: member.projectId, sessionLabel: member.sessionLabel })) })
+    setEditorError(''); setAuthorizeNotice('')
+    const mode = deriveRoomProjectMode(detail.members)
+    setEditor({ roomId: detail.room.id, name: detail.room.name, coordinatorMemberId: detail.room.coordinatorMemberId, maxSteps: detail.room.maxSteps, defaultAccess: detail.room.defaultAccess, expectedDefinitionRevision: detail.room.definitionRevision, projectMode: mode.projectMode, sharedPathKey: mode.sharedPathKey, members: detail.members.map(member => ({ id: member.id, displayName: member.displayName, mentionHandle: member.mentionHandle, responsibility: member.responsibility, agentId: member.agentId, projectId: member.projectId, sessionLabel: member.sessionLabel })) })
   }
 
-  function closeEditor(): void { if (!saving.current && !busy.startsWith('room_')) { setEditor(undefined); setEditorError('') } }
+  function closeEditor(): void { if (!saving.current && !busy.startsWith('room_')) { setEditor(undefined); setEditorError(''); setAuthorizeNotice('') } }
   function updateEditor(values: Partial<RoomEditorState>): void { setEditor(previous => previous ? { ...previous, ...values } : previous); setEditorError(''); editorSubmission.current = undefined }
   function updateMember(index: number, values: Partial<AgentRoomMemberInput>): void { setEditor(previous => previous ? { ...previous, members: previous.members.map((member, memberIndex) => memberIndex === index ? { ...member, ...values } : member) } : previous); setEditorError(''); editorSubmission.current = undefined }
+  function changeProjectMode(mode: 'shared' | 'separate'): void {
+    setEditor(previous => previous ? { ...previous, projectMode: mode, sharedPathKey: mode === 'shared' ? '' : previous.sharedPathKey } : previous)
+    setEditorError(''); setAuthorizeNotice(''); editorSubmission.current = undefined
+  }
+
+  async function refreshCandidates(): Promise<void> {
+    const generation = syncGeneration.current
+    try {
+      const response = await request({ scope: 'hub', method: 'GET', action: 'room_list' })
+      if (generation !== syncGeneration.current) return
+      if (response.contractVersion !== 2) throw new RoomContractError('网站端尚未启用多智能房间 v2，请稍后更新。')
+      setCandidateCatalog(normalizeCandidates(response.candidates))
+    } catch (cause) { if (generation === syncGeneration.current) setEditorError(cause instanceof Error ? cause.message : '候选目录刷新失败，请稍后重试。') }
+  }
+
+  // 授权新文件夹只会加入本机目录；群聊候选来自网站同步（约 30 秒一轮），诚实提示等待。
+  async function authorizeFolderFor(adapter: string): Promise<void> {
+    if (!window.launcher?.agentHostAction) { setEditorError('当前启动器内核缺少本机托管接口，请检查更新。'); return }
+    const generation = syncGeneration.current
+    const request = crypto.randomUUID().replaceAll('-', '')
+    setBusy('room_authorize'); setEditorError(''); setAuthorizeNotice('')
+    try {
+      const state = await window.launcher.agentHostAction({ action: 'local_control', command: 'authorize_project', input: { adapter }, requestId: request })
+      const response = state.localControl?.lastResult as { requestId?: string; result?: unknown } | undefined
+      if (!response || response.requestId !== request) throw new Error('本机授权回执编号不匹配，请刷新状态后重试；不会重复提交')
+      if (generation !== syncGeneration.current) return
+      await refreshCandidates()
+      if (generation !== syncGeneration.current) return
+      setAuthorizeNotice('文件夹已加入本机授权。群聊候选目录来自网站同步（约 30 秒一轮）：若下拉里还没出现这个文件夹，请先在该智能体客户端中打开过它，再点「刷新」。')
+    } catch (cause) { if (generation === syncGeneration.current) setEditorError(cause instanceof Error ? cause.message : '授权未完成，请重试。') }
+    finally { setBusy(current => current === 'room_authorize' ? '' : current) }
+  }
 
   async function saveEditor(event: FormEvent): Promise<void> {
     event.preventDefault()
     if (!editor || saving.current || busy || syncBlocked) return
-    const validation = validateRoomDraft(editor)
+    const validation = validateRoomDraft(editor, candidateCatalog)
     if (validation) { setEditorError(validation); return }
     const action = editor.roomId ? 'room_update' : 'room_create'
     const epoch = accountEpoch.current
     const generation = syncGeneration.current
-    const members = editor.members.map(member => ({ ...member, displayName: member.displayName.trim(), mentionHandle: member.mentionHandle.trim().replace(/^@/, ''), responsibility: member.responsibility.trim(), sessionLabel: member.sessionLabel.trim() }))
+    const sharedResolved = editor.projectMode === 'shared' ? resolveSharedProjects(candidateCatalog!, editor.sharedPathKey || '', editor.members) : undefined
+    const members = editor.members.map(member => ({ ...member, displayName: member.displayName.trim(), mentionHandle: member.mentionHandle.trim().replace(/^@/, ''), responsibility: member.responsibility.trim(), sessionLabel: member.sessionLabel.trim(), projectId: sharedResolved ? sharedResolved.get(member.id)?.id || '' : member.projectId }))
     const body: Record<string, unknown> = { ...(editor.roomId ? { roomId: editor.roomId, expectedDefinitionRevision: editor.expectedDefinitionRevision } : {}), name: editor.name.trim(), coordinatorMemberId: editor.coordinatorMemberId, maxSteps: editor.maxSteps, defaultAccess: editor.defaultAccess, members }
     const signature = JSON.stringify(body)
     if (editorSubmission.current?.signature !== signature) editorSubmission.current = { signature, clientRequestId: crypto.randomUUID() }
@@ -953,8 +1037,18 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
         <header><div><h2 id="arm-editor-title">{editor.roomId ? '编辑房间' : '新建多智能房间'}</h2><p>选择已有智能体和授权项目；专属原生会话会在成员首次参与时创建。</p></div><button type="button" className="aw-icon-button" aria-label="关闭房间编辑" onClick={closeEditor}><X size={19} /></button></header>
         <div className="arm-editor-body">
           {editorError && <div className="aw-feedback error" role="alert"><CircleAlert size={16} /><span>{editorError}</span>{syncBlocked && <button type="button" onClick={() => { setError(''); setReload(value => value + 1) }}>重新同步</button>}</div>}
+          {authorizeNotice && <div className="aw-feedback" role="status"><CheckCircle2 size={16} /><span>{authorizeNotice}</span><button type="button" onClick={() => setAuthorizeNotice('')}>知道了</button></div>}
           {candidateTruncation && <p className="arm-candidate-note" role="status">候选目录仅显示{candidateTruncation}；找不到项目时请先同步本机。</p>}
           <label className="arm-room-name">房间名称<input value={editor.name} maxLength={80} autoFocus placeholder="例如：新产品发布室" onChange={event => updateEditor({ name: event.target.value })} /></label>
+          <div className="arm-project-mode" role="radiogroup" aria-label="项目模式">
+            <label><input type="radio" name="project-mode" checked={editor.projectMode === 'shared'} onChange={() => changeProjectMode('shared')} /><span><strong>共用一个项目文件夹</strong><small>所有成员指向同一个目录，不用逐个设置位置</small></span></label>
+            <label><input type="radio" name="project-mode" checked={editor.projectMode !== 'shared'} onChange={() => changeProjectMode('separate')} /><span><strong>成员各自项目</strong><small>每位成员在自己的位置干活，可点击「选择文件夹…」</small></span></label>
+          </div>
+          {editor.projectMode === 'shared' && <div className="arm-shared-folder">
+            <label>共用项目文件夹<select value={editor.sharedPathKey || ''} onChange={event => updateEditor({ sharedPathKey: event.target.value })}><option value="">选择文件夹</option>{sharedFolders.map(folder => { const covered = editor.members.filter(member => member.agentId && folder.agentIds.includes(member.agentId)).length; return <option value={folder.pathKey} key={folder.pathKey}>{folder.name}（已具备 {covered}/{editor.members.length} 位成员）</option> })}</select></label>
+            {!sharedFolders.length && <p className="arm-shared-folder-empty" role="status">候选目录里还没有带目录位置的项目；请先同步本机，或在「成员各自项目」模式下逐个设置。</p>}
+            <p className="arm-shared-folder-help">同一目录下、不同智能体的项目会自动对位；缺少该文件夹的成员，点成员旁的「授权此文件夹」补齐。</p>
+          </div>}
           <div className="arm-editor-heading"><div><h3>成员与身份</h3><p>名称和 @名称只属于这个房间；同一智能体也可承担不同身份。</p></div><div className="arm-editor-add"><span id="arm-member-limit" aria-live="polite">{memberLimitReached ? '此房间已达到当前服务允许的成员上限。' : ''}</span><button type="button" className="small-button" disabled={memberLimitReached || syncBlocked} aria-describedby="arm-member-limit" onClick={() => updateEditor({ members: [...editor.members, blankMember(editor.members.length)] })}><Plus size={14} />添加成员</button></div></div>
           <div className="arm-member-editors">{editor.members.map((member, index) => {
             const agent = candidateCatalog?.agents.find(item => item.id === member.agentId)
@@ -962,7 +1056,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
               <legend>{member.displayName.trim() || `新成员 ${index + 1}`}</legend>
               <div className="arm-member-editor-title"><label>显示名称<input value={member.displayName} maxLength={60} placeholder="例如：前端" onChange={event => updateMember(index, { displayName: event.target.value })} /></label><label>@名称<div className="arm-handle-input"><span>@</span><input value={member.mentionHandle} maxLength={40} placeholder={`agent-${index + 1}`} onChange={event => updateMember(index, { mentionHandle: event.target.value.replace(/^@/, '') })} /></div></label><button type="button" className="aw-icon-button danger" aria-label={`移除成员 ${member.displayName || index + 1}`} disabled={editor.members.length <= 1} onClick={() => { const members = editor.members.filter((_, memberIndex) => memberIndex !== index); updateEditor({ members, coordinatorMemberId: editor.coordinatorMemberId === member.id ? members[0]?.id || '' : editor.coordinatorMemberId }) }}><Trash2 size={15} /></button></div>
               <label>职责<textarea value={member.responsibility} maxLength={500} placeholder="说明这个身份负责什么、向谁汇报" onChange={event => updateMember(index, { responsibility: event.target.value })} /></label>
-              <div className="arm-member-binding"><label>已有智能体<select value={member.agentId} onChange={event => updateMember(index, { agentId: event.target.value, projectId: '' })}><option value="">选择智能体</option>{candidateCatalog?.agents.map(item => <option value={item.id} key={item.id}>{item.name} · {roomStatusLabel(item.status)}</option>)}</select></label><label>授权项目<select value={member.projectId} disabled={!agent} onChange={event => updateMember(index, { projectId: event.target.value })}><option value="">选择项目</option>{agent?.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>独立会话名称<input value={member.sessionLabel} maxLength={80} placeholder="例如：前端执行会话" onChange={event => updateMember(index, { sessionLabel: event.target.value })} /></label></div>
+              <div className="arm-member-binding"><label>已有智能体<select value={member.agentId} onChange={event => updateMember(index, { agentId: event.target.value, projectId: '' })}><option value="">选择智能体</option>{candidateCatalog?.agents.map(item => <option value={item.id} key={item.id}>{item.name} · {roomStatusLabel(item.status)}</option>)}</select></label>{editor.projectMode === 'shared' ? <div className="arm-member-shared-project">{editor.sharedPathKey && agent && (sharedResolution?.get(member.id) ? <span className="arm-project-resolved"><CheckCircle2 size={13} />{sharedResolution.get(member.id)!.name}</span> : <span className="arm-project-missing" role="alert"><CircleAlert size={13} />该智能体在此文件夹下还没有项目</span>)}{agent && <button type="button" className="aw-text-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void authorizeFolderFor(agent.adapter)}>{busy === 'room_authorize' ? <LoaderCircle size={13} className="spin" /> : <FolderPlus size={13} />}授权此文件夹</button>}</div> : <label>授权项目<select value={member.projectId} disabled={!agent} onChange={event => updateMember(index, { projectId: event.target.value })}><option value="">选择项目</option>{agent?.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>}{editor.projectMode !== 'shared' && <button type="button" className="aw-text-button" disabled={!agent || Boolean(busy) || syncBlocked} onClick={() => void authorizeFolderFor(agent!.adapter)}>{busy === 'room_authorize' ? <LoaderCircle size={13} className="spin" /> : <FolderPlus size={13} />}选择文件夹…</button>}<label>独立会话名称<input value={member.sessionLabel} maxLength={80} placeholder="例如：前端执行会话" onChange={event => updateMember(index, { sessionLabel: event.target.value })} /></label></div>
               <label className="arm-coordinator-choice"><input type="radio" name="coordinator" checked={editor.coordinatorMemberId === member.id} onChange={() => updateEditor({ coordinatorMemberId: member.id })} />设为主控：没有 @ 指定成员时，由此成员接手并继续分派</label>
               {agent?.statusMessage && <small>{agent.statusMessage}</small>}
             </fieldset>

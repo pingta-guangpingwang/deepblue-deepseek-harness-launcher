@@ -135,6 +135,18 @@
 .arm-editor label { min-width: 0; display: grid; gap: 5px; color: var(--text-secondary); font-size: 11px; }
 .arm-editor input, .arm-editor select, .arm-editor textarea { width: 100%; min-width: 0; min-height: 36px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-soft); color: var(--text); font: inherit; }
 .arm-room-name { max-width: 520px; }
+.arm-project-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.arm-project-mode label { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); color: var(--text); cursor: pointer; }
+.arm-project-mode label:has(input:checked) { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.arm-project-mode input { width: 16px; min-height: 16px; margin-top: 2px; accent-color: var(--blue); }
+.arm-project-mode span { display: grid; gap: 2px; }
+.arm-project-mode small { color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+.arm-shared-folder { display: grid; gap: 7px; max-width: 520px; margin-top: 12px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.arm-shared-folder-empty, .arm-shared-folder-help { margin: 0; color: var(--text-secondary); font-size: 10px; line-height: 1.5; }
+.arm-shared-folder-empty { color: var(--arm-danger-ink); }
+.arm-member-shared-project { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 36px; padding: 0 4px; font-size: 11px; }
+.arm-project-resolved { display: inline-flex; align-items: center; gap: 5px; color: var(--arm-good-ink, #1a7f37); }
+.arm-project-missing { display: inline-flex; align-items: center; gap: 5px; color: var(--arm-danger-ink); }
 .arm-editor-heading { justify-content: space-between; margin-top: 22px; }
 .arm-editor-heading > div { min-width: 0; }
 .arm-editor-add { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
