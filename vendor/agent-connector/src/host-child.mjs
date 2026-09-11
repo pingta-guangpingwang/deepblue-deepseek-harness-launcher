@@ -114,7 +114,8 @@ export class HostChildController {
     const config = await this.loadConfig(message.config, {
       baseDirectory: path.dirname(message.config.stateFile),
       environment: { ...process.env, [String(message.config.interactionKeyEnv || 'SHENLAN_AGENT_INTERACTION_KEY')]: '' },
-      hostMode: true, authorizedProjectRoots: message.authorizedProjectRoots
+      hostMode: true, authorizedProjectRoots: message.authorizedProjectRoots,
+      authorizedNativeProjects: message.authorizedNativeProjects === true
     });
     this.releaseLock = await this.lock(`${config.stateFile}.host.lock`);
     const api = this.createApi(config);

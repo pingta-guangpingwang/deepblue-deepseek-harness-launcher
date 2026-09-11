@@ -103,6 +103,19 @@ beforeEach(() => {
   mocks.fork.mockImplementation(() => { const child = new FakeChild(); queueMicrotask(() => child.emit('message', { type: 'ready', protocolVersion: 1 })); return child })
 })
 
+it('association metadata can be registered while signed out without adding projects or sending cloud writes', async () => {
+  const f = await fixture()
+  f.setOwner(undefined)
+  const before = [...f.binding.projectRoots]
+  const snapshot = await f.service.action({ action: 'begin_association', adapter: 'codex' })
+  const association = snapshot.associations?.find(item => item.adapter === 'codex')
+  expect(association?.status).toBe('waiting')
+  expect(association?.configPath).toContain('agent-associations')
+  expect(f.binding.projectRoots).toEqual(before)
+  expect(mocks.fork).not.toHaveBeenCalled()
+  expect(f.requestMock).not.toHaveBeenCalled()
+})
+
 it('cancelling project selection returns immediately without starting a director or changing grants', async () => {
   const f = await fixture()
   const options = (f.service as unknown as { options: { chooseDirectory(): Promise<string | undefined> } }).options
@@ -486,6 +499,23 @@ describe('AgentHostService local authorization and child protocol', () => {
 })
 
 describe('Windows npm shim resolution', () => {
+  it('upgrades an existing agent once and persists native project scope across reloads', async () => {
+    const f = await fixture()
+    const before = [...f.binding.projectRoots]
+    await f.service.action({ action: 'authorize_agent', agentId })
+    expect(f.service.snapshot().agents[0]?.projectScope).toBe('all_native')
+    expect(f.binding.projectRoots).toEqual(before)
+    await f.service.action({ action: 'authorize_agent', agentId })
+    expect(f.requestMock).not.toHaveBeenCalled()
+    const persisted = JSON.parse(Buffer.from((await readFile(path.join(f.storageDir, 'host-state.enc'))).toString().replace('mock-encrypted:', ''), 'base64').toString())
+    expect(persisted.agents[0].projectScope).toBe('all_native')
+    await f.service.action({ action: 'start', agentId })
+    const child = [...f.internal.children.values()][0]!
+    const start = child.send.mock.calls.find(call => call[0].type === 'start')![0]
+    expect(start.authorizedNativeProjects).toBe(true)
+    expect((start.config as { projectDiscovery: { roots: string[] } }).projectDiscovery.roots).toEqual([])
+    await expect(f.service.action({ action: 'add_project', agentId })).rejects.toThrow('无需逐个添加')
+  })
   it('supports the official Claude native executable without shell-running its npm shim', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'launcher-claude-native-')); roots.push(root)
     const packageRoot = path.join(root, 'node_modules/@anthropic-ai/claude-code'); await mkdir(path.join(packageRoot, 'bin'), { recursive: true })

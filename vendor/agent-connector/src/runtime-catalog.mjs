@@ -317,7 +317,34 @@ async function discoverCodexFromAppServer(config, projects, sessions, explicitPa
   return true;
 }
 
+async function discoverCodexSavedProjects(config, projects, explicitPaths) {
+  // Saved projects can exist without any visible/unarchived conversation.
+  // Discovery still passes the same local-read / explicit remote-grant gate.
+  const filename = path.join(config.projectDiscovery.runtimeHome, '.codex-global-state.json');
+  const metadata = await stat(filename).catch(() => null);
+  if (!metadata?.isFile() || metadata.size > 8 * 1024 * 1024) return;
+  let state;
+  try { state = JSON.parse(await readFile(filename, 'utf8')); } catch { return; }
+  const saved = state?.['local-projects'];
+  const records = saved && typeof saved === 'object' && !Array.isArray(saved) ? Object.values(saved) : [];
+  const roots = state?.['electron-saved-workspace-roots'];
+  const candidates = records.flatMap(record => record && Array.isArray(record.rootPaths)
+    ? record.rootPaths.map(root => ({ root, name: record.name, updatedAt: record.updatedAt })) : []);
+  if (Array.isArray(roots)) candidates.push(...roots.map(root => ({ root })));
+  for (const candidate of candidates) {
+    if (typeof candidate.root !== 'string' || !path.isAbsolute(nativeProjectPath(candidate.root))) continue;
+    const projectPath = await authorizedDirectory(candidate.root, config.projectDiscovery, explicitPaths);
+    if (!projectPath) continue;
+    addProject(projects, {
+      name: cleanLabel(candidate.name, path.basename(projectPath)), path: projectPath,
+      runtimeAgentId: 'main', workspaceKind: 'project', identitySeed: `codex:${pathKey(projectPath)}`,
+      lastActivityAt: isoTime(timeNumber(candidate.updatedAt) || metadata.mtimeMs)
+    });
+  }
+}
+
 async function discoverCodex(config, projects, sessions, explicitPaths, threadProvider) {
+  await discoverCodexSavedProjects(config, projects, explicitPaths);
   if (await discoverCodexFromAppServer(config, projects, sessions, explicitPaths, threadProvider)) return;
   if (await discoverCodexFromDatabase(config, projects, sessions, explicitPaths)) return;
   const indexedTitles = await codexThreadTitleIndex(config.projectDiscovery.runtimeHome);

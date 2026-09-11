@@ -210,9 +210,12 @@ export async function loadConfigObject(raw, options = {}) {
     if (path.parse(root).root === root) throw new Error('projectDiscovery.roots 不能直接授权整个磁盘根目录');
     discoveryRoots.push(root);
   }
-  if (discoveryEnabled && !discoveryRoots.length && !allowlist.length) throw new Error('启用项目发现时至少要配置一个授权根目录或显式项目');
+  // Only the local host IPC can grant native-index scope; never trust a JSON
+  // config or a remote command to expand the user's authorization.
+  const authorizedNativeProjects = options.hostMode === true && options.authorizedNativeProjects === true;
+  if (discoveryEnabled && !discoveryRoots.length && !allowlist.length && !authorizedNativeProjects) throw new Error('启用项目发现时至少要配置一个授权根目录或显式项目');
   let authorizedProjectRoots = null;
-  if (options.hostMode === true) {
+  if (options.hostMode === true && !authorizedNativeProjects) {
     if (!Array.isArray(options.authorizedProjectRoots) || !options.authorizedProjectRoots.length) throw new Error('托管模式必须选择授权项目目录');
     authorizedProjectRoots = [];
     for (const value of options.authorizedProjectRoots) {
@@ -264,6 +267,7 @@ export async function loadConfigObject(raw, options = {}) {
   return {
     configPath: resolvedPath,
     ...(authorizedProjectRoots ? { hostMode: true, authorizedProjectRoots } : {}),
+    ...(authorizedNativeProjects ? { hostMode: true, authorizedNativeProjects: true, authorizedProjectRoots: [] } : {}),
     serverUrl: validateServerUrl(raw.serverUrl),
     interactionKeyEnv,
     interactionKey,
@@ -291,7 +295,7 @@ export async function loadConfigObject(raw, options = {}) {
       roots: discoveryRoots,
       excludePaths: discoveryExclusions,
       allowRootProjects: discoveryRaw.allowRootProjects === true,
-      maxProjects: numberInRange(discoveryRaw.maxProjects, 60, 1, 200, 'projectDiscovery.maxProjects'),
+      maxProjects: authorizedNativeProjects ? Number.MAX_SAFE_INTEGER : numberInRange(discoveryRaw.maxProjects, 60, 1, 200, 'projectDiscovery.maxProjects'),
       maxSessionsPerProject: numberInRange(discoveryRaw.maxSessionsPerProject, 100, 1, 100, 'projectDiscovery.maxSessionsPerProject'),
       historyFileLimit: numberInRange(discoveryRaw.historyFileLimit, 2000, 10, 10000, 'projectDiscovery.historyFileLimit'),
       runtimeHome

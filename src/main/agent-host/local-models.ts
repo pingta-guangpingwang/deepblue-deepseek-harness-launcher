@@ -22,7 +22,7 @@ export function parseLocalModels(cache: unknown): NonNullable<LocalCatalog['mode
   return [...models.values()]
 }
 
-export async function readLocalModels(): Promise<NonNullable<LocalCatalog['models']>> {
-  const home = process.env.CODEX_HOME || path.join(process.env.USERPROFILE || process.env.HOME || '', '.codex')
+export async function readLocalModels(runtimeHome?: string): Promise<NonNullable<LocalCatalog['models']>> {
+  const home = runtimeHome || process.env.CODEX_HOME || path.join(process.env.USERPROFILE || process.env.HOME || '', '.codex')
   return parseLocalModels(JSON.parse(await readFile(path.join(home, 'models_cache.json'), 'utf8')))
 }

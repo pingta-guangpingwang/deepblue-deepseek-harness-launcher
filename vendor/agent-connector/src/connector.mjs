@@ -336,10 +336,17 @@ export class AgentConnector {
 
   async refreshLocalCatalog() {
     const discovered = await discoverRuntimeCatalog(this.config, {
+      localReadOnly: this.config.authorizedNativeProjects === true,
       codexThreadProvider: this.codexHost ? (maximum) => this.codexHost.listInteractiveThreads(maximum) : null
     });
     let sources = mergeProjectSources(this.config.projects, discovered.projects, this.config.projectDiscovery?.maxProjects || 200);
-    if (this.config.hostMode) {
+    if (this.config.authorizedNativeProjects) {
+      // Existing local grants retain their identities and access. New paths
+      // must come from this adapter's native index, never a remote request.
+      const nativePaths = new Set([...this.config.projects, ...discovered.projects].map(project => path.resolve(project.path)));
+      sources = sources.filter(project => nativePaths.has(path.resolve(project.path)));
+      this.nativeProjectPaths = nativePaths;
+    } else if (this.config.hostMode) {
       sources = (await Promise.all(sources.map(async (project) => {
         const actual = await realpath(project.path).catch(() => '');
         return actual && this.config.authorizedProjectRoots.some((root) => isPathWithinRoot(actual, root)) ? { ...project, path: actual } : null;
@@ -655,7 +662,7 @@ export class AgentConnector {
     local._localStatus = 'preparing';
     await this.persist();
     let project = this.resolveProject(command);
-    if (!project && this.projects.length === 0) {
+    if (this.config.authorizedNativeProjects || (!project && this.projects.length === 0)) {
       // A readiness heartbeat can activate polling before the first catalog
       // scan. Resolve against the authorized local roots before rejecting work.
       try { await this.refreshLocalCatalog(); }
@@ -671,7 +678,10 @@ export class AgentConnector {
     }
     if (this.config.hostMode) {
       const actual = await realpath(project.path).catch(() => '');
-      if (!actual || !this.config.authorizedProjectRoots.some((root) => isPathWithinRoot(actual, root))) {
+      const permitted = this.config.authorizedNativeProjects
+        ? actual === project.path && this.nativeProjectPaths?.has(actual)
+        : this.config.authorizedProjectRoots.some((root) => isPathWithinRoot(actual, root));
+      if (!actual || !permitted) {
         await this.rejectRunCommand(command, '项目路径已变更或超出用户授权目录，已拒绝执行。', 'project_not_allowlisted');
         return;
       }

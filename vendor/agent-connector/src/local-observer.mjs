@@ -34,7 +34,7 @@ export class LocalObserver {
     for (const [adapter, runtimeHome] of Object.entries(homes)) {
       try {
         const source = await discoverRuntimeCatalog({ adapterCode: adapter, projects: [], qclawAgentId: 'main',
-          projectDiscovery: { enabled: true, roots: [], excludePaths: [], runtimeHome, maxProjects: 200, maxSessionsPerProject: 100, historyFileLimit: 3000, allowRootProjects: false }
+          projectDiscovery: { enabled: true, roots: [], excludePaths: [], runtimeHome, maxProjects: Number.MAX_SAFE_INTEGER, maxSessionsPerProject: 100, historyFileLimit: 3000, allowRootProjects: false }
         }, { localReadOnly: true });
         const projectIds = new Map();
         for (const item of source.projects) {

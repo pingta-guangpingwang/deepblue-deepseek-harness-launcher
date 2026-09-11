@@ -21,6 +21,7 @@ export function LocalAgentWorkspace({ snapshot, onLogin, initialProjectId, initi
   const [adapter, setAdapter] = useState('all')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [confirmSyncAdapter, setConfirmSyncAdapter] = useState('')
   const [scanning, setScanning] = useState(false)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
@@ -41,7 +42,7 @@ export function LocalAgentWorkspace({ snapshot, onLogin, initialProjectId, initi
   const messages = host?.localHistory?.sessionId === sessionId ? host.localHistory.messages : []
   const tasks = host?.localTasks?.filter(item => item.projectId === projectId && (item.sessionId || '') === sessionId && (sessionId || item.conversationId === conversationId)) || []
   const running = tasks.some(item => ['running', 'delivered'].includes(item.status))
-  const binding = host?.agents.find(item => item.adapter === project?.adapter && item.projectRoots.some(root => root.toLowerCase() === project?.path.toLowerCase()))
+  const binding = host?.agents.find(item => item.adapter === project?.adapter)
   async function action(input: AgentHostAction): Promise<AgentHostSnapshot> {
     if (!window.launcher?.agentHostAction) throw new Error('请先更新启动器的本机托管模块')
     return window.launcher.agentHostAction(input)
@@ -100,19 +101,22 @@ export function LocalAgentWorkspace({ snapshot, onLogin, initialProjectId, initi
     } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : '本机发送失败，草稿已保留') }
     finally { if (mounted.current) setBusy(false) }
   }
-  async function sync(): Promise<void> {
+  async function sync(confirmed = false): Promise<void> {
     if (!project || busy) return
     if (snapshot.account.status !== 'signed_in') { onLogin(); return }
+    if (binding?.projectScope !== 'all_native' && (!confirmed || confirmSyncAdapter !== project.adapter)) { setConfirmSyncAdapter(project.adapter); return }
+    setConfirmSyncAdapter('')
     setBusy(true); setError(''); setNotice('')
     try {
       let result = await action({ action: 'bind_local_project', projectId })
-      const agent = result.agents.find(item => item.adapter === project.adapter && item.projectRoots.some(root => root.toLowerCase() === project.path.toLowerCase()))
+      const agent = result.agents.find(item => item.adapter === project.adapter)
       if (agent) result = await action({ action: 'refresh', agentId: agent.id })
-      if (mounted.current) { setHost(previous => ({ ...result, localHistory: previous?.localHistory })); setNotice('本机项目和对话目录已推送网站；后续由本机托管进程持续更新。') }
+      if (mounted.current) { setHost(previous => ({ ...result, localHistory: previous?.localHistory })); setNotice('这个智能体的原生项目和对话目录已推送网站；新增项目将持续自动同步。') }
     } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : '同步失败，本机记录未受影响') }
     finally { if (mounted.current) setBusy(false) }
   }
   return <section className="agent-workspace" data-mobile-pane={mobilePane} aria-label="本机智能体项目">
+    {confirmSyncAdapter && <div className="aw-confirm" role="region" aria-label="连接智能体授权"><p>连接 {names[confirmSyncAdapter] || confirmSyncAdapter} 后，自动同步它的全部原生项目和对话目录，并允许在这些项目内接收远程任务。之后新增项目也会自动加入，只需授权这一次。</p><button className="small-button" onClick={() => setConfirmSyncAdapter('')}>取消</button><button className="primary-button" disabled={busy || project?.adapter !== confirmSyncAdapter} onClick={() => void sync(true)}>授权并连接智能体</button></div>}
     <nav className="aw-toolbar" aria-label="切换本机智能体">{[['all', '全部'], ...Object.entries(names)].map(([id, name]) => <button key={id} className={adapter === id ? 'primary-button' : 'small-button'} aria-pressed={adapter === id} onClick={() => { setAdapter(id!); setQuery(''); setModel(''); setFileIds([]); stick.current = true }}>{name} · {projectsForAdapter(allProjects, id!).length}</button>)}</nav>
     {adapter !== 'all' && !projects.length && <p className="aw-feedback" role="status">未发现 {names[adapter]} 的本机项目记录。切换入口仍可用；先在原生智能体创建项目，再点击刷新本机。</p>}
     {nativeOwned && <div className="aw-feedback" role="status">{host?.desktopRelay?.message || '正在检查桌面桥接'}。草稿保留，不会另开 CLI 抢占原对话。{draft && <button className="small-button" onClick={() => void navigator.clipboard.writeText(draft).then(() => setNotice('草稿已复制，可粘贴到桌面原对话。')).catch(() => setError('复制失败，请手动复制草稿'))}>复制草稿</button>}</div>}
@@ -124,7 +128,7 @@ export function LocalAgentWorkspace({ snapshot, onLogin, initialProjectId, initi
     <div className="aw-panes" data-hide-first={hideProjects} data-hide-second={hideSessions}>
       <aside className="aw-agent-pane"><header className="aw-pane-heading"><h2>本机项目 · {projects.length}</h2></header><div className="aw-project-select"><input aria-label="搜索本机项目" placeholder="搜索名称或目录" value={query} onChange={event => setQuery(event.target.value)} /></div><div className="aw-agent-list">{projects.filter(item => `${item.name} ${item.path}`.toLowerCase().includes(query.toLowerCase())).map(item => <button key={item.id} className={`aw-agent-row ${projectId === item.id ? 'selected' : ''}`} aria-pressed={projectId === item.id} onClick={() => selectProject(item.id)}><Folder size={17} /><span><strong>{item.name}</strong><small>{names[item.adapter]}</small></span></button>)}{!projects.length && <p className="aw-inline-empty">{scanning ? '正在读取智能体保存的项目索引，不扫描整个磁盘。' : '没有找到本机记录，请先在原生智能体创建对话后刷新。'}</p>}</div><div className="aw-local-note"><p>直接读取本机，无需网站登录。不会混入云端历史。</p></div></aside>
       <aside className="aw-session-pane"><header className="aw-pane-heading"><h2>最近对话 · {sessions.length}</h2></header><div className="aw-session-list">{sessions.map(item => <button key={item.id} className={`aw-session-row ${sessionId === item.id ? 'selected' : ''}`} aria-pressed={sessionId === item.id} onClick={() => { setSession(item.id); stick.current = true }}><MessageSquare size={16} /><span><strong>{item.title}</strong><small>{stamp(item.lastActivityAt)}</small></span></button>)}</div></aside>
-      <main className="aw-conversation-pane" ref={chatPane}><header className="aw-conversation-heading"><div><h2>{session?.title || (tasks.length ? '当前本机会话' : '本机新会话')}</h2><p className="aw-local-path">{project?.path || (detached ? '原项目暂不可用；不会切换到其他项目' : '最新活动的项目优先显示')}</p></div><button className="small-button" disabled={!project || busy} onClick={() => void sync()}>{binding ? '立即同步网站' : '同步此项目到网站'}</button><ConversationControls pane={chatPane} detached={detached} target={project ? { kind: 'local-session', projectId, sessionId: sessionId || undefined, conversationId: sessionId ? undefined : conversationId, title: session?.title || project.name } : undefined} lists={[{ name: '项目', collapsed: hideProjects, toggle: () => setHideProjects(value => !value) }, { name: '对话列表', collapsed: hideSessions, toggle: () => setHideSessions(value => !value) }]} /></header>
+      <main className="aw-conversation-pane" ref={chatPane}><header className="aw-conversation-heading"><div><h2>{session?.title || (tasks.length ? '当前本机会话' : '本机新会话')}</h2><p className="aw-local-path">{project?.path || (detached ? '原项目暂不可用；不会切换到其他项目' : '最新活动的项目优先显示')}</p></div><button className="small-button" disabled={!project || busy} onClick={() => void sync()}>{binding ? '立即同步网站' : '连接智能体并自动同步'}</button><ConversationControls pane={chatPane} detached={detached} target={project ? { kind: 'local-session', projectId, sessionId: sessionId || undefined, conversationId: sessionId ? undefined : conversationId, title: session?.title || project.name } : undefined} lists={[{ name: '项目', collapsed: hideProjects, toggle: () => setHideProjects(value => !value) }, { name: '对话列表', collapsed: hideSessions, toggle: () => setHideSessions(value => !value) }]} /></header>
         <div className="aw-messages" ref={scroll} tabIndex={0} aria-label="本机原生对话" onScroll={() => { const node = scroll.current; if (node) stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 64 }}>
           {messages.map((message, index) => <ChatMessage key={`${message.id}:${index}`} role={message.role === 'user' ? 'user' : message.role === 'assistant' ? 'assistant' : 'system'} name={message.role === 'user' ? '你' : names[project?.adapter || ''] || '智能体'} time={stamp(message.occurredAt)} text={message.text} />)}
           {tasks.map(task => <div key={task.id}>

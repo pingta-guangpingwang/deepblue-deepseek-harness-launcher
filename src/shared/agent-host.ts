@@ -1,4 +1,14 @@
 export type AgentAdapter = 'codex' | 'claude-code' | 'qclaw' | 'workbuddy' | 'codebuddy' | 'trae' | 'deepseek-harness' | 'cursor'
+export interface AgentAssociation {
+  adapter: AgentAdapter
+  requestId: string
+  status: 'waiting' | 'checking' | 'verified' | 'invalid' | 'unsupported' | 'expired'
+  message: string
+  prompt: string
+  configPath: string
+  launcherPath: string
+  checkedAt?: string
+}
 export interface LocalCatalog {
   scannedAt: string
   projects: Array<{ id: string; adapter: AgentAdapter; name: string; path: string; lastActivityAt: string }>
@@ -12,6 +22,7 @@ export interface LocalAgentBinding {
   name: string
   adapter: AgentAdapter
   projectRoots: string[]
+  projectScope?: 'all_native'
   autoStart: boolean
   status: 'stopped' | 'starting' | 'online' | 'reconnecting' | 'failed'
   runtimeStatus: string
@@ -21,6 +32,7 @@ export interface LocalAgentBinding {
   lastSyncedAt?: string
 }
 export interface AgentHostSnapshot {
+  associations?: AgentAssociation[]
   localConversationContinuity?: boolean
   localControl?: import('./local-control').LocalControlSnapshot
   accountConnection?: { status: 'signed_out' | 'checking' | 'connected' | 'failed'; checkedAt?: string; message?: string }
@@ -43,6 +55,8 @@ export interface AgentHostSnapshot {
   discovered: Array<{ adapter: AgentAdapter; name: string; available: boolean; message: string }>
 }
 export type AgentHostAction =
+  | { action: 'begin_association'; adapter: AgentAdapter }
+  | { action: 'check_associations' }
   | { action: 'local_control'; command: import('./local-control').LocalControlCommand; input?: Record<string, unknown>; requestId?: string }
   | { action: 'rename_device'; name: string }
   | { action: 'check_connection' }
@@ -57,6 +71,7 @@ export type AgentHostAction =
   | { action: 'cancel_local'; taskId: string }
   | { action: 'discover' | 'bind_device' | 'pause' | 'resume' | 'revoke_device' }
   | { action: 'add_agent'; adapter: AgentAdapter; name?: string }
+  | { action: 'authorize_agent'; agentId: string }
   | { action: 'start' | 'stop' | 'restart' | 'remove_agent' | 'add_project' | 'refresh'; agentId: string }
 
 export type AgentRoomAccess = 'workspace_write'

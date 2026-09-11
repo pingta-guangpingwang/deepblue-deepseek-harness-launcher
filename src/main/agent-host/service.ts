@@ -12,6 +12,7 @@ import { readLocalModels, mergeLocalModels, sameLocalPath } from './local-models
 import { resolveBuiltinDshHost, type DshHostSettings } from './dsh-launcher'
 import { readLegacyBinding, prepareLegacyHandoff, LEGACY_ADAPTERS, type LegacyBindingConfig } from './legacy-bindings'
 import { LocalControlBridge } from './local-control'
+import { LocalAssociations } from './local-association'
 import type { LocalRuntimeDescriptor } from '../../shared/local-control'
 
 export const AGENT_HOST_PROTOCOL = 1
@@ -162,12 +163,30 @@ export class AgentHostService {
   private localControl?: LocalControlBridge
   private localControlResult?: Record<string, unknown>
   private localControlResultOwner?: string
-  constructor(private readonly options: AgentHostOptions) {}
+  private associations: LocalAssociations
+  constructor(private readonly options: AgentHostOptions) {
+    this.associations = new LocalAssociations(path.join(options.storageDir, 'agent-associations'), options.nodePath, process.execPath)
+  }
+
+  private async checkAssociations(retryInvalid = false): Promise<void> {
+    // Never replace a runtime while it owns a task or a native read request.
+    if (this.localChildren.size || this.observerPending.size || this.saved.agents.some(agent => agent.busy) || this.localControl?.isBusy()) return
+    if (await this.associations.check(retryInvalid)) {
+      this.observer?.disconnect(); this.observer = undefined
+      for (const association of this.associations.snapshot().filter(item => item.status === 'verified')) {
+        const item = { adapter: association.adapter, name: ADAPTERS[association.adapter].name, available: true, message: association.message }
+        this.state.discovered = [...this.state.discovered.filter(row => row.adapter !== item.adapter), item]
+      }
+    }
+    this.state.associations = this.associations.snapshot()
+  }
 
   private dshHostSettings(): Promise<DshHostSettings> {
     return this.options.resolveDshHost ? this.options.resolveDshHost() : resolveBuiltinDshHost(this.options.storageDir)
   }
   private async resolveLaunch(adapter: AgentAdapter): Promise<{ executable: string; args: string[] } | undefined> {
+    const registered = this.associations.launch(adapter)
+    if (registered) return registered
     if (adapter !== 'deepseek-harness') return resolveAgentLaunch(adapter, this.options.nodePath)
     await this.dshHostSettings()
     // DSH executes through its already-running local RPC host, not a new CLI.
@@ -176,6 +195,8 @@ export class AgentHostService {
 
   async initialize(): Promise<void> {
     await mkdir(this.options.storageDir, { recursive: true })
+    await this.associations.initialize()
+    this.state.associations = this.associations.snapshot()
     try {
       if (await updateExistingDesktopRelay(this.options.moduleDir) === 'updated') this.state.desktopRelay = { ready: false, message: '桌面桥接代码已更新；若未就绪，请重启 Codex。原配置和请求记录保留。' }
     } catch { this.state.desktopRelay = { ready: false, message: '桌面桥接代码更新未完成，原配置和代码备份保留，请检查目录权限。' } }
@@ -323,7 +344,7 @@ export class AgentHostService {
     }
     if (input.action === 'send_local') { await this.sendLocal(input); return this.snapshot() }
     if (input.action === 'refresh_local_models') {
-      const models = await readLocalModels().catch(() => undefined)
+      const models = await readLocalModels(this.associations.launch('codex')?.runtimeHome).catch(() => undefined)
       if (!models) throw new Error('本机模型目录暂时不可读，请先在 Codex 打开模型选择后重试；保留当前列表')
       if (this.state.localCatalog) this.state.localCatalog.models = mergeLocalModels(this.state.localCatalog.models || [], models)
       this.changed(); return this.snapshot()
@@ -351,6 +372,13 @@ export class AgentHostService {
       return this.snapshot()
     }
     let observedRoot: string | undefined
+    if (input.action === 'begin_association') {
+      await this.associations.begin(input.adapter)
+      this.state.associations = this.associations.snapshot(); this.changed(); return this.snapshot()
+    }
+    if (input.action === 'check_associations') {
+      await this.checkAssociations(true); this.changed(); return this.snapshot()
+    }
     if (input.action === 'discover') {
       this.state.discovered = await Promise.all((Object.keys(ADAPTERS) as AgentAdapter[]).map(async (adapter) => {
         try {
@@ -385,7 +413,7 @@ export class AgentHostService {
       if (resolved.agentId !== cloud.id || resolved.adapter !== cloud.adapter) throw new Error('本机配置与所选网站智能体不匹配，不会覆盖原绑定')
       const { key, ...privateLegacy } = legacy
       const unavailable = legacy.adapter === 'trae'
-      const binding: Binding = { id: cloud.id, name: cloud.name, adapter: legacy.adapter, projectRoots: legacy.projectRoots, key, executable: legacy.executable, executableArgs: legacy.executableArgs,
+      const binding: Binding = { id: cloud.id, name: cloud.name, adapter: legacy.adapter, projectRoots: legacy.projectRoots, projectScope: 'all_native', key, executable: legacy.executable, executableArgs: legacy.executableArgs,
         legacy: privateLegacy, autoStart: false, desiredRunning: false, status: 'stopped', runtimeStatus: unavailable ? 'unavailable' : 'unknown', busy: false, pendingCloudBind: true,
         message: unavailable ? 'TRAE 远程交互暂不支持：保留原项目和历史，请使用其他已就绪智能体。' : '已关联原网站实例；点击启动后接管旧同步服务，原项目和会话保留' }
       this.saved.agents.push(binding)
@@ -404,10 +432,9 @@ export class AgentHostService {
       if (!this.saved.deviceId) await this.perform({ action: 'bind_device' })
       const existing = this.saved.agents.find(agent => agent.adapter === project.adapter)
       if (existing) {
-        if (existing.busy) throw new Error('智能体正在运行任务，请完成后添加同步项目')
-        if (!existing.projectRoots.some(root => root.toLowerCase() === observedRoot!.toLowerCase())) {
-          if (existing.projectRoots.length >= 60) throw new Error('最多授权 60 个项目')
-          existing.projectRoots.push(observedRoot)
+        if (existing.busy) throw new Error('智能体正在运行任务，请完成后开启同步')
+        if (existing.projectScope !== 'all_native') {
+          existing.projectScope = 'all_native'
           await this.persist()
           if (this.children.has(existing.id)) await this.stopAgent(existing)
         }
@@ -476,33 +503,35 @@ export class AgentHostService {
       if (this.saved.agents.length >= 12) throw new Error('每台电脑最多托管 12 个智能体实例')
       const launch = await this.resolveLaunch(input.adapter)
       if (!launch) throw new Error('没有找到可直接运行的智能体。请安装官方原生程序或官方 npm 包；不支持任意 cmd/bat 启动脚本')
-      const root = observedRoot || await this.chooseProject()
-      if (!root) return this.snapshot()
       this.assertOwner(owner)
       const result = await this.options.request({ scope: 'hub', method: 'POST', action: 'add_agent', body: { adapterCode: input.adapter, displayName: (input.name || ADAPTERS[input.adapter].name).slice(0, 80) } })
       this.assertOwner(owner)
       const instance = (result.instance || result.agent) as Reply
       const key = String(result.interactionKey || '')
       if (!/^[A-Za-z0-9_-]{16,80}$/.test(String(instance?.id || '')) || !/^agh_live_[A-Za-z0-9_-]{32,}$/.test(key)) throw new Error('智能体绑定返回无效，请刷新网站实例列表检查')
-      const binding: Binding = { id: String(instance.id), name: String(instance.displayName || instance.name || input.name || ADAPTERS[input.adapter].name), adapter: input.adapter, key, executable: launch.executable, executableArgs: launch.args, projectRoots: [root], autoStart: false, desiredRunning: false, status: 'stopped', runtimeStatus: 'unknown', busy: false, pendingCloudBind: true }
+      const binding: Binding = { id: String(instance.id), name: String(instance.displayName || instance.name || input.name || ADAPTERS[input.adapter].name), adapter: input.adapter, key, executable: launch.executable, executableArgs: launch.args, projectRoots: [], projectScope: 'all_native', autoStart: false, desiredRunning: false, status: 'stopped', runtimeStatus: 'unknown', busy: false, pendingCloudBind: true }
       // Persist the one-time key before a second network call can fail.
       this.saved.agents.push(binding)
       await this.persist()
       await this.completePendingBinding(binding)
       await this.ensureLease(true)
       binding.message = '已完成绑定，请主动点击启动后再交互'
+      if (observedRoot) {
+        binding.desiredRunning = true
+        await this.startAgent(binding)
+      }
     } else if ('agentId' in input) {
       const binding = this.saved.agents.find((agent) => agent.id === input.agentId)
       if (!binding) throw new Error('这个智能体不属于当前设备')
-      if (['stop', 'restart', 'remove_agent', 'add_project'].includes(input.action) && binding.busy) throw new Error('智能体还有任务运行，请等完成后操作')
-      if (input.action === 'add_project') {
-        const root = await this.chooseProject()
-        this.assertOwner(owner)
-        if (root && !binding.projectRoots.some((old) => old.toLowerCase() === root.toLowerCase())) {
-          if (binding.projectRoots.length >= 60) throw new Error('最多授权 60 个项目')
-          binding.projectRoots.push(root)
+      if (['stop', 'restart', 'remove_agent', 'add_project', 'authorize_agent'].includes(input.action) && binding.busy) throw new Error('智能体还有任务运行，请等完成后操作')
+      if (input.action === 'authorize_agent') {
+        if (binding.projectScope !== 'all_native') {
+          binding.projectScope = 'all_native'
+          await this.persist()
           if (this.children.has(binding.id)) { await this.stopAgent(binding); await this.startAgent(binding) }
         }
+      } else if (input.action === 'add_project') {
+        throw new Error('项目由智能体自动同步，无需逐个添加；请先连接并授权这个智能体')
       } else if (input.action === 'refresh') {
         await this.refreshAgent(binding)
       } else if (input.action === 'remove_agent') {
@@ -521,11 +550,12 @@ export class AgentHostService {
     this.changed()
     return this.snapshot()
   }
+  // Selecting a new workspace for a local task is separate from agent sync.
   private async chooseProject(): Promise<string | undefined> {
     const selected = await this.options.chooseDirectory()
     if (!selected) return
     const root = await realpath(selected)
-    if (!safeProjectRoot(root) || !await stat(root).then((row) => row.isDirectory())) throw new Error('请选择具体项目文件夹，不能授权整个磁盘')
+    if (!safeProjectRoot(root) || !await stat(root).then(row => row.isDirectory())) throw new Error('请选择具体项目文件夹，不能使用整个磁盘')
     return root
   }
   private mergeGrantedLocalProjects(): void {
@@ -555,7 +585,10 @@ export class AgentHostService {
     for (const binding of this.saved.agents) {
       if (binding.adapter === 'trae' || this.saved.ownerUserId !== this.options.ownerId()) continue
       const projects = []
-      for (const root of binding.projectRoots) {
+      const roots = binding.projectScope === 'all_native'
+        ? [...new Set([...binding.projectRoots, ...(this.state.localCatalog?.projects.filter(project => project.adapter === binding.adapter).map(project => project.path) || [])])]
+        : binding.projectRoots
+      for (const root of roots) {
         const actual = await realpath(root).catch(() => '')
         if (!actual || !safeProjectRoot(actual)) continue
         projects.push({ id: createHash('sha256').update(binding.adapter + ':' + actual.toLowerCase()).digest('hex').slice(0, 32), name: path.basename(actual), path: actual, cloudAllowed: true })
@@ -570,7 +603,7 @@ export class AgentHostService {
     for (const adapter of ['codex', 'claude-code', 'cursor', 'deepseek-harness'] as AgentAdapter[]) {
       const remaining = local.filter(project => project.adapter === adapter && !descriptors.some(row => row.adapter === adapter && row.projects.some(item => sameLocalPath(item.path, project.path))))
       if (!remaining.length) continue
-      const launch = adapter === 'deepseek-harness' ? { executable: this.options.nodePath, args: [] } : await resolveAgentLaunch(adapter, this.options.nodePath); if (!launch) continue
+      const launch = adapter === 'deepseek-harness' ? { executable: this.options.nodePath, args: [] } : await this.resolveLaunch(adapter); if (!launch) continue
       const runtime: Record<string, unknown> = { executable: launch.executable, executableArgs: launch.args }
       if (adapter === 'deepseek-harness') { try { runtime.dshHost = await this.dshHostSettings() } catch { continue } }
       descriptors.push({ id: 'local:' + adapter, name: ADAPTERS[adapter].name + '（本机）', adapter, projects: remaining.filter((row, index, rows) => rows.findIndex(item => item.id === row.id) === index).map(row => ({ id: row.id, name: row.name, path: row.path, cloudAllowed: false })), runtime, capabilities: { localExecution: true, approvalControl: adapter !== 'claude-code', richEvents: adapter !== 'claude-code' } })
@@ -632,7 +665,7 @@ export class AgentHostService {
   }
   private observe(message: Reply): Promise<unknown> {
     if (!this.observer?.connected) {
-      const child = fork(path.join(this.options.moduleDir, 'connector/local-observer.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } } as ForkOptions)
+      const child = fork(path.join(this.options.moduleDir, 'connector/local-observer.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ...this.associations.environment(), ELECTRON_RUN_AS_NODE: '1' } } as ForkOptions)
       this.observer = child
       const fail = (): void => { if (this.observer === child) this.observer = undefined; for (const pending of this.observerPending.values()) { clearTimeout(pending.timer); pending.reject(new Error('本机读取服务已退出，请重新刷新')) }; this.observerPending.clear() }
       child.on('error', fail); child.on('exit', fail)
@@ -690,7 +723,7 @@ export class AgentHostService {
       } catch (error) { task.status = 'unconfirmed'; task.summary = errorText(error) }
       await this.persistDesktopTasks(); this.changed(); return
     }
-    const launch = await resolveAgentLaunch(project.adapter, this.options.nodePath)
+    const launch = await this.resolveLaunch(project.adapter)
     if (!launch) throw new Error('没有检测到该智能体的本机命令，请先安装并登录原生智能体')
     const id = randomUUID()
     const task: LocalTask = { id, requestId: input.requestId, projectId: project.id, sessionId: input.sessionId, conversationId: input.conversationId, status: 'running', instruction, summary: knownConversation?.runtimeSessionId ? '继续本机原生会话' : '正在启动本机智能体', startedAt: new Date().toISOString() }
@@ -699,7 +732,7 @@ export class AgentHostService {
     if (conversation && input.conversationId) { this.saved.localConversations ||= {}; conversation.status = 'running'; this.saved.localConversations[input.conversationId] = conversation }
     await this.persistDesktopTasks()
     const localTaskRoot = path.join(this.options.storageDir, 'local-tasks')
-    const child = fork(path.join(this.options.moduleDir, 'connector/local-runner.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', SHENLAN_LOCAL_TASK_ROOT: localTaskRoot } } as ForkOptions)
+    const child = fork(path.join(this.options.moduleDir, 'connector/local-runner.mjs'), [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'], windowsHide: true, env: { ...process.env, ...this.associations.environment(), ELECTRON_RUN_AS_NODE: '1', SHENLAN_LOCAL_TASK_ROOT: localTaskRoot } } as ForkOptions)
     this.localChildren.set(id, child)
     const update = (values: Reply): void => { Object.assign(task, values); this.changed() }
     child.on('message', (raw: unknown) => {
@@ -811,6 +844,8 @@ export class AgentHostService {
       if (binding.status === 'failed') throw new Error('旧连接服务正在安全退出，请等退出后重试')
       return
     }
+    const registered = !binding.legacy && this.associations.launch(binding.adapter)
+    if (registered) { binding.executable = registered.executable; binding.executableArgs = registered.args }
     const dshHost = binding.adapter === 'deepseek-harness' ? await this.dshHostSettings() : undefined
     const entry = path.join(this.options.moduleDir, 'connector', 'host-child.mjs')
     await access(entry).catch(() => { throw new Error('缺少智能体托管模块，请在版本管理中更新或安装最新版启动器') })
@@ -827,7 +862,7 @@ export class AgentHostService {
     binding.status = 'starting'; binding.message = '正在连接本地智能体与网站'
     const epoch = (this.childEpoch.get(binding.id) || 0) + 1
     this.childEpoch.set(binding.id, epoch)
-    const environment = { ...process.env, ELECTRON_RUN_AS_NODE: '1', SHENLAN_DESKTOP_RUNNER: path.join(this.options.moduleDir, 'native-task-runner.mjs'), SHENLAN_LOCAL_CONTROL_ROOT: path.join(this.options.storageDir, 'local-control') }
+    const environment = { ...process.env, ...(!binding.legacy ? this.associations.environment(binding.adapter) : {}), ELECTRON_RUN_AS_NODE: '1', SHENLAN_DESKTOP_RUNNER: path.join(this.options.moduleDir, 'native-task-runner.mjs'), SHENLAN_LOCAL_CONTROL_ROOT: path.join(this.options.storageDir, 'local-control') }
     delete (environment as NodeJS.ProcessEnv).SHENLAN_AGENT_INTERACTION_KEY
     let child: ChildProcess
     try { child = fork(entry, [], { execPath: this.options.nodePath, execArgv: [], stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true, env: environment, cwd: this.options.storageDir } as ForkOptions & { windowsHide: boolean }) }
@@ -856,7 +891,7 @@ export class AgentHostService {
     })
     // Distinct stable loopback ports for separately authorized Codex instances.
     const port = 24000 + parseInt(createHash('sha256').update(binding.id).digest('hex').slice(0, 4), 16) % 30000
-    const startMessage = { type: 'start', instanceId: binding.id, authorizedProjectRoots: binding.projectRoots, config: {
+    const startMessage = { type: 'start', instanceId: binding.id, authorizedProjectRoots: binding.projectRoots, authorizedNativeProjects: binding.projectScope === 'all_native', config: {
       serverUrl: 'https://ailishishu.com/ailishishu-stats/api/agent-connector.php', interactionKey: binding.key,
       adapterCode: binding.adapter, runtimeLabel: hostname(), runtimeExecutable: binding.executable,
       runtimeExecutableArgs: binding.executableArgs || [],
@@ -864,7 +899,8 @@ export class AgentHostService {
       ...(binding.legacy?.settings || {}),
       stateFile: path.join(stateDirectory, 'connector-state.json'), sandbox: 'workspace-write',
       projects: binding.projectRoots.map((root) => ({ name: path.basename(root), path: root, enabled: true })),
-      projectDiscovery: { enabled: true, roots: binding.projectRoots, maxProjects: 60, maxSessionsPerProject: 100 },
+      projectDiscovery: { enabled: true, roots: binding.projectScope === 'all_native' ? [] : binding.projectRoots, maxProjects: 200, maxSessionsPerProject: 100,
+        ...(this.associations.launch(binding.adapter)?.runtimeHome ? { runtimeHome: this.associations.launch(binding.adapter)!.runtimeHome } : {}) },
       codexHost: { enabled: binding.adapter === 'codex', manageProcess: true, endpoint: `ws://127.0.0.1:${port}` }
     } }
     await new Promise<void>((resolve, reject) => {
@@ -956,6 +992,7 @@ export class AgentHostService {
     this.polling = true
     let delay = 15000
     try {
+      await this.checkAssociations()
       await this.checkConnection()
       if (!this.options.ownerId()) { await this.suspendForSignOut(); return }
       const autoConnect = this.actionQueue.catch(() => {}).then(() => this.connectSignedInDevice())
