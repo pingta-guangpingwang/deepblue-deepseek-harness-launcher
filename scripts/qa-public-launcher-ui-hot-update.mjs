@@ -20,6 +20,8 @@ const oldModuleRoot = path.join(runtimeRoot, 'modules', 'launcher-ui', oldVersio
 const generated = JSON.parse(await readFile(path.join(root, 'release', 'launcher-ui.generated.json'), 'utf8'))
 const expectedVersion = generated.version
 const expectedSize = generated.artifacts?.[0]?.size
+const expectedModuleIds = (process.env.QA_EXPECTED_UPDATE_MODULES || 'launcher-ui').split(',').map(value => value.trim()).filter(Boolean)
+const expectedAgentHostVersion = process.env.QA_EXPECTED_AGENT_HOST_VERSION || ''
 if (!Number.isSafeInteger(expectedSize) || expectedSize < 1) throw new Error('Generated launcher-ui metadata has no valid artifact size')
 
 await rm(outputRoot, { recursive: true, force: true })
@@ -91,6 +93,14 @@ try {
     throw new Error(`Old UI fixture was not selected: ${initial.launcherUiVersion}/${initial.launcherUiSource}`)
   }
 
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const setup = page.locator('dialog.agent-setup-dialog[open]')
+    const update = page.locator('.runtime-update-backdrop')
+    if (await setup.isVisible().catch(() => false)) await setup.getByRole('button', { name: '暂时不用' }).click()
+    if (await update.isVisible().catch(() => false)) await update.getByRole('button', { name: '关闭' }).click()
+    if (!await setup.isVisible().catch(() => false) && !await update.isVisible().catch(() => false)) break
+    await page.waitForTimeout(300)
+  }
   await checkButton.click()
   const checkDeadline = Date.now() + 120_000
   let available
@@ -107,16 +117,18 @@ try {
   }
   if (!available) throw new Error('Check update produced no visible result within 120 seconds')
   report.plannedModules = available.runtimeUpdates.items
-  if (available.runtimeUpdates.items.length !== 1 || available.runtimeUpdates.items[0]?.id !== 'launcher-ui') {
-    throw new Error(`Expected only launcher-ui, got ${available.runtimeUpdates.items.map((item) => item.id).join(', ') || 'none'}`)
+  const plannedIds = available.runtimeUpdates.items.map((item) => item.id).sort()
+  if (JSON.stringify(plannedIds) !== JSON.stringify([...expectedModuleIds].sort())) {
+    throw new Error(`Expected ${expectedModuleIds.join(', ')}, got ${plannedIds.join(', ') || 'none'}`)
   }
-  if (available.runtimeUpdates.items[0].size !== expectedSize) {
-    throw new Error(`Unexpected launcher-ui size: ${available.runtimeUpdates.items[0].size}, expected ${expectedSize}`)
+  const plannedUi = available.runtimeUpdates.items.find((item) => item.id === 'launcher-ui')
+  if (plannedUi?.size !== expectedSize) {
+    throw new Error(`Unexpected launcher-ui size: ${plannedUi?.size}, expected ${expectedSize}`)
   }
   const dialog = page.getByRole('dialog', { name: /检测到可处理的更新/ })
   await dialog.waitFor({ state: 'visible', timeout: 10_000 })
   await page.screenshot({ path: path.join(outputRoot, 'ui-update-available.png') })
-  await dialog.getByRole('button', { name: /^更新 1 个模块/ }).click()
+  await dialog.getByRole('button', { name: new RegExp(`^更新 ${expectedModuleIds.length} 个模块`) }).click()
 
   const deadline = Date.now() + 120_000
   let finalSnapshot
@@ -147,9 +159,12 @@ try {
   if (moduleState.active?.['launcher-ui'] !== expectedVersion || moduleState.previous?.['launcher-ui'] !== oldVersion) {
     throw new Error('Launcher UI active/rollback pointers were not advanced atomically')
   }
+  if (expectedModuleIds.includes('agent-host') && moduleState.active?.['agent-host'] !== expectedAgentHostVersion) {
+    throw new Error(`Agent Host did not activate: ${moduleState.active?.['agent-host'] || 'missing'}`)
+  }
   const installedIds = Object.keys(moduleState.installed || {}).filter((id) => (moduleState.installed[id] || []).length)
-  if (installedIds.length !== 1 || installedIds[0] !== 'launcher-ui') {
-    throw new Error(`UI-only update installed unrelated modules: ${installedIds.join(', ')}`)
+  if (JSON.stringify(installedIds.sort()) !== JSON.stringify([...expectedModuleIds].sort())) {
+    throw new Error(`Update installed unexpected modules: ${installedIds.join(', ')}`)
   }
 
   report.passed = true
