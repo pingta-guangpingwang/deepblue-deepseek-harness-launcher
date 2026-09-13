@@ -84,7 +84,12 @@ if (localBytes.length !== sourceArtifact.size || createHash('sha256').update(loc
 }
 
 const sourceMirrors = Array.isArray(sourceArtifact.mirrors) ? sourceArtifact.mirrors : []
-if (sourceMirrors.length !== 2 || JSON.stringify([...new Set(sourceMirrors.map((mirror) => mirror.id))].sort()) !== JSON.stringify(['github', 'oss']) || sourceMirrors.some((mirror) => JSON.stringify(Object.keys(mirror).sort()) !== JSON.stringify(['id', 'url']))) {
+const sourceMirrorIds = [...new Set(sourceMirrors.map((mirror) => mirror.id))].sort()
+const giteeMirror = sourceMirrors.find((mirror) => mirror.id === 'gitee')
+const verifiedSourceMirrors = sourceMirrors.filter((mirror) => mirror.id === 'oss' || mirror.id === 'github')
+if (sourceMirrors.length !== 3 || JSON.stringify(sourceMirrorIds) !== JSON.stringify(['gitee', 'github', 'oss']) ||
+    !giteeMirror || JSON.stringify(Object.keys(giteeMirror).sort()) !== JSON.stringify(['id', 'parts', 'url']) || !Array.isArray(giteeMirror.parts) || giteeMirror.parts.length < 1 ||
+    verifiedSourceMirrors.some((mirror) => JSON.stringify(Object.keys(mirror).sort()) !== JSON.stringify(['id', 'url']))) {
   throw new Error('Generated Launcher UI mirrors do not match the build contract')
 }
 const mirrors = ['oss', 'github'].map((id) => sourceMirrors.find((mirror) => mirror.id === id)).filter(Boolean).map((mirror) => ({ id: mirror.id, url: mirror.url }))
