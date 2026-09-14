@@ -36,10 +36,9 @@ export class LocalDirector {
   async resolve(member) {
     const descriptor = this.descriptors.find(item => item.id === member.agentId), project = descriptor?.projects?.find(item => item.id === member.projectId);
     if (!descriptor || !project) throw new Error('本机智能体或授权项目已失效，请刷新本机目录');
-    if (descriptor.capabilities?.approvalControl === false) throw new Error('这个适配器尚未提供统一审批接口，不能加入本地总控');
     const actual = await realpath(project.path); if (!(await stat(actual)).isDirectory()) throw new Error('本地项目目录不可用');
     const executionPath = member.workspaceId ? await this.worktrees.resolve(member, actual) : actual;
-    return { ...descriptor.runtime, adapter: descriptor.adapter, local: true, project: { path: executionPath } };
+    return { ...descriptor.runtime, adapter: descriptor.adapter, local: true, project: { path: executionPath }, capabilities: descriptor.capabilities };
   }
   accessible(room) { return room && (!room.cloudOwnerId || room.cloudOwnerId === this.ownerId); }
   requireRoom(id) { const room = this.engine.room(id); if (!this.accessible(room)) throw new Error('当前账号不能查看这个同步房间'); return room; }

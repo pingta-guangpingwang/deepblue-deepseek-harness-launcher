@@ -269,13 +269,13 @@ function LocalFileCard({ file, onAction }: { file: LocalFileMetadata; onAction(f
 }
 
 function LocalRoomEditor({ catalog, supportsIsolation, onClose, onCreate }: { catalog: LocalRuntimeDescriptor[]; supportsIsolation: boolean; onClose(): void; onCreate(input: Record<string, unknown>, id: string): Promise<void> }): React.JSX.Element {
-  const available = catalog.filter(item => item.capabilities.approvalControl && item.projects.length)
+  const available = catalog.filter(item => item.projects.length)
   const makeMember = (index: number): LocalRoomMember => {
     const agent = available[index % Math.max(available.length, 1)]
     return { id: requestId(), displayName: index === 0 ? '主控' : `成员${index + 1}`, mentionHandle: index === 0 ? '主控' : `成员${index + 1}`, agentId: agent?.id || '', projectId: agent?.projects.length === 1 ? agent.projects[0]!.id : '', responsibility: index === 0 ? '拆解目标、审核成员操作并核对最终结果' : '完成主控分派的项目任务并返回实际结果', sessionLabel: index === 0 ? '主控独立会话' : `成员${index + 1}独立会话` }
   }
   const [members, setMembers] = useState<LocalRoomMember[]>(() => [makeMember(0), makeMember(1)])
-  const [coordinator, setCoordinator] = useState(members[0]!.id), [name, setName] = useState(''), [mode, setMode] = useState<LocalPermissionMode>('assist'), [error, setError] = useState(''), [saving, setSaving] = useState(false)
+  const [coordinator, setCoordinator] = useState(members[0]!.id), [name, setName] = useState(''), [mode, setMode] = useState<LocalPermissionMode>('ask'), [error, setError] = useState(''), [saving, setSaving] = useState(false)
   const form = useRef<HTMLFormElement>(null)
   const [workspaceMode, setWorkspaceMode] = useState<'shared' | 'worktree'>('shared')
   const createRequest = useRef<{ signature: string; id: string } | undefined>(undefined)
@@ -283,6 +283,7 @@ function LocalRoomEditor({ catalog, supportsIsolation, onClose, onCreate }: { ca
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault(); setError('')
     if (!name.trim() || members.some(member => !member.agentId || !member.projectId || !member.displayName.trim() || !member.mentionHandle.trim())) { setError('请填写房间名称，并为每位成员选择项目和名称'); return }
+    if (mode !== 'ask' && members.some(member => available.find(agent => agent.id === member.agentId)?.capabilities.approvalControl === false)) { setError('房间包含没有统一代审接口的智能体，请使用“请求批准”模式'); return }
     const confirmFull = mode === 'full' && window.confirm('本房间将使用完全批准：在已选项目范围内免逐项审核。确认启用？')
     if (mode === 'full' && !confirmFull) return
     setSaving(true)
@@ -300,7 +301,7 @@ function LocalRoomEditor({ catalog, supportsIsolation, onClose, onCreate }: { ca
       {supportsIsolation && <label>项目隔离<select value={workspaceMode} onChange={event => setWorkspaceMode(event.target.value as 'shared' | 'worktree')}><option value="shared">共享原目录（跨房间写入排队）</option><option value="worktree">每个房间独立 Git 工作树</option></select><small>Git 模式需要干净的仓库根目录。同房间成员共享代码，原分支不会自动提交或合并；非 Git 项目使用共享模式。</small></label>}
       {members.map((member, index) => { const agent = available.find(row => row.id === member.agentId); return <fieldset key={member.id}><legend>成员 {index + 1}</legend><div className="lcr-member-fields"><label>成员名称<input value={member.displayName} onChange={event => patch(member.id, { displayName: event.target.value })} /></label><label>@称呼<input value={member.mentionHandle} onChange={event => patch(member.id, { mentionHandle: event.target.value })} /></label><label>本机智能体<select value={member.agentId} onChange={event => { const next = available.find(row => row.id === event.target.value); patch(member.id, { agentId: event.target.value, projectId: next?.projects.length === 1 ? next.projects[0]!.id : '' }) }}><option value="">请选择</option>{available.map(row => <option value={row.id} key={row.id}>{row.name}</option>)}</select></label><label>授权项目<select value={member.projectId} onChange={event => patch(member.id, { projectId: event.target.value })}><option value="">请选择项目</option>{agent?.projects.map(project => <option key={project.id} value={project.id}>{project.name} — {project.path}</option>)}</select></label></div><label>职责<textarea value={member.responsibility} onChange={event => patch(member.id, { responsibility: event.target.value })} /></label><div className="lcr-member-footer"><label><input type="radio" name="local-coordinator" checked={coordinator === member.id} onChange={() => setCoordinator(member.id)} />设为主控</label><button type="button" className="small-button" disabled={members.length < 2} onClick={() => { const next = members.filter(row => row.id !== member.id); setMembers(next); if (coordinator === member.id) setCoordinator(next[0]!.id) }}>移除此成员</button></div></fieldset> })}
       <button type="button" className="small-button" disabled={members.length >= 8 || !available.length} onClick={() => setMembers(old => [...old, makeMember(old.length)])}><Plus size={14} />添加成员</button>
-      {catalog.some(row => !row.capabilities.approvalControl) && <p className="lcr-help">尚未提供统一权限接口的适配器不会假装支持代审，仍可在原有工作台使用。</p>}
+      {catalog.some(row => !row.capabilities.approvalControl) && <p className="lcr-help">尚未提供统一代审接口的适配器可在“请求批准”模式加入；需要确认时必须回到对应原生智能体处理，不能切换为帮我批准或完全批准。</p>}
       {!available.length && <p role="status">没有可用项目。请关闭此窗口，先添加本机项目或刷新目录。</p>}
       {error && <p className="lcr-error" role="alert">{error}</p>}
     </div><footer><button type="button" className="small-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving || !available.length}>{saving ? '正在创建…' : '创建本地房间'}</button></footer>

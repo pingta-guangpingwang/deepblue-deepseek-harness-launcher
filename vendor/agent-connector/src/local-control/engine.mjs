@@ -41,6 +41,7 @@ export class LocalRoomEngine {
     for (const member of room.members) {
       const resolved = await this.resolveMember(member);
       if (!resolved?.project?.path || resolved.local === false) throw new Error('本轮只支持当前电脑上的已授权项目');
+      if (resolved.capabilities?.approvalControl === false && room.permissionMode !== 'ask') throw new Error('该智能体没有统一代审接口，只能加入“请求批准”房间');
       member.projectPath = await realpath(resolved.project.path); member.adapter = resolved.adapter;
     }
     if (room.workspaceMode === 'worktree' && !this.prepareRoom) throw new Error('当前总控不支持 Git 工作树隔离');
@@ -69,6 +70,10 @@ export class LocalRoomEngine {
   async setPermission(roomId, mode, requestId, { confirmFull = false } = {}) {
     mode = permissionMode(mode); if (mode === 'full' && !confirmFull) throw new Error('完全批准必须由用户明确确认');
     const room = this.room(roomId);
+    if (mode !== 'ask') for (const member of room.members) {
+      const resolved = await this.resolveMember(member);
+      if (resolved.capabilities?.approvalControl === false) throw new Error('房间包含没有统一代审接口的智能体，只能使用“请求批准”');
+    }
     const { result, replayed } = this.store.request(requestId, { action: 'permission', roomId, mode, confirmFull }, () => {
       room.permissionMode = mode; room.permissionRevision += 1; room.updatedAt = this.clock(); this.store.put('room', room);
       for (const run of this.store.list('run', roomId)) if (ACTIVE_RUN_STATES.has(run.status)) { run.status = run.status === 'queued' ? 'cancelled' : 'cancel_requested'; run.summary = '权限变更，旧轮次停止；新消息使用新权限'; this.store.put('run', run); }
