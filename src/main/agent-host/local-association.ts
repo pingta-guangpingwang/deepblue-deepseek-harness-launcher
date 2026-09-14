@@ -8,7 +8,13 @@ import { agentAssociationMode } from '../../shared/agent-catalog'
 export interface AssociationLaunch { executable: string; args: string[]; runtimeHome?: string }
 interface Request { adapter: AgentAdapter; requestId: string; expiresAt: number; acceptedHash?: string }
 const commands: Record<AgentAdapter, string[]> = { codex: ['codex'], 'claude-code': ['claude'], qclaw: ['openclaw'], workbuddy: ['codebuddy'], codebuddy: ['codebuddy'], cursor: ['cursor-agent', 'agent'], trae: [], 'deepseek-harness': [] }
-const packages: Partial<Record<AgentAdapter, string[]>> = { codex: ['@openai/codex'], 'claude-code': ['@anthropic-ai/claude-code'], qclaw: ['openclaw'] }
+const packages: Partial<Record<AgentAdapter, string[]>> = {
+  codex: ['@openai/codex'],
+  'claude-code': ['@anthropic-ai/claude-code'],
+  qclaw: ['openclaw'],
+  workbuddy: ['@genie/agent-cli'],
+  codebuddy: ['@tencent-ai/codebuddy-code', '@genie/agent-cli'],
+}
 const homeVariables: Partial<Record<AgentAdapter, string>> = { codex: 'CODEX_HOME', 'claude-code': 'CLAUDE_CONFIG_DIR', qclaw: 'OPENCLAW_STATE_DIR' }
 const contained = (root: string, target: string): boolean => { const relative = path.relative(root, target); return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative) }
 function localPath(value: unknown): string {
@@ -32,6 +38,11 @@ export async function validateAssociationLaunch(adapter: AgentAdapter, raw: Reco
     if (!contained(root, entry) || !(await stat(entry)).isFile()) throw new Error('npm 入口超出包目录')
     if (/\.(mjs|cjs|js)$/i.test(entry)) { executable = nodePath; args = [entry] }
     else if (/\.exe$/i.test(entry)) executable = entry
+    else if (!path.extname(entry)) {
+      const metadata = await stat(entry)
+      if (metadata.size < 1 || metadata.size > 256 * 1024 || !/^#!\/usr\/bin\/env node(?:\r?\n|\s)/.test(await readFile(entry, 'utf8'))) throw new Error('官方 npm 无扩展入口不是受支持的 Node CLI')
+      executable = nodePath; args = [entry]
+    }
     else throw new Error('不支持该 npm 入口类型')
   } else {
     executable = await realpath(localPath(raw.executablePath))
@@ -111,7 +122,7 @@ export class LocalAssociations {
     }
     const configPath = this.configPath(request.adapter)
     const sample = { schemaVersion: 1, requestId: request.requestId, adapter: request.adapter, executablePath: '<实际 CLI 绝对路径>', runtimeHome: '<可选：原生数据目录；无则删除此字段>' }
-    const prompt = `请将你所在电脑的 ${request.adapter} 接入深蓝启动器，仅登记本机运行路径并进行 --version 检查，不发送任务、不复制凭据、不授权任何项目。\n启动器程序：${this.launcherPath}\n启动器 Node：${this.nodePath}\n请写入：${configPath}\n有效期至：${new Date(request.expiresAt).toISOString()}\nJSON 格式：\n${JSON.stringify(sample, null, 2)}\n先确认当前用户实际安装路径和原生数据目录；不要填写示例占位符，不要将 IDE 主程序误当 CLI。npm 安装可删除 executablePath，改填 packageRoot（官方包目录，仅支持 Codex、Claude Code、OpenClaw）。Cursor Windows 官方 Agent CLI 可填同目录 node.exe 为 executablePath、index.js 为 entryPoint；不接受任意参数、脚本或环境变量。WorkBuddy 请填随应用安装的 CLI codebuddy，不是 WorkBuddy.exe。TRAE 当前暂不支持远程执行，不能假报成功。\n只写上述接入 JSON（推荐同目录临时文件写完再重命名），不要修改启动器其他文件、原生智能体配置或全局设置，不要下载或安装软件。找不到受支持的 CLI 时直接告知用户。不要写 API Key、Cookie、Token、登录信息和项目授权。\n启动器约每 15 秒校验变更；CLI 握手通过只代表接口可用，原生登录、网站绑定和执行就绪需在启动器中确认。连接智能体时只授权一次，之后自动同步该智能体全部原生项目及新增项目，无需逐项目授权。`
+    const prompt = `请将你所在电脑的 ${request.adapter} 接入深蓝启动器，仅登记本机运行路径并进行 --version 检查，不发送任务、不复制凭据、不授权任何项目。\n启动器程序：${this.launcherPath}\n启动器 Node：${this.nodePath}\n请写入：${configPath}\n有效期至：${new Date(request.expiresAt).toISOString()}\nJSON 格式：\n${JSON.stringify(sample, null, 2)}\n先确认当前用户实际安装路径和原生数据目录；不要填写示例占位符，不要将 IDE 主程序误当 CLI。npm 安装可删除 executablePath，改填 packageRoot（仅接受已登记的官方 Codex、Claude Code、OpenClaw、WorkBuddy 或 CodeBuddy 包）。Cursor Windows 官方 Agent CLI 可填同目录 node.exe 为 executablePath、index.js 为 entryPoint；不接受任意参数、脚本或环境变量。WorkBuddy 请优先填写应用内 @genie/agent-cli 包目录，不是 WorkBuddy.exe。TRAE 当前暂不支持远程执行，不能假报成功。\n只写上述接入 JSON（推荐同目录临时文件写完再重命名），不要修改启动器其他文件、原生智能体配置或全局设置，不要下载或安装软件。找不到受支持的 CLI 时直接告知用户。不要写 API Key、Cookie、Token、登录信息和项目授权。\n启动器约每 15 秒校验变更；CLI 握手通过只代表接口可用，原生登录、网站绑定和执行就绪需在启动器中确认。连接智能体时只授权一次，之后自动同步该智能体全部原生项目及新增项目，无需逐项目授权。`
     return { adapter: request.adapter, requestId: request.requestId, status: commands[request.adapter].length ? 'waiting' : 'unsupported', message: commands[request.adapter].length ? '等待智能体写入接入配置（约 15 秒检查一次）' : request.adapter === 'trae' ? 'TRAE 暂不支持远程执行，不能通过路径登记解除限制' : '内置 DSH 不需要外部关联，请在首页启动 Harness', prompt, configPath, launcherPath: this.launcherPath }
   }
   async begin(adapter: AgentAdapter): Promise<void> {

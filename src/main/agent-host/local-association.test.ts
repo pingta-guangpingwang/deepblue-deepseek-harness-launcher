@@ -74,6 +74,19 @@ test('only an official npm package bin is resolved; script and unrelated program
   await expect(validateAssociationLaunch('codex', { executablePath: 'https://example.com/codex.exe' }, process.execPath)).rejects.toThrow('本机绝对路径')
   expect(JSON.parse(await readFile(path.join(pkg, 'package.json'), 'utf8')).name).toBe('@openai/codex')
 })
+test('WorkBuddy and CodeBuddy accept only their registered official package roots', async () => {
+  const { root } = await fixture()
+  for (const [adapter, name] of [['workbuddy', '@genie/agent-cli'], ['codebuddy', '@tencent-ai/codebuddy-code']] as const) {
+    const pkg = path.join(root, adapter); await mkdir(pkg)
+    await writeFile(path.join(pkg, 'package.json'), JSON.stringify({ name, bin: { codebuddy: 'bin/codebuddy' } }))
+    await mkdir(path.join(pkg, 'bin')); await writeFile(path.join(pkg, 'bin', 'codebuddy'), '#!/usr/bin/env node\n// fixture\n')
+    expect(await validateAssociationLaunch(adapter, { packageRoot: pkg }, process.execPath)).toEqual({ executable: process.execPath, args: [path.join(pkg, 'bin', 'codebuddy')], runtimeHome: undefined })
+  }
+  const unsafe = path.join(root, 'unsafe'); await mkdir(path.join(unsafe, 'bin'), { recursive: true })
+  await writeFile(path.join(unsafe, 'package.json'), JSON.stringify({ name: '@genie/agent-cli', bin: { codebuddy: 'bin/codebuddy' } }))
+  await writeFile(path.join(unsafe, 'bin', 'codebuddy'), 'not a node cli')
+  await expect(validateAssociationLaunch('workbuddy', { packageRoot: unsafe }, process.execPath)).rejects.toThrow('Node CLI')
+})
 test('TRAE and built-in DSH never run a submitted binary', async () => {
   const { service, probe } = await fixture()
   await service.begin('trae'); await service.begin('deepseek-harness'); await service.check()
