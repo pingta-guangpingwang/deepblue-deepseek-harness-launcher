@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, FolderPlus, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, Wrench, X } from 'lucide-react'
+import { AtSign, Bot, CheckCircle2, CircleAlert, ClipboardList, FolderPlus, LoaderCircle, MessageSquare, Pencil, Plus, RefreshCw, Send, Square, Trash2, Users, X } from 'lucide-react'
 import type { LauncherSnapshot } from '../../shared/types'
 import type { AgentRoomAccess, AgentRoomAction, AgentRoomDetail, AgentRoomMember, AgentRoomMemberInput, AgentRoomMessage, AgentRoomMessageSegment, AgentRoomRun, AgentRoomSummary, AgentWorkspaceRequest } from '../../shared/agent-host'
 import './agent-session-groups.css'
 import { ChatMessage } from './ChatMessage'
 import { ConversationControls } from './ConversationControls'
+import { RoomSettingsOverview } from './RoomSettingsOverview'
 import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
@@ -680,6 +681,14 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
   const memberLimitReached = Boolean(editor && candidateCatalog && editor.members.length >= candidateCatalog.limits.maxMembers)
   const sharedFolders = useMemo(() => candidateCatalog ? sharedFolderOptions(candidateCatalog) : [], [candidateCatalog])
   const sharedResolution = editor && candidateCatalog && editor.projectMode === 'shared' && editor.sharedPathKey ? resolveSharedProjects(candidateCatalog, editor.sharedPathKey, editor.members) : undefined
+  const cloudRules = detail ? [
+    { label: '执行权限', value: detail.room.defaultAccess === 'workspace_write' ? '授权项目内可修改' : detail.room.defaultAccess, detail: '发布、外部发送、破坏性删除、扩大目录或读取凭据必须另行确认' },
+    { label: '批准方式', value: detail.room.approvalPolicy === 'bounded_run' ? '整项任务开始前批准' : detail.room.approvalPolicy, detail: '批准只覆盖当前冻结成员、项目、步数和截止时间' },
+    { label: '单轮上限', value: `${detail.room.maxSteps} 次原生调用`, detail: `当前房间定义版本 ${detail.room.definitionRevision}` },
+    { label: '项目方式', value: deriveRoomProjectMode(detail.members).projectMode === 'shared' ? '成员共用同一目录' : '成员各自授权项目', detail: '每位成员仍保存自己的 projectId 与独立原生会话' },
+    { label: '消息路由', value: '结构化 @ 指定成员', detail: `未 @ 时由 @${coordinator?.mentionHandle || '主控'} 接手并继续分派` },
+  ] : []
+  const cloudMembers = detail?.members.map(member => ({ id: member.id, name: member.displayName, handle: member.mentionHandle, role: member.id === detail.room.coordinatorMemberId ? '主控' : '成员', adapter: member.adapterCode ? `${member.agentName} · ${member.adapterCode}` : member.agentName, project: member.projectName, session: `${member.sessionLabel} · ${member.sessionState === 'ready' ? '独立会话已就绪' : member.sessionState === 'broken' ? '会话需修复' : '首次参与时创建'}`, responsibility: member.responsibility, status: roomStatusLabel(member.canDispatch ? member.status || 'ready' : member.sessionState), capability: member.canDispatch ? `可派发 · ${member.readinessSource || '运行时确认'}` : `不可派发 · ${member.dispatchErrorCode || member.status || member.sessionState}` })) || []
 
   function chooseRoom(roomId: string): void {
     syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
@@ -954,7 +963,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
     <nav className="arm-mobile-nav" aria-label="多智能会话视图">
       <button aria-current={mobilePane === 'chat' ? 'page' : undefined} onClick={() => setMobilePane('chat')}><MessageSquare size={15} />聊天</button>
       <button aria-current={mobilePane === 'tasks' ? 'page' : undefined} disabled={!detail} onClick={() => { setHideTasks(false); setMobilePane('tasks') }}><ClipboardList size={15} />任务动态</button>
-      <button aria-current={mobilePane === 'members' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('members')}><Users size={15} />成员</button>
+      <button aria-current={mobilePane === 'members' ? 'page' : undefined} disabled={!detail} onClick={() => setMobilePane('members')}><Users size={15} />规则</button>
     </nav>
 
     <div className="arm-stage">
@@ -996,7 +1005,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
           <ConversationControls pane={chatPane} detached={detached} target={selectedRoomId ? { kind: 'legacy-room', roomId: selectedRoomId, title: detail?.room.name || '公共聊天' } : undefined} lists={[{ name: '房间列表', collapsed: hideRooms, toggle: () => setHideRooms(value => !value) }, { name: '任务动态', collapsed: hideTasks, toggle: () => setHideTasks(value => !value) }]} />
           <header className="arm-chat-heading">
             <div><h2>{detail?.room.name || '公共聊天'}</h2><p>{detail ? `未 @ 时由 @${coordinator?.mentionHandle || '主控'} 接手 · 公共记录对全部成员可见` : '选择房间后开始协作'}</p></div>
-            {detail && <div><button className="small-button arm-task-button" onClick={() => setMobilePane('tasks')}><ClipboardList size={14} />任务动态</button><button className="small-button" aria-expanded={membersOpen} onClick={() => setMembersOpen(value => !value)}><Users size={14} />成员</button></div>}
+            {detail && <div><button className="small-button arm-task-button" onClick={() => setMobilePane('tasks')}><ClipboardList size={14} />任务动态</button><button className="small-button" aria-expanded={membersOpen} onClick={() => setMembersOpen(value => !value)}><Users size={14} />成员与规则</button></div>}
           </header>
           <div className="arm-messages" ref={messageScroll} tabIndex={0} aria-label="房间公共聊天记录">
             {detail?.window?.hasEarlierMessages && <button className="arm-history-button" disabled={Boolean(busy) || syncBlocked} onClick={() => void loadMessageWindow('earlier')}>{busy === 'room_messages_earlier' ? '加载中…' : '加载更早消息'}</button>}
@@ -1020,13 +1029,9 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
         </main>
       </div>
 
-      {detail && (membersOpen || mobilePane === 'members') && <aside className="arm-member-drawer open" aria-label="房间成员">
-        <header><div><h2>成员</h2><p>公共记录共享，工作记忆与原生会话彼此独立</p></div><button className="aw-icon-button arm-drawer-close" aria-label="关闭成员面板" onClick={() => { setMembersOpen(false); setMobilePane('chat') }}><X size={18} /></button></header>
-        <div className="arm-member-list">{detail.members.map(member => <article className="arm-member" key={member.id}>
-          <div className="arm-member-title"><span className="arm-member-avatar"><Bot size={16} /></span><div><strong>{member.displayName}</strong><small>@{member.mentionHandle}{member.id === detail.room.coordinatorMemberId ? ' · 主控' : ''}</small></div><Status value={member.sessionState === 'ready' ? member.status : member.sessionState} /></div>
-          <p>{member.responsibility}</p><small>{member.agentName} · {member.projectName}</small><small>{member.sessionLabel}</small>{member.statusMessage && <small>{member.statusMessage}</small>}
-          <div className="arm-session-state"><Wrench size={13} /><span>{member.sessionState === 'pending' ? '会话待创建：成员首次参与时自动准备' : member.sessionState === 'broken' ? '会话需修复：请检查本机智能体与项目授权' : '会话已就绪：独立工作记忆持续保留'}</span></div>
-        </article>)}</div>
+      {detail && (membersOpen || mobilePane === 'members') && <aside className="arm-member-drawer open" aria-label="房间成员与公共规则">
+        <header><div><h2>设置与公共规则</h2><p>先看全体约束，再核对每个智能体参数</p></div><button className="aw-icon-button arm-drawer-close" aria-label="关闭成员与规则面板" onClick={() => { setMembersOpen(false); setMobilePane('chat') }}><X size={18} /></button></header>
+        <div className="arm-member-list room-settings-scroll"><RoomSettingsOverview rules={cloudRules} members={cloudMembers} boundary="公共聊天对全部成员可见；工作记忆和原生会话彼此独立。服务器只冻结路由范围，本机运行时权限仍是最终技术边界。" /></div>
         <footer><button className="small-button" disabled={syncBlocked} onClick={openEdit}><Pencil size={14} />编辑房间</button><button className="small-button danger" disabled={syncBlocked} onClick={() => setConfirmDelete(true)}><Trash2 size={14} />删除房间并清理记录</button></footer>
         {confirmDelete && <div className="arm-delete-confirm" role="alert"><strong>删除房间并清理记录？</strong><p>公共聊天正文、任务文本与结果、成员显示名称、@名称、职责和会话标签会立即永久清理且无法恢复。智能体、授权项目、本地文件和已创建的原生会话不会删除。</p><button className="small-button" onClick={() => setConfirmDelete(false)}>取消</button><button className="small-button danger" disabled={busy === 'room_delete' || syncBlocked} onClick={() => void deleteRoom()}>{busy === 'room_delete' ? '永久清理中…' : '删除并永久清理'}</button></div>}
       </aside>}

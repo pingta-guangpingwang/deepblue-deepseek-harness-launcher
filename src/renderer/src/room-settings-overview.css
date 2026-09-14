@@ -1,0 +1,25 @@
+.room-settings-overview { min-height:0; color:var(--text); }
+.room-settings-overview h3,.room-settings-overview p,.room-settings-overview dl { margin:0; }
+.rso-rules { padding:14px 13px 16px; background:var(--surface-soft); border-bottom:1px solid var(--border); }
+.rso-rules>header,.rso-members>header,.rso-member>header { display:flex; align-items:center; gap:9px; }
+.rso-rules>header div,.rso-member>header div { min-width:0; }
+.rso-rules h3,.rso-members h3 { font-size:14px; line-height:1.35; }
+.rso-rules header p,.rso-members>header span { margin-top:2px; color:var(--text-secondary); font-size:11px; }
+.rso-icon,.rso-avatar { display:grid; place-items:center; flex:0 0 auto; width:30px; height:30px; border-radius:9px; color:var(--blue,#4d6bfe); background:var(--blue-soft,#eef1ff); }
+.rso-rules>dl { display:grid; margin-top:12px; }
+.rso-rules>dl>div,.rso-member dl>div { display:grid; grid-template-columns:82px minmax(0,1fr); gap:8px; padding:8px 0; border-top:1px solid var(--border); }
+.rso-rules dt,.rso-member dt { color:var(--text-secondary); font-size:11px; }
+.rso-rules dd,.rso-member dd { margin:0; min-width:0; overflow-wrap:anywhere; font-size:11px; line-height:1.55; }
+.rso-rules dd strong,.rso-rules dd small { display:block; }
+.rso-rules dd small { margin-top:2px; color:var(--text-secondary); font-weight:400; }
+.rso-boundary { padding-top:10px; color:var(--text-secondary); font-size:11px; line-height:1.65; border-top:1px solid var(--border); }
+.rso-members>header { justify-content:space-between; padding:13px; border-bottom:1px solid var(--border); }
+.rso-member { padding:13px; border-bottom:1px solid var(--border); }
+.rso-member>header>div { flex:1; }
+.rso-member>header strong,.rso-member>header small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rso-member>header strong { font-size:12px; }
+.rso-member>header small { margin-top:2px; color:var(--text-secondary); font-size:10px; }
+.rso-status { flex:0 0 auto; color:var(--success,#23ad79); font-size:10px; font-weight:700; }
+.rso-member dl { margin-top:10px; }
+@media(max-width:900px) { .rso-rules>dl { grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:18px; } }
+@media(max-width:550px) { .rso-rules>dl { grid-template-columns:1fr; } .rso-rules>dl>div,.rso-member dl>div { grid-template-columns:76px minmax(0,1fr); } }
