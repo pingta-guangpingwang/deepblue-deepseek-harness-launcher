@@ -1,19 +1,21 @@
 import type { AgentAdapter, AgentHostSnapshot } from './agent-host'
 
 // Connection inventory and native-history reader coverage are different facts.
-export const AGENT_CATALOG: ReadonlyArray<{ id: AgentAdapter; name: string; nativeHistory: boolean; execution: boolean }> = [
-  { id: 'codex', name: 'Codex', nativeHistory: true, execution: true },
-  { id: 'claude-code', name: 'Claude Code', nativeHistory: true, execution: true },
-  { id: 'cursor', name: 'Cursor', nativeHistory: false, execution: true },
-  { id: 'qclaw', name: 'QClaw / OpenClaw', nativeHistory: true, execution: true },
-  { id: 'workbuddy', name: 'WorkBuddy', nativeHistory: false, execution: true },
-  { id: 'codebuddy', name: 'CodeBuddy', nativeHistory: false, execution: true },
-  { id: 'deepseek-harness', name: 'DeepSeek Harness', nativeHistory: false, execution: true },
-  { id: 'trae', name: 'TRAE', nativeHistory: false, execution: false }
+export type AgentAssociationMode = 'self_register' | 'built_in' | 'unavailable'
+export const AGENT_CATALOG: ReadonlyArray<{ id: AgentAdapter; name: string; nativeHistory: boolean; execution: boolean; associationMode: AgentAssociationMode }> = [
+  { id: 'codex', name: 'Codex', nativeHistory: true, execution: true, associationMode: 'self_register' },
+  { id: 'claude-code', name: 'Claude Code', nativeHistory: true, execution: true, associationMode: 'self_register' },
+  { id: 'cursor', name: 'Cursor', nativeHistory: false, execution: true, associationMode: 'self_register' },
+  { id: 'qclaw', name: 'QClaw / OpenClaw', nativeHistory: true, execution: true, associationMode: 'self_register' },
+  { id: 'workbuddy', name: 'WorkBuddy', nativeHistory: false, execution: true, associationMode: 'self_register' },
+  { id: 'codebuddy', name: 'CodeBuddy', nativeHistory: false, execution: true, associationMode: 'self_register' },
+  { id: 'deepseek-harness', name: 'DeepSeek Harness', nativeHistory: false, execution: true, associationMode: 'built_in' },
+  { id: 'trae', name: 'TRAE', nativeHistory: false, execution: false, associationMode: 'unavailable' }
 ]
 export const agentName = (id: string): string => AGENT_CATALOG.find(agent => agent.id === id)?.name || id || '智能体'
+export const agentAssociationMode = (id: AgentAdapter): AgentAssociationMode => AGENT_CATALOG.find(agent => agent.id === id)?.associationMode || 'unavailable'
 export function localAgentStatus(adapter: AgentAdapter, host?: AgentHostSnapshot): string {
-  if (adapter === 'trae') return '暂不支持执行'
+  if (agentAssociationMode(adapter) === 'unavailable') return '暂未打通'
   const binding = host?.agents.find(agent => agent.adapter === adapter)
   if (binding?.busy) return '执行中'
   if (binding?.status === 'online' && binding.runtimeStatus === 'ready') return '执行就绪'

@@ -3,6 +3,7 @@ import { randomUUID, createHash } from 'node:crypto'
 import { mkdir, readFile, writeFile, rename, realpath, lstat, stat } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import type { AgentAdapter, AgentAssociation } from '../../shared/agent-host'
+import { agentAssociationMode } from '../../shared/agent-catalog'
 
 export interface AssociationLaunch { executable: string; args: string[]; runtimeHome?: string }
 interface Request { adapter: AgentAdapter; requestId: string; expiresAt: number; acceptedHash?: string }
@@ -98,6 +99,16 @@ export class LocalAssociations {
     } catch { /* A new computer has no association requests yet. */ }
   }
   private describe(request: Request): AgentAssociation {
+    const mode = agentAssociationMode(request.adapter)
+    if (mode !== 'self_register') return {
+      adapter: request.adapter,
+      requestId: request.requestId,
+      status: 'unsupported',
+      message: mode === 'built_in' ? 'DeepSeek Harness 由启动器内置管理，无需主动登记路径' : 'TRAE 暂未打通，缺少可验证的官方主动连接与原会话投递接口',
+      prompt: '',
+      configPath: '',
+      launcherPath: this.launcherPath,
+    }
     const configPath = this.configPath(request.adapter)
     const sample = { schemaVersion: 1, requestId: request.requestId, adapter: request.adapter, executablePath: '<实际 CLI 绝对路径>', runtimeHome: '<可选：原生数据目录；无则删除此字段>' }
     const prompt = `请将你所在电脑的 ${request.adapter} 接入深蓝启动器，仅登记本机运行路径并进行 --version 检查，不发送任务、不复制凭据、不授权任何项目。\n启动器程序：${this.launcherPath}\n启动器 Node：${this.nodePath}\n请写入：${configPath}\n有效期至：${new Date(request.expiresAt).toISOString()}\nJSON 格式：\n${JSON.stringify(sample, null, 2)}\n先确认当前用户实际安装路径和原生数据目录；不要填写示例占位符，不要将 IDE 主程序误当 CLI。npm 安装可删除 executablePath，改填 packageRoot（官方包目录，仅支持 Codex、Claude Code、OpenClaw）。Cursor Windows 官方 Agent CLI 可填同目录 node.exe 为 executablePath、index.js 为 entryPoint；不接受任意参数、脚本或环境变量。WorkBuddy 请填随应用安装的 CLI codebuddy，不是 WorkBuddy.exe。TRAE 当前暂不支持远程执行，不能假报成功。\n只写上述接入 JSON（推荐同目录临时文件写完再重命名），不要修改启动器其他文件、原生智能体配置或全局设置，不要下载或安装软件。找不到受支持的 CLI 时直接告知用户。不要写 API Key、Cookie、Token、登录信息和项目授权。\n启动器约每 15 秒校验变更；CLI 握手通过只代表接口可用，原生登录、网站绑定和执行就绪需在启动器中确认。连接智能体时只授权一次，之后自动同步该智能体全部原生项目及新增项目，无需逐项目授权。`
@@ -105,8 +116,12 @@ export class LocalAssociations {
   }
   async begin(adapter: AgentAdapter): Promise<void> {
     if (!Object.hasOwn(commands, adapter)) throw new Error('不支持的智能体')
-    await this.directory()
     const request = { adapter, requestId: randomUUID(), expiresAt: Date.now() + 24 * 60 * 60 * 1000 }
+    if (agentAssociationMode(adapter) !== 'self_register') {
+      this.statuses.set(adapter, this.describe(request))
+      return
+    }
+    await this.directory()
     this.requests.set(adapter, request); this.hashes.delete(adapter)
     this.statuses.set(adapter, this.describe(request)); await this.saveRequests()
   }

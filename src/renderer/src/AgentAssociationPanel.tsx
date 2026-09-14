@@ -3,7 +3,7 @@ import { Copy, Link2, RefreshCw, X } from 'lucide-react'
 import type { AgentAdapter, AgentHostSnapshot } from '../../shared/agent-host'
 import { AGENT_CATALOG } from '../../shared/agent-catalog'
 
-const adapters = AGENT_CATALOG.map(agent => [agent.id, agent.name] as const)
+const adapters = AGENT_CATALOG
 export function AgentAssociationPanel({ request }: { request?: { adapter: AgentAdapter; sequence: number } }): React.JSX.Element {
   const dialog = useRef<HTMLDialogElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -59,12 +59,14 @@ export function AgentAssociationPanel({ request }: { request?: { adapter: AgentA
     <button ref={trigger} className="small-button aw-association-entry" onClick={() => setOpen(true)}><Link2 size={14} />关联本机智能体</button>
     {open && <dialog ref={dialog} className="aw-association-dialog" aria-labelledby="association-heading" onClose={() => { setOpen(false); trigger.current?.focus() }}>
       <header><div><h2 id="association-heading">让智能体主动接入</h2><p>无需搜索整个硬盘。把接入说明交给这台电脑上的智能体，由它登记实际位置。</p></div><button className="aw-icon-button" aria-label="关闭关联说明" onClick={() => dialog.current?.close()}><X size={20} /></button></header>
-      <div className="aw-association-choices" aria-label="选择要关联的智能体">{adapters.map(([id, name]) => {
-        const ready = host?.agents.some(item => item.adapter === id && item.status === 'online' && item.runtimeStatus === 'ready')
-        return <button key={id} className={adapter === id ? 'primary-button' : 'small-button'} disabled={busy} aria-pressed={adapter === id} onClick={() => {
-          const existing = host?.associations?.find(item => item.adapter === id)
-          if (existing) { setAdapter(id); setCopied(false); setError('') } else void begin(id)
-        }}>{name}{ready ? ' · 已就绪' : ' · 关联'}</button>
+      <div className="aw-association-choices" aria-label="选择要关联的智能体">{adapters.map(item => {
+        const ready = host?.agents.some(agent => agent.adapter === item.id && agent.status === 'online' && agent.runtimeStatus === 'ready')
+        const unavailable = item.associationMode !== 'self_register'
+        const stateLabel = ready ? '已就绪' : item.associationMode === 'built_in' ? '启动器内置' : item.associationMode === 'unavailable' ? '暂未打通' : '主动连接'
+        return <button key={item.id} className={`${adapter === item.id ? 'primary-button' : 'small-button'}${unavailable ? ' is-unavailable' : ''}`} disabled={busy || unavailable} aria-pressed={adapter === item.id} title={item.associationMode === 'unavailable' ? '缺少可验证的官方连接接口，当前不能主动接入' : item.associationMode === 'built_in' ? '无需外部登记，由启动器直接管理' : undefined} onClick={() => {
+          const existing = host?.associations?.find(entry => entry.adapter === item.id)
+          if (existing) { setAdapter(item.id); setCopied(false); setError('') } else void begin(item.id)
+        }}>{item.name} · {stateLabel}</button>
       })}</div>
       {error && <p role="alert" className="aw-feedback error">{error}</p>}
       {!adapter && <p className="aw-inline-empty">选择一个智能体，生成专用于本机的接入说明。</p>}

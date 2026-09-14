@@ -9,6 +9,7 @@
 .aw-association-dialog h2 { margin: 0; font-size: 20px; }
 .aw-association-dialog header p, .aw-association-boundary { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
 .aw-association-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.aw-association-choices button.is-unavailable:disabled { opacity: .5; filter: grayscale(1); cursor: not-allowed; }
 .aw-association-detail dl { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px 14px; font-size: 12px; line-height: 1.7; }
 .aw-association-detail dt { color: var(--text-secondary); }
 .aw-association-detail dd { margin: 0; overflow-wrap: anywhere; }

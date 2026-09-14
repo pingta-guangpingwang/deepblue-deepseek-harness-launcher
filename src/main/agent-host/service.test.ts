@@ -26,13 +26,13 @@ vi.mock('./local-control', () => ({ LocalControlBridge: class {
 } }))
 
 import { AgentHostService, resolveAgentLaunch } from './service'
-import type { AgentWorkspaceRequest } from '../../shared/agent-host'
+import type { AgentAdapter, AgentWorkspaceRequest } from '../../shared/agent-host'
 
 const agentId = 'a'.repeat(32)
 const deviceId = 'd'.repeat(32)
 const key = 'agh_live_' + 'k'.repeat(48)
 const deviceKey = 'adh_live_' + 'v'.repeat(48)
-type TestBinding = { id: string; name: string; adapter: 'codex'; key: string; executable: string; executableArgs?: string[]; projectRoots: string[]; desiredRunning: boolean; autoStart: boolean; status: string; runtimeStatus: string; busy: boolean; message?: string; pendingCloudBind?: boolean }
+type TestBinding = { id: string; name: string; adapter: AgentAdapter; key: string; executable: string; executableArgs?: string[]; projectRoots: string[]; desiredRunning: boolean; autoStart: boolean; status: string; runtimeStatus: string; busy: boolean; message?: string; pendingCloudBind?: boolean }
 type Internals = {
   saved: { enabled: boolean; manuallyPaused?: boolean; deviceName?: string; ownerUserId: string; installationId: string; deviceId: string; deviceKey: string; agents: TestBinding[]; commands: Record<string, unknown> }
   children: Map<string, FakeChild>
@@ -150,6 +150,18 @@ it('does not grant a selected project if the account changes while the dialog is
   options.chooseDirectory = async () => { f.setOwner('owner-B'); return f.binding.projectRoots[0] }
   await expect(f.service.action({ action: 'local_control', command: 'authorize_project', input: { adapter: 'codex' }, requestId: '2'.repeat(32) })).rejects.toThrow('账号已切换')
   expect(mocks.fork).not.toHaveBeenCalled()
+})
+
+it('uses the shared execution catalog for project authorization and keeps TRAE closed', async () => {
+  for (const [index, adapter] of (['qclaw', 'workbuddy', 'codebuddy'] as AgentAdapter[]).entries()) {
+    const f = await fixture()
+    f.binding.adapter = adapter
+    await f.service.action({ action: 'local_control', command: 'authorize_project', input: { adapter }, requestId: String(index + 4).repeat(32) })
+    const projects = (f.service as unknown as { saved: { localProjects: Array<{ adapter: AgentAdapter; path: string }> } }).saved.localProjects
+    expect(projects.map(project => ({ adapter: project.adapter, path: path.resolve(project.path) }))).toContainEqual({ adapter, path: path.resolve(await realpath(f.binding.projectRoots[0]!)) })
+  }
+  const f = await fixture()
+  await expect(f.service.action({ action: 'local_control', command: 'authorize_project', input: { adapter: 'trae' }, requestId: 'f'.repeat(32) })).rejects.toThrow('暂未打通')
 })
 afterEach(async () => {
   vi.useRealTimers()

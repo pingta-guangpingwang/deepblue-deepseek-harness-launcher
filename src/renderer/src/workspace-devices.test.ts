@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AGENT_CATALOG, localAgentStatus } from '../../shared/agent-catalog'
+import { AGENT_CATALOG, agentAssociationMode, localAgentStatus } from '../../shared/agent-catalog'
 import { normalizeWorkspaceDevices, workspaceDevicesTree } from './workspace-devices'
 
 describe('workspace hierarchy', () => {
@@ -7,8 +7,11 @@ describe('workspace hierarchy', () => {
     expect(AGENT_CATALOG).toHaveLength(8)
     expect(new Set(AGENT_CATALOG.map(agent => agent.id)).size).toBe(8)
     expect(AGENT_CATALOG.filter(agent => agent.nativeHistory)).toHaveLength(3)
+    expect(AGENT_CATALOG.filter(agent => agent.associationMode === 'self_register')).toHaveLength(6)
+    expect(agentAssociationMode('deepseek-harness')).toBe('built_in')
+    expect(agentAssociationMode('trae')).toBe('unavailable')
     expect(localAgentStatus('cursor')).toBe('未关联')
-    expect(localAgentStatus('trae')).toBe('暂不支持执行')
+    expect(localAgentStatus('trae')).toBe('暂未打通')
   })
   it('uses device binding ownership, isolates selected projects, and leaves legacy instances unassigned', () => {
     const agents = ['a', 'b', 'legacy'].map(id => ({ id, name: id, adapter: 'codex', status: 'online' }))

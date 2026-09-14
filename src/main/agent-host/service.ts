@@ -15,6 +15,7 @@ import { LocalControlBridge } from './local-control'
 import { LocalAssociations } from './local-association'
 import { NativeApprovals, type ApprovalContext } from './native-approvals'
 import type { LocalRuntimeDescriptor } from '../../shared/local-control'
+import { AGENT_CATALOG } from '../../shared/agent-catalog'
 
 export const AGENT_HOST_PROTOCOL = 1
 type Reply = Record<string, unknown>
@@ -53,6 +54,7 @@ const ADAPTERS: Record<AgentAdapter, { name: string; command: string }> = {
   trae: { name: 'TRAE', command: 'trae-cn' }
 }
 const NPM_PACKAGES: Partial<Record<AgentAdapter, string>> = { codex: '@openai/codex', 'claude-code': '@anthropic-ai/claude-code', qclaw: 'openclaw' }
+const LOCAL_EXECUTION_ADAPTERS = new Set(AGENT_CATALOG.filter(item => item.execution).map(item => item.id))
 function errorText(error: unknown): string {
   return String(error instanceof Error ? error.message : error).replace(/(?:adh_live_|agh_live_|sk-)[\w-]+|Bearer\s+\S+/gi, '[凭据已隐藏]').slice(0, 360)
 }
@@ -592,7 +594,7 @@ export class AgentHostService {
   private mergeGrantedLocalProjects(): void {
     this.state.localCatalog ||= { scannedAt: new Date().toISOString(), projects: [], sessions: [], errors: [] }
     for (const project of this.saved.localProjects || []) {
-      if (!['codex', 'claude-code'].includes(project.adapter) || this.state.localCatalog.projects.some(row => row.adapter === project.adapter && sameLocalPath(row.path, project.path))) continue
+      if (!LOCAL_EXECUTION_ADAPTERS.has(project.adapter) || this.state.localCatalog.projects.some(row => row.adapter === project.adapter && sameLocalPath(row.path, project.path))) continue
       this.state.localCatalog.projects.unshift({ ...project, id: createHash('sha256').update(`${project.adapter}:${project.path.toLowerCase()}`).digest('hex'), lastActivityAt: '' })
     }
   }
@@ -617,8 +619,8 @@ export class AgentHostService {
       if (binding.adapter === 'trae' || this.saved.ownerUserId !== this.options.ownerId()) continue
       const projects = []
       const roots = binding.projectScope === 'all_native'
-        ? [...new Set([...binding.projectRoots, ...(this.state.localCatalog?.projects.filter(project => project.adapter === binding.adapter).map(project => project.path) || [])])]
-        : binding.projectRoots
+        ? [...new Set([...binding.projectRoots, ...(this.state.localCatalog?.projects.filter(project => project.adapter === binding.adapter).map(project => project.path) || []), ...(this.saved.localProjects || []).filter(project => project.adapter === binding.adapter).map(project => project.path)])]
+        : [...new Set([...binding.projectRoots, ...(this.saved.localProjects || []).filter(project => project.adapter === binding.adapter).map(project => project.path)])]
       for (const root of roots) {
         const actual = await realpath(root).catch(() => '')
         if (!actual || !safeProjectRoot(actual)) continue
@@ -631,7 +633,7 @@ export class AgentHostService {
       descriptors.push({ id: binding.id, name: binding.name, adapter: binding.adapter, projects, runtime, capabilities: { localExecution: true, approvalControl: ['codex', 'cursor', 'deepseek-harness'].includes(binding.adapter), richEvents: ['codex', 'cursor', 'deepseek-harness'].includes(binding.adapter) } })
     }
     const local = [...(this.state.localCatalog?.projects || []), ...(this.saved.localProjects || [])]
-    for (const adapter of ['codex', 'claude-code', 'cursor', 'deepseek-harness'] as AgentAdapter[]) {
+    for (const adapter of AGENT_CATALOG.filter(item => item.execution).map(item => item.id)) {
       const remaining = local.filter(project => project.adapter === adapter && !descriptors.some(row => row.adapter === adapter && row.projects.some(item => sameLocalPath(item.path, project.path))))
       if (!remaining.length) continue
       const launch = adapter === 'deepseek-harness' ? { executable: this.options.nodePath, args: [] } : await this.resolveLaunch(adapter); if (!launch) continue
@@ -648,7 +650,7 @@ export class AgentHostService {
     this.localControl ||= new LocalControlBridge({ storageDir: this.options.storageDir, moduleDir: this.options.moduleDir, nodePath: this.options.nodePath, ownerId: this.options.ownerId, descriptors: () => this.localRuntimeDescriptors(), nativeRequest: (command, input) => this.nativeOnlineRequest(command, input), onChange: () => this.changed() })
     if (action.command === 'authorize_project') {
       const adapter = String(action.input?.adapter || '') as AgentAdapter
-      if (!['codex', 'claude-code', 'cursor', 'deepseek-harness'].includes(adapter)) throw new Error('请先选择受支持的本机智能体')
+      if (!LOCAL_EXECUTION_ADAPTERS.has(adapter)) throw new Error('该智能体暂未打通本地执行与主动连接')
       const selected = action.input?.createEmpty === true ? await this.createEmptyProject(adapter, action.requestId) : await this.chooseProject()
       if (requestOwner !== this.options.ownerId()) throw new Error('选择目录期间账号已切换，未保存授权')
       if (!selected) {

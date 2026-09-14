@@ -77,6 +77,10 @@ test('only an official npm package bin is resolved; script and unrelated program
 test('TRAE and built-in DSH never run a submitted binary', async () => {
   const { service, probe } = await fixture()
   await service.begin('trae'); await service.begin('deepseek-harness'); await service.check()
-  expect(service.snapshot().filter(item => item.status === 'unsupported')).toHaveLength(2)
+  const unsupported = service.snapshot().filter(item => item.status === 'unsupported')
+  expect(unsupported).toHaveLength(2)
+  expect(unsupported.find(item => item.adapter === 'trae')?.message).toContain('暂未打通')
+  expect(unsupported.find(item => item.adapter === 'deepseek-harness')?.message).toContain('启动器内置')
+  expect(unsupported.every(item => item.prompt === '' && item.configPath === '')).toBe(true)
   expect(probe).not.toHaveBeenCalled()
 })
