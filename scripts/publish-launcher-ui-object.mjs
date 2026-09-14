@@ -15,11 +15,13 @@ const expectedNewLauncherUiVersion = process.env.EXPECTED_NEW_LAUNCHER_UI_VERSIO
 const expectedNewLauncherUiSha256 = process.env.EXPECTED_NEW_LAUNCHER_UI_SHA256
 const expectedNewLauncherUiSize = Number(process.env.EXPECTED_NEW_LAUNCHER_UI_SIZE)
 const expectedNewLauncherUiUnpackedSize = Number(process.env.EXPECTED_NEW_LAUNCHER_UI_UNPACKED_SIZE)
+const mirrorTimeoutMs = Number(process.env.LAUNCHER_UI_MIRROR_TIMEOUT_MS || 30_000)
 
 if (!localFileArgument || !objectKeyArgument || !profileArgument) {
   console.error('Usage: OSS_PUBLISHER_PROFILE=/secure/profile.json node scripts/publish-oss-object.mjs <local-file> <object-key>')
   process.exit(2)
 }
+if (!Number.isSafeInteger(mirrorTimeoutMs) || mirrorTimeoutMs < 30_000 || mirrorTimeoutMs > 180_000) throw new Error('Launcher UI mirror timeout must be between 30000 and 180000 milliseconds')
 
 const localFile = path.resolve(localFileArgument)
 const objectKey = String(objectKeyArgument).replace(/^\/+/, '')
@@ -119,7 +121,7 @@ const pinnedNewHost = (payload, label) => {
 const verifyPinnedMirrors = async (artifact) => {
   for (const mirror of artifact.mirrors) {
     const remote = await fetchBoundedBytes(mirror.url, mirror.id === 'github'
-      ? { maxBytes: expectedNewLauncherUiSize, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: 30_000 }
+      ? { maxBytes: expectedNewLauncherUiSize, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: mirrorTimeoutMs }
       : { maxBytes: expectedNewLauncherUiSize, redirect: 'error', timeoutMs: 30_000 })
     if (!remote.response.ok) throw new Error(`${mirror.id} Launcher UI mirror returned HTTP ${remote.response.status}`)
     const finalHost = new URL(remote.response.url).hostname

@@ -11,6 +11,7 @@ const expectedNewLauncherUiVersion = process.env.EXPECTED_NEW_LAUNCHER_UI_VERSIO
 const expectedNewLauncherUiSha256 = process.env.EXPECTED_NEW_LAUNCHER_UI_SHA256
 const expectedNewLauncherUiSize = Number(process.env.EXPECTED_NEW_LAUNCHER_UI_SIZE)
 const expectedNewLauncherUiUnpackedSize = Number(process.env.EXPECTED_NEW_LAUNCHER_UI_UNPACKED_SIZE)
+const mirrorTimeoutMs = Number(process.env.LAUNCHER_UI_MIRROR_TIMEOUT_MS || 30_000)
 const productionManifestUrl = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json'
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
 const outputFile = path.resolve(outputPath || '')
@@ -20,6 +21,7 @@ if (!onlineManifestPath || !launcherUiRecordPath || !outputPath || !expectedLaun
   console.error('Usage: EXPECTED_PUBLIC_LAUNCHER_VERSION=<version> EXPECTED_PUBLIC_LAUNCHER_UI_VERSION=<version> EXPECTED_NEW_LAUNCHER_UI_VERSION=<version> EXPECTED_NEW_LAUNCHER_UI_SHA256=<sha256> EXPECTED_NEW_LAUNCHER_UI_SIZE=<bytes> EXPECTED_NEW_LAUNCHER_UI_UNPACKED_SIZE=<bytes> node scripts/prepare-launcher-ui-hot-update.mjs <online-manifest.json> <launcher-ui.generated.json> <output-payload.json>')
   process.exit(2)
 }
+if (!Number.isSafeInteger(mirrorTimeoutMs) || mirrorTimeoutMs < 30_000 || mirrorTimeoutMs > 180_000) throw new Error('Launcher UI mirror timeout must be between 30000 and 180000 milliseconds')
 if (outputFile !== expectedOutputFile || [path.resolve(onlineManifestPath), path.resolve(launcherUiRecordPath)].includes(outputFile)) throw new Error('Launcher UI payload output must use the fixed release path and cannot overwrite input evidence')
 const temporaryOutputFile = `${outputFile}.next`
 await rm(outputFile, { force: true })
@@ -107,7 +109,7 @@ for (const mirror of mirrors) {
     throw new Error('Launcher UI GitHub mirror is outside the fixed release path')
   }
   const remote = await fetchBoundedBytes(url, mirror.id === 'github'
-    ? { maxBytes: sourceArtifact.size, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: 30_000 }
+    ? { maxBytes: sourceArtifact.size, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: mirrorTimeoutMs }
     : { maxBytes: sourceArtifact.size, redirect: 'error', timeoutMs: 30_000 })
   if (!remote.response.ok) throw new Error(`${mirror.id} Launcher UI mirror returned HTTP ${remote.response.status}`)
   const finalHost = new URL(remote.response.url).hostname
