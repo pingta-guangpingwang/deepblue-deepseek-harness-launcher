@@ -32,6 +32,7 @@ payload.plugins = bundledPlugins.map(plugin => ({ ...plugin, installed: false, u
 payload.launcher = {
   version: packageJson.version,
   notes: [
+    '0.10.36 自动把旧版数字凭据版本迁移为 DSH 兼容字符串；无可信回执的非活动模块会保留隔离副本后重新下载，启动就绪需通过稳定期复核',
     '0.10.35 本地协作支持多角色执行、同目录排队取消和可选 Git worktree；原生单聊跨轮续接，独立窗口共享同一会话',
     '网页工作区在线读取本机历史与用户主动打开的文件；离线明确断开，不保存云端聊天正文、文件正文或离线指令',
     '修复官方 Claude 原生程序发现与桌面桥接连接归属，加固目录选择取消和重复打开；不修改全局 Codex 配置',

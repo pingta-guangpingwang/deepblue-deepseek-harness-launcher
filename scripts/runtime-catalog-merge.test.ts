@@ -24,8 +24,8 @@ describe('independent Agent Host publishing', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     const releaseScript = readFileSync(new URL('./update-release-payload.mjs', import.meta.url), 'utf8');
     expect(pkg.scripts['modules:build']).toContain('npm run hot-update:agent-host');
-    expect(pkg.version).toBe('0.10.35');
+    expect(pkg.version).toBe('0.10.36');
     expect(releaseScript).toContain("'launcher-ui', 'agent-host'");
-    expect(releaseScript.indexOf('0.10.35 扩展智能体工作台基础请求白名单')).toBeLessThan(releaseScript.indexOf('0.10.34 增加电脑托管基础 IPC'));
+    expect(releaseScript.indexOf('0.10.36 自动把旧版数字凭据版本迁移')).toBeLessThan(releaseScript.indexOf('0.10.35 扩展智能体工作台基础请求白名单'));
   });
 });
