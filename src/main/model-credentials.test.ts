@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
+import { harnessCredentialsNeedVersionMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 
 describe('Harness credential synchronization', () => {
   it('preserves unrelated credentials while setting and removing managed keys', () => {
@@ -8,7 +8,7 @@ describe('Harness credential synchronization', () => {
       OLD_KEY: undefined
     })
     expect(output).toContain('# keep this comment')
-    expect(output).toContain('version: 1')
+    expect(output).toContain('version: "1"')
     expect(output).toContain('refs:')
     expect(parseHarnessCredentials(output)).toEqual({
       SEARCH_KEY: 'search-secret',
@@ -18,8 +18,11 @@ describe('Harness credential synchronization', () => {
 
   it('reads and updates the official version-1 refs layout while preserving records', () => {
     const source = `version: 1\nrefs:\n  DEEPSEEK_API_KEY: old-key\nrecords:\n  vendor/account:\n    type: oauth\n`
+    expect(harnessCredentialsNeedVersionMigration(source)).toBe(true)
     expect(parseHarnessCredentials(source)).toEqual({ DEEPSEEK_API_KEY: 'old-key' })
     const output = mergeHarnessCredentials(source, { DEEPSEEK_API_KEY: 'new-key', SEARCH_KEY: 'search-key' })
+    expect(output).toContain('version: "1"')
+    expect(harnessCredentialsNeedVersionMigration(output)).toBe(false)
     expect(parseHarnessCredentials(output)).toEqual({ DEEPSEEK_API_KEY: 'new-key', SEARCH_KEY: 'search-key' })
     expect(output).toContain('vendor/account:')
     expect(output).toContain('type: oauth')

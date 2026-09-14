@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as tar from 'tar'
@@ -104,6 +104,47 @@ describe('runtime module store', () => {
     const rolledBack = await store.rollback('node-runtime')
     expect(await readFile(path.join(rolledBack, 'bin', 'runtime.txt'), 'utf8')).toBe('first')
     expect(await store.activeRoot('node-runtime')).toBe(rolledBack)
+  })
+
+  it('quarantines an inactive module without a trusted receipt and reinstalls verified bytes', async () => {
+    const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-repair-'))
+    roots.push(installationRoot)
+    const item = await fixture('24.16.0', 'trusted-replacement')
+    const invalidRoot = path.join(installationRoot, 'modules', 'node-runtime', item.module.version)
+    await mkdir(path.join(invalidRoot, 'bin'), { recursive: true })
+    await writeFile(path.join(invalidRoot, 'bin', 'runtime.txt'), 'untrusted-leftover')
+    vi.stubGlobal('fetch', vi.fn(async (_url: string | URL | Request, init?: RequestInit) => init?.method === 'HEAD'
+      ? new Response(null, { status: 200 })
+      : new Response(responseBody(item.archive), { status: 200 })))
+    const progress: string[] = []
+
+    const installed = await new RuntimeModuleStore(installationRoot).install(item.module, [item.module], 'win32', 'x64', entry => {
+      if (entry.message) progress.push(entry.message)
+    })
+
+    expect(installed.reused).toBe(false)
+    expect(await readFile(path.join(installed.root, 'bin', 'runtime.txt'), 'utf8')).toBe('trusted-replacement')
+    expect(JSON.parse(await readFile(path.join(installed.root, 'module-receipt.json'), 'utf8'))).toMatchObject({ id: 'node-runtime', version: '24.16.0', artifactSha256: item.module.artifacts[0]!.sha256 })
+    const quarantined = await readdir(path.join(installationRoot, 'modules', '.quarantine'))
+    expect(quarantined).toHaveLength(1)
+    expect(await readFile(path.join(installationRoot, 'modules', '.quarantine', quarantined[0]!, 'bin', 'runtime.txt'), 'utf8')).toBe('untrusted-leftover')
+    expect(progress).toContain('发现无可信回执的旧模块，已安全隔离并准备重新下载')
+  })
+
+  it('never replaces an active module whose receipt is missing', async () => {
+    const installationRoot = await mkdtemp(path.join(tmpdir(), 'deepblue-runtime-active-invalid-'))
+    roots.push(installationRoot)
+    const item = await fixture('24.16.0', 'replacement')
+    const invalidRoot = path.join(installationRoot, 'modules', 'node-runtime', item.module.version)
+    await mkdir(invalidRoot, { recursive: true })
+    await writeFile(path.join(invalidRoot, 'runtime.txt'), 'currently-active')
+    await writeFile(path.join(installationRoot, 'modules', 'state.json'), JSON.stringify({ schemaVersion: 1, active: { 'node-runtime': item.module.version }, previous: {}, installed: { 'node-runtime': [item.module.version] } }))
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(new RuntimeModuleStore(installationRoot).install(item.module, [item.module], 'win32', 'x64')).rejects.toThrow('当前启用模块缺少可信安装凭据')
+    expect(await readFile(path.join(invalidRoot, 'runtime.txt'), 'utf8')).toBe('currently-active')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('switches directly from an unavailable Gitee mirror to OSS without waiting for GitHub', async () => {

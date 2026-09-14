@@ -33,6 +33,7 @@ import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
 import { AccountService, openContentWindow } from './account'
 import { coreRuntimeMissing } from '../shared/environment-health'
+import { advanceHarnessReadiness } from './service-readiness'
 import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
 import type {
   EnvironmentItem,
@@ -2368,15 +2369,18 @@ export class LauncherController {
 
   private async waitForServer(browserCycle: number): Promise<void> {
     const url = `http://127.0.0.1:${this.config.settings.port}`
+    let readiness = advanceHarnessReadiness({ consecutiveSuccesses: 0 }, false, Date.now())
     for (let attempt = 0; attempt < 90 && this.snapshot.runStatus === 'starting'; attempt += 1) {
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(750) })
-        if (response.ok) {
+        readiness = advanceHarnessReadiness(readiness, response.ok && this.service?.exitCode === null, Date.now())
+        if (readiness.ready) {
           this.markRunning(url, browserCycle)
           return
         }
       } catch {
         // The server normally needs several seconds before accepting requests.
+        readiness = advanceHarnessReadiness(readiness, false, Date.now())
       }
       if (attempt % 2 === 0) this.updateLaunchProgress('waiting', Math.min(96, 76 + Math.round(attempt / 89 * 20)), `正在等待本地服务就绪 · ${attempt + 1}/90`)
       await new Promise((resolve) => setTimeout(resolve, 500))

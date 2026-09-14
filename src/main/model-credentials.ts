@@ -5,7 +5,7 @@ const CREDENTIAL_REF = /^[A-Za-z_][A-Za-z0-9_]*$/
 function credentialRefs(root: Record<string, unknown>): Record<string, unknown> {
   if (!Object.keys(root).length) return {}
   if (!('version' in root)) return root
-  if (root.version !== 1) throw new Error('Harness 密钥文件版本不受支持')
+  if (root.version !== 1 && root.version !== '1') throw new Error('Harness 密钥文件版本不受支持')
   if (Object.keys(root).some(key => !['version', 'refs', 'records'].includes(key))) {
     throw new Error('Harness 密钥文件包含未知顶层字段')
   }
@@ -14,6 +14,14 @@ function credentialRefs(root: Record<string, unknown>): Record<string, unknown> 
     throw new Error('Harness 密钥文件 refs 必须是键值对象')
   }
   return refs as Record<string, unknown>
+}
+
+/** Older launchers wrote YAML number 1, while current DSH requires the version scalar to be a string. */
+export function harnessCredentialsNeedVersionMigration(source: string): boolean {
+  const document = parseDocument(source || '{}\n', { prettyErrors: false, uniqueKeys: true })
+  if (document.errors.length) return false
+  const root: unknown = document.toJS() ?? {}
+  return typeof root === 'object' && root !== null && !Array.isArray(root) && (root as Record<string, unknown>).version === 1
 }
 
 /** Parse Harness's private credential document without quoting secret values in failures. */
@@ -45,10 +53,11 @@ export function mergeHarnessCredentials(
   const versioned = typeof initial === 'object' && initial !== null && !Array.isArray(initial) && 'version' in initial
   if (!versioned) {
     normalized = Object.keys(parsed).length
-      ? `version: 1\nrefs:\n${normalized.split('\n').map(line => line.length ? `  ${line}` : line).join('\n')}${normalized.endsWith('\n') ? '' : '\n'}`
-      : 'version: 1\nrefs: {}\n'
+      ? `version: "1"\nrefs:\n${normalized.split('\n').map(line => line.length ? `  ${line}` : line).join('\n')}${normalized.endsWith('\n') ? '' : '\n'}`
+      : 'version: "1"\nrefs: {}\n'
   }
   const document = parseDocument(normalized)
+  document.set('version', '1')
   for (const [ref, value] of Object.entries(updates)) {
     if (!CREDENTIAL_REF.test(ref)) throw new Error('密钥引用名称不合法')
     if (value === undefined) document.deleteIn(['refs', ref])

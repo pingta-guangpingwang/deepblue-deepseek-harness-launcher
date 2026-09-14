@@ -7,7 +7,7 @@ import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { launcherDataPaths, writeConfig, type PersistedConfig } from './config'
 import { parseModelUsageLine } from './model-usage'
 import { mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
-import { mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
+import { harnessCredentialsNeedVersionMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 import { runMultimodalApi } from './multimodal'
 import { queryDeepSeekBalance } from './deepseek-balance'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
@@ -416,6 +416,10 @@ export class ModelStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       targetExists = false
+    }
+    if (targetExists && harnessCredentialsNeedVersionMigration(source)) {
+      await this.writeHarnessCredentials({})
+      source = await readFile(target, 'utf8')
     }
     const stored = parseHarnessCredentials(source)
     // Older launchers either encrypted keys locally or inherited them from the

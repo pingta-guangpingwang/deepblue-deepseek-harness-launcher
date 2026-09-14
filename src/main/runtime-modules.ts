@@ -482,12 +482,19 @@ export class RuntimeModuleStore {
       if (!artifact) throw new Error(`模块不支持当前系统：${target.id} ${platform}-${arch}`)
       const finalRoot = moduleDirectory(this.root, target.id, target.version)
       if (await exists(finalRoot)) {
-        if (!await validReceipt(finalRoot, target, artifact)) throw new Error(`模块目录缺少可信安装凭据：${target.id} ${target.version}`)
-        onProgress?.({ moduleId: target.id, phase: 'probe', receivedBytes: artifact.size, totalBytes: artifact.size })
-        await runProbe(target, finalRoot)
-        await this.activate(target.id, target.version)
-        onProgress?.({ moduleId: target.id, phase: 'activate', receivedBytes: artifact.size, totalBytes: artifact.size })
-        return { moduleId: target.id, version: target.version, root: finalRoot, reused: true }
+        if (await validReceipt(finalRoot, target, artifact)) {
+          onProgress?.({ moduleId: target.id, phase: 'probe', receivedBytes: artifact.size, totalBytes: artifact.size })
+          await runProbe(target, finalRoot)
+          await this.activate(target.id, target.version)
+          onProgress?.({ moduleId: target.id, phase: 'activate', receivedBytes: artifact.size, totalBytes: artifact.size })
+          return { moduleId: target.id, version: target.version, root: finalRoot, reused: true }
+        }
+        const state = await readState(this.stateFile)
+        if (state.active[target.id] === target.version) throw new Error(`当前启用模块缺少可信安装凭据：${target.id} ${target.version}；请先停止相关功能并执行快速修复`)
+        const quarantineRoot = path.join(this.root, 'modules', '.quarantine', `${target.id}-${target.version}-${randomUUID()}`)
+        await mkdir(path.dirname(quarantineRoot), { recursive: true })
+        await rename(finalRoot, quarantineRoot)
+        onProgress?.({ moduleId: target.id, phase: 'source-check', receivedBytes: 0, totalBytes: artifact.size, message: '发现无可信回执的旧模块，已安全隔离并准备重新下载' })
       }
       const downloaded = await downloadArtifact(this.root, target, artifact, onProgress)
       const stagingRoot = path.join(this.root, 'modules', '.staging', `${target.id}-${target.version}-${randomUUID()}`)
