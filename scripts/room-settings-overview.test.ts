@@ -30,4 +30,13 @@ describe('room settings overview', () => {
     expect(cloud).toContain("label: '执行权限'")
     expect(cloud).toContain("label: '消息路由'")
   })
+
+  it('requests room candidates for this Launcher device only', () => {
+    const cloud = read('AgentSessionGroups.tsx')
+    expect(cloud).toContain('requestDeviceRoomList')
+    expect(cloud).toContain("method: 'POST', action: 'room_list'")
+    expect(cloud).toContain("candidateScope: 'device', deviceId")
+    expect(cloud).toContain("response.candidateScope !== 'device'")
+    expect(cloud).toContain("candidateScope: 'device', deviceId: candidateDeviceId.current")
+  })
 })

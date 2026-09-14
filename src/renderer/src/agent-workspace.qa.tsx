@@ -22,7 +22,7 @@ const MESSAGE_FIVE_ID = '0'.repeat(32)
 const COMPLETE_APPROVAL_ID = '6'.repeat(32)
 const UNKNOWN_APPROVAL_ID = '7'.repeat(32)
 const host: AgentHostSnapshot = {
-  supported: true, enabled: true, deviceId: 'qa-device', deviceName: '创作电脑 · 合成测试数据', ownerUserId: 'qa-user', connection: 'online', lastHeartbeatAt: new Date().toISOString(),
+  supported: true, enabled: true, deviceId: 'd'.repeat(32), deviceName: '创作电脑 · 合成测试数据', ownerUserId: 'qa-user', connection: 'online', lastHeartbeatAt: new Date().toISOString(),
   agents: [
     { id: 'qa-codex', name: 'Codex · 网站开发', adapter: 'codex', projectRoots: ['E:/authorized/site'], autoStart: true, status: 'online', runtimeStatus: 'ready', busy: false },
     { id: 'qa-qclaw', name: 'QClaw · 启动器', adapter: 'qclaw', projectRoots: ['E:/authorized/launcher'], autoStart: true, status: 'online', runtimeStatus: 'ready', busy: false },
@@ -127,8 +127,8 @@ function roomDetailPayload(roomId: string, overrides: Partial<RoomFixtureDetail>
   return { ok: true, contractVersion: 2, changed: true, detailRevision: roomDetailRevision(roomId), room: structuredClone(room), members: structuredClone(members), messages: structuredClone(messages), runs: structuredClone(runs), actions: structuredClone(actionRows), window: structuredClone(window) }
 }
 const candidates = {
-  agents: host.agents.map(agent => ({ id: agent.id, display_name: agent.name, adapter_code: agent.adapter, runtime_status: agent.runtimeStatus, can_dispatch: ['ready', 'busy'].includes(agent.runtimeStatus), readiness_source: 'host' })),
-  projects: host.agents.map(agent => ({ id: `${agent.id}-project`, agent_id: agent.id, source_name: agent.id === 'qa-codex' ? 'AI历史书网站' : agent.id === 'qa-qclaw' ? '启动器界面' : '技术说明文档' })),
+  agents: host.agents.map(agent => ({ id: agent.id, display_name: agent.name, adapter_code: agent.adapter, device_id: host.deviceId, runtime_status: agent.runtimeStatus, can_dispatch: ['ready', 'busy'].includes(agent.runtimeStatus), readiness_source: 'host' })),
+  projects: host.agents.map(agent => ({ id: `${agent.id}-project`, agent_id: agent.id, device_id: host.deviceId, source_name: agent.id === 'qa-codex' ? 'AI历史书网站' : agent.id === 'qa-qclaw' ? '启动器界面' : '技术说明文档' })),
   truncated: { agents: false, projects: false }, limits: { candidateAgents: 12, projects: 60, maxMembers: 3 }
 }
 
@@ -182,7 +182,7 @@ window.launcher = parameters.has('legacy') ? undefined : {
       if (request.action === 'bootstrap') return { ok: true, agents: host.agents.map(agent => ({ id: agent.id, display_name: agent.name, adapter_code: agent.adapter, status: agent.status })) }
       if (request.action === 'agent_state') return { ok: true, state: cloudState(request.params?.agentId || 'qa-codex') }
       if (request.action === 'session_history') return { ok: true, messages: structuredClone(history) }
-      if (request.action === 'room_list') return { ok: true, contractVersion: 2, rooms: structuredClone(qaRooms), candidates: structuredClone(candidates) }
+      if (request.action === 'room_list') return { ok: true, contractVersion: 2, candidateScope: 'device', candidateDeviceId: String(request.body?.deviceId || ''), rooms: structuredClone(qaRooms), candidates: structuredClone(candidates) }
       if (request.action === 'room_detail') {
         const roomId = request.params?.roomId || ''
         const detail = qaRoomDetails.get(roomId)

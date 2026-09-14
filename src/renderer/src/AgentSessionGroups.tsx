@@ -9,8 +9,8 @@ import { RoomSettingsOverview } from './RoomSettingsOverview'
 import { AGENT_SESSION_GROUPS_MIN_LAUNCHER_VERSION, launcherSupportsAgentSessionGroups } from './agent-session-groups-support'
 
 type JsonRecord = Record<string, unknown>
-interface CandidateProject { id: string; agentId: string; name: string; pathKey?: string }
-interface CandidateAgent { id: string; name: string; adapter: string; status: string; canDispatch: boolean; statusMessage?: string; projects: CandidateProject[] }
+interface CandidateProject { id: string; agentId: string; name: string; deviceId?: string; pathKey?: string }
+interface CandidateAgent { id: string; name: string; adapter: string; deviceId?: string; status: string; canDispatch: boolean; statusMessage?: string; projects: CandidateProject[] }
 interface CandidateCatalog { agents: CandidateAgent[]; truncated: { agents: boolean; projects: boolean }; limits: { candidateAgents: number; projects: number; maxMembers: number } }
 export interface SharedFolderOption { pathKey: string; name: string; agentIds: string[] }
 interface RoomEditorState {
@@ -323,14 +323,15 @@ export function mergeRoomDetail(current: AgentRoomDetail | undefined, incoming: 
   }
 }
 
-function normalizeCandidates(value: unknown): CandidateCatalog {
+function normalizeCandidates(value: unknown, expectedDeviceId: string | null = null): CandidateCatalog {
   const catalog = object(value)
   if (!Array.isArray(catalog.agents) || !Array.isArray(catalog.projects)) throw new RoomContractError('房间候选目录不完整，请刷新并确认网站端已更新。')
-  const projects = rows(catalog.projects).map(row => { const pathKey = text(field(row, 'path_key', 'pathKey')) || undefined; return { id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目', ...(pathKey && DETAIL_REVISION_PATTERN.test(pathKey) ? { pathKey } : {}) } }).filter(project => project.id && project.agentId)
+  const projects = rows(catalog.projects).map(row => { const pathKey = text(field(row, 'path_key', 'pathKey')) || undefined; return { id: text(row.id), agentId: text(field(row, 'agent_id', 'agentId')), name: text(field(row, 'source_name', 'sourceName', 'name')) || '未命名项目', deviceId: text(field(row, 'device_id', 'deviceId')) || undefined, ...(pathKey && DETAIL_REVISION_PATTERN.test(pathKey) ? { pathKey } : {}) } }).filter(project => project.id && project.agentId)
   const agents = rows(catalog.agents).map(row => {
     const id = text(row.id)
-    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown', canDispatch: bool(field(row, 'can_dispatch', 'canDispatch')), statusMessage: text(field(row, 'status_message', 'statusMessage')) || undefined, projects: projects.filter(project => project.agentId === id) }
+    return { id, name: text(field(row, 'display_name', 'displayName', 'name')) || text(field(row, 'adapter_code', 'adapterCode')) || '智能体', adapter: text(field(row, 'adapter_code', 'adapterCode')), deviceId: text(field(row, 'device_id', 'deviceId')) || undefined, status: text(field(row, 'runtime_status', 'runtimeStatus', 'status')) || 'unknown', canDispatch: bool(field(row, 'can_dispatch', 'canDispatch')), statusMessage: text(field(row, 'status_message', 'statusMessage')) || undefined, projects: projects.filter(project => project.agentId === id) }
   }).filter(agent => agent.id)
+  if (expectedDeviceId !== null && (agents.some(agent => agent.deviceId !== expectedDeviceId) || projects.some(project => project.deviceId !== expectedDeviceId))) throw new RoomContractError('候选目录包含其他电脑的数据，已停止显示。')
   const truncated = object(catalog.truncated)
   const limits = object(catalog.limits)
   return {
@@ -557,11 +558,22 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
   const sendSubmissions = useRef(new Map<string, string>())
   const editorSubmission = useRef<{ signature: string; clientRequestId: string } | undefined>(undefined)
   const deleteSubmissions = useRef(new Map<string, string>())
+  const candidateDeviceId = useRef('')
 
   async function request(value: AgentWorkspaceRequest): Promise<JsonRecord> {
     if (!window.launcher?.agentWorkspaceRequest) throw new Error('当前启动器内核缺少多智能会话接口，请检查更新。')
     const response = await window.launcher.agentWorkspaceRequest(value)
     if (response.ok === false) throw new Error(text(response.message) || text(response.error) || '多智能会话操作未完成，请稍后重试。')
+    return response
+  }
+
+  async function requestDeviceRoomList(): Promise<JsonRecord> {
+    const host = await window.launcher?.agentHostState?.()
+    const deviceId = text(host?.deviceId)
+    if (deviceId && !ID_PATTERN.test(deviceId)) throw new RoomContractError('本机设备标识无效，已停止读取候选项目。')
+    const response = await request({ scope: 'hub', method: 'POST', action: 'room_list', body: { candidateScope: 'device', deviceId } })
+    if (response.candidateScope !== 'device' || text(response.candidateDeviceId) !== deviceId) throw new RoomContractError('网站未按当前电脑隔离候选项目，已停止显示。')
+    candidateDeviceId.current = deviceId
     return response
   }
 
@@ -574,7 +586,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
     accountEpoch.current += 1
     syncGeneration.current += 1; detailRequestSequence.current += 1; manualWindowPending.current = false
     setRooms([]); setSelectedRoomId(initialRoomId); selectedRoomRef.current = initialRoomId; setDetail(undefined); setCandidateCatalog(undefined); setError(''); setSyncBlocked(false); unsafeSync.current = false; setNotice(''); setDraft(''); draftRef.current = ''; setMentionTokens([]); mentionTokensRef.current = []; setEditor(undefined); setMembersOpen(false)
-    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear(); setAuthorizeNotice('')
+    detailRevision.current = ''; latestMessageSeq.current = 0; unchangedPolls.current = 0; lastDetailActive.current = false; sendSubmissions.current.clear(); editorSubmission.current = undefined; deleteSubmissions.current.clear(); candidateDeviceId.current = ''; setAuthorizeNotice('')
   }, [userId, signedIn])
 
   useEffect(() => {
@@ -585,12 +597,12 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
       const generation = syncGeneration.current
       setLoading(true)
       try {
-        const response = await request({ scope: 'hub', method: 'GET', action: 'room_list' })
+        const response = await requestDeviceRoomList()
         if (disposed || epoch !== accountEpoch.current || generation !== syncGeneration.current) return
         if (response.contractVersion !== 2) throw new RoomContractError('网站端尚未启用多智能房间 v2，请稍后更新。')
         if (!Array.isArray(response.rooms)) throw new RoomContractError('网站端房间列表不完整，请稍后更新。')
         const nextRooms = rows(response.rooms).map(normalizeRoomSummary).filter(room => room.id)
-        setRooms(nextRooms); setCandidateCatalog(normalizeCandidates(response.candidates))
+        setRooms(nextRooms); setCandidateCatalog(normalizeCandidates(response.candidates, candidateDeviceId.current))
         const previousRoomId = selectedRoomRef.current
         const nextRoomId = detached ? initialRoomId : previousRoomId && nextRooms.some(room => room.id === previousRoomId) ? previousRoomId : nextRooms[0]?.id || ''
         if (nextRoomId !== previousRoomId) chooseRoom(nextRoomId)
@@ -720,10 +732,10 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
   async function refreshCandidates(): Promise<void> {
     const generation = syncGeneration.current
     try {
-      const response = await request({ scope: 'hub', method: 'GET', action: 'room_list' })
+      const response = await requestDeviceRoomList()
       if (generation !== syncGeneration.current) return
       if (response.contractVersion !== 2) throw new RoomContractError('网站端尚未启用多智能房间 v2，请稍后更新。')
-      setCandidateCatalog(normalizeCandidates(response.candidates))
+      setCandidateCatalog(normalizeCandidates(response.candidates, candidateDeviceId.current))
     } catch (cause) { if (generation === syncGeneration.current) setEditorError(cause instanceof Error ? cause.message : '候选目录刷新失败，请稍后重试。') }
   }
 
@@ -755,7 +767,7 @@ export function AgentSessionGroups({ snapshot, onLogin, initialRoomId = '', deta
     const generation = syncGeneration.current
     const sharedResolved = editor.projectMode === 'shared' ? resolveSharedProjects(candidateCatalog!, editor.sharedPathKey || '', editor.members) : undefined
     const members = editor.members.map(member => ({ ...member, displayName: member.displayName.trim(), mentionHandle: member.mentionHandle.trim().replace(/^@/, ''), responsibility: member.responsibility.trim(), sessionLabel: member.sessionLabel.trim(), projectId: sharedResolved ? sharedResolved.get(member.id)?.id || '' : member.projectId }))
-    const body: Record<string, unknown> = { ...(editor.roomId ? { roomId: editor.roomId, expectedDefinitionRevision: editor.expectedDefinitionRevision } : {}), name: editor.name.trim(), coordinatorMemberId: editor.coordinatorMemberId, maxSteps: editor.maxSteps, defaultAccess: editor.defaultAccess, members }
+    const body: Record<string, unknown> = { ...(editor.roomId ? { roomId: editor.roomId, expectedDefinitionRevision: editor.expectedDefinitionRevision } : {}), candidateScope: 'device', deviceId: candidateDeviceId.current, name: editor.name.trim(), coordinatorMemberId: editor.coordinatorMemberId, maxSteps: editor.maxSteps, defaultAccess: editor.defaultAccess, members }
     const signature = JSON.stringify(body)
     if (editorSubmission.current?.signature !== signature) editorSubmission.current = { signature, clientRequestId: crypto.randomUUID() }
     body.clientRequestId = editorSubmission.current.clientRequestId
