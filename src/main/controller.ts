@@ -442,6 +442,7 @@ export class LauncherController {
       this.updateLaunchProgress('starting', 58, '正在同步模型配置与本机密钥')
       this.log('INFO', `正在启动 Harness，工作区：${this.config.settings.workspace}`)
       this.emit()
+      await this.modelStore.prepareHarnessCredentials(this.config.activeVersion)
       const modelEnvironment = await this.modelStore.environment()
       this.updateLaunchProgress('starting', 70, '正在启动 Harness 本地服务')
       await assertHarnessPortAvailable(this.config.settings.port)
@@ -1757,7 +1758,11 @@ export class LauncherController {
     child.stdout.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'INFO'))
     child.stderr.on('data', (chunk: Buffer) => this.consumeProcessOutput(chunk.toString(), 'WARN'))
     const code = await new Promise<number | null>((resolve) => child.once('exit', resolve))
-    if (code !== 0) this.log('WARN', `外观运行插件配置失败（退出码 ${code ?? 'unknown'}），Harness 将继续使用默认外观`)
+    if (code !== 0) {
+      this.log('WARN', `外观运行插件包管理器配置失败（退出码 ${code ?? 'unknown'}），正在使用安装包内归档完成本地修复`)
+      await installAppearanceRuntimeAtomically(paths.dshHome, archive, expectedVersion)
+      this.log('INFO', `皮肤与宠物运行插件已从安装包内归档安装至 ${expectedVersion}`)
+    }
   }
 
   private async ensurePackageManager(

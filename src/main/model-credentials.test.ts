@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { harnessCredentialsNeedVersionMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
+import { harnessCredentialsLayoutForVersion, harnessCredentialsNeedLayoutMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 
 describe('Harness credential synchronization', () => {
   it('preserves unrelated credentials while setting and removing managed keys', () => {
@@ -8,7 +8,7 @@ describe('Harness credential synchronization', () => {
       OLD_KEY: undefined
     })
     expect(output).toContain('# keep this comment')
-    expect(output).toContain('version: "1"')
+    expect(output).toContain('version: 1')
     expect(output).toContain('refs:')
     expect(parseHarnessCredentials(output)).toEqual({
       SEARCH_KEY: 'search-secret',
@@ -18,14 +18,25 @@ describe('Harness credential synchronization', () => {
 
   it('reads and updates the official version-1 refs layout while preserving records', () => {
     const source = `version: 1\nrefs:\n  DEEPSEEK_API_KEY: old-key\nrecords:\n  vendor/account:\n    type: oauth\n`
-    expect(harnessCredentialsNeedVersionMigration(source)).toBe(true)
     expect(parseHarnessCredentials(source)).toEqual({ DEEPSEEK_API_KEY: 'old-key' })
     const output = mergeHarnessCredentials(source, { DEEPSEEK_API_KEY: 'new-key', SEARCH_KEY: 'search-key' })
-    expect(output).toContain('version: "1"')
-    expect(harnessCredentialsNeedVersionMigration(output)).toBe(false)
+    expect(output).toContain('version: 1')
     expect(parseHarnessCredentials(output)).toEqual({ DEEPSEEK_API_KEY: 'new-key', SEARCH_KEY: 'search-key' })
     expect(output).toContain('vendor/account:')
     expect(output).toContain('type: oauth')
+  })
+
+  it('renders the credential layout required by old and current DSH versions', () => {
+    const versioned = 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: existing-key\n'
+    expect(harnessCredentialsLayoutForVersion('0.1.0-rc.3')).toBe('flat')
+    expect(harnessCredentialsLayoutForVersion('0.1.1-rc.2')).toBe('versioned')
+    expect(harnessCredentialsNeedLayoutMigration(versioned, '0.1.0-rc.3')).toBe(true)
+    const flat = mergeHarnessCredentials(versioned, {}, 'flat')
+    expect(flat).not.toContain('version')
+    expect(flat).not.toContain('refs')
+    expect(parseHarnessCredentials(flat)).toEqual({ DEEPSEEK_API_KEY: 'existing-key' })
+    expect(harnessCredentialsNeedLayoutMigration(flat, '0.1.1-rc.2')).toBe(true)
+    expect(mergeHarnessCredentials(flat, {}, 'versioned')).toContain('version: 1')
   })
 
   it('fails without echoing malformed secret material', () => {

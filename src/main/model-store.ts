@@ -7,7 +7,7 @@ import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { launcherDataPaths, writeConfig, type PersistedConfig } from './config'
 import { parseModelUsageLine } from './model-usage'
 import { mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
-import { harnessCredentialsNeedVersionMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
+import { harnessCredentialsLayoutForVersion, harnessCredentialsNeedLayoutMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 import { runMultimodalApi } from './multimodal'
 import { queryDeepSeekBalance } from './deepseek-balance'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
@@ -417,8 +417,8 @@ export class ModelStore {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       targetExists = false
     }
-    if (targetExists && harnessCredentialsNeedVersionMigration(source)) {
-      await this.writeHarnessCredentials({})
+    if (targetExists && harnessCredentialsNeedLayoutMigration(source, this.config.activeVersion)) {
+      await this.writeHarnessCredentials({}, this.config.activeVersion)
       source = await readFile(target, 'utf8')
     }
     const stored = parseHarnessCredentials(source)
@@ -493,7 +493,19 @@ export class ModelStore {
     await this.writeHarnessCredentials({ [ref]: value })
   }
 
-  private async writeHarnessCredentials(updates: Record<string, string | undefined>): Promise<void> {
+  async prepareHarnessCredentials(version: string): Promise<void> {
+    const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
+    let source: string
+    try {
+      source = await readFile(target, 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+    if (harnessCredentialsNeedLayoutMigration(source, version)) await this.writeHarnessCredentials({}, version)
+  }
+
+  private async writeHarnessCredentials(updates: Record<string, string | undefined>, version = this.config.activeVersion): Promise<void> {
     const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
     await mkdir(path.dirname(target), { recursive: true, mode: 0o700 })
     await withFileLock(target, async () => {
@@ -503,7 +515,7 @@ export class ModelStore {
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
-      await writeFileAtomic(target, mergeHarnessCredentials(source, updates), { mode: 0o600, dirMode: 0o700 })
+      await writeFileAtomic(target, mergeHarnessCredentials(source, updates, harnessCredentialsLayoutForVersion(version)), { mode: 0o600, dirMode: 0o700 })
     })
   }
 

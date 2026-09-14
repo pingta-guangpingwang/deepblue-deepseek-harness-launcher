@@ -64,14 +64,14 @@ describe('ModelStore two-way Harness synchronization', () => {
     await store.initialize()
 
     const credentialsPath = path.join(runtime.root, 'harness-data', '.credentials.yaml')
-    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: '1', refs: { DEEPSEEK_API_KEY: 'launcher-initial' } })
+    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: 1, refs: { DEEPSEEK_API_KEY: 'launcher-initial' } })
     expect(await store.environment()).toEqual({ DEEPSEEK_API_KEY: undefined })
 
     await store.saveProvider({
       id: 'deepseek-official', name: 'ignored', api: 'deepseek', baseURL: 'https://wrong.example',
       apiKey: 'launcher-updated', models: [{ id: 'deepseek-v4-flash', name: 'ignored' }], custom: false
     })
-    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: '1', refs: { DEEPSEEK_API_KEY: 'launcher-updated' } })
+    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: 1, refs: { DEEPSEEK_API_KEY: 'launcher-updated' } })
 
     await new Promise(resolve => setTimeout(resolve, 500))
     await writeFile(path.join(runtime.root, 'harness-data', 'settings.yaml'), `agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-pro\nllm-deepseek:\n  baseURL: https://api.deepseek.com\n  apiKeyEnv: DEEPSEEK_API_KEY\n  models:\n    - id: deepseek-v4-pro\n      name: DeepSeek V4 Pro\n`)
@@ -98,7 +98,7 @@ describe('ModelStore two-way Harness synchronization', () => {
     await store.initialize()
 
     const credentialsPath = path.join(runtime.root, 'harness-data', '.credentials.yaml')
-    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: '1', refs: { DEEPSEEK_API_KEY: 'legacy-environment-key' } })
+    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: 1, refs: { DEEPSEEK_API_KEY: 'legacy-environment-key' } })
     expect(store.state().providers[0]?.configured).toBe(true)
 
     store.dispose()
@@ -109,16 +109,18 @@ describe('ModelStore two-way Harness synchronization', () => {
     expect(store.state().providers[0]?.configured).toBe(false)
   })
 
-  it('normalizes an existing numeric credential version before DSH starts', async () => {
+  it('normalizes credentials in both directions when the active DSH version changes', async () => {
     const credentialsPath = path.join(runtime.root, 'harness-data', '.credentials.yaml')
     await writeFile(credentialsPath, 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: existing-key\n')
     const existing = config()
+    existing.activeVersion = '0.1.0-rc.3'
     existing.modelRouting.credentialSyncVersion = 1
     store = new ModelStore(existing)
     await store.initialize()
 
-    const body = await readFile(credentialsPath, 'utf8')
-    expect(body).toContain('version: "1"')
-    expect(parse(body)).toEqual({ version: '1', refs: { DEEPSEEK_API_KEY: 'existing-key' } })
+    const oldBody = await readFile(credentialsPath, 'utf8')
+    expect(parse(oldBody)).toEqual({ DEEPSEEK_API_KEY: 'existing-key' })
+    await store.prepareHarnessCredentials('0.1.1-rc.2')
+    expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: 1, refs: { DEEPSEEK_API_KEY: 'existing-key' } })
   })
 })
