@@ -1,5 +1,5 @@
 import { chmod, mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import path from 'node:path';
 
 function freshState() {
@@ -117,5 +117,23 @@ export class LocalStateStore {
       await handle?.close().catch(() => {});
       await unlink(temporary).catch(() => {});
     }
+  }
+
+  async archiveCommand(command, reason) {
+    // Full private result preserved before removing a command from the active queue.
+    const serializedCommand = JSON.stringify(command);
+    const name = createHash('sha256').update(serializedCommand).digest('hex') + '.json';
+    const directory = this.filePath + '.archive';
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const target = path.join(directory, name);
+    try {
+      const existing = JSON.parse(await readFile(target, 'utf8'));
+      if (JSON.stringify(existing.command) !== serializedCommand) throw new Error('终止档案校验失败，原活动记录已保留');
+    }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      await this.atomicWrite(target, JSON.stringify({ schemaVersion: 1, reason, archivedAt: new Date().toISOString(), command }, null, 2) + '\n');
+    }
+    return name;
   }
 }

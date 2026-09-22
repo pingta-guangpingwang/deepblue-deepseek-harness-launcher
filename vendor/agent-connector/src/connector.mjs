@@ -14,8 +14,9 @@ import { CodexAppServerHost } from './codex-app-server.mjs';
 import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 import { localOnlySessionIds } from './local-control/private-sessions.mjs';
+import { commandExpired, isMaintenance, syncFailurePolicy } from './command-lifecycle.mjs';
 
-const CONNECTOR_VERSION = '0.10.11';
+const CONNECTOR_VERSION = '0.10.12';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 
@@ -78,6 +79,7 @@ export function selectRunnableCommands(commands, runningTasks, maximum = 4, now 
       reservedLanes.add(laneKey);
       continue;
     }
+    if (commandExpired(command, now)) continue;
     if (reservedLanes.has(laneKey)) continue;
     if (Number(command._retryAt || 0) > now) {
       reservedLanes.add(laneKey);
@@ -447,6 +449,7 @@ export class AgentConnector {
       if (becameActive || (activeBeforeRequest && !this.syncIsActive())) this.scheduleHeartbeat();
       if (becameActive) await this.sendSnapshot('', { onlyIfChanged: true }).catch((error) => this.logger.error?.(`激活状态同步失败：${error.message}`));
       const known = new Set(this.state.pendingCommands.map((command) => command.id));
+      for (const item of this.state.commandArchive || []) known.add(item.id);
       for (const command of response.commands || []) {
         if (!command || !command.id || known.has(command.id)) continue;
         this.state.pendingCommands.push({ ...command, payload: command.payload || {}, _localStatus: 'pending' });
@@ -470,6 +473,13 @@ export class AgentConnector {
 
   async drainCommandsOnce() {
     if (this.handoffPaused) return;
+    for (const command of [...this.state.pendingCommands]) {
+      if (!commandExpired(command) || ['running','preparing'].includes(command._localStatus)) continue;
+      if (isMaintenance(command)) await this.retireCommand(command, 'maintenance_expired');
+      else if (command.command_type === 'run_task' && command._localStatus !== 'final_pending') {
+        await this.rejectRunCommand(command, '任务有效期已过，未执行本机操作。', 'task_expired');
+      }
+    }
     const cancellations = this.state.pendingCommands.filter((command) => command.command_type === 'cancel_task' && command._localStatus !== 'running');
     for (const command of cancellations) await this.retrySyncCommand(command, () => this.handleCancelCommand(command));
     // Submit newly requested work before historical sync maintenance. Final
@@ -504,6 +514,13 @@ export class AgentConnector {
       // Retain the exact command/result. Retry sync, never agent execution.
       const pending = this.findPendingCommand(command.id);
       if (pending) {
+        const policy = syncFailurePolicy(pending, error);
+        if (policy === 'archive') { await this.retireCommand(pending, 'sync_terminal_' + (error.code || error.status)); return; }
+        if (policy === 'repair_catalog') {
+          pending._catalogRepairAttempts = Number(pending._catalogRepairAttempts || 0) + 1;
+          await this.persist(); // Durable attempt bound survives restarts.
+          await this.sendSnapshot().catch(() => {});
+        }
         pending._syncRetryCount = Math.min(10, Number(pending._syncRetryCount || 0) + 1);
         pending._syncRetryAt = Date.now() + Math.min(300000, 5000 * 2 ** pending._syncRetryCount);
         pending._syncError = { status: Number(error.status) || 0, code: /^[a-z0-9_]{1,80}$/i.test(error.code || '') ? error.code : 'sync_failed' };
@@ -516,6 +533,13 @@ export class AgentConnector {
   async removeCommand(commandId) {
     this.state.pendingCommands = this.state.pendingCommands.filter((command) => command.id !== commandId);
     await this.persist();
+  }
+
+  async retireCommand(command, reason) {
+    const archive = await this.store.archiveCommand(command, reason);
+    this.state.commandArchive = [...(this.state.commandArchive || []).filter(item => item.id !== command.id),
+      { id: command.id, type: command.command_type, reason, archive, at: new Date().toISOString() }].slice(-256);
+    await this.removeCommand(command.id);
   }
 
   findPendingCommand(commandId) {
@@ -659,6 +683,7 @@ export class AgentConnector {
     const taskId = taskIdOf(command);
     const local = this.findPendingCommand(command.id);
     if (!local || !taskId) { await this.removeCommand(command.id); return; }
+    if (commandExpired(command)) { await this.rejectRunCommand(command, '任务有效期已过，未执行本机操作。', 'task_expired'); return; }
     local._localStatus = 'preparing';
     await this.persist();
     let project = this.resolveProject(command);
@@ -750,6 +775,7 @@ export class AgentConnector {
       // offline Connector must fail here before the local agent is invoked.
       await this.reportTaskEvent(taskId, 'running', `${this.profile.label} 已确认本次任务执行权限`, 10);
       if (control.cancelled) throw new Error('任务在执行前已取消');
+      if (commandExpired(command)) throw new Error('任务在准备过程中到期，未执行本机操作');
       const result = await this.runRuntimeTask(this.config.adapterCode, {
         runtimeRequestId: `${this.state.installationId}:${taskId}`,
         executable: this.config.runtimeExecutable,

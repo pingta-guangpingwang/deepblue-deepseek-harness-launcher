@@ -5,7 +5,7 @@ import { ConnectorApi } from './api.mjs';
 import { loadConfigObject } from './config.mjs';
 import { safeRuntimeDiagnostic } from './runtime-diagnostics.mjs';
 import { acquireServiceLock } from './service-manager.mjs';
-import { probeRuntimeHealth } from './runtime-health.mjs';
+import { probeRuntimeReadiness, runtimeReadiness } from './runtime-health.mjs';
 
 // Local parent IPC is the only configuration input. No credential-bearing file,
 // command-line flag or inherited environment variable is needed for host mode.
@@ -17,7 +17,8 @@ export class HostChildController {
     this.loadConfig = options.loadConfig || loadConfigObject;
     this.lock = options.lock || acquireServiceLock;
     this.now = options.now || Date.now;
-    this.probeRuntime = options.probeRuntime || probeRuntimeHealth;
+    this.probeRuntime = options.probeRuntime || probeRuntimeReadiness;
+    this.health = runtimeReadiness(null);
     this.connector = null;
     this.phase = 'stopped';
     this.instanceId = '';
@@ -56,6 +57,9 @@ export class HostChildController {
       pendingCommands: pending.filter((command) => !['running', 'final_pending'].includes(command._localStatus)).length,
       // A responsive website endpoint is not proof that every CLI is logged in.
       runtimeReady: ['stopped', 'failed'].includes(phase) ? false : this.runtimeReady,
+      runtimeStatus: phase === 'stopped' ? 'stopped' : phase === 'failed' ? 'error' : this.health.status,
+      health: this.health,
+      archivedCommands: this.connector?.state?.commandArchive?.length || 0,
       lastCatalogAt: this.connector?.lastLocalCatalogAt || null,
       lastSyncedAt: this.connector?.lastCatalogSyncAt ? new Date(this.connector.lastCatalogSyncAt).toISOString() : null,
       ...(this.error || this.transportError ? { error: this.error || this.transportError } : {})
@@ -69,10 +73,9 @@ export class HostChildController {
     if (!this.healthBusy && this.phase === 'ready' && this.connector && this.now() - this.lastHealthAt >= 30000) {
       this.healthBusy = true;
       try {
-        try { this.runtimeReady = await this.probeRuntime(this.connector.config, this.connector); }
-        catch { this.runtimeReady = false; }
+        await this.checkReadiness(this.connector.config);
         if (this.phase !== 'ready' || this.stopRequested || !this.connector) return;
-        this.connector.setRuntimeStatus?.(this.runtimeReady === true ? 'ready' : this.runtimeReady === false ? 'error' : 'unknown');
+        this.connector.setRuntimeStatus?.(this.health.status);
         await this.connector.heartbeat({ synchronizeIfActivated: false }).catch(() => {});
       } finally { this.lastHealthAt = this.now(); this.healthBusy = false; }
     }
@@ -86,6 +89,13 @@ export class HostChildController {
       this.emitStatus(true);
       this.send({ type: 'refresh_result', requestId });
     } catch (error) { this.send({ type: 'refresh_result', requestId, error: this.redact(error.message) }); }
+  }
+
+  async checkReadiness(config) {
+    try { this.health = runtimeReadiness(await this.probeRuntime(config, this.connector)); }
+    catch (error) { this.health = runtimeReadiness(null, error); }
+    this.health = { status: this.health.status, code: /^[a-z0-9_]{0,64}$/.test(String(this.health.code || '')) ? this.health.code || '' : 'runtime_probe_failed', message: this.redact(this.health.message || ''), checkedAt: new Date(this.now()).toISOString() };
+    this.runtimeReady = this.health.status === 'ready' || this.health.status === 'busy' ? true : this.health.status === 'unknown' ? null : false;
   }
 
   async start(message) {
@@ -142,10 +152,9 @@ export class HostChildController {
     const logger = Object.fromEntries(['info', 'warn', 'error'].map((level) => [level, (value) => this.send({ type: 'log', instanceId: this.instanceId, level, message: this.redact(value) })]));
     this.connector = this.createConnector(config, { api, logger, runtimeMode: 'launcher_hosted' });
     await this.connector.start();
-    try { this.runtimeReady = await this.probeRuntime(config, this.connector); }
-    catch { this.runtimeReady = false; }
+    await this.checkReadiness(config);
     if(!this.stopRequested){
-      this.connector.setRuntimeStatus?.(this.runtimeReady === true ? 'ready' : this.runtimeReady === false ? 'error' : 'unknown');
+      this.connector.setRuntimeStatus?.(this.health.status);
       await this.connector.heartbeat({ synchronizeIfActivated: false }).catch(() => {});
     }
     this.lastHealthAt = this.now();

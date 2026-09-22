@@ -941,10 +941,12 @@ export class AgentHostService {
       if (data.type !== 'status') return
       binding.busy = Number(data.runningTasks || 0) > 0 || data.phase === 'busy'
       binding.status = data.phase === 'failed' ? 'failed' : data.phase === 'stopped' ? 'stopped' : data.phase === 'starting' ? 'starting' : data.connected === true ? 'online' : 'reconnecting'
-      binding.runtimeStatus = binding.busy ? 'busy' : data.runtimeReady === true ? 'ready' : data.phase === 'failed' || data.runtimeReady === false ? 'error' : 'unknown'
+      const readiness = typeof data.runtimeStatus === 'string' && ['ready','needs_login','not_installed','unavailable','busy','unknown','stopped','running','error','starting'].includes(data.runtimeStatus) ? data.runtimeStatus : undefined
+      binding.runtimeStatus = binding.busy ? 'busy' : data.phase === 'failed' ? 'error' : readiness || (data.runtimeReady === true ? 'ready' : data.runtimeReady === false ? 'error' : 'unknown')
       binding.lastCatalogAt = typeof data.lastCatalogAt === 'string' ? data.lastCatalogAt : binding.lastCatalogAt
       binding.lastSyncedAt = typeof data.lastSyncedAt === 'string' ? data.lastSyncedAt : binding.lastSyncedAt
-      binding.message = data.error ? errorText(data.error) : data.runtimeReady === false ? '同步服务已连接，但智能体尚未通过本机检查；请确认应用登录与网关状态，可直接停止或重启服务' : undefined
+      const health = data.health && typeof data.health === 'object' ? data.health as Reply : undefined
+      binding.message = data.error ? errorText(data.error) : typeof health?.message === 'string' && health.message ? errorText(health.message) : data.runtimeReady === false ? '同步服务已连接，但智能体尚未通过本机检查；请确认应用登录与网关状态，可直接停止或重启服务' : undefined
       this.changed()
     })
     child.on('error', (error) => { if (this.childEpoch.get(binding.id) !== epoch) return; binding.status = 'failed'; binding.desiredRunning = false; binding.message = errorText(error); if (!child.pid || child.exitCode !== null) this.children.delete(binding.id); this.changed() })
@@ -1097,7 +1099,7 @@ export class AgentHostService {
     if (this.disposed || !this.saved.enabled || !this.saved.deviceKey) return Promise.reject(new Error('设备托管已暂停，请先恢复托管'))
     if (!force && this.leaseValidUntil > Date.now()) return Promise.resolve({ boundAgentIds: [...this.boundAgentIds], commands: [] })
     if (this.leaseRequest) return this.leaseRequest
-    const operation = this.deviceRequest({ action: 'heartbeat', agents: this.saved.agents.map((agent) => ({ agentId: agent.id, status: agent.status === 'failed' ? 'error' : agent.status === 'reconnecting' ? 'offline' : agent.status, runtimeStatus: agent.runtimeStatus, busy: agent.busy, message: agent.message || '' })) }).then(async (payload) => {
+    const operation = this.deviceRequest({ action: 'heartbeat', launcherVersion: this.options.launcherVersion, agents: this.saved.agents.map((agent) => ({ agentId: agent.id, status: agent.status === 'failed' ? 'error' : agent.status === 'reconnecting' ? 'offline' : agent.status, runtimeStatus: agent.runtimeStatus, busy: agent.busy, message: agent.message || '' })) }).then(async (payload) => {
       this.assertOwner()
       if (this.disposed || !this.saved.enabled || !Array.isArray(payload.boundAgentIds)) throw new Error('设备授权状态已变更或响应不完整，请重试')
       this.leaseValidUntil = Date.now() + Math.min(60, Math.max(1, Number(payload.leaseSeconds) || 60)) * 1000

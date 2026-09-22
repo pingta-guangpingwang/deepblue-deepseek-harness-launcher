@@ -103,6 +103,13 @@ beforeEach(() => {
   mocks.fork.mockImplementation(() => { const child = new FakeChild(); queueMicrotask(() => child.emit('message', { type: 'ready', protocolVersion: 1 })); return child })
 })
 
+it('sends the actually running shell version on every device lease heartbeat', async () => {
+  const f = await fixture()
+  await (f.internal as unknown as { ensureLease: (force: boolean) => Promise<unknown> }).ensureLease(true)
+  const bodies = f.fetchMock.mock.calls.map(call => JSON.parse(String((call[1] as RequestInit)?.body || '{}')))
+  expect(bodies.some(body => body.action === 'heartbeat' && body.launcherVersion === 'test')).toBe(true)
+})
+
 it('association metadata can be registered while signed out without adding projects or sending cloud writes', async () => {
   const f = await fixture()
   f.setOwner(undefined)
