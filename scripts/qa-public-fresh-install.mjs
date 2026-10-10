@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { _electron as electron } from 'playwright'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { _electron as electron, chromium } from 'playwright'
+import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import process from 'node:process'
@@ -57,6 +57,10 @@ const app = await electron.launch({
 
 let finalSnapshot
 let page
+let browser
+let authenticatedBrowser = false
+let localToken = ''
+let unauthenticatedStatus
 try {
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
@@ -75,7 +79,22 @@ try {
     if (observedProgress.at(-1) !== progressKey) observedProgress.push(progressKey)
     if (snapshot.runStatus === 'running' && snapshot.serviceUrl) {
       const response = await fetch(snapshot.serviceUrl)
-      if (!response.ok) throw new Error(`Harness service returned HTTP ${response.status}`)
+      unauthenticatedStatus = response.status
+      if (snapshot.activeHarnessVersion === '0.2.1-alpha.2') {
+        if (response.status !== 401) throw new Error('DSH 0.2 unauthenticated root must reject access')
+        const auth = JSON.parse(await readFile(path.join(storageRoot, 'harness-data-v2/launcher/process-auth.json'), 'utf8'))
+        if (auth.version !== snapshot.activeHarnessVersion || new URL(auth.url).origin !== snapshot.serviceUrl) throw new Error('Private process authentication did not match fresh DSH')
+        localToken = new URL(auth.url).searchParams.get('token') || ''
+        browser = await chromium.launch({ channel: 'msedge', headless: true })
+        const web = await browser.newPage()
+        await web.goto(auth.url, { waitUntil: 'domcontentloaded' })
+        await web.locator('#root > *').waitFor({ state: 'visible', timeout: 30000 })
+        const preview = web.getByRole('button', { name: '继续', exact: true })
+        if (await preview.isVisible()) await preview.click()
+        authenticatedBrowser = !new URL(web.url()).searchParams.has('token') && (await web.locator('body').innerText()).includes('新会话')
+        if (!authenticatedBrowser) throw new Error('Authenticated public DSH browser did not render the workspace')
+        await web.screenshot({ path: path.join(outputRoot, 'public-fresh-install-authenticated-dsh.png') })
+      } else if (!response.ok) throw new Error(`Harness service returned HTTP ${response.status}`)
       break
     }
     if (snapshot.runStatus === 'error' || snapshot.launchProgress.status === 'failed') {
@@ -85,23 +104,32 @@ try {
   }
 
   if (!finalSnapshot?.serviceUrl || finalSnapshot.runStatus !== 'running') throw new Error(`Harness did not become ready within ${Math.round(timeoutMs / 60_000)} minutes`)
+  if (finalSnapshot.launcherVersion !== '0.10.37' || finalSnapshot.activeHarnessVersion !== '0.2.1-alpha.2') throw new Error('Public release QA requires the exact 0.10.37 / DSH 0.2.1-alpha.2 candidate')
+  const channels = finalSnapshot.settings.sources.filter(item => item.enabled && item.kind === 'manifest')
+  if (channels.length !== 1 || channels[0].id !== 'runtime-v2-dsh02' || channels[0].baseUrl !== 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh02/launcher-manifest.json') throw new Error('New kernel must use only the approved DSH 0.2 public catalog')
+  if (!authenticatedBrowser) throw new Error('DSH 0.2 authenticated browser acceptance missing')
   const environment = Object.fromEntries(finalSnapshot.environment.map((item) => [item.id, { status: item.status, version: item.version, detail: item.detail }]))
   if (environment.node?.status !== 'ready' || environment.harness?.status !== 'ready') throw new Error('Fresh public install did not prepare both Node.js and Harness')
   await page.screenshot({ path: path.join(outputRoot, 'public-fresh-install-harness-running.png') })
   await page.evaluate(async () => window.launcher.stopHarness())
-  await writeFile(path.join(outputRoot, 'public-fresh-install-report.json'), `${JSON.stringify({
+  const reportText = `${JSON.stringify({
     passed: true,
     testedAt: new Date().toISOString(),
     elapsedMs: Date.now() - startedAt,
     launcherVersion: finalSnapshot.launcherVersion,
     harnessVersion: finalSnapshot.activeHarnessVersion,
+    authenticatedBrowser,
+    unauthenticatedStatus,
+    sourceIds: finalSnapshot.settings.sources.filter(item => item.enabled && item.kind === 'manifest').map(item => item.id),
     requestedPort: qaPort,
     serviceUrl: finalSnapshot.serviceUrl,
     observedSources: [...observedSources],
     environment,
     observedProgress,
     finalLogs: finalSnapshot.logs.slice(-30)
-  }, null, 2)}\n`, 'utf8')
+  }, null, 2)}\n`
+  if (localToken && reportText.includes(localToken)) throw new Error('Authentication secret entered the public-install report')
+  await writeFile(path.join(outputRoot, 'public-fresh-install-report.json'), reportText, 'utf8')
 } finally {
   if (finalSnapshot?.runStatus !== 'running') {
     await page?.screenshot({ path: path.join(outputRoot, 'public-fresh-install-failed.png') }).catch(() => undefined)
@@ -115,6 +143,7 @@ try {
     }, null, 2)}\n`, 'utf8').catch(() => undefined)
   }
   await app.close().catch(() => undefined)
+  await browser?.close().catch(() => undefined)
 }
 
 process.stderr.write(`Public fresh-install QA passed in ${Math.round((Date.now() - startedAt) / 1_000)}s; sources: ${[...observedSources].join(', ') || 'cache-free signed catalog'}\n`)
