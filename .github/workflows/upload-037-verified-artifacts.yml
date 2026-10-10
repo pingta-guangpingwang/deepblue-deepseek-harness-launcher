@@ -49,3 +49,33 @@ jobs:
           upload_fixed 408653627 v0.10.37 \
             download/deepblue-deepseek-harness-launcher-0.10.37-win-x64-offline.exe \
             7d05e8bdf4e9db7ed4ab3059703c3e230c97e1d1060b56185c4dacdf501936b4 248386490
+      - name: Anonymous full-byte readback of all six public GitHub artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "$REPOSITORY"
+          scratch="$(mktemp -d)"
+          verify_public() {
+            local tag="$1" name="$2" expected_sha="$3" expected_size="$4"
+            local final_url
+            final_url="$(curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --show-error --location \
+              --max-time 900 --max-filesize "$expected_size" --retry 2 \
+              "https://github.com/$REPOSITORY/releases/download/$tag/$name" \
+              -o "$scratch/$name" -w '%{url_effective}')"
+            case "$final_url" in https://release-assets.githubusercontent.com/*|https://objects.githubusercontent.com/*) ;; *) exit 2 ;; esac
+            test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+            printf 'PUBLIC_READBACK_VERIFIED %s %s %s\n' "$name" "$expected_sha" "$expected_size"
+          }
+          verify_public runtime-v0.10.37 launcher-shell-0.10.37-win-x64-e9cf0d54245ac931.7z \
+            e9cf0d54245ac931847699f731018b55c9d873eb6925d5e6939af5508f97309c 83599489
+          verify_public v0.10.37 deepblue-deepseek-harness-launcher-0.10.37-win-x64-online.exe \
+            8190f143d2d80455ba09a4ac554dce7b8dbfbf7423e710a1b0579ce00c10207a 697151
+          verify_public v0.10.37 deepblue-deepseek-harness-launcher-0.10.37-win-x64-offline.exe \
+            7d05e8bdf4e9db7ed4ab3059703c3e230c97e1d1060b56185c4dacdf501936b4 248386490
+          verify_public runtime-module-harness-core-0.2.1-alpha.2-b7c338488b4c2184 harness-core-0.2.1-alpha.2-win-x64-b7c338488b4c2184.tar.gz \
+            b7c338488b4c218452d6f8466f83b9172816bd1066f2d3152a25bce746995049 166505269
+          verify_public launcher-ui-ui-9961461627cc7864 launcher-ui-ui-9961461627cc7864-win-x64-5539a1b1b65ea194.tar.gz \
+            5539a1b1b65ea1948971daf6267e6aa528c056e5f7efbed41b86d39780383911 857894
+          verify_public agent-host-1.0.0+dd5ebb1b6efa agent-host-1.0.0+dd5ebb1b6efa-win-x64.tar.gz \
+            5f2dff2ee79b5e1b043c8a0918c9a64bc756760302fd18c4a5d305220f12aca2 291244
