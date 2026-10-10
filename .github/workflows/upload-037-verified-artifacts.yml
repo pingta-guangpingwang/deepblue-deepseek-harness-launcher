@@ -1,0 +1,51 @@
+name: Upload fixed 0.10.37 verified public artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: pingta-guangpingwang/deepblue-deepseek-harness-launcher
+    steps:
+      # No checkout, third-party action, signing key, user data, or downloaded
+      # executable is used. This one-off publisher cannot move catalog pointers.
+      - name: Fetch exact OSS bytes, check hashes and fill existing draft releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "$REPOSITORY"
+          scratch="$(mktemp -d)"
+          upload_fixed() {
+            local release_id="$1" tag="$2" object="$3" expected_sha="$4" expected_size="$5"
+            local name="${object##*/}"
+            gh api "repos/$REPOSITORY/releases/$release_id" > "$scratch/metadata.json"
+            test "$(jq -r .tag_name "$scratch/metadata.json")" = "$tag"
+            test "$(jq -r .target_commitish "$scratch/metadata.json")" = cb560735c509363ea2e51d9c23a465d44d57adec
+            local existing="$(jq --arg name "$name" '[.assets[] | select(.name==$name)] | length' "$scratch/metadata.json")"
+            if test "$existing" != 0; then
+              test "$existing" = 1
+              test "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .state' "$scratch/metadata.json")" = uploaded
+              test "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .size' "$scratch/metadata.json")" = "$expected_size"
+              test "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .digest' "$scratch/metadata.json")" = "sha256:$expected_sha"
+              echo "Exact existing artifact retained: $name"
+              return
+            fi
+            curl --proto '=https' --tlsv1.2 --fail --show-error --location --retry 3 --max-time 900 \
+              "https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/$object" -o "$scratch/$name"
+            test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+            gh release upload "$tag" "$scratch/$name" --repo "$REPOSITORY"
+            gh api "repos/$REPOSITORY/releases/$release_id" > "$scratch/metadata.json"
+            test "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .digest' "$scratch/metadata.json")" = "sha256:$expected_sha"
+            echo "Verified uploaded artifact: $name"
+          }
+          upload_fixed 408653626 runtime-module-harness-core-0.2.1-alpha.2-b7c338488b4c2184 \
+            modules/harness-core-0.2.1-alpha.2-win-x64-b7c338488b4c2184.tar.gz \
+            b7c338488b4c218452d6f8466f83b9172816bd1066f2d3152a25bce746995049 166505269
+          upload_fixed 408653627 v0.10.37 \
+            download/deepblue-deepseek-harness-launcher-0.10.37-win-x64-offline.exe \
+            7d05e8bdf4e9db7ed4ab3059703c3e230c97e1d1060b56185c4dacdf501936b4 248386490
