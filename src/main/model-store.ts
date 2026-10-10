@@ -4,9 +4,11 @@ import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import readline from 'node:readline'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { randomUUID } from 'node:crypto'
+import { prepareDshPrivateDirectory } from './dsh-process-auth'
 import { launcherDataPaths, writeConfig, type PersistedConfig } from './config'
 import { parseModelUsageLine } from './model-usage'
-import { harnessUsesProfileModelSettings, mergeHarnessProfileModelSettings, profileModelSettingsSource, mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
+import { harnessUsesProfileModelSettings, retireLegacyModelSections, mergeHarnessProfileModelSettings, profileModelSettingsSource, mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
 import { harnessCredentialsLayoutForVersion, harnessCredentialsNeedLayoutMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 import { runMultimodalApi } from './multimodal'
 import { queryDeepSeekBalance } from './deepseek-balance'
@@ -500,6 +502,18 @@ export class ModelStore {
     if (version === this.config.activeVersion) {
       await this.importHarnessSettings()
       await this.writeHarnessSettings()
+      if (harnessUsesProfileModelSettings(version)) {
+        const legacy = path.join(launcherDataPaths().dshHome, 'settings.yaml')
+        await withFileLock(legacy, async () => {
+          let source: string
+          try { source = await readFile(legacy, 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
+          const remaining = retireLegacyModelSections(source)
+          if (remaining === undefined) return
+          const backupDirectory = await prepareDshPrivateDirectory(launcherDataPaths().dshHome)
+          await writeFileAtomic(path.join(backupDirectory, `settings-before-0.2.1-${randomUUID()}.yaml`), source, { mode: 0o600, dirMode: 0o700 })
+          await writeFileAtomic(legacy, remaining, { mode: 0o600, dirMode: 0o700 })
+        })
+      }
       this.dispose()
       this.startWatchers()
     }

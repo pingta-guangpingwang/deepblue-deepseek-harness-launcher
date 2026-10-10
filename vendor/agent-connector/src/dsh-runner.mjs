@@ -15,12 +15,13 @@ async function sameDirectory(left, right) {
   return keyPath(a) === keyPath(b);
 }
 
-export async function probeDshHost(config, client = new DshClient(config.dshHost?.endpoint)) {
+export async function probeDshHost(config, client = new DshClient(config.dshHost?.endpoint, config.dshHost)) {
   const host = await client.call('host.describe');
   if (!host || typeof host.version !== 'string' || !path.isAbsolute(host.cwd || '') || !Number.isSafeInteger(host.attachedSessions)) throw new Error('本机端口不是兼容的 DSH Host');
   // The packaged 0.1.1-rc.2 Web composition reports its app version as 0.0.1,
   // not the npm cohort version. The Launcher independently pins the core.
-  if ((config.dshHost?.expectedVersion || '0.1.1-rc.2') !== '0.1.1-rc.2' || !['0.0.1', '0.1.1-rc.2'].includes(host.version)) throw new Error('DSH 核心版本与已验证协议不一致，请更新适配器');
+  const expected = config.dshHost?.expectedVersion || '0.1.1-rc.2';
+  if (expected === '0.2.1-alpha.2' ? host.version !== expected : expected !== '0.1.1-rc.2' || !['0.0.1', '0.1.1-rc.2'].includes(host.version)) throw new Error('DSH 核心版本与已验证协议不一致，请更新适配器');
   if (config.dshHost?.expectedCwd && !(await sameDirectory(host.cwd, config.dshHost.expectedCwd))) throw new Error('本机 DSH 工作区与启动器配置不一致');
   return host;
 }
@@ -42,7 +43,7 @@ export function dshTurnOutcome(events, rpcId) {
   return { owned, foreign, turn, pendingApproval, terminal: false, reply };
 }
 
-export async function readDshSessionHistory(config, project, session, maximum = 20, client = new DshClient(config.dshHost?.endpoint)) {
+export async function readDshSessionHistory(config, project, session, maximum = 20, client = new DshClient(config.dshHost?.endpoint, config.dshHost)) {
   await probeDshHost(config, client);
   const row = dshSessionRows(await client.call('session.list')).find(item => item.sessionId === session.runtimeSessionId);
   if (!row || !(await sameDirectory(row.cwd, project.path))) throw new Error('DSH 会话历史不属于当前授权项目');
@@ -66,7 +67,7 @@ function assertPermissions(events, sandbox) {
 }
 
 export async function runDshTask({ dshHost, project, instruction, sandbox = 'workspace-write', resumeSessionId = '', runtimeRequestId = randomUUID(), onProgress = async () => {}, onSession, onEvent, onApproval, fullOutput = false, managedPermissions = false, control = {} }, operations = {}) {
-  const client = operations.client || new DshClient(dshHost?.endpoint);
+  const client = operations.client || new DshClient(dshHost?.endpoint, dshHost);
   const sleep = operations.sleep || delay;
   const deadline = Date.now() + (operations.timeoutMs || 30 * 60 * 1000);
   if (!['workspace-write', 'read-only'].includes(sandbox)) throw new Error('DSH 不接受扩大权限的沙箱模式');
@@ -122,7 +123,7 @@ export async function runDshTask({ dshHost, project, instruction, sandbox = 'wor
       cancelRequested = true;
     };
     if (typeof onApproval === 'function') {
-      bridge = await (operations.openApprovalBridge || openDshApprovalBridge)({ ...dshHost, projectRoot: project.path, sessionId,
+      bridge = await (operations.openApprovalBridge || openDshApprovalBridge)({ ...dshHost, client, projectRoot: project.path, sessionId,
         readEvents: () => dshEventsSince(client, sessionId, baseline),
         isOwned: rows => { const outcome = dshTurnOutcome(rows, rpcId); return outcome.owned && !outcome.foreign && !outcome.terminal; }, onApproval, onProgress });
     }

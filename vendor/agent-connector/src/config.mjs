@@ -249,7 +249,11 @@ export async function loadConfigObject(raw, options = {}) {
   const dshHost = adapterCode === 'deepseek-harness' ? {
     endpoint: validateDshEndpoint(raw.dshHost?.endpoint),
     expectedVersion: String(raw.dshHost?.expectedVersion || '0.1.1-rc.2'),
-    expectedCwd: raw.dshHost?.expectedCwd ? path.resolve(configDirectory, String(raw.dshHost.expectedCwd)) : ''
+    expectedCwd: raw.dshHost?.expectedCwd ? path.resolve(configDirectory, String(raw.dshHost.expectedCwd)) : '',
+    ...(raw.dshHost?.expectedVersion === '0.2.1-alpha.2' ? {
+      authRoot: raw.dshHost.authRoot ? path.resolve(configDirectory, String(raw.dshHost.authRoot)) : '',
+      authFile: raw.dshHost.authFile ? path.resolve(configDirectory, String(raw.dshHost.authFile)) : ''
+    } : {})
   } : undefined;
   const qclawStateDir = raw.qclawStateDir ? path.resolve(configDirectory, String(raw.qclawStateDir)) : '';
   const qclawConfigPath = raw.qclawConfigPath ? path.resolve(configDirectory, String(raw.qclawConfigPath)) : '';

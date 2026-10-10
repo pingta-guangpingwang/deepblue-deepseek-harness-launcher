@@ -1,17 +1,29 @@
 import { spawn } from 'node:child_process'
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 const root = path.resolve(process.argv[2])
 const home = path.join(root, 'probe-home')
+const workspace = path.join(root, 'probe-workspace')
+await mkdir(workspace, { recursive: true })
+const approvedFile = path.join(workspace, 'approved-' + randomUUID() + '.txt')
+const rejectedFile = path.join(workspace, 'rejected-' + randomUUID() + '.txt')
 await mkdir(home, { recursive: true })
 const stub = createServer(async (request, response) => {
   let body = ''; for await (const chunk of request) body += chunk
   response.writeHead(200, { 'content-type': 'text/event-stream' })
   if (body.includes('CANCEL_PROBE')) { request.on('close', () => response.end()); return }
   const base = { id: 'chatcmpl-dsh-probe', object: 'chat.completion.chunk', created: 1, model: 'synthetic-model' }
+  const input = JSON.parse(body || '{}')
+  if (!input.messages?.some(message => message.role === 'tool') && /APPROVE_PROBE|REJECT_PROBE/.test(body)) {
+    const file = body.includes('APPROVE_PROBE') ? approvedFile : rejectedFile
+    const tool = { id: 'call_dsh_synthetic_write', type: 'function', function: { name: 'write', arguments: JSON.stringify({ file_path: file, content: 'SYNTHETIC_APPROVAL_OK', sandbox_permissions: 'workspace-write', justification: 'Synthetic protocol approval fixture in its isolated workspace.' }) } }
+    response.write('data: ' + JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, ...tool }] }, finish_reason: null }] }) + '\n\n')
+    response.end('data: ' + JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n')
+    return
+  }
   response.write('data: ' + JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: 'assistant', content: 'SYNTHETIC_PROTOCOL_OK' }, finish_reason: null }] }) + '\n\n')
   response.end('data: ' + JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 } }) + '\n\ndata: [DONE]\n\n')
 })
@@ -40,6 +52,35 @@ try {
   const url = new URL(startupUrl)
   report.checks.startupToken = url.searchParams.has('token')
   report.endpoint = url.origin
+  if (process.argv.includes('--adapter')) {
+    const authFile = path.join(home, 'launcher/process-auth.json')
+    const { publishDshProcessAuth } = await import('../src/main/dsh-process-auth.ts')
+    await publishDshProcessAuth(home, { version: '0.2.1-alpha.2', pid: child.pid, cwd: root, url: url.href })
+    const { runDshTask } = await import('../vendor/agent-connector/src/dsh-runner.mjs')
+    const { readDshSessionHistory } = await import('../vendor/agent-connector/src/dsh-runner.mjs')
+    const dshHost = { endpoint: url.origin, expectedVersion: '0.2.1-alpha.2', expectedCwd: root, authFile, authRoot: home }
+    const { probeRuntimeHealth } = await import('../vendor/agent-connector/src/runtime-health.mjs')
+    report.checks.adapterHealth = await probeRuntimeHealth({ adapterCode: 'deepseek-harness', dshHost }, {})
+    if (report.checks.adapterHealth !== true) throw Error('Configured synthetic model route was not reported ready')
+    const parameters = { dshHost, project: { path: workspace }, sandbox: 'read-only', managedPermissions: true }
+    const operations = { pollIntervalMs: 50, timeoutMs: 15000 }
+    const approvals = []
+    const first = await runDshTask({ ...parameters, instruction: 'Return DSH_ADAPTER_SIMPLE.', runtimeRequestId: 'adapter-simple-' + randomUUID(), onApproval: async () => { throw Error('Unexpected approval') } }, operations)
+    report.checks.adapterCompletion = { exitCode: first.exitCode, reply: first.finalReply }
+    const history = await readDshSessionHistory({ dshHost }, parameters.project, { runtimeSessionId: first.sessionId })
+    report.checks.adapterHistory = history.map(message => ({ role: message.role, text: message.text }))
+    const control = {}
+    const cancelled = await runDshTask({ ...parameters, instruction: 'CANCEL_PROBE', runtimeRequestId: 'adapter-cancel-' + randomUUID(), control, onEvent: async event => { if (event.type === 'turn/start') control.cancelled = true } }, operations)
+    report.checks.adapterCancellation = { cancelled: cancelled.cancelled, exitCode: cancelled.exitCode }
+    for (const [instruction, approved] of [['APPROVE_PROBE', true], ['REJECT_PROBE', false]]) {
+      const result = await runDshTask({ ...parameters, instruction, runtimeRequestId: instruction + randomUUID(), onApproval: async proposal => { approvals.push({ instruction, nativeId: proposal.nativeId, kind: proposal.kind, approved }); return { approved } } }, operations)
+      report.checks[instruction] = { exitCode: result.exitCode, reply: result.finalReply }
+    }
+    report.checks.adapterApprovals = approvals
+    report.checks.approvedFile = await stat(approvedFile).then(() => true, () => false)
+    report.checks.rejectedFile = await stat(rejectedFile).then(() => true, () => false)
+    if (first.exitCode !== 0 || first.finalReply !== 'SYNTHETIC_PROTOCOL_OK' || !cancelled.cancelled || approvals.length !== 2 || !report.checks.approvedFile || report.checks.rejectedFile) throw Error('Adapter acceptance failed')
+  }
   report.checks.unauthenticatedRoot = (await fetch(url.origin)).status
   const exchange = await fetch(url, { redirect: 'manual' })
   report.checks.exchangeStatus = exchange.status
@@ -75,7 +116,10 @@ try {
   report.checks.cancelTerminal = frames.filter(frame => frame.value?.event?.type === 'turn/end').at(-1)?.value.event
   socket.terminate()
 } catch(error) { report.error = String(error.message) }
-finally { child.kill(); stub.closeAllConnections(); stub.close(); await new Promise(resolve => setTimeout(resolve, 500)) }
-await writeFile(path.join(root, 'protocol-report.json'), JSON.stringify(report, null, 2) + '\n')
-console.log(JSON.stringify({ reportFile: path.join(root, 'protocol-report.json'), error: report.error, checks: { startupToken: report.checks.startupToken, unauthenticatedRoot: report.checks.unauthenticatedRoot, exchangeStatus: report.checks.exchangeStatus, authenticatedRoot: report.checks.authenticatedRoot, syntheticTask: report.checks.syntheticTask, cancelReason: report.checks.cancelTerminal?.data.reason.kind } }, null, 2))
+finally { child.kill(); const { clearDshProcessAuth } = await import('../src/main/dsh-process-auth.ts'); clearDshProcessAuth(home, child.pid); stub.closeAllConnections(); stub.close(); await new Promise(resolve => setTimeout(resolve, 500)) }
+const serialized = JSON.stringify(report, null, 2) + '\n'
+const processToken = startupUrl ? new URL(startupUrl).searchParams.get('token') : ''
+if (processToken && serialized.includes(processToken)) throw Error('Protocol report contains a process credential')
+await writeFile(path.join(root, 'protocol-report.json'), serialized)
+console.log(JSON.stringify({ reportFile: path.join(root, 'protocol-report.json'), error: report.error, checks: { startupToken: report.checks.startupToken, unauthenticatedRoot: report.checks.unauthenticatedRoot, exchangeStatus: report.checks.exchangeStatus, authenticatedRoot: report.checks.authenticatedRoot, syntheticTask: report.checks.syntheticTask, cancelReason: report.checks.cancelTerminal?.data.reason.kind, adapterCompletion: report.checks.adapterCompletion, adapterCancellation: report.checks.adapterCancellation, approvals: report.checks.adapterApprovals, approvedFile: report.checks.approvedFile, rejectedFile: report.checks.rejectedFile } }, null, 2))
 if (report.error) process.exitCode = 1

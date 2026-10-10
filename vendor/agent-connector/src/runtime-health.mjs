@@ -11,7 +11,7 @@ export async function probeRuntimeHealth(config, connector, operations = {}) {
   if (config.adapterCode === 'cursor') return Array.isArray(await (operations.cursorNativeCatalog || cursorNativeCatalog)(config));
   if (config.adapterCode === 'deepseek-harness') {
     const host = await (operations.probeDshHost || probeDshHost)(config);
-    return Boolean(host?.provider && host?.model); // Running web server alone is not a configured model route.
+    return host?.version === '0.2.1-alpha.2' ? host.routeConfigured === true : Boolean(host?.provider && host?.model); // Running web server alone is not a configured model route.
   }
   if (connector.codexHost?.isReady) return connector.codexHost.isReady();
   if (config.adapterCode === 'codex' && process.env.SHENLAN_DESKTOP_RUNNER) {

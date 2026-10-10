@@ -542,7 +542,7 @@ export async function discoverRuntimeCatalog(config, options = {}) {
     }
   }
   if (config.adapterCode === 'deepseek-harness') {
-    const client = options.dshClient || new DshClient(config.dshHost?.endpoint);
+    const client = options.dshClient || new DshClient(config.dshHost?.endpoint, config.dshHost);
     await probeDshHost(config, client);
     const rows = dshSessionRows(await client.call('session.list'));
     for (const row of rows) {

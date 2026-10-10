@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parse } from 'yaml'
@@ -127,12 +127,18 @@ describe('ModelStore two-way Harness synchronization', () => {
   it('migrates legacy model selection into the new profile and imports profile edits', async () => {
     const existing = config()
     existing.activeVersion = '0.2.1-alpha.2'
-    await writeFile(path.join(runtime.root, 'harness-data/settings.yaml'), 'agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-pro\n')
+    await writeFile(path.join(runtime.root, 'harness-data/settings.yaml'), 'agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-pro\nshell:\n  approval: ask\n')
     store = new ModelStore(existing)
     await store.initialize()
     expect(store.state().active.model).toBe('deepseek-v4-pro')
     const profile = path.join(runtime.root, 'harness-data/profiles/web/cordis.patch.yml')
     expect(await readFile(profile, 'utf8')).toContain('id: agent-default-model')
+    await store.prepareHarnessCredentials('0.2.1-alpha.2')
+    const legacy = await readFile(path.join(runtime.root, 'harness-data/settings.yaml'), 'utf8')
+    expect(legacy).toContain('shell:')
+    expect(legacy).not.toContain('agent-default-model')
+    const backups = (await readdir(path.join(runtime.root, 'harness-data/launcher'))).filter(name => name.startsWith('settings-before-0.2.1-'))
+    expect(backups).toHaveLength(1)
     await writeFile(profile, '- id: agent-default-model\n  config: { provider: deepseek-official, model: deepseek-v4-flash }\n')
     await vi.waitFor(() => expect(store?.state().active.model).toBe('deepseek-v4-flash'), { timeout: 6000, interval: 100 })
   })

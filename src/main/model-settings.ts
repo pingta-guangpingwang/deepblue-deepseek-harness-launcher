@@ -1,4 +1,4 @@
-import { isSeq, parse, parseDocument } from 'yaml'
+import { isMap, isSeq, parse, parseDocument } from 'yaml'
 import type { ModelDefinition, ModelProviderDraft } from '../shared/types'
 
 const CATALOG_PROVIDERS = new Set(['openai', 'anthropic', 'google'])
@@ -6,6 +6,15 @@ const CATALOG_PROVIDERS = new Set(['openai', 'anthropic', 'google'])
 export function harnessUsesProfileModelSettings(version: string): boolean {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version)
   return Boolean(match && (Number(match[1]) > 0 || Number(match[2]) >= 2))
+}
+
+export function retireLegacyModelSections(source: string): string | undefined {
+  const document = parseDocument(source, { prettyErrors: false })
+  if (document.errors.length || !isMap(document.contents)) throw new Error('旧版 Harness 设置格式不正确')
+  const keys = ['agent-default-model', 'llm-pi-ai', 'llm-deepseek']
+  if (!keys.some(key => document.has(key))) return undefined
+  for (const key of keys) document.delete(key)
+  return document.toString()
 }
 
 /** Project only the model entry configs; unrelated profile expressions stay in their YAML nodes. */
@@ -16,6 +25,12 @@ export function profileModelSettingsSource(source: string): string {
   for (const row of document.toJS() as Array<{ id?: string; config?: unknown }>) {
     if (row.id && ['agent-default-model', 'llm-pi-ai', 'llm-deepseek'].includes(row.id) && row.config) sections[row.id] = row.config
   }
+  const official = sections['llm-deepseek'] as Record<string, unknown> | undefined
+  if (official?.baseURL === 'https://api.deepseek.com/anthropic') official.baseURL = 'https://api.deepseek.com'
+  const pi = sections['llm-pi-ai'] as { providers?: Record<string, { models?: Array<Record<string, unknown>> }> } | undefined
+  for (const provider of Object.values(pi?.providers || {})) {
+    for (const model of provider.models || []) if (Array.isArray(model.input) && !model.inputModalities) model.inputModalities = model.input
+  }
   const projected = parseDocument('{}\n')
   for (const [key, value] of Object.entries(sections)) projected.set(key, value)
   return projected.toString()
@@ -25,6 +40,23 @@ export function mergeHarnessProfileModelSettings(source: string, active: { provi
   const document = parseDocument(source || '[]\n', { prettyErrors: false })
   if (document.errors.length || !isSeq(document.contents)) throw new Error('Harness profile patch 必须是 YAML 数组')
   const merged = parse(mergeHarnessModelSettings(profileModelSettingsSource(source), active, providers, removedProviderId)) as Record<string, Record<string, unknown>>
+  const official = merged['llm-deepseek']
+  if (official) {
+    if (['https://api.deepseek.com', 'https://api.deepseek.com/v1'].includes(String(official.baseURL))) official.baseURL = 'https://api.deepseek.com/anthropic'
+    if (Array.isArray(official.models)) official.models = official.models.map((model: Record<string, unknown>) => {
+      const { imageDetail, ...supported } = model
+      if (imageDetail === 'low' && supported.imagePixelBudget === undefined) supported.imagePixelBudget = 'low'
+      return supported
+    })
+  }
+  const pi = merged['llm-pi-ai'] as { providers?: Record<string, { models?: Array<Record<string, unknown>> }> } | undefined
+  for (const provider of Object.values(pi?.providers || {})) {
+    if (provider.models) provider.models = provider.models.map(model => {
+      const { inputModalities, imageDetail: _legacyDetail, ...supported } = model
+      if (Array.isArray(inputModalities)) supported.input = inputModalities
+      return supported
+    })
+  }
   const rows = document.toJS() as Array<{ id?: string; config?: unknown }>
   for (const id of ['agent-default-model', 'llm-deepseek', 'llm-pi-ai']) {
     const config = merged[id] || (id === 'llm-pi-ai' && removedProviderId ? { providers: {} } : undefined)

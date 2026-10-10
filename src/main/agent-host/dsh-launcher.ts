@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 
-export interface DshHostSettings { endpoint: string; expectedVersion: string; expectedCwd: string; nativeClientModule?: string; nativeClientRoot?: string }
+export interface DshHostSettings { endpoint: string; expectedVersion: string; expectedCwd: string; nativeClientModule?: string; nativeClientRoot?: string; authFile?: string; authRoot?: string }
 const pathKey = (value: string): string => process.platform === 'win32' ? value.toLowerCase() : value
 
 /** Read only the owning Launcher's local settings, never an URL from renderer/cloud.
@@ -19,8 +19,14 @@ export async function resolveBuiltinDshHost(storageDir: string, userDataPath = a
   if (!Number.isSafeInteger(port) || Number(port) < 1024 || Number(port) > 65535) throw new Error('请先在启动器设置有效的 DSH 端口')
   const workspace = config.settings?.workspace || ''
   if (!path.isAbsolute(workspace) || !(await stat(workspace)).isDirectory()) throw new Error('DSH 默认工作区不可用')
-  if (config.activeVersion !== '0.1.1-rc.2') throw new Error('当前 DSH 核心版本尚未通过远程适配验证')
+  if (typeof config.activeVersion !== 'string' || !['0.1.1-rc.2', '0.2.1-alpha.2'].includes(config.activeVersion)) throw new Error('当前 DSH 核心版本尚未通过远程适配验证')
   if (!(await stat(path.join(hostRoot, 'harness-data'))).isDirectory()) throw new Error('请先在启动器首页初始化并启动 DSH')
+  if (config.activeVersion === '0.2.1-alpha.2') {
+    const authRoot = await realpath(path.join(hostRoot, 'harness-data'))
+    const authFile = await realpath(path.join(authRoot, 'launcher/process-auth.json'))
+    if (path.relative(authRoot, authFile) !== path.join('launcher', 'process-auth.json') || (await stat(authFile)).size > 8192) throw new Error('DSH 本机认证文件不可用')
+    return { endpoint: `http://127.0.0.1:${port}`, expectedVersion: config.activeVersion, expectedCwd: await realpath(workspace), authFile, authRoot }
+  }
   const nativeClientRoot = await realpath(path.join(hostRoot, 'runtime/modules/harness-core', config.activeVersion)).catch(() => '')
   const nativeClientModule = nativeClientRoot ? await realpath(path.join(nativeClientRoot, 'node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js')).catch(() => '') : ''
   const relative = nativeClientModule ? path.relative(nativeClientRoot, nativeClientModule) : '..'

@@ -38,7 +38,8 @@ export function dshApprovalProposal(frame, events, projectRoot) {
   const paths = [args.path, args.file_path, args.filePath, args.source, args.destination].filter(value => typeof value === 'string').map(value => path.isAbsolute(value) ? value : path.resolve(projectRoot, value));
   return { nativeId: frame.approvalId, kind, paths, command: typeof args.command === 'string' ? args.command : '', destination: typeof args.url === 'string' ? args.url : '', title: frame.toolName || '', reason: frame.reason || '' };
 }
-export async function openDshApprovalBridge({ nativeClientModule, nativeClientRoot, endpoint, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress = async () => {} }) {
+export async function openDshApprovalBridge({ nativeClientModule, nativeClientRoot, endpoint, client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress = async () => {} }) {
+  if (client?.version === '0.2.1-alpha.2') return openRemoteApprovalBridge({ client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress });
   if (!path.isAbsolute(nativeClientModule || '') || !path.isAbsolute(nativeClientRoot || '')) throw new Error('DSH 原生审批客户端尚未就绪');
   const [moduleFile, root] = await Promise.all([realpath(nativeClientModule), realpath(nativeClientRoot)]);
   const relative = path.relative(root, moduleFile);
@@ -74,4 +75,29 @@ export async function openDshApprovalBridge({ nativeClientModule, nativeClientRo
   let failure; const done = stream.catch(error => { failure = error; });
   await opened;
   return { get failure() { return failure; }, close: async () => { abort.abort(); await done; } };
+}
+
+async function openRemoteApprovalBridge({ client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress }) {
+  let clientId; const active = new Set();
+  const stream = await client.openRemoteStream('$events', {}, async (frame, signal) => {
+    if (frame?.type === 'ready') { if (typeof frame.clientId !== 'string') throw Error('DSH 审批来源无效'); clientId = frame.clientId; return; }
+    if (frame?.type !== 'waterfall' || frame.event !== 'approval/request') return;
+    if (typeof frame.eventId !== 'string' || !clientId) throw Error('DSH 审批关联无效');
+    const respond = outcome => client.remoteCall('$events/result', { clientId, eventId: frame.eventId, outcome });
+    if (frame.agentId !== sessionId) { await respond({ kind: 'next' }); return; }
+    if (active.has(frame.eventId)) return;
+    const events = await readEvents();
+    if (!isOwned(events)) { await respond({ kind: 'next' }); return; }
+    const pending = events.findLast(event => event.type === 'approval/asked' && event.data?.toolName === frame.request?.toolName && event.data?.callId === frame.request?.callId && !events.some(decision => decision.type === 'approval/decided' && decision.data?.id === event.data?.id));
+    if (!pending) throw Error('DSH 审批缺少当前回合的原生事实');
+    active.add(frame.eventId);
+    const proposal = dshApprovalProposal({ ...frame.request, approvalId: pending.data.id }, events, projectRoot);
+    const decision = await onApproval(proposal, signal);
+    const latest = await readEvents();
+    if (signal.aborted || !isOwned(latest) || latest.some(event => event.type === 'approval/decided' && event.data?.id === pending.data.id)) return;
+    await respond({ kind: 'result', value: decision?.approved === true ? 'allowed-once' : 'rejected' });
+    await onProgress({ summary: decision?.approved === true ? '主控已批准 DSH 本次操作' : 'DSH 本次操作未获批准', progressPercent: 50 });
+  });
+  if (!clientId) { await stream.close(); throw Error('DSH 审批通道未就绪'); }
+  return stream;
 }

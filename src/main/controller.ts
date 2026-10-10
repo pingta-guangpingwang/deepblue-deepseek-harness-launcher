@@ -23,6 +23,7 @@ import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { parseHarnessStartupUrl, redactHarnessAuthentication } from './dsh-startup-url'
+import { clearDshProcessAuth, publishDshProcessAuth } from './dsh-process-auth'
 import { AgentHostBridge } from './agent-host-bridge'
 import { ProjectDirectoryPicker } from './project-directory-picker'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
@@ -110,6 +111,9 @@ export class LauncherController {
   private service?: ChildProcessWithoutNullStreams
   private harnessStartupUrl?: string
   private harnessOutputPending = new Map<string, string>()
+  private harnessReadyPromise?: Promise<void>
+  private harnessCycle = 0
+  private harnessReadyCycle = 0
   private nextLogId = 1
   private distributionMode: 'online' | 'offline' = 'offline'
   private readonly skinStore = new SkinStore()
@@ -310,6 +314,8 @@ export class LauncherController {
   agentWorkspaceRequest(request: AgentWorkspaceRequest) { return this.accountService.agentWorkspaceRequest(request) }
 
   async dispose(): Promise<void> {
+    clearDshProcessAuth(launcherDataPaths().dshHome, this.service?.pid)
+    this.harnessStartupUrl = undefined
     await this.agentHost?.dispose()
     await this.dynamicWallpaper?.dispose()
     await this.desktopPet?.dispose()
@@ -415,6 +421,7 @@ export class LauncherController {
       return this.getSnapshot()
     }
     const browserCycle = this.browserHandoff.begin()
+    this.harnessCycle = browserCycle
     this.snapshot.runStatus = 'starting'
     this.snapshot.serviceUrl = undefined
     this.harnessStartupUrl = undefined
@@ -439,7 +446,17 @@ export class LauncherController {
         }
       }
       this.updateLaunchProgress('preparing', 28, '运行环境已就绪，正在准备工作区')
+      const actualVersion = await readPackageVersion(path.join(path.dirname(path.dirname(runtime.dsh)), 'package.json'))
+      if (!actualVersion || !['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2'].includes(actualVersion)) throw new Error('实际 Harness 核心版本尚未通过启动器兼容验证')
+      if (actualVersion !== this.config.activeVersion) {
+        await mkdir(paths.backups, { recursive: true })
+        await writeFile(path.join(paths.backups, `harness-selection-${Date.now()}.json`), JSON.stringify({ previous: this.config.activeVersion, selected: actualVersion, reason: 'bundled-runtime-fallback' }), { mode: 0o600 })
+        this.config.activeVersion = actualVersion
+        await writeConfig(this.config)
+      }
+      this.snapshot.activeHarnessVersion = actualVersion
       await mkdir(paths.dshHome, { recursive: true })
+      await rm(path.join(paths.dshHome, 'launcher/process-auth.json'), { force: true })
       await mkdir(this.config.settings.workspace, { recursive: true })
       this.updateLaunchProgress('preparing', 40, '正在加载皮肤、宠物与外观配置')
       await this.ensureSkinRuntime(runtime)
@@ -482,6 +499,8 @@ export class LauncherController {
           ? { status: 'idle', progress: 0, message: 'Harness 已停止' }
           : { status: 'failed', progress: this.snapshot.launchProgress.progress, message: `Harness 异常退出（${signal || `code ${code ?? 'unknown'}`}）` }
         this.snapshot.serviceUrl = undefined
+        clearDshProcessAuth(paths.dshHome, child.pid)
+        this.harnessStartupUrl = undefined
         this.log(expected ? 'INFO' : code === 0 ? 'INFO' : 'ERROR', `Harness 已退出（${signal || `code ${code ?? 'unknown'}`}）`)
         this.emit()
       })
@@ -501,6 +520,8 @@ export class LauncherController {
   async stopHarness(): Promise<LauncherSnapshot> {
     if (!this.service) return this.getSnapshot()
     const service = this.service
+    clearDshProcessAuth(launcherDataPaths().dshHome, service.pid)
+    this.harnessStartupUrl = undefined
     this.snapshot.runStatus = 'stopping'
     this.log('INFO', '正在停止 Harness…')
     this.emit()
@@ -1670,7 +1691,7 @@ export class LauncherController {
   }
 
   async openExternal(url: string): Promise<void> {
-    if (/^https?:\/\//i.test(url)) await shell.openExternal(url)
+    if (/^https?:\/\//i.test(url)) await shell.openExternal(url === this.snapshot.serviceUrl && this.harnessStartupUrl && this.service?.exitCode === null ? this.harnessStartupUrl : url)
   }
 
   private checkingEnvironment(): EnvironmentItem[] {
@@ -2221,6 +2242,7 @@ export class LauncherController {
 
   private consumeProcessOutput(output: string, fallback: LogLine['level'], browserCycle?: number): void {
     if (browserCycle !== undefined) {
+      if (browserCycle !== this.harnessCycle) return
       const key = `${browserCycle}:${fallback}`
       const pending = (this.harnessOutputPending.get(key) || '') + output
       const boundary = pending.lastIndexOf('\n')
@@ -2237,7 +2259,7 @@ export class LauncherController {
       const url = parseHarnessStartupUrl(line, this.config.settings.port)
       if (url && browserCycle !== undefined && this.snapshot.runStatus === 'starting') {
         this.harnessStartupUrl = url
-        this.markRunning(url, browserCycle)
+        void this.markRunning(url, browserCycle).catch(() => { if (browserCycle !== this.harnessCycle || this.snapshot.runStatus !== 'starting') return; this.snapshot.runStatus = 'error'; this.updateLaunchProgress('failed', 96, '无法准备 DSH 本机认证'); })
       }
     }
     this.emit()
@@ -2399,7 +2421,7 @@ export class LauncherController {
         const authenticated = response.ok || response.status === 303 && Boolean(this.harnessStartupUrl)
         readiness = advanceHarnessReadiness(readiness, authenticated && this.service?.exitCode === null, Date.now())
         if (readiness.ready) {
-          this.markRunning(target, browserCycle)
+          await this.markRunning(target, browserCycle)
           return
         }
       } catch {
@@ -2417,10 +2439,24 @@ export class LauncherController {
     }
   }
 
-  private markRunning(url: string, browserCycle: number): void {
-    if (this.snapshot.runStatus === 'running') return
+  private markRunning(url: string, browserCycle: number): Promise<void> {
+    if (this.harnessReadyPromise && this.harnessReadyCycle === browserCycle) return this.harnessReadyPromise
+    const pending = this.markRunningOnce(url, browserCycle)
+    this.harnessReadyPromise = pending
+    this.harnessReadyCycle = browserCycle
+    return pending.finally(() => { if (this.harnessReadyPromise === pending) this.harnessReadyPromise = undefined })
+  }
+
+  private async markRunningOnce(url: string, browserCycle: number): Promise<void> {
+    if (this.snapshot.runStatus === 'running' || browserCycle !== this.harnessCycle) return
+    if (this.config.activeVersion === '0.2.1-alpha.2') {
+      const pid = this.service?.pid
+      if (!pid || this.service?.exitCode !== null) return
+      const published = await publishDshProcessAuth(launcherDataPaths().dshHome, { version: this.config.activeVersion, pid, cwd: this.config.settings.workspace, url }, () => this.service?.pid === pid && this.service?.exitCode === null && this.snapshot.runStatus === 'starting' && browserCycle === this.harnessCycle)
+      if (!published || this.service?.pid !== pid || this.service?.exitCode !== null || this.snapshot.runStatus !== 'starting') { clearDshProcessAuth(launcherDataPaths().dshHome, pid); return }
+    }
     this.snapshot.runStatus = 'running'
-    this.snapshot.serviceUrl = url
+    this.snapshot.serviceUrl = new URL(url).origin
     this.snapshot.launchProgress = { status: 'ready', progress: 100, message: 'Harness 已就绪，可以开始使用' }
     this.log('INFO', `Harness 已就绪：${url}`)
     this.emit()
