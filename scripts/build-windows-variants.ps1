@@ -34,13 +34,7 @@ foreach ($stale in $staleFiles) {
   }
 }
 
-if (-not $SkipOffline) {
-  Write-Host 'Building the complete offline one-click installer...'
-  & $builder -SourceDirectory $sourceDirectory -OutputFile $offlineFile -Edition offline
-  if ($LASTEXITCODE -ne 0) {
-    throw "Offline installer build failed (exit code $LASTEXITCODE)."
-  }
-} elseif (-not (Test-Path -LiteralPath $offlineFile -PathType Leaf)) {
+if ($SkipOffline -and -not (Test-Path -LiteralPath $offlineFile -PathType Leaf)) {
   throw "Cannot skip the offline build because its artifact is missing: $offlineFile"
 }
 
@@ -59,6 +53,14 @@ Copy-Item -LiteralPath (Join-Path $releaseDirectory 'runtime-modules.generated.j
 if ($env:LAUNCHER_EMBEDDED_BASELINE_CATALOG) {
   & node (Join-Path $PSScriptRoot 'align-embedded-runtime-catalog.mjs') $env:LAUNCHER_EMBEDDED_BASELINE_CATALOG
   if ($LASTEXITCODE -ne 0) { throw 'Embedded signed dependency alignment failed.' }
+}
+
+# The complete installer must contain the same final fallback graph as the
+# online shell, including the deliberate DSH upgrade and preserved Node/pnpm.
+if (-not $SkipOffline) {
+  Write-Host 'Building the complete offline installer against the final module graph...'
+  & $builder -SourceDirectory $sourceDirectory -OutputFile $offlineFile -Edition offline
+  if ($LASTEXITCODE -ne 0) { throw "Offline installer build failed (exit code $LASTEXITCODE)." }
 }
 
 Write-Host 'Building the modular Electron UI shell...'
