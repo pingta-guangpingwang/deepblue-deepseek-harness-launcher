@@ -29,7 +29,7 @@ export type PetPackKind = 'image' | 'pixel-atlas'
 export type PetCatalogSourceId = 'official' | 'pixel' | 'custom'
 
 export interface SourceConfig {
-  id: 'github' | 'gitee' | 'oss' | 'runtime-v2' | 'npmmirror'
+  id: 'github' | 'gitee' | 'oss' | 'runtime-v2' | 'runtime-v2-dsh02' | 'npmmirror'
   name: string
   baseUrl: string
   enabled: boolean

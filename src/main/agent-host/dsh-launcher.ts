@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { harnessHomeDirectoryName } from '../config'
 
 export interface DshHostSettings { endpoint: string; expectedVersion: string; expectedCwd: string; nativeClientModule?: string; nativeClientRoot?: string; authFile?: string; authRoot?: string }
 const pathKey = (value: string): string => process.platform === 'win32' ? value.toLowerCase() : value
@@ -20,9 +21,10 @@ export async function resolveBuiltinDshHost(storageDir: string, userDataPath = a
   const workspace = config.settings?.workspace || ''
   if (!path.isAbsolute(workspace) || !(await stat(workspace)).isDirectory()) throw new Error('DSH 默认工作区不可用')
   if (typeof config.activeVersion !== 'string' || !['0.1.1-rc.2', '0.2.1-alpha.2'].includes(config.activeVersion)) throw new Error('当前 DSH 核心版本尚未通过远程适配验证')
-  if (!(await stat(path.join(hostRoot, 'harness-data'))).isDirectory()) throw new Error('请先在启动器首页初始化并启动 DSH')
+  const homeDirectory = harnessHomeDirectoryName(config.activeVersion)
+  if (!(await stat(path.join(hostRoot, homeDirectory))).isDirectory()) throw new Error('请先在启动器首页初始化并启动 DSH')
   if (config.activeVersion === '0.2.1-alpha.2') {
-    const authRoot = await realpath(path.join(hostRoot, 'harness-data'))
+    const authRoot = await realpath(path.join(hostRoot, homeDirectory))
     const authFile = await realpath(path.join(authRoot, 'launcher/process-auth.json'))
     if (path.relative(authRoot, authFile) !== path.join('launcher', 'process-auth.json') || (await stat(authFile)).size > 8192) throw new Error('DSH 本机认证文件不可用')
     return { endpoint: `http://127.0.0.1:${port}`, expectedVersion: config.activeVersion, expectedCwd: await realpath(workspace), authFile, authRoot }

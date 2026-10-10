@@ -23,7 +23,8 @@ import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
 import { parseHarnessStartupUrl, redactHarnessAuthentication } from './dsh-startup-url'
-import { clearDshProcessAuth, publishDshProcessAuth } from './dsh-process-auth'
+import { clearDshProcessAuth, prepareDshProcessAuthentication, publishDshProcessAuth } from './dsh-process-auth'
+import { ensureHarnessDataHome } from './dsh-data-home'
 import { AgentHostBridge } from './agent-host-bridge'
 import { ProjectDirectoryPicker } from './project-directory-picker'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
@@ -132,18 +133,22 @@ export class LauncherController {
   private pluginActionPromise?: Promise<LauncherSnapshot>
   private readonly browserHandoff = new HarnessBrowserHandoff()
   private agentHost?: AgentHostBridge
+  private modelInitialization?: Promise<void>
 
   constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection, private readonly onViewEvent: (channel: string, payload?: unknown) => void = () => {}) {}
 
   async initialize(): Promise<void> {
     this.config = await readConfig()
     setLauncherStorageRoot(this.config.settings.storageRoot)
+    const initialRuntime = await resolveRuntime(launcherDataPaths(this.config.activeVersion).runtime, this.config.activeVersion)
+    const initialCoreVersion = await readPackageVersion(path.join(path.dirname(path.dirname(initialRuntime.dsh)), 'package.json'))
+    if (initialCoreVersion && ['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2'].includes(initialCoreVersion)) this.config.activeVersion = initialCoreVersion
     this.dynamicWallpaper = new DynamicWallpaperManager(
-      path.join(launcherDataPaths().skins, 'desktop-state.json'),
-      path.join(launcherDataPaths().skins, 'desktop-host')
+      path.join(launcherDataPaths(this.config.activeVersion).skins, 'desktop-state.json'),
+      path.join(launcherDataPaths(this.config.activeVersion).skins, 'desktop-host')
     )
     await this.dynamicWallpaper.initialize()
-    this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
+    this.moduleStore = new RuntimeModuleStore(launcherDataPaths(this.config.activeVersion).runtime)
     // Rewrite the sanitized shape once so legacy device-local favorites cannot linger
     // in launcher.json and be mistaken for AI历史书 account data.
     await writeConfig(this.config)
@@ -153,9 +158,9 @@ export class LauncherController {
       this.emit()
     })
     this.desktopPet = new DesktopPetManager(
-      launcherDataPaths().petDesktopState,
-      path.join(launcherDataPaths().pets, 'desktop-host'),
-      launcherDataPaths().pets,
+      launcherDataPaths(this.config.activeVersion).petDesktopState,
+      path.join(launcherDataPaths(this.config.activeVersion).pets, 'desktop-host'),
+      launcherDataPaths(this.config.activeVersion).pets,
       () => this.modelStore.deepSeekBalance()
     )
     await this.desktopPet.initialize()
@@ -219,7 +224,7 @@ export class LauncherController {
     this.bundledRuntimeModules = await readBundledRuntimeModules()
     this.runtimeModules = structuredClone(this.bundledRuntimeModules)
     this.log('INFO', `深蓝DeepSeekHarness启动器 ${app.getVersion()} 已启动`)
-    this.log('INFO', `数据目录：${launcherDataPaths().root}`)
+    this.log('INFO', `数据目录：${launcherDataPaths(this.config.activeVersion).root}`)
     this.log('INFO', `发行模式：${this.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}`)
     if (this.runtimeModules.length) this.log('INFO', `已加载内置运行目录（${this.runtimeModules.length} 个模块），在线目录不可用时仍可安装`)
     // The snapshot is complete at this point, so the renderer can paint the
@@ -231,7 +236,8 @@ export class LauncherController {
 
   private async finishInitialization(): Promise<void> {
     try {
-      await this.modelStore.initialize()
+      this.modelInitialization = this.prepareCurrentHarnessHome().then(() => this.modelStore.initialize())
+      await this.modelInitialization
       this.snapshot.modelHub = this.modelStore.state()
       this.log('INFO', `当前模型：${this.snapshot.modelHub.active.displayName}`)
     } catch (error) {
@@ -247,9 +253,9 @@ export class LauncherController {
     await this.refreshEnvironment()
     this.snapshot.account = await this.accountService.refresh()
     try {
-      const runtime = await resolveRuntime(launcherDataPaths().runtime, this.config.activeVersion)
+      const runtime = await resolveRuntime(launcherDataPaths(this.config.activeVersion).runtime, this.config.activeVersion)
       this.agentHost = new AgentHostBridge(this.moduleStore, {
-        storageDir: path.join(launcherDataPaths().root, 'agent-host'),
+        storageDir: path.join(launcherDataPaths(this.config.activeVersion).root, 'agent-host'),
         nodePath: runtime.node, launcherVersion: app.getVersion(),
         ownerId: () => this.accountService.state().user?.id,
         request: (request) => this.accountService.agentWorkspaceRequest(request, true),
@@ -314,7 +320,7 @@ export class LauncherController {
   agentWorkspaceRequest(request: AgentWorkspaceRequest) { return this.accountService.agentWorkspaceRequest(request) }
 
   async dispose(): Promise<void> {
-    clearDshProcessAuth(launcherDataPaths().dshHome, this.service?.pid)
+    clearDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, this.service?.pid)
     this.harnessStartupUrl = undefined
     await this.agentHost?.dispose()
     await this.dynamicWallpaper?.dispose()
@@ -325,7 +331,7 @@ export class LauncherController {
   async refreshEnvironment(): Promise<LauncherSnapshot> {
     this.snapshot.environment = this.checkingEnvironment()
     this.emit()
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
     const dshPackage = path.join(path.dirname(path.dirname(runtime.dsh)), 'package.json')
     const dshVersion = await readPackageVersion(dshPackage)
@@ -428,7 +434,8 @@ export class LauncherController {
     this.harnessOutputPending.clear()
     this.updateLaunchProgress('preparing', 6, '正在检查 Harness 运行环境')
     try {
-      const paths = launcherDataPaths()
+      await this.modelInitialization?.catch(() => {})
+      let paths = launcherDataPaths(this.config.activeVersion)
       let runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
       if (!(await isExecutable(runtime.dsh))) {
         if (this.distributionMode === 'online') {
@@ -455,8 +462,11 @@ export class LauncherController {
         await writeConfig(this.config)
       }
       this.snapshot.activeHarnessVersion = actualVersion
+      paths = launcherDataPaths(this.config.activeVersion)
+      await this.prepareCurrentHarnessHome()
+      await assertHarnessPortAvailable(this.config.settings.port)
       await mkdir(paths.dshHome, { recursive: true })
-      await rm(path.join(paths.dshHome, 'launcher/process-auth.json'), { force: true })
+      if (actualVersion === '0.2.1-alpha.2') await prepareDshProcessAuthentication(paths.dshHome)
       await mkdir(this.config.settings.workspace, { recursive: true })
       this.updateLaunchProgress('preparing', 40, '正在加载皮肤、宠物与外观配置')
       await this.ensureSkinRuntime(runtime)
@@ -520,7 +530,7 @@ export class LauncherController {
   async stopHarness(): Promise<LauncherSnapshot> {
     if (!this.service) return this.getSnapshot()
     const service = this.service
-    clearDshProcessAuth(launcherDataPaths().dshHome, service.pid)
+    clearDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, service.pid)
     this.harnessStartupUrl = undefined
     this.snapshot.runStatus = 'stopping'
     this.log('INFO', '正在停止 Harness…')
@@ -548,6 +558,7 @@ export class LauncherController {
   }
 
   async installHarness(version = this.snapshot.latestHarnessVersion): Promise<LauncherSnapshot> {
+    if (this.service || this.agentHost?.isBusy()) { this.log('WARN', '请先停止 Harness 并完成托管任务，再切换核心版本'); return this.getSnapshot() }
     if (this.snapshot.tasks.some((task) => task.status === 'running' && task.id.startsWith('install-'))) {
       for (let attempt = 0; attempt < 1_200; attempt += 1) {
         if (!this.snapshot.tasks.some((task) => task.status === 'running' && task.id.startsWith('install-'))) break
@@ -560,9 +571,15 @@ export class LauncherController {
     this.emit()
     try {
       if (this.config.settings.backupBeforeUpdate) await this.backupUserData()
-      const modularRelease = this.runtimeModules.find((module) => module.id === 'harness-core' && module.version === version)
+      let dependencyCatalog = this.runtimeModules
+      if (version === '0.1.1-rc.2') {
+        const legacy = await fetchSignedCatalog([{ id: 'runtime-v2', name: '旧版签名回退目录', enabled: true, kind: 'manifest', baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json' }])
+        if (!legacy?.runtimeModules?.some(module => module.id === 'harness-core' && module.version === version)) throw new Error('未取得验签的旧版核心；当前版本和两个数据目录保持不变')
+        dependencyCatalog = legacy.runtimeModules
+      }
+      const modularRelease = dependencyCatalog.find((module) => module.id === 'harness-core' && module.version === version)
       if (modularRelease) {
-        const plan = runtimeModulePlan(modularRelease, this.runtimeModules, process.platform, process.arch)
+        const plan = runtimeModulePlan(modularRelease, dependencyCatalog, process.platform, process.arch)
         task.steps = plan.map(({ release, bytes }) => ({
           id: release.id,
           label: RUNTIME_MODULE_LABELS[release.id] || release.id,
@@ -579,7 +596,7 @@ export class LauncherController {
         this.emit()
         const installed = await this.moduleStore.install(
           modularRelease,
-          this.runtimeModules,
+          dependencyCatalog,
           process.platform,
           process.arch,
           (progress) => this.updateModuleTask(task, progress)
@@ -601,7 +618,11 @@ export class LauncherController {
         this.emit()
         return this.getSnapshot()
       }
-      const paths = launcherDataPaths()
+      const paths = launcherDataPaths(version)
+      await ensureHarnessDataHome(paths.root, version, async () => {
+        if (this.service || this.agentHost?.isBusy()) throw new Error('运行中的任务阻止核心数据迁移')
+        await assertHarnessPortAvailable(this.config.settings.port)
+      })
       const target = await ensureRuntimeDirectory(paths.runtime, version)
       const current = await this.ensurePackageManager()
       let installed = false
@@ -815,6 +836,11 @@ export class LauncherController {
   }
 
   async rollbackHarness(version: string): Promise<LauncherSnapshot> {
+    if (this.service || this.agentHost?.isBusy()) { this.log('WARN', '请先停止 Harness 并完成托管任务，再回退核心'); return this.getSnapshot() }
+    if (version === '0.1.1-rc.2') {
+      const stored = await this.moduleStore.versions('harness-core')
+      if (!stored.installed.includes(version)) return this.installHarness(version)
+    }
     const available = this.snapshot.versions.find((entry) => entry.version === version && entry.installed)
     if (!available) {
       this.log('ERROR', `无法回滚：版本 ${version} 未安装`)
@@ -957,7 +983,7 @@ export class LauncherController {
     } catch (error) {
       this.log('WARN', `快捷方式暂未创建，可稍后在设置中修复：${error instanceof Error ? error.message : String(error)}`)
     }
-    this.log('INFO', `运行资源将保存在：${launcherDataPaths().root}`)
+    this.log('INFO', `运行资源将保存在：${launcherDataPaths(this.config.activeVersion).root}`)
     this.emit()
     this.beginOnlinePreparation()
     return this.getSnapshot()
@@ -971,7 +997,7 @@ export class LauncherController {
     if (this.snapshot.tasks.some((task) => task.status === 'running')) {
       throw new Error('请等待当前下载或安装任务完成，再更改运行资源位置')
     }
-    const currentRoot = launcherDataPaths().root
+    const currentRoot = launcherDataPaths(this.config.activeVersion).root
     const result = await dialog.showOpenDialog(this.window, {
       title: '选择运行资源的上级文件夹',
       defaultPath: path.dirname(currentRoot),
@@ -1015,9 +1041,9 @@ export class LauncherController {
       this.config.settings.storageSetupCompleted = true
       await writeConfig(this.config)
       setLauncherStorageRoot(targetRoot)
-      this.moduleStore = new RuntimeModuleStore(launcherDataPaths().runtime)
+      this.moduleStore = new RuntimeModuleStore(launcherDataPaths(this.config.activeVersion).runtime)
       if (this.agentHost) {
-        const runtime = await resolveRuntime(launcherDataPaths().runtime, this.config.activeVersion)
+        const runtime = await resolveRuntime(launcherDataPaths(this.config.activeVersion).runtime, this.config.activeVersion)
         await this.agentHost.relocate(this.moduleStore, path.join(targetRoot, 'agent-host'), runtime.node)
       }
       this.snapshot.settings = this.config.settings
@@ -1243,7 +1269,7 @@ export class LauncherController {
       const item = await fetchResourceDetail(id)
       const safeId = item.id.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
       if (!safeId) throw new Error('资源编号无法创建安全目录')
-      const paths = launcherDataPaths()
+      const paths = launcherDataPaths(this.config.activeVersion)
       let target: string
       if (item.type === 'skill') {
         if (!item.skillContent?.trim()) throw new Error('这项 Skill 暂未提供可安装正文')
@@ -1295,7 +1321,7 @@ export class LauncherController {
     const entry = this.snapshot.resourceLibrary.find((item) => item.id === id)
     if (!entry) return this.getSnapshot()
     if (entry.installedPath) {
-      const paths = launcherDataPaths()
+      const paths = launcherDataPaths(this.config.activeVersion)
       const root = entry.type === 'skill' ? path.join(paths.dshHome, 'skills') : path.join(paths.dshHome, 'library', 'ailishishu')
       const resolved = path.resolve(entry.installedPath)
       if (resolved.startsWith(`${path.resolve(root)}${path.sep}`)) await rm(resolved, { recursive: true, force: true })
@@ -1480,7 +1506,7 @@ export class LauncherController {
         message = downloaded.mediaKind === 'video' ? '视频动态桌面已启动' : '动图动态桌面已启动'
       } else {
         const source = desktopWallpaperSource(downloaded.mediaKind, downloaded.mediaPath, downloaded.posterPath, downloaded.thumbnailPath)
-        await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths().skins, 'desktop'))
+        await applyWindowsDesktopWallpaper(source.sourcePath, path.join(launcherDataPaths(this.config.activeVersion).skins, 'desktop'))
         await this.dynamicWallpaper.recordStatic(skinId)
         message = '高清壁纸已设为电脑桌面'
       }
@@ -1733,6 +1759,13 @@ export class LauncherController {
     return this.config.settings.sources.find((source) => source.id === 'npmmirror' && source.enabled)?.baseUrl || 'https://registry.npmjs.org'
   }
 
+  private async prepareCurrentHarnessHome(): Promise<void> {
+    await ensureHarnessDataHome(launcherDataPaths(this.config.activeVersion).root, this.config.activeVersion, async () => {
+      if (this.service || this.pluginActionPromise || this.agentHost?.isBusy()) throw new Error('请先完成运行中的 DSH、插件或托管任务，再克隆旧数据')
+      await assertHarnessPortAvailable(this.config.settings.port)
+    })
+  }
+
   private registryUrls(): string[] {
     const configured = this.config.settings.sources.find((source) => source.id === 'npmmirror' && source.enabled)
     const health = this.snapshot.sources.find((source) => source.id === 'npmmirror')
@@ -1741,7 +1774,7 @@ export class LauncherController {
   }
 
   private async ensureSkinRuntime(runtime: Awaited<ReturnType<typeof resolveRuntime>>): Promise<void> {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     // Must match bundled-plugins/deepblue-dsh-skin-runtime/package.json; the
     // appearance-plugin-version test fails the build when the two drift apart.
     const expectedVersion = '0.8.3'
@@ -1794,7 +1827,7 @@ export class LauncherController {
   private async ensurePackageManager(
     current?: Awaited<ReturnType<typeof resolveRuntime>>
   ): Promise<Awaited<ReturnType<typeof resolveRuntime>>> {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const runtime = current || await resolveRuntime(paths.runtime, this.config.activeVersion)
     if (await isExecutable(runtime.pnpm)) return runtime
     const release = this.runtimeModules.find((module) => module.id === 'package-manager')
@@ -1809,7 +1842,7 @@ export class LauncherController {
   private async prepareOnlineRuntime(): Promise<void> {
     await this.checkSources()
     if (this.distributionMode !== 'online') return
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const runtime = await resolveRuntime(paths.runtime, this.config.activeVersion)
     if (await isExecutable(runtime.dsh)) return
     this.log('INFO', '在线轻量版首次运行，开始自动安装 Harness')
@@ -1855,7 +1888,7 @@ export class LauncherController {
     const shortcuts = this.shortcutPaths()
     return {
       programRoot: path.dirname(process.execPath),
-      storageRoot: launcherDataPaths().root,
+      storageRoot: launcherDataPaths(this.config.activeVersion).root,
       setupRequired: !this.config.settings.storageSetupCompleted,
       desktopShortcutReady: this.shortcutReady(shortcuts.desktop),
       startMenuShortcutReady: this.shortcutReady(shortcuts.startMenu)
@@ -1971,7 +2004,7 @@ export class LauncherController {
   }
 
   private async backupUserData(): Promise<void> {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const target = path.join(paths.backups, stamp)
     const staging = `${target}.next`
@@ -2002,7 +2035,7 @@ export class LauncherController {
   }
 
   private async discoverVersions(activeVersion: string): Promise<HarnessVersion[]> {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const installed = new Set<string>()
     if (await hasBundledHarness()) installed.add(bundledVersions[0]!.version)
     const modularVersions = await this.moduleStore.versions('harness-core')
@@ -2052,7 +2085,7 @@ export class LauncherController {
   }
 
   private async performPluginAction(action: 'install' | 'update' | 'remove', packageSpec: string): Promise<LauncherSnapshot> {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const packageName = pluginPackageName(packageSpec)
     const catalogEntry = this.snapshot.plugins.find((item) => pluginPackageName(item.packageSpec) === packageName)
     const actionLabel = pluginActionLabel(action)
@@ -2167,7 +2200,7 @@ export class LauncherController {
 
   private async isPluginInstalled(packageName: string, requireFiles: boolean): Promise<boolean> {
     try {
-      const profileRoot = path.join(launcherDataPaths().dshHome, 'profiles', 'web')
+      const profileRoot = path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'profiles', 'web')
       const profile = JSON.parse(await readFile(path.join(profileRoot, 'package.json'), 'utf8')) as WebProfileManifest
       if (!Object.hasOwn(profile.dependencies || {}, packageName)) return false
       if (!requireFiles) return true
@@ -2452,8 +2485,8 @@ export class LauncherController {
     if (this.config.activeVersion === '0.2.1-alpha.2') {
       const pid = this.service?.pid
       if (!pid || this.service?.exitCode !== null) return
-      const published = await publishDshProcessAuth(launcherDataPaths().dshHome, { version: this.config.activeVersion, pid, cwd: this.config.settings.workspace, url }, () => this.service?.pid === pid && this.service?.exitCode === null && this.snapshot.runStatus === 'starting' && browserCycle === this.harnessCycle)
-      if (!published || this.service?.pid !== pid || this.service?.exitCode !== null || this.snapshot.runStatus !== 'starting') { clearDshProcessAuth(launcherDataPaths().dshHome, pid); return }
+      const published = await publishDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, { version: this.config.activeVersion, pid, cwd: this.config.settings.workspace, url }, () => this.service?.pid === pid && this.service?.exitCode === null && this.snapshot.runStatus === 'starting' && browserCycle === this.harnessCycle)
+      if (!published || this.service?.pid !== pid || this.service?.exitCode !== null || this.snapshot.runStatus !== 'starting') { clearDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, pid); return }
     }
     this.snapshot.runStatus = 'running'
     this.snapshot.serviceUrl = new URL(url).origin
@@ -2473,7 +2506,7 @@ export class LauncherController {
       level,
       message
     })
-    const logDirectory = launcherDataPaths().logs
+    const logDirectory = launcherDataPaths(this.config.activeVersion).logs
     const logFile = path.join(logDirectory, `${now.toISOString().slice(0, 10)}.log`)
     void mkdir(logDirectory, { recursive: true })
       .then(() => appendFile(logFile, `[${now.toISOString()}] ${level} ${message}\n`, 'utf8'))

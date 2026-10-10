@@ -6,6 +6,7 @@ import readline from 'node:readline'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { randomUUID } from 'node:crypto'
 import { prepareDshPrivateDirectory } from './dsh-process-auth'
+import { ensureHarnessDataHome } from './dsh-data-home'
 import { launcherDataPaths, writeConfig, type PersistedConfig } from './config'
 import { parseModelUsageLine } from './model-usage'
 import { harnessUsesProfileModelSettings, retireLegacyModelSections, mergeHarnessProfileModelSettings, profileModelSettingsSource, mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
@@ -139,6 +140,7 @@ export class ModelStore {
   ) {}
 
   async initialize(): Promise<void> {
+    await ensureHarnessDataHome(launcherDataPaths(this.config.activeVersion).root, this.config.activeVersion)
     try {
       const parsed = JSON.parse(await readFile(secretPath(), 'utf8')) as SecretDocument
       if (parsed.version === 1 && parsed.values && typeof parsed.values === 'object') this.secrets = parsed
@@ -258,7 +260,7 @@ export class ModelStore {
 
   async refreshUsage(): Promise<ModelHubState> {
     const totals: Record<string, ModelUsageSummary> = {}
-    const files = await this.sessionLogs(path.join(launcherDataPaths().dshHome, 'sessions'))
+    const files = await this.sessionLogs(path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'sessions'))
     for (const file of files.slice(-200)) {
       const input = createReadStream(file, { encoding: 'utf8' })
       const lines = readline.createInterface({ input, crlfDelay: Infinity })
@@ -390,7 +392,7 @@ export class ModelStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       if (!profileSettings) return true
-      try { source = await readFile(path.join(launcherDataPaths().dshHome, 'settings.yaml'), 'utf8'); profileSettings = false }
+      try { source = await readFile(path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'settings.yaml'), 'utf8'); profileSettings = false }
       catch (legacyError) { if ((legacyError as NodeJS.ErrnoException).code === 'ENOENT') return true; throw legacyError }
     }
     const previousProviders = this.config.modelRouting.providers
@@ -413,7 +415,7 @@ export class ModelStore {
   }
 
   private async initializeHarnessCredentials(): Promise<void> {
-    const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
+    const target = path.join(launcherDataPaths(this.config.activeVersion).dshHome, '.credentials.yaml')
     let source = '{}\n'
     let targetExists = true
     try {
@@ -462,7 +464,7 @@ export class ModelStore {
 
   /** Mirror Harness's writable credential source into Windows encrypted storage. */
   private async importHarnessCredentials(): Promise<boolean> {
-    const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
+    const target = path.join(launcherDataPaths(this.config.activeVersion).dshHome, '.credentials.yaml')
     let source = '{}\n'
     try {
       source = await readFile(target, 'utf8')
@@ -501,15 +503,15 @@ export class ModelStore {
   async prepareHarnessCredentials(version: string): Promise<void> {
     if (version === this.config.activeVersion) {
       await this.importHarnessSettings()
-      await this.writeHarnessSettings()
       if (harnessUsesProfileModelSettings(version)) {
-        const legacy = path.join(launcherDataPaths().dshHome, 'settings.yaml')
+        await this.writeHarnessSettings()
+        const legacy = path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'settings.yaml')
         await withFileLock(legacy, async () => {
           let source: string
           try { source = await readFile(legacy, 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error }
           const remaining = retireLegacyModelSections(source)
           if (remaining === undefined) return
-          const backupDirectory = await prepareDshPrivateDirectory(launcherDataPaths().dshHome)
+          const backupDirectory = await prepareDshPrivateDirectory(launcherDataPaths(this.config.activeVersion).dshHome)
           await writeFileAtomic(path.join(backupDirectory, `settings-before-0.2.1-${randomUUID()}.yaml`), source, { mode: 0o600, dirMode: 0o700 })
           await writeFileAtomic(legacy, remaining, { mode: 0o600, dirMode: 0o700 })
         })
@@ -517,7 +519,7 @@ export class ModelStore {
       this.dispose()
       this.startWatchers()
     }
-    const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
+    const target = path.join(launcherDataPaths(this.config.activeVersion).dshHome, '.credentials.yaml')
     let source: string
     try {
       source = await readFile(target, 'utf8')
@@ -529,7 +531,7 @@ export class ModelStore {
   }
 
   private async writeHarnessCredentials(updates: Record<string, string | undefined>, version = this.config.activeVersion): Promise<void> {
-    const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
+    const target = path.join(launcherDataPaths(this.config.activeVersion).dshHome, '.credentials.yaml')
     await mkdir(path.dirname(target), { recursive: true, mode: 0o700 })
     await withFileLock(target, async () => {
       let source = '{}\n'
@@ -543,7 +545,7 @@ export class ModelStore {
   }
 
   private startWatchers(): void {
-    const paths = launcherDataPaths()
+    const paths = launcherDataPaths(this.config.activeVersion)
     const targets = [
       { path: this.harnessSettingsPath(), kind: 'settings' as const },
       { path: path.join(paths.dshHome, '.credentials.yaml'), kind: 'credentials' as const }
@@ -590,6 +592,6 @@ export class ModelStore {
   }
 
   private harnessSettingsPath(): string {
-    return path.join(launcherDataPaths().dshHome, ...(harnessUsesProfileModelSettings(this.config.activeVersion) ? ['profiles', 'web', 'cordis.patch.yml'] : ['settings.yaml']))
+    return path.join(launcherDataPaths(this.config.activeVersion).dshHome, ...(harnessUsesProfileModelSettings(this.config.activeVersion) ? ['profiles', 'web', 'cordis.patch.yml'] : ['settings.yaml']))
   }
 }

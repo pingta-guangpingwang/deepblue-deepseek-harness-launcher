@@ -14,9 +14,9 @@ const defaultSources: SourceConfig[] = [
     kind: 'repository'
   },
   {
-    id: 'runtime-v2',
-    name: 'OSS 运行时目录',
-    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/launcher-manifest.json',
+    id: 'runtime-v2-dsh02',
+    name: 'OSS DSH 0.2 预览目录',
+    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh02/launcher-manifest.json',
     enabled: true,
     kind: 'manifest'
   },
@@ -162,7 +162,7 @@ export async function readConfig(): Promise<PersistedConfig> {
         sources: fallback.settings.sources.map((defaultSource) => {
           const saved = parsed.settings?.sources?.find((source) => source.id === defaultSource.id)
           if (!saved) return defaultSource
-          if ((saved.id === 'gitee' || saved.id === 'runtime-v2') && !saved.baseUrl.trim()) return defaultSource
+          if ((saved.id === 'gitee' || saved.id === 'runtime-v2-dsh02') && !saved.baseUrl.trim()) return defaultSource
           return { ...defaultSource, ...saved }
         })
       },
@@ -192,12 +192,17 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
   await rename(temporary, target)
 }
 
-export function launcherDataPaths(): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string; petFavorites: string; petDesktopState: string } {
+export function harnessHomeDirectoryName(version?: string): string {
+  const match = /^(\d+)\.(\d+)\./.exec(version || '')
+  return match && (Number(match[1]) > 0 || Number(match[2]) >= 2) ? 'harness-data-v2' : 'harness-data'
+}
+
+export function launcherDataPaths(version?: string): { root: string; runtime: string; dshHome: string; backups: string; logs: string; skins: string; skinConfig: string; skinFavorites: string; pets: string; petConfig: string; petFavorites: string; petDesktopState: string } {
   const root = configuredStorageRoot || app.getPath('userData')
   return {
     root,
     runtime: path.join(root, 'runtime'),
-    dshHome: path.join(root, 'harness-data'),
+    dshHome: path.join(root, harnessHomeDirectoryName(version)),
     backups: path.join(root, 'backups'),
     logs: path.join(root, 'logs'),
     skins: path.join(root, 'skins'),

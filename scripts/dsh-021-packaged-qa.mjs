@@ -44,11 +44,11 @@ try {
   report.checks.launcherVersion = state.version; report.checks.dshVersion = state.active
   report.checks.logTokensRedacted = state.logs.every(line => !/[?&]token=(?!\[redacted\])/.test(line.message))
   report.checks.modelEntriesActive = state.logs.every(line => !/entry did not activate|catalog model.*no longer supported/i.test(line.message))
-  report.checks.authFileCreated = (await stat(path.join(storage, 'harness-data/launcher/process-auth.json'))).isFile()
+  report.checks.authFileCreated = (await stat(path.join(storage, 'harness-data-v2/launcher/process-auth.json'))).isFile()
   report.checks.snapshotUrlClean = !new URL(state.url).search
-  const auth = JSON.parse(await readFile(path.join(storage, 'harness-data/launcher/process-auth.json'), 'utf8'))
+  const auth = JSON.parse(await readFile(path.join(storage, 'harness-data-v2/launcher/process-auth.json'), 'utf8'))
   launchedPid = auth.pid
-  const encodedFile = Buffer.from(path.join(storage, 'harness-data/launcher/process-auth.json'), 'utf8').toString('base64')
+  const encodedFile = Buffer.from(path.join(storage, 'harness-data-v2/launcher/process-auth.json'), 'utf8').toString('base64')
   const aclScript = `$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedFile}')); $d=[IO.Directory]::GetAccessControl([IO.Path]::GetDirectoryName($p)); $a=[IO.File]::GetAccessControl($p); $ids=@($a.Access | ForEach-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value }); $allowed=@([Security.Principal.WindowsIdentity]::GetCurrent().User.Value,'S-1-5-18','S-1-5-32-544'); if(!$d.AreAccessRulesProtected -or $ids.Count -ne 3 -or @($ids | Where-Object { $_ -notin $allowed }).Count) { exit 2 }; Write-Output 'PRIVATE_ACL_OK'`
   report.checks.authenticationAclPrivate = (await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(aclScript, 'utf16le').toString('base64')], { windowsHide: true })).stdout.trim() === 'PRIVATE_ACL_OK'
   report.checks.unauthenticatedRoot = (await fetch('http://127.0.0.1:' + port)).status
@@ -66,16 +66,16 @@ try {
   await page.screenshot({ path: path.join(output, 'launcher-running.png') })
   report.checks.processAlive = Number.isSafeInteger(auth.pid)
   await page.evaluate(async () => window.launcher.stopHarness())
-  report.checks.stopAuthenticationRemoved = await stat(path.join(storage, 'harness-data/launcher/process-auth.json')).then(() => false, () => true)
+  report.checks.stopAuthenticationRemoved = await stat(path.join(storage, 'harness-data-v2/launcher/process-auth.json')).then(() => false, () => true)
   if (await updateDismiss.isVisible()) await updateDismiss.click()
   await page.getByRole('button', { name: /启动 DeepSeek Harness/ }).first().click()
   for (let attempt = 0; attempt < 150; attempt++) {
     if (await page.evaluate(async () => (await window.launcher.getSnapshot()).runStatus) === 'running') break
     await page.waitForTimeout(300)
   }
-  launchedPid = JSON.parse(await readFile(path.join(storage, 'harness-data/launcher/process-auth.json'), 'utf8')).pid
+  launchedPid = JSON.parse(await readFile(path.join(storage, 'harness-data-v2/launcher/process-auth.json'), 'utf8')).pid
   if (state.version !== '0.10.37' || state.active !== '0.2.1-alpha.2' || !report.checks.logTokensRedacted || !report.checks.modelEntriesActive || !report.checks.browserTokenRemoved || report.errors.length) throw Error('Packaged launcher/browser acceptance failed')
   report.passed = true
 } catch(error) { report.error = String(error.message).replace(/([?&]token=)[^\s&]+/g, '$1[redacted]'); process.exitCode = 1 }
-finally { await browser?.close(); await app?.close(); report.checks.exitAuthenticationRemoved = await stat(path.join(storage, 'harness-data/launcher/process-auth.json')).then(() => false, () => true); if (launchedPid) await promisify(execFile)('taskkill', ['/pid', String(launchedPid), '/t', '/f'], { windowsHide: true }).catch(() => {}); await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n') }
+finally { await browser?.close(); await app?.close(); report.checks.exitAuthenticationRemoved = await stat(path.join(storage, 'harness-data-v2/launcher/process-auth.json')).then(() => false, () => true); if (launchedPid) await promisify(execFile)('taskkill', ['/pid', String(launchedPid), '/t', '/f'], { windowsHide: true }).catch(() => {}); await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n') }
 console.log(JSON.stringify(report, null, 2))

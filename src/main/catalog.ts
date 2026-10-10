@@ -12,6 +12,10 @@ export const bundledVersions: HarnessVersion[] = [
     notes: ['同步 DeepSeek 官方 dsh-v0.2.1-alpha.2 预发布', '本机浏览器认证与 Remote 会话协议']
   },
   {
+    version: '0.1.1-rc.2', channel: 'stable', installed: false, active: false, rollbackReady: false,
+    publishedAt: '2026-08-22', notes: ['通过旧版签名目录手动获取', '回退使用保留的 harness-data，不回写 0.2 新会话']
+  },
+  {
     version: '0.1.0-rc.3',
     channel: 'preview',
     installed: false,

@@ -17,6 +17,7 @@ vi.mock('electron', () => ({
 }))
 
 import { ModelStore } from './model-store'
+import { dshPersistentDataHash } from './dsh-data-home'
 
 function config(): PersistedConfig {
   return {
@@ -131,15 +132,37 @@ describe('ModelStore two-way Harness synchronization', () => {
     store = new ModelStore(existing)
     await store.initialize()
     expect(store.state().active.model).toBe('deepseek-v4-pro')
-    const profile = path.join(runtime.root, 'harness-data/profiles/web/cordis.patch.yml')
+    const profile = path.join(runtime.root, 'harness-data-v2/profiles/web/cordis.patch.yml')
     expect(await readFile(profile, 'utf8')).toContain('id: agent-default-model')
     await store.prepareHarnessCredentials('0.2.1-alpha.2')
-    const legacy = await readFile(path.join(runtime.root, 'harness-data/settings.yaml'), 'utf8')
+    const legacy = await readFile(path.join(runtime.root, 'harness-data-v2/settings.yaml'), 'utf8')
     expect(legacy).toContain('shell:')
     expect(legacy).not.toContain('agent-default-model')
-    const backups = (await readdir(path.join(runtime.root, 'harness-data/launcher'))).filter(name => name.startsWith('settings-before-0.2.1-'))
+    const backups = (await readdir(path.join(runtime.root, 'harness-data-v2/launcher'))).filter(name => name.startsWith('settings-before-0.2.1-'))
     expect(backups).toHaveLength(1)
     await writeFile(profile, '- id: agent-default-model\n  config: { provider: deepseek-official, model: deepseek-v4-flash }\n')
     await vi.waitFor(() => expect(store?.state().active.model).toBe('deepseek-v4-flash'), { timeout: 6000, interval: 100 })
+  })
+
+  it('prepares the selected v2 home then explicitly returns to old settings without rewriting either history', async () => {
+    const selected = config()
+    selected.activeVersion = '0.2.1-alpha.2'
+    selected.modelRouting.credentialSyncVersion = 1
+    const old = path.join(runtime.root, 'harness-data')
+    await writeFile(path.join(old, 'settings.yaml'), 'agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-pro\n')
+    await writeFile(path.join(old, '.credentials.yaml'), 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: synthetic-old-only\n')
+    const originalHash = await dshPersistentDataHash(old)
+    store = new ModelStore(selected)
+    await store.initialize()
+    await store.prepareHarnessCredentials(selected.activeVersion)
+    expect(await dshPersistentDataHash(old)).toBe(originalHash)
+    const current = path.join(runtime.root, 'harness-data-v2')
+    await writeFile(path.join(current, 'new-session.jsonl'), '{"id":"synthetic-new-session"}\n')
+    const upgradedHash = await dshPersistentDataHash(current)
+    selected.activeVersion = '0.1.1-rc.2'
+    await store.prepareHarnessCredentials(selected.activeVersion)
+    expect(await dshPersistentDataHash(old)).toBe(originalHash)
+    expect(await dshPersistentDataHash(current)).toBe(upgradedHash)
+    expect(await readFile(path.join(current, 'new-session.jsonl'), 'utf8')).toContain('synthetic-new-session')
   })
 })

@@ -15,7 +15,7 @@ import { realpath } from 'node:fs/promises';
 import { isPathWithinRoot } from './config.mjs';
 import { localOnlySessionIds } from './local-control/private-sessions.mjs';
 
-const CONNECTOR_VERSION = '0.10.11';
+const CONNECTOR_VERSION = '0.10.13';
 const MAX_RUNTIME_WAIT_MS = 15000;
 const MANAGED_SESSION_SETTLE_MS = 45000;
 

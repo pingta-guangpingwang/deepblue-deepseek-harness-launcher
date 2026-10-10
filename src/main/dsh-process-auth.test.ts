@@ -4,13 +4,15 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { clearDshProcessAuth, publishDshProcessAuth } from './dsh-process-auth'
+import { clearDshProcessAuth, prepareDshProcessAuthentication, publishDshProcessAuth } from './dsh-process-auth'
 
 it('publishes only in the fixed private directory and only the owning PID can clear it', async () => {
   const home = await mkdtemp(path.join(tmpdir(), 'dsh-private-auth-'))
   try {
     await publishDshProcessAuth(home, { version: '0.2.1-alpha.2', pid: process.pid, cwd: home, url: 'http://127.0.0.1:3080/?token=SYNTHETIC_LOCAL_ONLY_TOKEN' })
     const file = path.join(home, 'launcher/process-auth.json')
+    expect(JSON.parse(await readFile(file, 'utf8')).pid).toBe(process.pid)
+    await expect(prepareDshProcessAuthentication(home)).rejects.toThrow('已有 DSH 进程')
     expect(JSON.parse(await readFile(file, 'utf8')).pid).toBe(process.pid)
     if (process.platform === 'win32') {
       const encoded = Buffer.from(file, 'utf8').toString('base64')

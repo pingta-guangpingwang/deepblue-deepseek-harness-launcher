@@ -17,7 +17,7 @@ it('resolves only the owning launcher configuration and never returns credential
     expect(result.endpoint).toBe('http://127.0.0.1:3080')
     expect(JSON.stringify(result)).not.toContain('TEST-ONLY')
     config.activeVersion = '0.2.1-alpha.2';
-    const authDirectory = path.join(root, 'harness-data/launcher'); await mkdir(authDirectory)
+    const authDirectory = path.join(root, 'harness-data-v2/launcher'); await mkdir(authDirectory, { recursive: true })
     await writeFile(path.join(authDirectory, 'process-auth.json'), JSON.stringify({ url: 'http://127.0.0.1:3080/?token=SYNTHETIC_LOCAL_TOKEN_ONLY' }))
     await save(); const remote = await resolveBuiltinDshHost(storageDir, root)
     expect(remote.authFile).toBe(await realpath(path.join(authDirectory, 'process-auth.json')))
