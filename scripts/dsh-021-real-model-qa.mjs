@@ -11,7 +11,8 @@ import { runDshTask, readDshSessionHistory } from '../vendor/agent-connector/src
 
 const runtime = path.resolve(process.argv[2] || '')
 const original = 'C:/Users/Administrator/AppData/Roaming/deepseek-harness-launcher/harness-data'
-assert.ok(runtime.includes('dsh-0.2.1-alpha.2-runtime') || runtime.includes('cold-install'))
+assert.ok(runtime.includes('dsh-0.2.1-alpha.2-runtime') || runtime.includes('cold-install') || (runtime.includes('deepblue-public-fresh-install-') && runtime.endsWith(path.join('harness-core', '0.2.1-alpha.2'))))
+assert.equal(JSON.parse(await readFile(path.join(runtime, 'node_modules/@deepseek-ai/dsh/package.json'), 'utf8')).version, '0.2.1-alpha.2')
 const output = path.resolve(import.meta.dirname, '../output/dsh-real-model-' + randomUUID())
 const home = path.join(output, 'harness-data-v2'), workspace = path.join(output, 'workspace')
 await mkdir(home, { recursive: true, mode: 0o700 })

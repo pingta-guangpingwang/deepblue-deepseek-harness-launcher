@@ -45,14 +45,13 @@ await writeFile(path.join(userDataRoot, 'launcher.json'), `${JSON.stringify({
 const observedSources = new Set()
 const observedProgress = []
 const startedAt = Date.now()
+const isolatedEnvironment = { ...process.env, APPDATA: appDataRoot, LOCALAPPDATA: localAppDataRoot, DSH_LAUNCHER_ALLOW_PARALLEL: '1', DSH_LAUNCHER_DISABLE_HARDWARE_ACCELERATION: '1' }
+for (const key of Object.keys(isolatedEnvironment)) if (/api.?key|access.?token|auth.?token|password|secret/i.test(key)) delete isolatedEnvironment[key]
+delete isolatedEnvironment.ELECTRON_RUN_AS_NODE
 const app = await electron.launch({
   executablePath,
   args: [`--user-data-dir=${userDataRoot}`, '--disable-gpu'],
-  env: {
-    ...process.env,
-    APPDATA: appDataRoot,
-    LOCALAPPDATA: localAppDataRoot
-  }
+  env: isolatedEnvironment
 })
 
 let finalSnapshot
@@ -116,6 +115,8 @@ try {
     passed: true,
     testedAt: new Date().toISOString(),
     elapsedMs: Date.now() - startedAt,
+    qaRoot,
+    storageRoot,
     launcherVersion: finalSnapshot.launcherVersion,
     harnessVersion: finalSnapshot.activeHarnessVersion,
     authenticatedBrowser,
