@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, rm, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm, realpath, rename, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { expect, it, vi } from 'vitest'
@@ -22,6 +22,12 @@ it('resolves only the owning launcher configuration and never returns credential
     await save(); const remote = await resolveBuiltinDshHost(storageDir, root)
     expect(remote.authFile).toBe(await realpath(path.join(authDirectory, 'process-auth.json')))
     expect(JSON.stringify(remote)).not.toContain('SYNTHETIC_LOCAL_TOKEN_ONLY')
+    const originalAuth = path.join(root, 'original-auth')
+    await rename(authDirectory, originalAuth)
+    await symlink(originalAuth, authDirectory, process.platform === 'win32' ? 'junction' : 'dir')
+    await expect(resolveBuiltinDshHost(storageDir, root)).rejects.toThrow('符号链接')
+    await rm(authDirectory)
+    await rename(originalAuth, authDirectory)
     config.settings.port = 80; await save(); await expect(resolveBuiltinDshHost(storageDir, root)).rejects.toThrow('端口')
     config.settings.port = 3080; config.activeVersion = '0.1.2'; await save(); await expect(resolveBuiltinDshHost(storageDir, root)).rejects.toThrow('版本')
     config.activeVersion = '0.1.1-rc.2'; config.settings.storageRoot = path.dirname(root); await save(); await expect(resolveBuiltinDshHost(storageDir, root)).rejects.toThrow('同一')

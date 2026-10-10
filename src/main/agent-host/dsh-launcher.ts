@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { readFile, realpath, stat } from 'node:fs/promises'
+import { lstat, readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { harnessHomeDirectoryName } from '../config'
 
@@ -24,8 +24,12 @@ export async function resolveBuiltinDshHost(storageDir: string, userDataPath = a
   const homeDirectory = harnessHomeDirectoryName(config.activeVersion)
   if (!(await stat(path.join(hostRoot, homeDirectory))).isDirectory()) throw new Error('请先在启动器首页初始化并启动 DSH')
   if (config.activeVersion === '0.2.1-alpha.2') {
-    const authRoot = await realpath(path.join(hostRoot, homeDirectory))
-    const authFile = await realpath(path.join(authRoot, 'launcher/process-auth.json'))
+    const selectedHome = path.join(hostRoot, homeDirectory)
+    const selectedFile = path.join(selectedHome, 'launcher/process-auth.json')
+    const nodes = await Promise.all([lstat(selectedHome), lstat(path.dirname(selectedFile)), lstat(selectedFile)])
+    if (nodes.some(node => node.isSymbolicLink()) || !nodes[2]!.isFile()) throw new Error('DSH 本机认证路径不能是符号链接')
+    const authRoot = await realpath(selectedHome)
+    const authFile = await realpath(selectedFile)
     if (path.relative(authRoot, authFile) !== path.join('launcher', 'process-auth.json') || (await stat(authFile)).size > 8192) throw new Error('DSH 本机认证文件不可用')
     return { endpoint: `http://127.0.0.1:${port}`, expectedVersion: config.activeVersion, expectedCwd: await realpath(workspace), authFile, authRoot }
   }
