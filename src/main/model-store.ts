@@ -6,7 +6,7 @@ import readline from 'node:readline'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { launcherDataPaths, writeConfig, type PersistedConfig } from './config'
 import { parseModelUsageLine } from './model-usage'
-import { mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
+import { harnessUsesProfileModelSettings, mergeHarnessProfileModelSettings, profileModelSettingsSource, mergeHarnessModelSettings, parseHarnessModelSettings, type HarnessProviderProfile } from './model-settings'
 import { harnessCredentialsLayoutForVersion, harnessCredentialsNeedLayoutMigration, mergeHarnessCredentials, parseHarnessCredentials } from './model-credentials'
 import { runMultimodalApi } from './multimodal'
 import { queryDeepSeekBalance } from './deepseek-balance'
@@ -380,16 +380,19 @@ export class ModelStore {
 
   /** Import provider profiles and the active route changed from Harness web. */
   private async importHarnessSettings(): Promise<boolean> {
-    const target = path.join(launcherDataPaths().dshHome, 'settings.yaml')
+    const target = this.harnessSettingsPath()
+    let profileSettings = harnessUsesProfileModelSettings(this.config.activeVersion)
     let source: string
     try {
       source = await readFile(target, 'utf8')
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true
-      throw error
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      if (!profileSettings) return true
+      try { source = await readFile(path.join(launcherDataPaths().dshHome, 'settings.yaml'), 'utf8'); profileSettings = false }
+      catch (legacyError) { if ((legacyError as NodeJS.ErrnoException).code === 'ENOENT') return true; throw legacyError }
     }
     const previousProviders = this.config.modelRouting.providers
-    const parsed = parseHarnessModelSettings(source, this.providerProfiles(), this.config.modelRouting.active)
+    const parsed = parseHarnessModelSettings(profileSettings ? profileModelSettingsSource(source) : source, this.providerProfiles(), this.config.modelRouting.active)
     const nextProviders: PersistedConfig['modelRouting']['providers'] = parsed.providers.map((provider) => ({ ...provider }))
     const changed = JSON.stringify({ active: this.config.modelRouting.active, providers: previousProviders })
       !== JSON.stringify({ active: parsed.active, providers: nextProviders })
@@ -494,6 +497,12 @@ export class ModelStore {
   }
 
   async prepareHarnessCredentials(version: string): Promise<void> {
+    if (version === this.config.activeVersion) {
+      await this.importHarnessSettings()
+      await this.writeHarnessSettings()
+      this.dispose()
+      this.startWatchers()
+    }
     const target = path.join(launcherDataPaths().dshHome, '.credentials.yaml')
     let source: string
     try {
@@ -522,7 +531,7 @@ export class ModelStore {
   private startWatchers(): void {
     const paths = launcherDataPaths()
     const targets = [
-      { path: path.join(paths.dshHome, 'settings.yaml'), kind: 'settings' as const },
+      { path: this.harnessSettingsPath(), kind: 'settings' as const },
       { path: path.join(paths.dshHome, '.credentials.yaml'), kind: 'credentials' as const }
     ]
     for (const target of targets) {
@@ -551,17 +560,22 @@ export class ModelStore {
   }
 
   private async writeHarnessSettings(removedProviderId?: string): Promise<void> {
-    const target = path.join(launcherDataPaths().dshHome, 'settings.yaml')
+    const target = this.harnessSettingsPath()
     await mkdir(path.dirname(target), { recursive: true, mode: 0o700 })
     await withFileLock(target, async () => {
-      let source = '{}\n'
+      const profileSettings = harnessUsesProfileModelSettings(this.config.activeVersion)
+      let source = profileSettings ? '[]\n' : '{}\n'
       try {
         source = await readFile(target, 'utf8')
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
-      const merged = mergeHarnessModelSettings(source, this.config.modelRouting.active, this.providerProfiles(), removedProviderId)
+      const merged = (profileSettings ? mergeHarnessProfileModelSettings : mergeHarnessModelSettings)(source, this.config.modelRouting.active, this.providerProfiles(), removedProviderId)
       await writeFileAtomic(target, merged, { mode: 0o600, dirMode: 0o700 })
     })
+  }
+
+  private harnessSettingsPath(): string {
+    return path.join(launcherDataPaths().dshHome, ...(harnessUsesProfileModelSettings(this.config.activeVersion) ? ['profiles', 'web', 'cordis.patch.yml'] : ['settings.yaml']))
   }
 }

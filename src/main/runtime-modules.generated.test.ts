@@ -7,6 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { RuntimeModuleRelease } from '../shared/types'
 import { RuntimeModuleStore } from './runtime-modules'
+import { parseHarnessStartupUrl, redactHarnessAuthentication } from './dsh-startup-url'
 
 const enabled = process.env.RUNTIME_MODULE_SMOKE === '1'
 const installationRoots: string[] = []
@@ -100,7 +101,7 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     const dsh = path.join(harnessResult.root, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
     const harnessVersion = await run(node, [dsh, '--version'])
     expect(harnessVersion.code, harnessVersion.output).toBe(0)
-    expect(harnessVersion.output).toContain('0.1.1-rc.2')
+    expect(harnessVersion.output).toContain('0.2.1-alpha.2')
     const pnpm = path.join(packageManagerResult.root, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
     const pnpmVersion = await run(node, [pnpm, '--version'])
     expect(pnpmVersion.code, pnpmVersion.output).toBe(0)
@@ -126,10 +127,14 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
     try {
       let ready = false
       for (let attempt = 0; attempt < 90; attempt += 1) {
-        if (web.exitCode !== null) throw new Error(`Harness Web exited with ${web.exitCode}\n${webOutput}`)
+        if (web.exitCode !== null) throw new Error(`Harness Web exited with ${web.exitCode}\n${redactHarnessAuthentication(webOutput)}`)
         try {
-          const response = await nativeFetch(`http://127.0.0.1:${port}`, { signal: AbortSignal.timeout(700) })
-          if (response.ok) {
+          const startupUrl = parseHarnessStartupUrl(webOutput, port)
+          if (!startupUrl) throw new Error('Waiting for the authenticated startup URL')
+          const exchange = await nativeFetch(startupUrl, { signal: AbortSignal.timeout(700), redirect: 'manual' })
+          const cookie = exchange.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
+          const response = await nativeFetch(`http://127.0.0.1:${port}`, { headers: { cookie }, signal: AbortSignal.timeout(700) })
+          if (exchange.status === 303 && cookie && response.ok) {
             ready = true
             break
           }
@@ -138,7 +143,7 @@ describe.skipIf(!enabled)('generated runtime modules', () => {
         }
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
-      expect(ready, webOutput).toBe(true)
+      expect(ready, redactHarnessAuthentication(webOutput)).toBe(true)
     } finally {
       await stopTree(web.pid)
       if (web.exitCode === null) {

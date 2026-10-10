@@ -9,7 +9,6 @@ const NO_BROWSER_PATCH = `# Managed by DeepBlue Launcher.
     openBrowser: false
     printUrl: true
     surfaceContext: true
-    trustedHosts: !!js ctx.webStartup.trustedHosts
 `
 
 /**

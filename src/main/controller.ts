@@ -22,6 +22,7 @@ import { assertHarnessPortAvailable, validateHarnessPort } from './port-settings
 import { readPnpmProfileEnvironment } from './pnpm-profile'
 import { installAppearanceRuntimeAtomically, prepareAppearanceProfile } from './appearance-profile'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
+import { parseHarnessStartupUrl, redactHarnessAuthentication } from './dsh-startup-url'
 import { AgentHostBridge } from './agent-host-bridge'
 import { ProjectDirectoryPicker } from './project-directory-picker'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
@@ -107,6 +108,8 @@ export class LauncherController {
   private config!: PersistedConfig
   private snapshot!: LauncherSnapshot
   private service?: ChildProcessWithoutNullStreams
+  private harnessStartupUrl?: string
+  private harnessOutputPending = new Map<string, string>()
   private nextLogId = 1
   private distributionMode: 'online' | 'offline' = 'offline'
   private readonly skinStore = new SkinStore()
@@ -164,7 +167,7 @@ export class LauncherController {
       runStatus: 'stopped',
       launchProgress: { status: 'idle', progress: 0, message: '等待启动' },
       activeHarnessVersion: this.config.activeVersion,
-      latestHarnessVersion: '0.1.1-rc.2',
+      latestHarnessVersion: '0.2.1-alpha.2',
       runtimeUpdates: { status: 'idle', items: [], modules: [] },
       environment: this.checkingEnvironment(),
       sources,
@@ -414,6 +417,8 @@ export class LauncherController {
     const browserCycle = this.browserHandoff.begin()
     this.snapshot.runStatus = 'starting'
     this.snapshot.serviceUrl = undefined
+    this.harnessStartupUrl = undefined
+    this.harnessOutputPending.clear()
     this.updateLaunchProgress('preparing', 6, '正在检查 Harness 运行环境')
     try {
       const paths = launcherDataPaths()
@@ -1978,7 +1983,7 @@ export class LauncherController {
   private async discoverVersions(activeVersion: string): Promise<HarnessVersion[]> {
     const paths = launcherDataPaths()
     const installed = new Set<string>()
-    if (await hasBundledHarness()) installed.add('0.1.1-rc.2')
+    if (await hasBundledHarness()) installed.add(bundledVersions[0]!.version)
     const modularVersions = await this.moduleStore.versions('harness-core')
     modularVersions.installed.forEach((version) => installed.add(version))
     try {
@@ -2215,13 +2220,25 @@ export class LauncherController {
   }
 
   private consumeProcessOutput(output: string, fallback: LogLine['level'], browserCycle?: number): void {
+    if (browserCycle !== undefined) {
+      const key = `${browserCycle}:${fallback}`
+      const pending = (this.harnessOutputPending.get(key) || '') + output
+      const boundary = pending.lastIndexOf('\n')
+      if (pending.length > 1024 * 1024) { this.harnessOutputPending.delete(key); this.log('WARN', 'Harness 输出行超过大小限制'); return }
+      this.harnessOutputPending.set(key, pending.slice(boundary + 1))
+      if (boundary < 0) return
+      output = pending.slice(0, boundary + 1)
+    }
     for (const raw of output.split(/\r?\n/)) {
       const line = raw.trim()
       if (!line) continue
       const level = /\berror\b|\bfatal\b/i.test(line) ? 'ERROR' : /\bwarn/i.test(line) ? 'WARN' : fallback
       this.log(level, line)
-      const url = line.match(/https?:\/\/(?:127\.0\.0\.1|localhost):\d+/i)?.[0]
-      if (url && browserCycle !== undefined && this.snapshot.runStatus === 'starting') this.markRunning(url, browserCycle)
+      const url = parseHarnessStartupUrl(line, this.config.settings.port)
+      if (url && browserCycle !== undefined && this.snapshot.runStatus === 'starting') {
+        this.harnessStartupUrl = url
+        this.markRunning(url, browserCycle)
+      }
     }
     this.emit()
   }
@@ -2377,10 +2394,12 @@ export class LauncherController {
     let readiness = advanceHarnessReadiness({ consecutiveSuccesses: 0 }, false, Date.now())
     for (let attempt = 0; attempt < 90 && this.snapshot.runStatus === 'starting'; attempt += 1) {
       try {
-        const response = await fetch(url, { signal: AbortSignal.timeout(750) })
-        readiness = advanceHarnessReadiness(readiness, response.ok && this.service?.exitCode === null, Date.now())
+        const target = this.harnessStartupUrl || url
+        const response = await fetch(target, { signal: AbortSignal.timeout(750), redirect: 'manual' })
+        const authenticated = response.ok || response.status === 303 && Boolean(this.harnessStartupUrl)
+        readiness = advanceHarnessReadiness(readiness, authenticated && this.service?.exitCode === null, Date.now())
         if (readiness.ready) {
-          this.markRunning(url, browserCycle)
+          this.markRunning(target, browserCycle)
           return
         }
       } catch {
@@ -2410,6 +2429,7 @@ export class LauncherController {
   }
 
   private log(level: LogLine['level'], message: string): void {
+    message = redactHarnessAuthentication(message)
     const now = new Date()
     this.snapshot.logs.push({
       id: this.nextLogId++,

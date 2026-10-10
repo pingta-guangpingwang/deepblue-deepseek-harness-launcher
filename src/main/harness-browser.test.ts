@@ -28,7 +28,7 @@ describe('Harness browser ownership', () => {
     expect(patch).toContain('openBrowser: false')
     expect(patch).toContain('printUrl: true')
     expect(patch).toContain('surfaceContext: true')
-    expect(patch).toContain('trustedHosts: !!js ctx.webStartup.trustedHosts')
+    expect(patch).not.toContain('trustedHosts:')
   })
 
   it('coalesces concurrent readiness signals into one operating-system handoff', async () => {

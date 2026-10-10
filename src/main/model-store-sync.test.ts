@@ -123,4 +123,17 @@ describe('ModelStore two-way Harness synchronization', () => {
     await store.prepareHarnessCredentials('0.1.1-rc.2')
     expect(parse(await readFile(credentialsPath, 'utf8'))).toEqual({ version: 1, refs: { DEEPSEEK_API_KEY: 'existing-key' } })
   })
+
+  it('migrates legacy model selection into the new profile and imports profile edits', async () => {
+    const existing = config()
+    existing.activeVersion = '0.2.1-alpha.2'
+    await writeFile(path.join(runtime.root, 'harness-data/settings.yaml'), 'agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-pro\n')
+    store = new ModelStore(existing)
+    await store.initialize()
+    expect(store.state().active.model).toBe('deepseek-v4-pro')
+    const profile = path.join(runtime.root, 'harness-data/profiles/web/cordis.patch.yml')
+    expect(await readFile(profile, 'utf8')).toContain('id: agent-default-model')
+    await writeFile(profile, '- id: agent-default-model\n  config: { provider: deepseek-official, model: deepseek-v4-flash }\n')
+    await vi.waitFor(() => expect(store?.state().active.model).toBe('deepseek-v4-flash'), { timeout: 6000, interval: 100 })
+  })
 })
