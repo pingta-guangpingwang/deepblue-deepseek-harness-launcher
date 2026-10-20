@@ -6,13 +6,12 @@ import { execFileSync } from 'node:child_process'
 import { lstat, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import https from 'node:https'
 import path from 'node:path'
-import { fetchBoundedBytes } from './bounded-fetch.mjs'
 import { fetchReleaseArtifact } from './release-artifact-fetch.mjs'
 import { loadBundledReleaseMetadata } from './bundled-release-metadata.mjs'
 import {
   ROOT, RELEASE, VERSION, DSH_VERSION, BUCKET, HOSTNAME, REPOSITORY, LEGACY_KEY, ALPHA_KEY, CHANNEL_KEY,
   ALIAS_KEY, SOURCE_ID, REPLACED_IDS, objectPath, publicUrl, sha, parseJson, jsonBytes,
-  releaseFile, fileDigest, trustedManifest, replacementItem, assertPayloadPair, assertAlphaAnnouncement, pointerState, assertPublicQa, exactKeys
+  releaseFile, fileDigest, trustedManifest, replacementItem, assertPayloadPair, assertAlphaAnnouncement, pointerState, assertPublicQa, assertGithubReadback, exactKeys
 } from './release-038-qa.mjs'
 
 const mode = process.argv[2]
@@ -239,6 +238,7 @@ function githubAsset(item) {
   assert.equal(asset.digest, `sha256:${item.sha256}`)
   return asset.browser_download_url
 }
+let githubProof
 async function verifyGithubBytes(item) {
   const url = githubAsset(item)
   const expected = `https://github.com/${REPOSITORY}/releases/download/${item.githubTag}/${path.basename(item.file)}`
@@ -246,10 +246,18 @@ async function verifyGithubBytes(item) {
   assert.equal(actualUrl.origin, 'https://github.com')
   assert.ok(!actualUrl.username && !actualUrl.password && !actualUrl.search && !actualUrl.hash)
   assert.equal(decodeURIComponent(actualUrl.pathname), decodeURIComponent(new URL(expected).pathname), 'Unexpected GitHub asset URL')
-  const response = await fetchReleaseArtifact(url, { maxBytes: item.size, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: 120_000 })
-  assert.ok([200, 206].includes(response.response.status))
-  assert.equal(response.bytes.length, item.size)
-  assert.equal(sha(response.bytes), item.sha256, `GitHub anonymous byte readback failed: ${item.role}`)
+  if (!githubProof) {
+    // Use the same repository's read-only, fixed-hash anonymous download job.
+    // This avoids repeatedly downloading large GitHub assets over a slow link;
+    // OSS bytes are still downloaded and hashed locally in every release stage.
+    const runId = process.env.GITHUB_PUBLIC_READBACK_RUN_ID || ''
+    assert.match(runId, /^\d+$/u, 'An actual successful public-byte workflow run is required')
+    const run = parseJson(Buffer.from(execFileSync('gh', ['api', `repos/${REPOSITORY}/actions/runs/${runId}`], { encoding: 'utf8', windowsHide: true, timeout: 30_000 })))
+    const logs = execFileSync('gh', ['run', 'view', runId, '--repo', REPOSITORY, '--log'], { encoding: 'utf8', windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 60_000 })
+    assertGithubReadback(run, logs, plan)
+    githubProof = { runId, sourceCommit: run.head_sha, url: run.html_url, logsSha256: sha(Buffer.from(logs)) }
+    await writeFile(path.join(RELEASE, 'release-038-github-public-readback.json'), jsonBytes(githubProof))
+  }
 }
 async function verifiedArtifacts() {
   for (const item of plan.items) { await verifyObject(item.key, item); await verifyGithubBytes(item) }

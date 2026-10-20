@@ -27,6 +27,18 @@ export const jsonBytes = value => Buffer.from(`${JSON.stringify(value, null, 2)}
 export const parseJson = bytes => JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/u, ''))
 export const exactKeys = (object, keys) => assert.deepEqual(Object.keys(object).sort(), [...keys].sort())
 
+export function assertGithubReadback(run, logs, plan) {
+  assert.equal(run.head_sha, plan.sourceCommit, 'Readback must use the frozen publishing source')
+  assert.equal(run.path, '.github/workflows/verify-038-public-artifacts.yml')
+  assert.equal(run.event, 'workflow_dispatch')
+  assert.equal(run.status, 'completed')
+  assert.equal(run.conclusion, 'success')
+  for (const artifact of plan.items) {
+    const marker = `PUBLIC_READBACK_VERIFIED ${path.basename(artifact.file)} ${artifact.sha256} ${artifact.size}`
+    assert.ok(logs.split(/\r?\n/u).some(line => line.endsWith(marker)), `Full-byte workflow evidence missing: ${artifact.role}`)
+  }
+}
+
 export async function fileDigest(file) {
   const hash = createHash('sha256')
   let size = 0

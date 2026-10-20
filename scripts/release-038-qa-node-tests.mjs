@@ -3,12 +3,23 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   VERSION, DSH_VERSION, CHANNEL_KEY, SOURCE_ID, REPLACED_IDS, publicUrl, normalizeReplacement,
-  replacementItem, makePayloads, assertPayloadPair, assertAlphaAnnouncement, pointerState, assertPublicQa
+  replacementItem, makePayloads, assertPayloadPair, assertAlphaAnnouncement, pointerState, assertPublicQa, assertGithubReadback
 } from './release-038-qa.mjs'
 
 import { loadBundledReleaseMetadata } from './bundled-release-metadata.mjs'
 const metadata = await loadBundledReleaseMetadata()
 const digest = letter => letter.repeat(64)
+test('cloud byte evidence requires the exact successful workflow and every artifact digest', () => {
+  const plan = { sourceCommit: 'a'.repeat(40), items: [{ role: 'core', file: 'modules/core.tar.gz', sha256: digest('b'), size: 123 }] }
+  const run = { head_sha: plan.sourceCommit, path: '.github/workflows/verify-038-public-artifacts.yml', event: 'workflow_dispatch', status: 'completed', conclusion: 'success' }
+  const logs = `job\tstep\tdate PUBLIC_READBACK_VERIFIED core.tar.gz ${digest('b')} 123\n`
+  assertGithubReadback(run, logs, plan)
+  for (const [key, value] of [['head_sha', 'c'.repeat(40)], ['path', 'other.yml'], ['event', 'push'], ['status', 'in_progress'], ['conclusion', 'failure']]) {
+    assert.throws(() => assertGithubReadback({ ...run, [key]: value }, logs, plan))
+  }
+  assert.throws(() => assertGithubReadback(run, logs.replace(digest('b'), digest('c')), plan))
+  assert.throws(() => assertGithubReadback(run, '', plan))
+})
 const artifact = (id, version, hash = digest('a')) => {
   const fileName = id === 'agent-host' ? `${id}-${version}-win-x64.tar.gz` : `${id}-${version}-win-x64-${hash.slice(0, 16)}.tar.gz`
   const tag = id === 'launcher-ui' ? `launcher-ui-${version}` : id === 'agent-host' ? `agent-host-${version}` : `runtime-module-${id}-${version}-${hash.slice(0, 16)}`
