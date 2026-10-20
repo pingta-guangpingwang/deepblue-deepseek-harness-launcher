@@ -7,6 +7,7 @@ import { lstat, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import https from 'node:https'
 import path from 'node:path'
 import { fetchBoundedBytes } from './bounded-fetch.mjs'
+import { fetchReleaseArtifact } from './release-artifact-fetch.mjs'
 import { loadBundledReleaseMetadata } from './bundled-release-metadata.mjs'
 import {
   ROOT, RELEASE, VERSION, DSH_VERSION, BUCKET, HOSTNAME, REPOSITORY, LEGACY_KEY, ALPHA_KEY, CHANNEL_KEY,
@@ -124,7 +125,7 @@ for (const input of plan.inputs) {
 }
 
 async function get(key, maxBytes = 256 * 1024) {
-  const response = await fetchBoundedBytes(publicUrl(key), { maxBytes, redirect: 'error', timeoutMs: 120_000 })
+  const response = await fetchReleaseArtifact(publicUrl(key), { maxBytes, redirect: 'error', timeoutMs: 120_000 })
   assert.ok(!response.response.headers.get('x-oss-version-id'), 'Versioned bucket unsupported by release policy')
   return { ...response, status: response.response.status, sha256: sha(response.bytes) }
 }
@@ -198,14 +199,19 @@ async function put(key, body, immutable) {
 }
 async function verifyObject(key, expected) {
   const response = await get(key, Math.max(4096, expected.size))
-  assert.equal(response.status, 200, `Public object unavailable: ${key}`)
+  assert.ok([200, 206].includes(response.status), `Public object unavailable: ${key}`)
   assert.equal(response.bytes.length, expected.size, `Public size mismatch: ${key}`)
   assert.equal(response.sha256, expected.sha256, `Public hash mismatch: ${key}`)
 }
 async function immutable(key, body) {
   const existing = await get(key, Math.max(4096, body.length))
   if (existing.status === 404) assert.ok([200, 409].includes(await put(key, body, true)), 'Immutable upload failed')
-  else { assert.equal(existing.status, 200); assert.equal(existing.sha256, sha(body), 'Existing immutable object differs; never overwrite') }
+  else {
+    assert.ok([200, 206].includes(existing.status))
+    assert.equal(existing.sha256, sha(body), 'Existing immutable object differs; never overwrite')
+    assert.equal(existing.bytes.length, body.length)
+    return // The existing object has already been read completely and hashed.
+  }
   await verifyObject(key, { size: body.length, sha256: sha(body) })
 }
 async function capability() {
@@ -240,8 +246,8 @@ async function verifyGithubBytes(item) {
   assert.equal(actualUrl.origin, 'https://github.com')
   assert.ok(!actualUrl.username && !actualUrl.password && !actualUrl.search && !actualUrl.hash)
   assert.equal(decodeURIComponent(actualUrl.pathname), decodeURIComponent(new URL(expected).pathname), 'Unexpected GitHub asset URL')
-  const response = await fetchBoundedBytes(url, { maxBytes: item.size, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: 120_000 })
-  assert.equal(response.response.status, 200)
+  const response = await fetchReleaseArtifact(url, { maxBytes: item.size, allowedRedirectHosts: ['github.com', '.githubusercontent.com'], maxRedirects: 5, timeoutMs: 120_000 })
+  assert.ok([200, 206].includes(response.response.status))
   assert.equal(response.bytes.length, item.size)
   assert.equal(sha(response.bytes), item.sha256, `GitHub anonymous byte readback failed: ${item.role}`)
 }
@@ -256,6 +262,7 @@ try {
   await capability()
   if (mode === 'artifacts') {
     for (const item of plan.items) {
+      console.log(`Uploading and checking complete public bytes: ${item.role}`)
       await immutable(item.key, await readFile(await releaseFile(item.file)))
       await verifyGithubBytes(item)
       receipt.verified.push({ key: item.key, sha256: item.sha256, size: item.size })
