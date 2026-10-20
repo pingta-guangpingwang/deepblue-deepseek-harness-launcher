@@ -42,6 +42,7 @@ const api: LauncherApi = {
   saveModelProvider: (draft) => ipcRenderer.invoke('launcher:save-model-provider', draft),
   removeModelProvider: (providerId) => ipcRenderer.invoke('launcher:remove-model-provider', providerId),
   setActiveModel: (provider, model) => ipcRenderer.invoke('launcher:set-active-model', provider, model),
+  setDeepSeekWebSearch: (enabled) => ipcRenderer.invoke('launcher:set-deepseek-web-search', enabled),
   refreshModelUsage: () => ipcRenderer.invoke('launcher:refresh-model-usage'),
   testMultimodal: (request) => ipcRenderer.invoke('launcher:test-multimodal', request),
   refreshSkins: () => ipcRenderer.invoke('launcher:refresh-skins'),

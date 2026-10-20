@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { modelProviderTemplates } from '../src/shared/model-provider-catalog.ts'
-import { bundledPlugins, bundledVersions } from '../src/main/catalog.ts'
+import { loadBundledReleaseMetadata } from './bundled-release-metadata.mjs'
+const { modelProviderTemplates, bundledPlugins, bundledVersions } = await loadBundledReleaseMetadata()
 
 const root = path.resolve(import.meta.dirname, '..')
 const release = path.join(root, 'release')

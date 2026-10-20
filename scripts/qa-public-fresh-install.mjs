@@ -66,6 +66,8 @@ try {
   const startButton = page.getByRole('button', { name: '启动 DeepSeek Harness', exact: true })
   await startButton.waitFor({ state: 'visible', timeout: 60_000 })
   await page.screenshot({ path: path.join(outputRoot, 'public-fresh-install-ready.png') })
+  const skipOnboarding = page.getByRole('button', { name: '暂时不用', exact: true })
+  if (await skipOnboarding.isVisible()) await skipOnboarding.click()
   await startButton.click()
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -79,12 +81,12 @@ try {
     if (snapshot.runStatus === 'running' && snapshot.serviceUrl) {
       const response = await fetch(snapshot.serviceUrl)
       unauthenticatedStatus = response.status
-      if (snapshot.activeHarnessVersion === '0.2.1-alpha.2') {
+      if (snapshot.activeHarnessVersion === '0.2.1-rc.2') {
         if (response.status !== 401) throw new Error('DSH 0.2 unauthenticated root must reject access')
-        const auth = JSON.parse(await readFile(path.join(storageRoot, 'harness-data-v2/launcher/process-auth.json'), 'utf8'))
+        const auth = JSON.parse(await readFile(path.join(storageRoot, 'harness-data-v2-rc2/launcher/process-auth.json'), 'utf8'))
         if (auth.version !== snapshot.activeHarnessVersion || new URL(auth.url).origin !== snapshot.serviceUrl) throw new Error('Private process authentication did not match fresh DSH')
         localToken = new URL(auth.url).searchParams.get('token') || ''
-        browser = await chromium.launch({ channel: 'msedge', headless: true })
+        browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
         const web = await browser.newPage()
         await web.goto(auth.url, { waitUntil: 'domcontentloaded' })
         await web.locator('#root > *').waitFor({ state: 'visible', timeout: 30000 })
@@ -103,9 +105,9 @@ try {
   }
 
   if (!finalSnapshot?.serviceUrl || finalSnapshot.runStatus !== 'running') throw new Error(`Harness did not become ready within ${Math.round(timeoutMs / 60_000)} minutes`)
-  if (finalSnapshot.launcherVersion !== '0.10.37' || finalSnapshot.activeHarnessVersion !== '0.2.1-alpha.2') throw new Error('Public release QA requires the exact 0.10.37 / DSH 0.2.1-alpha.2 candidate')
+  if (finalSnapshot.launcherVersion !== '0.10.38' || finalSnapshot.activeHarnessVersion !== '0.2.1-rc.2') throw new Error('Public release QA requires the exact 0.10.38 / DSH 0.2.1-rc.2 candidate')
   const channels = finalSnapshot.settings.sources.filter(item => item.enabled && item.kind === 'manifest')
-  if (channels.length !== 1 || channels[0].id !== 'runtime-v2-dsh02' || channels[0].baseUrl !== 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh02/launcher-manifest.json') throw new Error('New kernel must use only the approved DSH 0.2 public catalog')
+  if (channels.length !== 1 || channels[0].id !== 'runtime-v2-dsh021rc' || channels[0].baseUrl !== 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh021rc/launcher-manifest.json') throw new Error('New kernel must use only the approved DSH 0.2 public catalog')
   if (!authenticatedBrowser) throw new Error('DSH 0.2 authenticated browser acceptance missing')
   const environment = Object.fromEntries(finalSnapshot.environment.map((item) => [item.id, { status: item.status, version: item.version, detail: item.detail }]))
   if (environment.node?.status !== 'ready' || environment.harness?.status !== 'ready') throw new Error('Fresh public install did not prepare both Node.js and Harness')

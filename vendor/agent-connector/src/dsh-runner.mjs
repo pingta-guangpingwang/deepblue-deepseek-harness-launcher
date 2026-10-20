@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { DshClient, dshEventsSince, dshSessionRows } from './dsh-rpc.mjs';
+import { DshClient, dshEventsSince, dshSessionRows, usesDshRemoteApi } from './dsh-rpc.mjs';
 import { safeFinalReply } from './privacy.mjs';
 import { validateInstruction } from './runner-common.mjs';
 import { redactSensitiveText, unwrapRemoteInstruction } from './session-history.mjs';
@@ -21,7 +21,7 @@ export async function probeDshHost(config, client = new DshClient(config.dshHost
   // The packaged 0.1.1-rc.2 Web composition reports its app version as 0.0.1,
   // not the npm cohort version. The Launcher independently pins the core.
   const expected = config.dshHost?.expectedVersion || '0.1.1-rc.2';
-  if (expected === '0.2.1-alpha.2' ? host.version !== expected : expected !== '0.1.1-rc.2' || !['0.0.1', '0.1.1-rc.2'].includes(host.version)) throw new Error('DSH 核心版本与已验证协议不一致，请更新适配器');
+  if (usesDshRemoteApi(expected) ? host.version !== expected : expected !== '0.1.1-rc.2' || !['0.0.1', '0.1.1-rc.2'].includes(host.version)) throw new Error('DSH 核心版本与已验证协议不一致，请更新适配器');
   if (config.dshHost?.expectedCwd && !(await sameDirectory(host.cwd, config.dshHost.expectedCwd))) throw new Error('本机 DSH 工作区与启动器配置不一致');
   return host;
 }

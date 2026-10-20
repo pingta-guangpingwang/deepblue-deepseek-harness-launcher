@@ -141,7 +141,7 @@ describe('ModelStore two-way Harness synchronization', () => {
     const backups = (await readdir(path.join(runtime.root, 'harness-data-v2/launcher'))).filter(name => name.startsWith('settings-before-0.2.1-'))
     expect(backups).toHaveLength(1)
     await writeFile(profile, '- id: agent-default-model\n  config: { provider: deepseek-official, model: deepseek-v4-flash }\n')
-    await vi.waitFor(() => expect(store?.state().active.model).toBe('deepseek-v4-flash'), { timeout: 6000, interval: 100 })
+    await vi.waitFor(() => expect(store?.state().active.model).toBe('deepseek-flash'), { timeout: 6000, interval: 100 })
   })
 
   it('prepares the selected v2 home then explicitly returns to old settings without rewriting either history', async () => {

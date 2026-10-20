@@ -5,6 +5,7 @@ import WebSocket from 'ws';
 
 const METHODS = new Set(['host.describe', 'workspace.list', 'session.list', 'session.create', 'session.history', 'session.models', 'session.prompt', 'session.cancel', 'session.rename', 'commands/list', 'commands/execute']);
 const REMOTE_METHODS = new Set(['session/list', 'session/create', 'session/modelCatalog', 'session/prompt', 'session/cancel', 'session/rename', 'session/page', 'commands/list', 'commands/execute', '$events/result', 'llm/listConfigurableProviders', 'settings/describe', 'credentials/describe', 'account/getState']);
+export const usesDshRemoteApi = version => ['0.2.1-alpha.2', '0.2.1-rc.2'].includes(version);
 export function validateDshEndpoint(value) {
   let url;
   try { url = new URL(String(value)); } catch { throw new Error('DSH 本机服务地址无效'); }
@@ -19,12 +20,12 @@ export class DshClient {
   constructor(endpoint, { fetch: fetchImpl = globalThis.fetch, timeoutMs = 15000, maximumBytes = 8 * 1024 * 1024, expectedVersion = '0.1.1-rc.2', authFile, authRoot, expectedCwd } = {}) {
     this.endpoint = validateDshEndpoint(endpoint);
     this.fetch = fetchImpl; this.timeoutMs = timeoutMs; this.maximumBytes = maximumBytes;
-    if (!['0.1.1-rc.2', '0.2.1-alpha.2'].includes(expectedVersion)) throw new Error('DSH 核心版本尚未通过协议验证');
+    if (expectedVersion !== '0.1.1-rc.2' && !usesDshRemoteApi(expectedVersion)) throw new Error('DSH 核心版本尚未通过协议验证');
     this.version = expectedVersion; this.authFile = authFile; this.authRoot = authRoot; this.expectedCwd = expectedCwd;
     this.historyCuts = new Map();
   }
   async localCookie() {
-    if (this.version !== '0.2.1-alpha.2') return '';
+    if (!usesDshRemoteApi(this.version)) return '';
     if (!this.cookiePromise) this.cookiePromise = (async () => {
       if (!path.isAbsolute(this.authFile || '') || !path.isAbsolute(this.authRoot || '') || path.basename(this.authFile) !== 'process-auth.json') throw new Error('DSH 本机认证尚未就绪');
       const [root, file, metadata, rootMetadata, directoryMetadata] = await Promise.all([realpath(this.authRoot), realpath(this.authFile), lstat(this.authFile), lstat(this.authRoot), lstat(path.dirname(this.authFile))]);
@@ -53,7 +54,7 @@ export class DshClient {
   async call(method, payload = {}, { rpcId = randomUUID(), signal } = {}) {
     if (!METHODS.has(method)) throw new Error('DSH 方法不在远程任务许可范围内');
     if (method === 'commands/execute' && !['/permission', '/permission read-only', '/permission workspace-write'].includes(payload?.args?.line)) throw new Error('DSH 只允许查询或设置当前会话的受限权限');
-    if (this.version === '0.2.1-alpha.2') {
+    if (usesDshRemoteApi(this.version)) {
       if (method === 'session.history') return this.remoteHistory(payload);
       const names = { 'session.list': 'session/list', 'session.models': 'session/modelCatalog', 'session.create': 'session/create', 'session.prompt': 'session/prompt', 'session.cancel': 'session/cancel', 'session.rename': 'session/rename' };
       if (method === 'host.describe') {
@@ -111,7 +112,7 @@ export class DshClient {
     return envelope.result.value;
   }
   async openRemoteStream(endpoint, args, onValue = async () => {}) {
-    if (this.version !== '0.2.1-alpha.2' || !['session/follow', '$events'].includes(endpoint)) throw new Error('DSH 流不在许可范围内');
+    if (!usesDshRemoteApi(this.version) || !['session/follow', '$events'].includes(endpoint)) throw new Error('DSH 流不在许可范围内');
     const cookie = await this.localCookie(), streamId = randomUUID(), abort = new AbortController();
     const socket = new WebSocket(this.endpoint.replace('http:', 'ws:') + '/api/remote.mux', { origin: this.endpoint, headers: { cookie }, maxPayload: this.maximumBytes });
     let failure, closed = false, first;

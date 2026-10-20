@@ -2,14 +2,18 @@ import type { CatalogPlugin, HarnessVersion, ModelCatalogItem } from '../shared/
 
 export const bundledVersions: HarnessVersion[] = [
   {
-    version: '0.2.1-alpha.2',
+    version: '0.2.1-rc.2',
     channel: 'preview',
     installed: true,
     active: true,
     rollbackReady: false,
     sizeMb: 75,
-    publishedAt: '2026-10-09',
-    notes: ['同步 DeepSeek 官方 dsh-v0.2.1-alpha.2 预发布', '本机浏览器认证与 Remote 会话协议']
+    publishedAt: '2026-10-17',
+    notes: ['同步 DeepSeek 官方 dsh-v0.2.1-rc.2 候选版', '原生 Search / Fetch API 与 DeepSeek V4.1 Flash 图片理解']
+  },
+  {
+    version: '0.2.1-alpha.2', channel: 'preview', installed: false, active: false, rollbackReady: false,
+    publishedAt: '2026-10-09', notes: ['历史预发布版本', '显式回退使用保留的 harness-data-v2，不回写 RC2 会话与搜索设置']
   },
   {
     version: '0.1.1-rc.2', channel: 'stable', installed: false, active: false, rollbackReady: false,
@@ -75,13 +79,13 @@ export const bundledPlugins: CatalogPlugin[] = [
 
 export const bundledModels: ModelCatalogItem[] = [
   {
-    id: 'deepseek-v4-flash',
+    id: 'deepseek-flash',
     provider: 'DeepSeek',
-    model: 'deepseek-v4-flash',
-    displayName: 'DeepSeek V4 Flash',
+    model: 'deepseek-flash',
+    displayName: 'DeepSeek V4.1 Flash',
     description: '面向高频对话、工具调用与代码任务的快速模型。模型调用需要用户自己的 API Key。',
     context: '以官方当前配置为准',
-    capabilities: ['对话', '工具调用', '代码'],
+    capabilities: ['对话', '图片理解', 'OCR', '工具调用', '代码'],
     status: 'available',
     configured: false,
     docsUrl: 'https://api-docs.deepseek.com/'
@@ -97,18 +101,6 @@ export const bundledModels: ModelCatalogItem[] = [
     status: 'available',
     configured: false,
     docsUrl: 'https://api-docs.deepseek.com/'
-  },
-  {
-    id: 'deepseek-v4-flash-vision-exp',
-    provider: 'DeepSeek',
-    model: 'deepseek-v4-flash-vision-exp',
-    displayName: 'DeepSeek V4 Flash Vision Exp',
-    description: 'DeepSeek 官方视觉实验模型，支持图片理解、文字提取、界面检查与图表分析。',
-    context: '以官方当前配置为准',
-    capabilities: ['对话', '图片理解', 'OCR', '工具调用'],
-    status: 'preview',
-    configured: false,
-    docsUrl: 'https://api-docs.deepseek.com/zh-cn/guides/vision'
   },
   {
     id: 'custom-openai-compatible',

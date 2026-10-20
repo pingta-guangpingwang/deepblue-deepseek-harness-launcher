@@ -4,6 +4,7 @@ import path from 'node:path'
 import type { LauncherLibraryEntry, LauncherSettings, ModelProviderDraft, SourceConfig, WorkspaceEntry } from '../shared/types'
 import { validateHarnessPort } from './port-settings'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
+import { DEEPSEEK_FLASH_MODEL, officialDeepSeekModels } from '../shared/deepseek-models'
 
 const defaultSources: SourceConfig[] = [
   {
@@ -14,9 +15,9 @@ const defaultSources: SourceConfig[] = [
     kind: 'repository'
   },
   {
-    id: 'runtime-v2-dsh02',
-    name: 'OSS DSH 0.2 预览目录',
-    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh02/launcher-manifest.json',
+    id: 'runtime-v2-dsh021rc',
+    name: 'OSS DSH 0.2.1 候选目录',
+    baseUrl: 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh021rc/launcher-manifest.json',
     enabled: true,
     kind: 'manifest'
   },
@@ -96,29 +97,17 @@ function defaults(): PersistedConfig {
       petCatalogUrl: FIXED_PET_CATALOG_URL,
       sources: defaultSources
     },
-    activeVersion: '0.2.1-alpha.2',
+    activeVersion: '0.2.1-rc.2',
     workspaces: [],
     resourceLibrary: [],
     modelRouting: {
-      active: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      active: { provider: 'deepseek-official', model: DEEPSEEK_FLASH_MODEL },
       providers: [{
         id: 'deepseek-official',
         name: 'DeepSeek 官方',
         api: 'deepseek',
         baseURL: 'https://api.deepseek.com',
-        models: [
-          { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', inputModalities: ['text'] },
-          { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', inputModalities: ['text'] },
-          {
-            id: 'deepseek-v4-flash-vision-exp',
-            name: 'DeepSeek V4 Flash Vision Exp',
-            description: '支持图片理解、OCR、界面检查和图表分析。',
-            inputModalities: ['text', 'image'],
-            imagePixelBudget: 640_000,
-            imageMaxBytes: 1_048_576,
-            imageDetail: 'auto'
-          }
-        ],
+        models: structuredClone(officialDeepSeekModels),
         docsUrl: 'https://api-docs.deepseek.com/',
         custom: false
       }]
@@ -161,8 +150,13 @@ export async function readConfig(): Promise<PersistedConfig> {
         petCatalogUrl: FIXED_PET_CATALOG_URL,
         sources: fallback.settings.sources.map((defaultSource) => {
           const saved = parsed.settings?.sources?.find((source) => source.id === defaultSource.id)
+            || (defaultSource.id === 'runtime-v2-dsh021rc' ? parsed.settings?.sources?.find((source) => source.id === 'runtime-v2-dsh02') : undefined)
           if (!saved) return defaultSource
-          if ((saved.id === 'gitee' || saved.id === 'runtime-v2-dsh02') && !saved.baseUrl.trim()) return defaultSource
+          if ((saved.id === 'gitee' || saved.id === 'runtime-v2-dsh021rc') && !saved.baseUrl.trim()) return defaultSource
+          if (saved.id === 'runtime-v2-dsh02') {
+            const oldDefault = 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh02/launcher-manifest.json'
+            return { ...defaultSource, enabled: saved.enabled, baseUrl: !saved.baseUrl.trim() || saved.baseUrl === oldDefault ? defaultSource.baseUrl : saved.baseUrl }
+          }
           return { ...defaultSource, ...saved }
         })
       },
@@ -193,6 +187,7 @@ export async function writeConfig(config: PersistedConfig): Promise<void> {
 }
 
 export function harnessHomeDirectoryName(version?: string): string {
+  if (version === '0.2.1-rc.2') return 'harness-data-v2-rc2'
   const match = /^(\d+)\.(\d+)\./.exec(version || '')
   return match && (Number(match[1]) > 0 || Number(match[2]) >= 2) ? 'harness-data-v2' : 'harness-data'
 }

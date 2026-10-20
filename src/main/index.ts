@@ -274,6 +274,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:save-model-provider', (_event, draft: ModelProviderDraft) => controller?.saveModelProvider(draft))
   ipcMain.handle('launcher:remove-model-provider', (_event, providerId: string) => controller?.removeModelProvider(providerId))
   ipcMain.handle('launcher:set-active-model', (_event, provider: string, model: string) => controller?.setActiveModel(provider, model))
+  ipcMain.handle('launcher:set-deepseek-web-search', (_event, enabled: boolean) => controller?.setDeepSeekWebSearch(enabled))
   ipcMain.handle('launcher:refresh-model-usage', () => controller?.refreshModelUsage())
   ipcMain.handle('launcher:test-multimodal', (_event, request: MultimodalTestRequest) => controller?.testMultimodal(request))
   ipcMain.handle('launcher:refresh-skins', () => controller?.refreshSkins())

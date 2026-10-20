@@ -12,6 +12,7 @@ const appRoot = path.join(packagedRoot, 'resources', 'app')
 const modulesRoot = path.join(root, 'release', 'modules')
 const generatedFile = path.join(root, 'release', 'runtime-modules.generated.json')
 const GITEE_PART_BYTES = 5 * 1024 * 1024
+const includeGiteeMirror = process.env.DSH_DISABLE_GITEE_RUNTIME_MIRROR !== '1'
 let previousModules = []
 try { previousModules = (await json(generatedFile)).modules }
 catch (error) { if (error.code !== 'ENOENT') throw error }
@@ -118,6 +119,7 @@ const [nodeArtifact, harnessArtifact, packageManagerArtifact] = await Promise.al
 
 for (const artifact of [nodeArtifact, harnessArtifact, packageManagerArtifact]) {
   artifact.tag = `runtime-module-${artifact.id}-${artifact.version.replace(/[^0-9A-Za-z._-]/gu, '-')}-${artifact.sha256.slice(0, 16)}`
+  if (!includeGiteeMirror) { artifact.giteeParts = []; continue }
   const giteePartsRoot = path.join(root, 'release', 'gitee-parts', artifact.tag)
   await rm(giteePartsRoot, { recursive: true, force: true })
   await mkdir(giteePartsRoot, { recursive: true })
@@ -126,7 +128,7 @@ for (const artifact of [nodeArtifact, harnessArtifact, packageManagerArtifact]) 
 
 function mirrors(artifact) {
   return [
-    { id: 'gitee', url: artifact.giteeParts[0].url, parts: artifact.giteeParts },
+    ...(includeGiteeMirror ? [{ id: 'gitee', url: artifact.giteeParts[0].url, parts: artifact.giteeParts }] : []),
     { id: 'oss', url: `https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/modules/${artifact.fileName}` },
     { id: 'github', url: `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/${artifact.tag}/${artifact.fileName}` }
   ]

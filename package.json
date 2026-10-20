@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-launcher",
-  "version": "0.10.37",
+  "version": "0.10.38",
   "description": "深蓝 DeepSeekHarness 新手整合启动器。",
   "type": "module",
   "main": "out/main/index.js",
@@ -16,7 +16,7 @@
     "hot-update:agent-host": "npm run agent-host:build && node scripts/merge-agent-host-catalog.mjs",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "npm run electron:ensure && vitest run && node scripts/smoke-appearance-runtime-cache.mjs && node scripts/smoke-appearance-media-routes.mjs && node scripts/validate-code-signing-readiness.mjs",
+    "test": "npm run electron:ensure && vitest run && node scripts/smoke-appearance-runtime-cache.mjs && node scripts/smoke-appearance-media-routes.mjs && node scripts/validate-code-signing-readiness.mjs && npm run test:release-038",
     "signing:check": "node scripts/validate-code-signing-readiness.mjs",
     "test:runtime": "node scripts/smoke-web.mjs",
     "test:dsh-021": "node --test vendor/agent-connector/dsh-021-node-tests.mjs",
@@ -55,13 +55,14 @@
     "electron:ensure": "node scripts/ensure-electron-dist.mjs",
     "package": "npm run electron:ensure && npm run build && electron-builder --dir",
     "dist:win": "npm run electron:ensure && npm run build && electron-builder --dir && powershell.exe -NoProfile -File scripts/build-windows-variants.ps1",
-    "dist:mac": "npm run electron:ensure && npm run build && electron-builder --mac dmg zip"
+    "dist:mac": "npm run electron:ensure && npm run build && electron-builder --mac dmg zip",
+    "test:release-038": "node --test scripts/release-038-qa-node-tests.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
-    "@deepseek-ai/cordis-plugin-group": "1.0.5-alpha.1",
-    "@deepseek-ai/dsh": "0.2.1-alpha.2",
-    "@deepseek-ai/dsh-atomic-write": "0.2.1-alpha.2",
+    "@deepseek-ai/cordis-plugin-group": "1.0.5",
+    "@deepseek-ai/dsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-atomic-write": "0.2.1-rc.2",
     "koffi": "^3.1.6",
     "node": "24.16.0",
     "pdfjs-dist": "6.3.289",

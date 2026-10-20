@@ -1,6 +1,6 @@
 import { chmod, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { validateDshEndpoint } from './dsh-rpc.mjs';
+import { validateDshEndpoint, usesDshRemoteApi } from './dsh-rpc.mjs';
 
 const DEFAULT_CONFIG_NAME = 'agent-connector.local.json';
 const KEY_PATTERN = /^agh_live_[A-Za-z0-9_-]{32,}$/;
@@ -250,7 +250,7 @@ export async function loadConfigObject(raw, options = {}) {
     endpoint: validateDshEndpoint(raw.dshHost?.endpoint),
     expectedVersion: String(raw.dshHost?.expectedVersion || '0.1.1-rc.2'),
     expectedCwd: raw.dshHost?.expectedCwd ? path.resolve(configDirectory, String(raw.dshHost.expectedCwd)) : '',
-    ...(raw.dshHost?.expectedVersion === '0.2.1-alpha.2' ? {
+    ...(usesDshRemoteApi(raw.dshHost?.expectedVersion) ? {
       authRoot: raw.dshHost.authRoot ? path.resolve(configDirectory, String(raw.dshHost.authRoot)) : '',
       authFile: raw.dshHost.authFile ? path.resolve(configDirectory, String(raw.dshHost.authFile)) : ''
     } : {})

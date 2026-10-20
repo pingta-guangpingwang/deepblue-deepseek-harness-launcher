@@ -4,7 +4,7 @@ import path from 'node:path';
 import { realpath } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import WebSocket from 'ws';
-import { validateDshEndpoint } from './dsh-rpc.mjs';
+import { validateDshEndpoint, usesDshRemoteApi } from './dsh-rpc.mjs';
 
 // The shipped browser uses a downlink WebSocket; the exported native client
 // consumes the same envelopes over SSE. Adapt the carrier, not the protocol.
@@ -39,7 +39,7 @@ export function dshApprovalProposal(frame, events, projectRoot) {
   return { nativeId: frame.approvalId, kind, paths, command: typeof args.command === 'string' ? args.command : '', destination: typeof args.url === 'string' ? args.url : '', title: frame.toolName || '', reason: frame.reason || '' };
 }
 export async function openDshApprovalBridge({ nativeClientModule, nativeClientRoot, endpoint, client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress = async () => {} }) {
-  if (client?.version === '0.2.1-alpha.2') return openRemoteApprovalBridge({ client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress });
+  if (usesDshRemoteApi(client?.version)) return openRemoteApprovalBridge({ client, projectRoot, sessionId, readEvents, isOwned, onApproval, onProgress });
   if (!path.isAbsolute(nativeClientModule || '') || !path.isAbsolute(nativeClientRoot || '')) throw new Error('DSH 原生审批客户端尚未就绪');
   const [moduleFile, root] = await Promise.all([realpath(nativeClientModule), realpath(nativeClientRoot)]);
   const relative = path.relative(root, moduleFile);

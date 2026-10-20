@@ -222,8 +222,8 @@ describe('catalog signature verification', () => {
     const packageJson = JSON.parse(readFileSync(path.resolve('package.json'), 'utf8')) as { scripts: Record<string, string> }
     expect(manifestSource).toContain("RUNTIME_CATALOG_KEY_ID = 'runtime-production-v2-1'")
     expect(manifestSource).toContain("'runtime-update-public-key.pem'")
-    expect(configSource).toContain('/release-v2/dsh02/launcher-manifest.json')
-    expect(configSource).toContain("id: 'runtime-v2-dsh02'")
+    expect(configSource).toContain('/release-v2/dsh021rc/launcher-manifest.json')
+    expect(configSource).toContain("id: 'runtime-v2-dsh021rc'")
     expect(configSource).not.toContain('/release/launcher-manifest.json')
     expect(windowsBuilder).toContain("runtime-modules.generated.json")
     expect(signerSource).toContain("process.env.LAUNCHER_SIGNING_KEY_ID || 'runtime-production-v2-1'")

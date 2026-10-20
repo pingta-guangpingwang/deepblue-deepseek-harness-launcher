@@ -20,10 +20,10 @@ export async function resolveBuiltinDshHost(storageDir: string, userDataPath = a
   if (!Number.isSafeInteger(port) || Number(port) < 1024 || Number(port) > 65535) throw new Error('请先在启动器设置有效的 DSH 端口')
   const workspace = config.settings?.workspace || ''
   if (!path.isAbsolute(workspace) || !(await stat(workspace)).isDirectory()) throw new Error('DSH 默认工作区不可用')
-  if (typeof config.activeVersion !== 'string' || !['0.1.1-rc.2', '0.2.1-alpha.2'].includes(config.activeVersion)) throw new Error('当前 DSH 核心版本尚未通过远程适配验证')
+  if (typeof config.activeVersion !== 'string' || !['0.1.1-rc.2', '0.2.1-alpha.2', '0.2.1-rc.2'].includes(config.activeVersion)) throw new Error('当前 DSH 核心版本尚未通过远程适配验证')
   const homeDirectory = harnessHomeDirectoryName(config.activeVersion)
   if (!(await stat(path.join(hostRoot, homeDirectory))).isDirectory()) throw new Error('请先在启动器首页初始化并启动 DSH')
-  if (config.activeVersion === '0.2.1-alpha.2') {
+  if (['0.2.1-alpha.2', '0.2.1-rc.2'].includes(config.activeVersion)) {
     const selectedHome = path.join(hostRoot, homeDirectory)
     const selectedFile = path.join(selectedHome, 'launcher/process-auth.json')
     const nodes = await Promise.all([lstat(selectedHome), lstat(path.dirname(selectedFile)), lstat(selectedFile)])

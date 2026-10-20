@@ -29,7 +29,7 @@ export type PetPackKind = 'image' | 'pixel-atlas'
 export type PetCatalogSourceId = 'official' | 'pixel' | 'custom'
 
 export interface SourceConfig {
-  id: 'github' | 'gitee' | 'oss' | 'runtime-v2' | 'runtime-v2-dsh02' | 'npmmirror'
+  id: 'github' | 'gitee' | 'oss' | 'runtime-v2' | 'runtime-v2-dsh02' | 'runtime-v2-dsh021rc' | 'npmmirror'
   name: string
   baseUrl: string
   enabled: boolean
@@ -239,6 +239,7 @@ export interface ModelHubState {
   providers: ModelProviderConnection[]
   usage: Record<string, ModelUsageSummary>
   secureStorageAvailable: boolean
+  webSearch?: { supported: boolean; enabled: boolean; selection: 'deepseek-api' | 'default' | 'custom' }
   message?: string
 }
 
@@ -790,6 +791,7 @@ export interface LauncherApi {
   saveModelProvider(draft: ModelProviderDraft): Promise<LauncherSnapshot>
   removeModelProvider(providerId: string): Promise<LauncherSnapshot>
   setActiveModel(provider: string, model: string): Promise<LauncherSnapshot>
+  setDeepSeekWebSearch?(enabled: boolean): Promise<LauncherSnapshot>
   refreshModelUsage(): Promise<LauncherSnapshot>
   testMultimodal(request: MultimodalTestRequest): Promise<MultimodalTestResult>
   refreshSkins(): Promise<LauncherSnapshot>

@@ -7,6 +7,30 @@ vi.mock('electron', () => ({ app: { getPath: () => { throw Error('isolated test 
 import { ensureHarnessDataHome, dshPersistentDataHash } from './dsh-data-home'
 import { harnessHomeDirectoryName } from './config'
 
+it('clones the current alpha home for rc2 while retaining a working alpha rollback', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'dsh-rc2-home-'))
+  try {
+    const alpha = path.join(root, 'harness-data-v2')
+    await mkdir(path.join(alpha, 'profiles/web'), { recursive: true })
+    await writeFile(path.join(alpha, 'profiles/web/cordis.patch.yml'), '- id: agent-default-model\n  config: { provider: deepseek-official, model: deepseek-v4-flash }\n')
+    await writeFile(path.join(alpha, '.credentials.yaml'), 'version: 1\nvalues: { DEEPSEEK_API_KEY: SYNTHETIC_ONLY }\n')
+    await writeFile(path.join(alpha, 'session.jsonl'), '{"id":"existing-alpha-session"}\n')
+    const before = await dshPersistentDataHash(alpha)
+    const rc = await ensureHarnessDataHome(root, '0.2.1-rc.2')
+    expect(rc).toBe(await realpath(path.join(root, 'harness-data-v2-rc2')))
+    expect(await dshPersistentDataHash(rc)).toBe(before)
+    await writeFile(path.join(rc, 'profiles/web/cordis.patch.yml'), '- id: web\n  config: { searchProvider: deepseek-search-api, fetchProvider: deepseek-fetch-api }\n')
+    await writeFile(path.join(rc, 'new-session.jsonl'), '{"id":"rc2-session"}\n')
+    expect(await dshPersistentDataHash(alpha)).toBe(before)
+    expect(await ensureHarnessDataHome(root, '0.2.1-alpha.2')).toBe(alpha)
+    const receipt = JSON.parse(await readFile(path.join(rc, 'dsh-v2-migration.json'), 'utf8'))
+    expect(receipt).toMatchObject({ source: 'harness-data-v2', target: 'harness-data-v2-rc2', sourceHashBefore: before, sourceHashAfter: before })
+    const evidence = path.resolve('output/dsh-rc2-data-migration.json')
+    await mkdir(path.dirname(evidence), { recursive: true })
+    await writeFile(evidence, JSON.stringify({ synthetic: true, passed: true, originalAlphaHash: before, alphaHashAfterRcChanges: await dshPersistentDataHash(alpha), rcSessionRetained: (await readFile(path.join(rc, 'new-session.jsonl'), 'utf8')).includes('rc2-session'), receipt }, null, 2))
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
 it('privately clones into a sibling and preserves old bytes after a new session and rollback selection', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'dsh-versioned-home-'))
   try {

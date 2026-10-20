@@ -1319,12 +1319,13 @@ function MultimodalTestLab({ snapshot, onTest }: {
   </section>
 }
 
-function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onRefreshUsage, onTest }: {
+function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onSetWebSearch, onRefreshUsage, onTest }: {
   snapshot: LauncherSnapshot
   busy: string
   onSave: (draft: ModelProviderDraft) => Promise<boolean>
   onRemove: (providerId: string) => void
   onSetActive: (provider: string, model: string) => void
+  onSetWebSearch: (enabled: boolean) => void
   onRefreshUsage: () => void
   onTest: (request: MultimodalTestRequest) => Promise<MultimodalTestResult>
 }): ReactNode {
@@ -1422,6 +1423,16 @@ function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onRefreshUs
       </Card>
 
       {snapshot.modelHub.message && <div className="model-message"><Info size={15} />{snapshot.modelHub.message}</div>}
+
+      <section className="model-web-search" aria-label="DeepSeek 联网搜索">
+        <div><strong>联网搜索与网页读取</strong><p id="deepseek-search-help">{snapshot.modelHub.webSearch?.supported
+          ? '复用已保存的 DeepSeek 凭据。Search / Fetch 各 5 元 / 千次有效请求，费用以 DeepSeek 账单为准。'
+          : '更新 Harness 核心到 0.2.1-rc.2 后可用。'}</p></div>
+        <label><input type="checkbox" checked={Boolean(snapshot.modelHub.webSearch?.enabled)}
+          disabled={!snapshot.modelHub.webSearch?.supported || busy === 'model-web-search'}
+          aria-describedby="deepseek-search-help" onChange={(event) => onSetWebSearch(event.target.checked)} />使用 DeepSeek 搜索 API</label>
+        <button type="button" className="quiet-button" onClick={() => openExternal('https://api-docs.deepseek.com/zh-cn/guides/search/')}>官方说明<ExternalLink size={14} /></button>
+      </section>
 
       <div className="model-mode-tabs" role="tablist" aria-label="模型目录功能">
         <button type="button" role="tab" aria-selected={mode === 'connections'} className={mode === 'connections' ? 'active' : ''} onClick={() => setMode('connections')}><Library size={16} />我的模型</button>
@@ -2257,6 +2268,10 @@ export default function App(): ReactNode {
     })
   }
   const refreshModelUsage = (): void => { if (window.launcher) void run('model-usage', () => window.launcher!.refreshModelUsage()) }
+  const setDeepSeekWebSearch = (enabled: boolean): void => {
+    if (window.launcher?.setDeepSeekWebSearch) void run('model-web-search', () => window.launcher!.setDeepSeekWebSearch!(enabled))
+    else if (!window.launcher) setSnapshot(current => ({ ...current, modelHub: { ...current.modelHub, webSearch: { supported: true, enabled, selection: enabled ? 'deepseek-api' : 'default' } } }))
+  }
   const testMultimodal = async (request: MultimodalTestRequest): Promise<MultimodalTestResult> => {
     if (window.launcher) return window.launcher.testMultimodal(request)
     await new Promise((resolve) => window.setTimeout(resolve, 650))
@@ -2441,7 +2456,7 @@ export default function App(): ReactNode {
           {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
           {page === 'tools' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
           {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
-          {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
+          {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onSetWebSearch={setDeepSeekWebSearch} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
           {page === 'ecosystem' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} initialSection="ecosystem" onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
           {page === 'community' && <CommunityPage snapshot={snapshot} onLogin={accountLogin} />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}

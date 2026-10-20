@@ -14,6 +14,8 @@ import { harnessCredentialsLayoutForVersion, harnessCredentialsNeedLayoutMigrati
 import { runMultimodalApi } from './multimodal'
 import { queryDeepSeekBalance } from './deepseek-balance'
 import { modelProviderTemplates } from '../shared/model-provider-catalog'
+import { canonicalDeepSeekModel, canonicalDeepSeekModels, DEEPSEEK_FLASH_MODEL } from '../shared/deepseek-models'
+import { initializeDeepSeekWebSearch, mergeDeepSeekWebSearch, readDeepSeekWebSearch, supportsDeepSeekWebApi, type DeepSeekWebSearchState } from './deepseek-web-settings'
 export { modelProviderTemplates } from '../shared/model-provider-catalog'
 import type {
   ModelHubState,
@@ -65,7 +67,7 @@ export function normalizeModelProviderDraft(
   if ((draft.apiKey?.length || 0) > 16_384) throw new Error('API Key 长度异常，请检查后重试')
   const template = templates.find((item) => item.id === id)
   if (template && !template.custom) {
-    const selectedIds = new Set(draft.models.map((model) => model.id.trim()))
+    const selectedIds = new Set(draft.models.map((model) => id === DEEPSEEK_PROVIDER ? canonicalDeepSeekModel(model.id.trim()) : model.id.trim()))
     const models = template.suggestedModels
       .filter((model) => selectedIds.has(model.id))
       .map((model) => ({ ...model }))
@@ -122,7 +124,9 @@ export function mergeSignedModelTemplates(templates: ModelProviderTemplate[]): M
       ]
     }
   })
-  return [...merged, ...[...signedById.values()].map((template) => structuredClone(template))]
+  return [...merged, ...[...signedById.values()].map((template) => structuredClone(template))].map(template => template.id === DEEPSEEK_PROVIDER
+    ? { ...template, suggestedModels: canonicalDeepSeekModels(template.suggestedModels) }
+    : template)
 }
 
 export class ModelStore {
@@ -133,6 +137,7 @@ export class ModelStore {
   private syncQueue: Promise<void> = Promise.resolve()
   private deepSeekBalanceCache?: { encryptedKey: string; expiresAt: number; value: DeepSeekBalanceSummary }
   private deepSeekBalanceRequest?: Promise<DeepSeekBalanceSummary>
+  private webSearch: DeepSeekWebSearchState = { supported: false, enabled: false, selection: 'default' }
 
   constructor(
     private readonly config: PersistedConfig,
@@ -153,6 +158,7 @@ export class ModelStore {
       await Promise.all([writeConfig(this.config), this.writeHarnessSettings()])
     }
     await this.initializeHarnessCredentials()
+    await this.initializeWebSearch()
     this.startWatchers()
     await this.refreshUsage()
   }
@@ -181,13 +187,14 @@ export class ModelStore {
     return {
       active: {
         provider: activeProvider?.id || DEEPSEEK_PROVIDER,
-        model: activeModel?.id || 'deepseek-v4-flash',
-        displayName: activeModel?.name || 'DeepSeek V4 Flash'
+        model: activeModel?.id || DEEPSEEK_FLASH_MODEL,
+        displayName: activeModel?.name || 'DeepSeek V4.1 Flash'
       },
       templates: structuredClone(this.templates),
       providers,
       usage: this.usage,
       secureStorageAvailable: safeStorage.isEncryptionAvailable(),
+      webSearch: { ...this.webSearch, supported: supportsDeepSeekWebApi(this.config.activeVersion) },
       message: message || (!safeStorage.isEncryptionAvailable() ? 'Windows 安全存储当前不可用，暂不能保存新的 API Key。' : undefined)
     }
   }
@@ -234,7 +241,7 @@ export class ModelStore {
     await this.writeHarnessCredential(apiKeyEnv, undefined)
     delete this.secrets.values[apiKeyEnv]
     if (this.config.modelRouting.active.provider === providerId) {
-      this.config.modelRouting.active = { provider: DEEPSEEK_PROVIDER, model: 'deepseek-v4-flash' }
+      this.config.modelRouting.active = { provider: DEEPSEEK_PROVIDER, model: DEEPSEEK_FLASH_MODEL }
     }
     await Promise.all([writeConfig(this.config), this.writeSecrets()])
     await this.writeHarnessSettings(providerId)
@@ -249,6 +256,38 @@ export class ModelStore {
     await writeConfig(this.config)
     await this.writeHarnessSettings()
     return this.state(`已切换到 ${model.name}；新会话立即使用，正在运行的旧会话保持原模型`)
+  }
+
+  async setDeepSeekWebSearch(enabled: boolean): Promise<ModelHubState> {
+    if (typeof enabled !== 'boolean') throw new Error('搜索开关值必须是布尔值')
+    if (!supportsDeepSeekWebApi(this.config.activeVersion)) throw new Error('请先将 Harness 核心更新到 0.2.1-rc.2')
+    await this.updateWebSearch(enabled)
+    return this.state(enabled ? '已启用 DeepSeek Search / Fetch API，下一次联网操作生效' : '已恢复 Harness 默认的搜索与网页读取方式')
+  }
+
+  private async initializeWebSearch(): Promise<void> {
+    if (!supportsDeepSeekWebApi(this.config.activeVersion)) return
+    await this.updateWebSearch()
+  }
+
+  private async updateWebSearch(enabled?: boolean): Promise<void> {
+    const target = this.harnessSettingsPath()
+    const provider = this.config.modelRouting.providers.find(item => item.id === DEEPSEEK_PROVIDER)
+    const ref = provider ? providerEnvName(provider) : 'DEEPSEEK_API_KEY'
+    await mkdir(path.dirname(target), { recursive: true, mode: 0o700 })
+    await withFileLock(target, async () => {
+      let source = '[]\n'
+      try { source = await readFile(target, 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+      const updated = enabled === undefined
+        ? initializeDeepSeekWebSearch(source, this.config.activeVersion, ref)
+        : mergeDeepSeekWebSearch(source, enabled, ref)
+      if (updated !== source) {
+        const backupDirectory = await prepareDshPrivateDirectory(launcherDataPaths(this.config.activeVersion).dshHome)
+        await writeFileAtomic(path.join(backupDirectory, `web-settings-before-${randomUUID()}.yaml`), source, { mode: 0o600, dirMode: 0o700 })
+        await writeFileAtomic(target, updated, { mode: 0o600, dirMode: 0o700 })
+      }
+      this.webSearch = readDeepSeekWebSearch(updated, this.config.activeVersion)
+    })
   }
 
   async environment(): Promise<NodeJS.ProcessEnv> {
@@ -371,13 +410,18 @@ export class ModelStore {
     const provider = this.config.modelRouting.providers.find((item) => item.id === DEEPSEEK_PROVIDER)
     const template = this.templates.find((item) => item.id === DEEPSEEK_PROVIDER)
     if (!provider || !template) return false
-    const byId = new Map(provider.models.map((model) => [model.id, model]))
+    const existing = canonicalDeepSeekModels(provider.models)
+    const byId = new Map(existing.map((model) => [model.id, model]))
     const officialIds = new Set(template.suggestedModels.map((model) => model.id))
     const next = [
       ...template.suggestedModels.map((model) => ({ ...byId.get(model.id), ...model })),
-      ...provider.models.filter((model) => !officialIds.has(model.id))
+      ...existing.filter((model) => !officialIds.has(model.id))
     ].slice(0, 50)
-    if (JSON.stringify(next) === JSON.stringify(provider.models)) return false
+    const active = this.config.modelRouting.active
+    const nextActive = active.provider === DEEPSEEK_PROVIDER ? canonicalDeepSeekModel(active.model) : active.model
+    const activeChanged = nextActive !== active.model
+    if (JSON.stringify(next) === JSON.stringify(provider.models) && !activeChanged) return false
+    this.config.modelRouting.active.model = nextActive
     provider.models = next
     return true
   }
@@ -395,12 +439,15 @@ export class ModelStore {
       try { source = await readFile(path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'settings.yaml'), 'utf8'); profileSettings = false }
       catch (legacyError) { if ((legacyError as NodeJS.ErrnoException).code === 'ENOENT') return true; throw legacyError }
     }
+    const previousWebSearch = JSON.stringify(this.webSearch)
+    if (profileSettings) this.webSearch = readDeepSeekWebSearch(source, this.config.activeVersion)
+    const webSearchChanged = previousWebSearch !== JSON.stringify(this.webSearch)
     const previousProviders = this.config.modelRouting.providers
     const parsed = parseHarnessModelSettings(profileSettings ? profileModelSettingsSource(source) : source, this.providerProfiles(), this.config.modelRouting.active)
     const nextProviders: PersistedConfig['modelRouting']['providers'] = parsed.providers.map((provider) => ({ ...provider }))
     const changed = JSON.stringify({ active: this.config.modelRouting.active, providers: previousProviders })
       !== JSON.stringify({ active: parsed.active, providers: nextProviders })
-    if (!changed) return false
+    if (!changed) return webSearchChanged
 
     const nextRefs = new Set(nextProviders.map(providerEnvName))
     for (const provider of previousProviders) {
@@ -505,6 +552,7 @@ export class ModelStore {
       await this.importHarnessSettings()
       if (harnessUsesProfileModelSettings(version)) {
         await this.writeHarnessSettings()
+        await this.initializeWebSearch()
         const legacy = path.join(launcherDataPaths(this.config.activeVersion).dshHome, 'settings.yaml')
         await withFileLock(legacy, async () => {
           let source: string

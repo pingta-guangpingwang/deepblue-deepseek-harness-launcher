@@ -6,13 +6,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DshClient } from './src/dsh-rpc.mjs';
 
+for (const version of ['0.2.1-alpha.2', '0.2.1-rc.2']) {
 test('DSH new Remote preserves identity, uses only the local Cookie and restricts commands', async t => {
   const root = await mkdtemp(path.join(tmpdir(), 'dsh-remote-auth-')); t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, 'launcher'));
   const authFile = path.join(root, 'launcher/process-auth.json');
-  await writeFile(authFile, JSON.stringify({ pid: process.pid, version: '0.2.1-alpha.2', cwd: root, url: 'http://127.0.0.1:3080/?token=SYNTHETIC_LOCAL_PROCESS_TOKEN_ONLY' }));
+  await writeFile(authFile, JSON.stringify({ pid: process.pid, version, cwd: root, url: 'http://127.0.0.1:3080/?token=SYNTHETIC_LOCAL_PROCESS_TOKEN_ONLY' }));
   const calls = [];
-  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: '0.2.1-alpha.2', authFile, authRoot: root, expectedCwd: root, fetch: async (url, options) => {
+  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: version, authFile, authRoot: root, expectedCwd: root, fetch: async (url, options) => {
     calls.push({ url, options });
     if (options.redirect === 'manual') return new Response(null, { status: 303, headers: { 'set-cookie': 'local-fixture=synthetic; HttpOnly; SameSite=Strict' } });
     const request = JSON.parse(options.body);
@@ -31,7 +32,7 @@ test('DSH new Remote preserves identity, uses only the local Cookie and restrict
 });
 
 test('DSH history keeps the snapshot cut when paging and closes the opening stream', async () => {
-  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: '0.2.1-alpha.2' });
+  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: version });
   let closed = false, page;
   client.openRemoteStream = async () => ({ first: { type: 'snapshot', header: { id: 'ours' }, cursor: 42, hasMore: true, records: [{ event: { seq: 40 } }] }, close: async () => { closed = true } });
   client.remoteCall = async (method, args) => { page = { method, args }; return { records: [], hasMore: false } };
@@ -45,8 +46,10 @@ test('DSH refuses a local token minted for a different endpoint before any excha
   const root = await mkdtemp(path.join(tmpdir(), 'dsh-invalid-auth-')); t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, 'launcher'));
   const authFile = path.join(root, 'launcher/process-auth.json');
-  await writeFile(authFile, JSON.stringify({ pid: process.pid, version: '0.2.1-alpha.2', cwd: root, url: 'http://127.0.0.1:3081/?token=SYNTHETIC_LOCAL_PROCESS_TOKEN_ONLY' }));
+  await writeFile(authFile, JSON.stringify({ pid: process.pid, version, cwd: root, url: 'http://127.0.0.1:3081/?token=SYNTHETIC_LOCAL_PROCESS_TOKEN_ONLY' }));
   let called = false;
-  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: '0.2.1-alpha.2', authFile, authRoot: root, expectedCwd: root, fetch: async () => { called = true } });
+  const client = new DshClient('http://127.0.0.1:3080', { expectedVersion: version, authFile, authRoot: root, expectedCwd: root, fetch: async () => { called = true } });
   await assert.rejects(client.call('session.list'), /认证入口/); assert.equal(called, false);
 });
+
+}

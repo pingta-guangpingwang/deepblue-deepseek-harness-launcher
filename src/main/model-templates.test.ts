@@ -33,7 +33,7 @@ describe('model provider templates', () => {
 
   it('ships a dated selectable model catalog for every known provider', () => {
     for (const template of modelProviderTemplates) {
-      expect(template.catalogUpdatedAt).toBe('2026-08-22')
+      expect(template.catalogUpdatedAt).toBe(template.id === 'deepseek-official' ? '2026-10-20' : '2026-08-22')
       if (template.custom) continue
       expect(template.suggestedModels.length).toBeGreaterThan(0)
       expect(template.suggestedModels.some((model) => model.recommended)).toBe(true)
@@ -41,14 +41,13 @@ describe('model provider templates', () => {
     }
   })
 
-  it('advertises the official DeepSeek vision model with the same image limits as Harness', () => {
+  it('uses the canonical multimodal Flash model without the retired experiment limits', () => {
     const deepseek = modelProviderTemplates.find((template) => template.id === 'deepseek-official')
-    expect(deepseek?.suggestedModels.find((model) => model.id === 'deepseek-v4-flash-vision-exp')).toMatchObject({
-      inputModalities: ['text', 'image'],
-      imagePixelBudget: 640_000,
-      imageMaxBytes: 1_048_576,
-      imageDetail: 'auto'
-    })
+    const flash = deepseek?.suggestedModels.find((model) => model.id === 'deepseek-flash')
+    expect(flash?.inputModalities).toEqual(['text', 'image'])
+    expect(flash?.imageMaxBytes).toBeUndefined()
+    expect(flash?.imagePixelBudget).toBeUndefined()
+    expect(deepseek?.suggestedModels.some(model => model.id === 'deepseek-v4-flash-vision-exp')).toBe(false)
   })
 
   it('locks known providers to official connection and model values', () => {
@@ -86,8 +85,9 @@ describe('model provider templates', () => {
     }
     const merged = mergeSignedModelTemplates([staleDeepSeek])
     const deepseek = merged.find((template) => template.id === 'deepseek-official')
-    expect(deepseek?.catalogUpdatedAt).toBe('2026-08-22')
-    expect(deepseek?.suggestedModels.find((model) => model.id === 'deepseek-v4-flash-vision-exp')?.inputModalities).toEqual(['text', 'image'])
+    expect(deepseek?.catalogUpdatedAt).toBe('2026-10-20')
+    expect(deepseek?.suggestedModels.find((model) => model.id === 'deepseek-flash')?.inputModalities).toEqual(['text', 'image'])
+    expect(deepseek?.suggestedModels.some(model => model.id === 'deepseek-v4-flash')).toBe(false)
   })
 
   it('opens resource cards on one click and keeps manual model entry custom-only', () => {

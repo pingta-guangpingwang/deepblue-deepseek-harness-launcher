@@ -1,9 +1,14 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HarnessBrowserHandoff, prepareHarnessNoBrowserPatch } from './harness-browser'
+
+// Resolve through the pinned CLI's dependency graph, including npm peer layouts.
+const dshRequire = createRequire(path.resolve('node_modules/@deepseek-ai/dsh/package.json'))
+const { loadOverlayPatches } = await import(pathToFileURL(dshRequire.resolve('@deepseek-ai/dsh-app-boot')).href)
 
 const temporaryDirectories: string[] = []
 

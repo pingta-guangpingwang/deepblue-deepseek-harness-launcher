@@ -6,9 +6,17 @@
 
 安全与信任：[代码签名政策](docs/CODE_SIGNING_POLICY.md) · [隐私说明](PRIVACY.md) · [安全问题报告](SECURITY.md)
 
-> 当前状态：Windows x64 0.10.13 公测版。不到 1 MB 的联网引导器、差异化模块更新确认与进度、安装后自动重启、可独立更新的签名模型目录、可选程序与资源位置、快捷方式修复、完整离线兜底、真实 Harness Web 启动、启动器与 Harness 网页模型/密钥双向同步、AI历史书原生能力中心、同源新闻阅读、680 款去重精选 Gitee 签名皮肤和 56 个可互动宠物均已验证。
+当前版本为 Windows x64 **0.10.38**，集成官方 **DSH 0.2.1-rc.2 候选版**。推荐 DeepSeek 模型为 `deepseek-flash`（V4.1 Flash，支持图片）和 `deepseek-v4-pro`。公开下载与校验值以[下载页](https://deepseek.ailishishu.com/)和对应 GitHub Release 为准。
 
-> 模块化发行状态：签名目录 schema 2、多渠道探测与回退、断点下载、SHA-256、受限解包、不可变安装、原子切换与回滚已经落地；真实制品已从空目录安装并启动 Node 24.16.0、Harness 0.1.1-rc.2、pnpm 11.22.0 与 Harness Web。UI 壳同时携带经过同一严格校验的运行模块目录副本；运行目录、UI 壳与三个运行模块均按 Gitee、GitHub、OSS 的顺序自动探测与切换，OSS 只作最后应急兜底。
+0.10.38 使用独立的 RC2 签名更新目录。旧 DSH 0.1 与 0.2.1-alpha.2 目录保留兼容模块，并仅通知启动器更新。首次切换到 RC2 时复制已有会话、配置和凭据到私有 `harness-data-v2-rc2`；原目录保留，活跃会话会阻止迁移。本轮新制品只公布已核验的 OSS / GitHub 镜像，既有 Gitee 资源目录继续使用。
+
+## DeepSeek 搜索与网页读取
+
+在“模型连接”中开启“使用 DeepSeek 搜索 API”，会同时选择 DSH 原生的 `deepseek-search-api` 和 `deepseek-fetch-api`。用户未配置过搜索提供方时默认开启；已有自定义或明确关闭的选择会保留。此设置与 DSH 的 web profile 共用，下一次联网操作生效。
+
+搜索复用已保存的 DeepSeek 凭据，不需要再次输入 Key。Search 与 Fetch 各按每 1,000 次有效请求 5 元计费，独立于模型 Tokens；以[官方现行说明](https://api-docs.deepseek.com/zh-cn/guides/search/)及服务商账单为准。本站网页模型中心的搜索由平台承担费用，与启动器直接使用个人 API Key 的费用分别计算。
+
+原生端点为 `POST https://api.deepseek.com/v1/tools/search` 和 `/v1/tools/fetch`。不要把 `web_search: true` 当成 DeepSeek 原生 Chat 参数；它是 AI历史书网页网关的扩展参数。旧 Flash 和实验视觉模型名兼容迁移到 `deepseek-flash`，历史会话内容不会被改写。
 
 ## 已实现
 
@@ -17,10 +25,10 @@
 - 独立用户数据：首次启动可确认或更换 Node、Harness、插件、皮肤、宠物与 `DSH_HOME` 的存放位置；以后可在设置中安全迁移，旧位置保留为恢复副本。
 - 版本管理：新版本安装到并行目录；更新前备份用户数据；已安装版本可回滚。
 - 模块化运行时：Node、Harness 与 pnpm 使用签名清单独立安装；界面显示每个模块、实际字节、所用渠道和总进度，下载前探测渠道，失败自动切换，校验失败不激活，旧版本保留为回滚点。
-- 国内网络：Gitee 优先提供开源模块，GitHub Releases 为第二线路，OSS 只做最后应急兜底；npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线版由百度网盘兜底。
+- 国内网络：新运行制品采用可验证的 OSS / GitHub 镜像；旧资源目录保留原有渠道。npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线包提供运行环境兜底。
 - 更新安全：远程版本、插件和模型目录必须通过 Ed25519 签名；启动器整合包下载后校验 SHA-256。
 - 插件管理：调用 Harness 官方 `dsh plugin --profile web add/update/remove` 流程，并把配置的 npm 国内源传给 pnpm。
-- 模型目录：国内平台优先，覆盖 DeepSeek、千问、豆包、Kimi、智谱、千帆、腾讯 TokenHub、MiniMax、阶跃、硅基流动和百川；已知平台直接勾选 2026-08-22 核对的官方模型，DeepSeek 默认包含支持图片输入的 V4 Flash Vision Exp；不下载模型权重，用户主动保存的 API Key 只进入 Windows 安全存储。
+- 模型目录：国内平台优先，覆盖 DeepSeek、千问、豆包、Kimi、智谱、千帆、腾讯 TokenHub、MiniMax、阶跃、硅基流动和百川；已知平台直接勾选官方模型；DeepSeek 目录已于 2026-10-20 核对并升级为支持图片输入的 V4.1 Flash，其他平台目录保留原核验日期；不下载模型权重，用户主动保存的 API Key 只进入 Windows 安全存储。
 - 皮肤商店：只从两个固定 Gitee 仓库读取签名目录，主仓保存高清图和 GIF，`skins-video` 分仓保存视频；固定视口按窗口尺寸自适应卡片数量，使用 `1、2、3…` 数字分页，不再上下滚动找下一页。
 - 宠物商店：提供透明帧动画、悬停回应、点击动作、双击爱心、主动问候、拖动定位和位置记忆；同样采用固定视口、自适应数量和数字分页，宠物媒体按需下载，不打进安装包。
 - AI历史书融合目录：新闻双击后在原生弹窗阅读；提示词、Skill、工作流、知识库、AI 工具和智能体使用独立页签，并显示源码、Stars、热度、评分和用户评价。

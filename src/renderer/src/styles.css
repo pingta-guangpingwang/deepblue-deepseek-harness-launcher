@@ -1646,3 +1646,13 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 @media (prefers-reduced-motion: reduce) {
   .community-message-list { scroll-behavior: auto; }
 }
+
+/* Native DSH Search/Fetch selection; inherits the model settings surface. */
+.model-web-search { display:flex; align-items:center; flex-wrap:wrap; gap:12px 20px; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.model-web-search > div { flex:1 1 300px; min-width:0; }
+.model-web-search strong { font-size:14px; }
+.model-web-search p { margin:5px 0 0; max-width:72ch; font-size:12px; line-height:1.6; color:var(--text-secondary); }
+.model-web-search label { display:flex; align-items:center; gap:8px; min-height:40px; font-size:13px; cursor:pointer; }
+.model-web-search input { width:17px; height:17px; accent-color:var(--blue); }
+.model-web-search label:has(input:disabled) { color:var(--text-secondary); cursor:not-allowed; }
+.model-web-search input:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }

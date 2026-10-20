@@ -1,5 +1,6 @@
 import { isMap, isSeq, parse, parseDocument } from 'yaml'
 import type { ModelDefinition, ModelProviderDraft } from '../shared/types'
+import { canonicalDeepSeekModel, canonicalDeepSeekModels } from '../shared/deepseek-models'
 
 const CATALOG_PROVIDERS = new Set(['openai', 'anthropic', 'google'])
 
@@ -193,7 +194,7 @@ export function parseHarnessModelSettings(
       ...deepseek,
       api: 'deepseek',
       custom: false,
-      models: includeOfficialModels(deepseek.models, deepseekFallback.models)
+      models: includeOfficialModels(canonicalDeepSeekModels(deepseek.models), canonicalDeepSeekModels(deepseekFallback.models))
     })
   }
   const pi = isRecord(root['llm-pi-ai']) ? root['llm-pi-ai'] : undefined
@@ -209,6 +210,7 @@ export function parseHarnessModelSettings(
     ? { provider: rawActive.provider.trim(), model: rawActive.model.trim() }
     : { ...fallbackActive }
   if (!validProviderId(active.provider) || !validModelId(active.model)) active = { ...fallbackActive }
+  if (active.provider === 'deepseek-official') active.model = canonicalDeepSeekModel(active.model)
   let activeProvider = providers.find((provider) => provider.id === active.provider)
   if (!activeProvider) {
     active = providers[0]

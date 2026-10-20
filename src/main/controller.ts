@@ -142,7 +142,7 @@ export class LauncherController {
     setLauncherStorageRoot(this.config.settings.storageRoot)
     const initialRuntime = await resolveRuntime(launcherDataPaths(this.config.activeVersion).runtime, this.config.activeVersion)
     const initialCoreVersion = await readPackageVersion(path.join(path.dirname(path.dirname(initialRuntime.dsh)), 'package.json'))
-    if (initialCoreVersion && ['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2'].includes(initialCoreVersion)) this.config.activeVersion = initialCoreVersion
+    if (initialCoreVersion && ['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2', '0.2.1-rc.2'].includes(initialCoreVersion)) this.config.activeVersion = initialCoreVersion
     this.dynamicWallpaper = new DynamicWallpaperManager(
       path.join(launcherDataPaths(this.config.activeVersion).skins, 'desktop-state.json'),
       path.join(launcherDataPaths(this.config.activeVersion).skins, 'desktop-host')
@@ -176,7 +176,7 @@ export class LauncherController {
       runStatus: 'stopped',
       launchProgress: { status: 'idle', progress: 0, message: '等待启动' },
       activeHarnessVersion: this.config.activeVersion,
-      latestHarnessVersion: '0.2.1-alpha.2',
+      latestHarnessVersion: '0.2.1-rc.2',
       runtimeUpdates: { status: 'idle', items: [], modules: [] },
       environment: this.checkingEnvironment(),
       sources,
@@ -454,7 +454,7 @@ export class LauncherController {
       }
       this.updateLaunchProgress('preparing', 28, '运行环境已就绪，正在准备工作区')
       const actualVersion = await readPackageVersion(path.join(path.dirname(path.dirname(runtime.dsh)), 'package.json'))
-      if (!actualVersion || !['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2'].includes(actualVersion)) throw new Error('实际 Harness 核心版本尚未通过启动器兼容验证')
+      if (!actualVersion || !['0.1.0-rc.3', '0.1.1-rc.2', '0.2.1-alpha.2', '0.2.1-rc.2'].includes(actualVersion)) throw new Error('实际 Harness 核心版本尚未通过启动器兼容验证')
       if (actualVersion !== this.config.activeVersion) {
         await mkdir(paths.backups, { recursive: true })
         await writeFile(path.join(paths.backups, `harness-selection-${Date.now()}.json`), JSON.stringify({ previous: this.config.activeVersion, selected: actualVersion, reason: 'bundled-runtime-fallback' }), { mode: 0o600 })
@@ -466,7 +466,7 @@ export class LauncherController {
       await this.prepareCurrentHarnessHome()
       await assertHarnessPortAvailable(this.config.settings.port)
       await mkdir(paths.dshHome, { recursive: true })
-      if (actualVersion === '0.2.1-alpha.2') await prepareDshProcessAuthentication(paths.dshHome)
+      if (['0.2.1-alpha.2', '0.2.1-rc.2'].includes(actualVersion)) await prepareDshProcessAuthentication(paths.dshHome)
       await mkdir(this.config.settings.workspace, { recursive: true })
       this.updateLaunchProgress('preparing', 40, '正在加载皮肤、宠物与外观配置')
       await this.ensureSkinRuntime(runtime)
@@ -1386,6 +1386,13 @@ export class LauncherController {
 
   async refreshModelUsage(): Promise<LauncherSnapshot> {
     this.snapshot.modelHub = await this.modelStore.refreshUsage()
+    this.emit()
+    return this.getSnapshot()
+  }
+
+  async setDeepSeekWebSearch(enabled: boolean): Promise<LauncherSnapshot> {
+    this.snapshot.modelHub = await this.modelStore.setDeepSeekWebSearch(enabled)
+    this.log('INFO', this.snapshot.modelHub.message || '搜索设置已更新')
     this.emit()
     return this.getSnapshot()
   }
@@ -2482,7 +2489,7 @@ export class LauncherController {
 
   private async markRunningOnce(url: string, browserCycle: number): Promise<void> {
     if (this.snapshot.runStatus === 'running' || browserCycle !== this.harnessCycle) return
-    if (this.config.activeVersion === '0.2.1-alpha.2') {
+    if (['0.2.1-alpha.2', '0.2.1-rc.2'].includes(this.config.activeVersion)) {
       const pid = this.service?.pid
       if (!pid || this.service?.exitCode !== null) return
       const published = await publishDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, { version: this.config.activeVersion, pid, cwd: this.config.settings.workspace, url }, () => this.service?.pid === pid && this.service?.exitCode === null && this.snapshot.runStatus === 'starting' && browserCycle === this.harnessCycle)

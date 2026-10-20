@@ -1,26 +1,14 @@
 import type { ModelProviderTemplate } from './types'
+import { DEEPSEEK_MODEL_CATALOG_DATE, officialDeepSeekModels } from './deepseek-models'
 
 const UPDATED_AT = '2026-08-22'
 
 export const modelProviderTemplates: ModelProviderTemplate[] = [
   {
-    id: 'deepseek-official', name: 'DeepSeek 官方', description: '官方 V4 模型目录，包含日常工程、复杂推理和支持图片输入的视觉实验模型。', region: 'china',
+    id: 'deepseek-official', name: 'DeepSeek 官方', description: 'Flash 支持文字与图片，Pro 面向复杂文字推理；搜索与网页读取复用已有 Key。', region: 'china',
     api: 'deepseek', baseURL: 'https://api.deepseek.com', apiKeyEnv: 'DEEPSEEK_API_KEY',
-    docsUrl: 'https://api-docs.deepseek.com/zh-cn/guides/reasoning_model', billingUrl: 'https://platform.deepseek.com/usage', custom: false, featured: true, catalogUpdatedAt: UPDATED_AT,
-    suggestedModels: [
-      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', description: '速度与成本均衡，适合默认工程模型。', recommended: true, inputModalities: ['text'] },
-      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '复杂推理、规划与高难度代码任务。', inputModalities: ['text'] },
-      {
-        id: 'deepseek-v4-flash-vision-exp',
-        name: 'DeepSeek V4 Flash Vision Exp',
-        description: 'DeepSeek 官方视觉实验模型，支持图片理解、文字提取、界面检查与图表分析。',
-        recommended: true,
-        inputModalities: ['text', 'image'],
-        imagePixelBudget: 640_000,
-        imageMaxBytes: 1_048_576,
-        imageDetail: 'auto'
-      }
-    ]
+    docsUrl: 'https://api-docs.deepseek.com/zh-cn/', billingUrl: 'https://platform.deepseek.com/usage', custom: false, featured: true, catalogUpdatedAt: DEEPSEEK_MODEL_CATALOG_DATE,
+    suggestedModels: structuredClone(officialDeepSeekModels)
   },
   {
     id: 'qwen', name: '通义千问 · 阿里云百炼', description: '百炼官方稳定模型目录，覆盖旗舰、均衡与高速档。', region: 'china',

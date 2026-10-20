@@ -55,24 +55,26 @@ async function scan(root: string, checkActive = false): Promise<{ hash: string; 
 
 export async function dshPersistentDataHash(home: string): Promise<string> { return (await scan(home)).hash }
 export async function ensureHarnessDataHome(storageRoot: string, version: string, assertQuiescent: () => Promise<void> = async () => {}): Promise<string> {
-  const wanted = path.join(storageRoot, harnessHomeDirectoryName(version))
-  if (harnessHomeDirectoryName(version) !== 'harness-data-v2') return wanted
+  const targetName = harnessHomeDirectoryName(version)
+  const wanted = path.join(storageRoot, targetName)
+  if (!['harness-data-v2', 'harness-data-v2-rc2'].includes(targetName)) return wanted
   if (await existing(wanted)) { if ((await lstat(wanted)).isSymbolicLink()) throw new Error('DSH v2 目录不能是符号链接'); return wanted }
   if (preparations.has(wanted)) return preparations.get(wanted)!
   const pending = (async () => {
     await assertQuiescent()
     await mkdir(storageRoot, { recursive: true }); const root = await realpath(storageRoot)
-    const old = path.join(path.resolve(storageRoot), 'harness-data'), target = path.join(root, 'harness-data-v2')
+    const sourceName = targetName === 'harness-data-v2-rc2' && await existing(path.join(root, 'harness-data-v2')) ? 'harness-data-v2' : 'harness-data'
+    const old = path.join(path.resolve(storageRoot), sourceName), target = path.join(root, targetName)
     if (await existing(target)) return target
     if (await existing(old) && (await lstat(old)).isSymbolicLink()) throw new Error('旧 DSH 目录不能是符号链接')
     const before = await scan(old, true)
-    const staging = path.join(root, '.harness-data-v2-next-' + randomUUID())
+    const staging = path.join(root, '.' + targetName + '-next-' + randomUUID())
     await mkdir(staging, { mode: 0o700 }); await restrictDshPrivateDirectory(staging)
     for (const file of before.files) { const destination = path.join(staging, ...file.relative.split('/')); await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 }); await copyFile(path.join(old, ...file.relative.split('/')), destination) }
     const [after, copied] = await Promise.all([scan(old, true), scan(staging)])
     if (before.hash !== after.hash || before.hash !== copied.hash) throw new Error('旧 DSH 数据在克隆期间变化，未切换或覆盖旧数据')
     await assertQuiescent()
-    await writeFile(path.join(staging, 'dsh-v2-migration.json'), JSON.stringify({ schemaVersion: 1, source: 'harness-data', target: 'harness-data-v2', sourceHashBefore: before.hash, sourceHashAfter: after.hash, clonedHash: copied.hash, fileCount: before.files.length, excluded: [...caches, 'temporary process/lock markers'], createdAt: new Date().toISOString() }), { mode: 0o600 })
+    await writeFile(path.join(staging, 'dsh-v2-migration.json'), JSON.stringify({ schemaVersion: 1, source: sourceName, target: targetName, sourceHashBefore: before.hash, sourceHashAfter: after.hash, clonedHash: copied.hash, fileCount: before.files.length, excluded: [...caches, 'temporary process/lock markers'], createdAt: new Date().toISOString() }), { mode: 0o600 })
     await rename(staging, target)
     return target
   })()

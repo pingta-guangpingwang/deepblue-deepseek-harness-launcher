@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import { mergeHarnessModelSettings, parseHarnessModelSettings } from './model-settings'
+import { officialDeepSeekModels } from '../shared/deepseek-models'
 
 describe('Harness model settings merge', () => {
   it('preserves unrelated settings and manually-managed providers', () => {
@@ -90,7 +91,7 @@ llm-pi-ai:
     expect(state.providers.map((provider) => provider.id)).toEqual(['deepseek-official', 'qwen-team'])
     expect(state.providers.find((provider) => provider.id === 'deepseek-official')?.models)
       .toEqual([
-        { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+        { id: 'deepseek-flash', name: 'DeepSeek V4 Flash' },
         { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
       ])
     expect(state.providers.find((provider) => provider.id === 'qwen-team')).toMatchObject({
@@ -98,40 +99,24 @@ llm-pi-ai:
     })
   })
 
-  it('adds the official vision model to an older explicit DeepSeek catalog and preserves its image policy', () => {
-    const vision = {
-      id: 'deepseek-v4-flash-vision-exp',
-      name: 'DeepSeek V4 Flash Vision Exp',
-      inputModalities: ['text', 'image'] as Array<'text' | 'image'>,
-      imagePixelBudget: 640_000,
-      imageMaxBytes: 1_048_576,
-      imageDetail: 'auto' as const
-    }
+  it('migrates a retired vision selection into canonical Flash and keeps current capabilities', () => {
     const fallback = [{
       id: 'deepseek-official', name: 'DeepSeek 官方', api: 'deepseek' as const,
       baseURL: 'https://api.deepseek.com', apiKeyEnv: 'DEEPSEEK_API_KEY',
-      models: [
-        { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', inputModalities: ['text'] as Array<'text' | 'image'> },
-        vision
-      ],
-      custom: false
+      models: structuredClone(officialDeepSeekModels), custom: false
     }]
-    const parsed = parseHarnessModelSettings(`llm-deepseek:
+    const parsed = parseHarnessModelSettings(`agent-default-model:
+  provider: deepseek-official
+  model: deepseek-v4-flash-vision-exp
+llm-deepseek:
   models:
     - id: deepseek-v4-flash
       name: DeepSeek V4 Flash
 `, fallback, { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
-    expect(parsed.providers[0]?.models).toEqual([
-      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', inputModalities: ['text'] },
-      vision
-    ])
+    expect(parsed.active.model).toBe('deepseek-flash')
+    expect(parsed.providers[0]?.models).toEqual(officialDeepSeekModels)
     const written = parse(mergeHarnessModelSettings('{}\n', parsed.active, parsed.providers)) as Record<string, any>
-    expect(written['llm-deepseek'].models[1]).toMatchObject({
-      id: vision.id,
-      inputModalities: ['text', 'image'],
-      imagePixelBudget: 640_000,
-      imageMaxBytes: 1_048_576,
-      imageDetail: 'auto'
-    })
+    expect(written['llm-deepseek'].models[0]).toMatchObject({ id: 'deepseek-flash', inputModalities: ['text', 'image'] })
+    expect(written['llm-deepseek'].models[0].imageMaxBytes).toBeUndefined()
   })
 })
