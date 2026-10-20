@@ -122,7 +122,7 @@ try {
   const forum = await page.evaluate(async () => window.launcher.communityRequest({ scope: 'forum', method: 'GET', action: 'bootstrap', realm: 'tool', circle: 'deepseek', sort: 'latest' }))
   if (!forum.ok || !Array.isArray(forum.threads) || !forum.threads.every(item => item.space?.slug === 'deepseek')) throw new Error('Public DeepSeek topic readback failed')
   await page.getByRole('button', { name: '大肥鱼社区', exact: true }).click()
-  await page.getByRole('heading', { name: '大肥鱼社区', exact: true }).waitFor()
+  await page.locator('.fish-launcher-board').getByRole('heading', { name: '大肥鱼社区', exact: true }).waitFor()
   await page.getByRole('button', { name: '最新发布', exact: true }).click()
   if (forum.threads.length) await page.locator('.fish-topic-title').first().waitFor()
   await page.screenshot({ path: path.join(outputRoot, 'public-community-page.png'), animations: 'disabled' })
