@@ -2,11 +2,13 @@
 
 深蓝DeepSeekHarness启动器是面向中国国内新手用户的 DeepSeek Harness 桌面整合启动器。Windows 保留完整离线版作为断网与疑难设备兜底；新的联网发行链把 UI 壳、Node、Harness 和插件包管理器拆成独立的内容寻址模块，不要求用户预先配置 Git、Node 或系统环境变量，也不再让每次小更新重复下载完整环境。
 
+官方下载入口：[dsh.ailishishu.com](https://dsh.ailishishu.com/)（旧域名永久跳转）。
+
 配套驾驭工程教学：[https://ailishishu.com/learn/deepseek-harness/](https://ailishishu.com/learn/deepseek-harness/)
 
 安全与信任：[代码签名政策](docs/CODE_SIGNING_POLICY.md) · [隐私说明](PRIVACY.md) · [安全问题报告](SECURITY.md)
 
-当前版本为 Windows x64 **0.10.38**，集成官方 **DSH 0.2.1-rc.2 候选版**。推荐 DeepSeek 模型为 `deepseek-flash`（V4.1 Flash，支持图片）和 `deepseek-v4-pro`。公开下载与校验值以[下载页](https://deepseek.ailishishu.com/)和对应 GitHub Release 为准。
+当前版本为 Windows x64 **0.10.39**，集成官方 **DSH 0.2.1-rc.2 候选版**。推荐 DeepSeek 模型为 `deepseek-flash`（V4.1 Flash，支持图片）和 `deepseek-v4-pro`。公开下载与校验值以[下载页](https://deepseek.ailishishu.com/)和对应 GitHub Release 为准。
 
 0.10.38 使用独立的 RC2 签名更新目录。旧 DSH 0.1 与 0.2.1-alpha.2 目录保留兼容模块，并仅通知启动器更新。首次切换到 RC2 时复制已有会话、配置和凭据到私有 `harness-data-v2-rc2`；原目录保留，活跃会话会阻止迁移。本轮新制品只公布已核验的 OSS / GitHub 镜像，既有 Gitee 资源目录继续使用。
 
@@ -27,12 +29,13 @@
 - 模块化运行时：Node、Harness 与 pnpm 使用签名清单独立安装；界面显示每个模块、实际字节、所用渠道和总进度，下载前探测渠道，失败自动切换，校验失败不激活，旧版本保留为回滚点。
 - 国内网络：新运行制品采用可验证的 OSS / GitHub 镜像；旧资源目录保留原有渠道。npm 依赖在 npmmirror 与 npm 官方源之间回退，完整离线包提供运行环境兜底。
 - 更新安全：远程版本、插件和模型目录必须通过 Ed25519 签名；启动器整合包下载后校验 SHA-256。
-- 插件管理：调用 Harness 官方 `dsh plugin --profile web add/update/remove` 流程，并把配置的 npm 国内源传给 pnpm。
+- 插件使用：保留 DSH 原生插件界面；更多页提供生态介绍与来源入口。
 - 模型目录：国内平台优先，覆盖 DeepSeek、千问、豆包、Kimi、智谱、千帆、腾讯 TokenHub、MiniMax、阶跃、硅基流动和百川；已知平台直接勾选官方模型；DeepSeek 目录已于 2026-10-20 核对并升级为支持图片输入的 V4.1 Flash，其他平台目录保留原核验日期；不下载模型权重，用户主动保存的 API Key 只进入 Windows 安全存储。
 - 皮肤商店：只从两个固定 Gitee 仓库读取签名目录，主仓保存高清图和 GIF，`skins-video` 分仓保存视频；固定视口按窗口尺寸自适应卡片数量，使用 `1、2、3…` 数字分页，不再上下滚动找下一页。
 - 宠物商店：提供透明帧动画、悬停回应、点击动作、双击爱心、主动问候、拖动定位和位置记忆；同样采用固定视口、自适应数量和数字分页，宠物媒体按需下载，不打进安装包。
-- AI历史书融合目录：新闻双击后在原生弹窗阅读；提示词、Skill、工作流、知识库、AI 工具和智能体使用独立页签，并显示源码、Stars、热度、评分和用户评价。
-- 受控能力安装：资源先进入安装列表；Skill 安装到 Harness 原生目录并默认关闭模型自动调用，其他内容写入 DSH 本机能力库，不执行任意远程仓库代码。
+- 精简导航：发现区只常驻 AI 新闻、AI 游戏和更多；提示词、Skill、工作流、知识库、AI 工具、智能体、职场与插件生态在更多页展示介绍并打开 AI历史书网站。模型连接仍在管理区，运行、智能体工作台、皮肤与宠物保留。
+- 大肥鱼社区：DeepSeek 专属话题社区，登录后可发起各种话题，在帖内文字留言、发送图片/GIF和表情，并管理自己的表情收藏；不再提供独立实时聊天室和其它模型房间。
+- 已安装能力保留：不删除本机资源文件；新增能力按网站说明和 DSH 原生设置安装。
 - 账号同步：左下角登录入口使用加密 HttpOnly 会话；收藏跨网站与设备同步，评价公开可看但发表评论必须登录。
 - 日志诊断：展示组件、源站、任务和 Harness 进程输出，提供快速修复入口。
 - 引导安装：下载 EXE 后双击即可安装，可选择程序安装目录，显示系统进度，自动创建桌面与开始菜单快捷方式并启动应用；快捷方式缺失时可在设置中修复。

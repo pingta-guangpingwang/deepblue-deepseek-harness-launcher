@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'agent-workspace' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'community' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
+export type PageId = 'more' | 'home' | 'agent-workspace' | 'skins' | 'pets' | 'versions' | 'prompts' | 'skills' | 'workflows' | 'knowledge' | 'tools' | 'agents' | 'library' | 'models' | 'ecosystem' | 'community' | 'news' | 'games' | 'careers' | 'workspaces' | 'diagnostics' | 'settings'
 
 export interface LauncherCommunityUpload {
   name: string

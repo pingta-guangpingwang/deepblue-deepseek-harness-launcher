@@ -2,17 +2,7 @@ import type { PageId } from '../../shared/types'
 
 export type OnlinePageRefreshTarget = 'discovery' | 'skins' | 'pets'
 
-const DISCOVERY_PAGES = new Set<PageId>([
-  'prompts',
-  'skills',
-  'workflows',
-  'knowledge',
-  'tools',
-  'agents',
-  'news',
-  'games',
-  'careers'
-])
+const DISCOVERY_PAGES = new Set<PageId>(['news', 'games'])
 
 /** Returns the online data source that must be refreshed whenever a page is activated. */
 export function onlinePageRefreshTarget(page: PageId): OnlinePageRefreshTarget | undefined {

@@ -1,0 +1,215 @@
+// Credential-free policy: retain both old runtime graphs and add an RC2 channel.
+import assert from 'node:assert/strict'
+import { createHash, createPublicKey } from 'node:crypto'
+import { createReadStream } from 'node:fs'
+import { lstat, readFile, realpath } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { verifyRuntimeCatalogManifest, validateRuntimeModules } from './runtime-catalog-validation.mjs'
+
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+export const RELEASE = path.join(ROOT, 'release')
+export const VERSION = '0.10.39'
+export const DSH_VERSION = '0.2.1-rc.2'
+export const BUCKET = 'ailishishu-deepseek-harness'
+export const HOSTNAME = `${BUCKET}.oss-cn-beijing.aliyuncs.com`
+export const REPOSITORY = 'pingta-guangpingwang/deepblue-deepseek-harness-launcher'
+export const LEGACY_KEY = 'release-v2/launcher-manifest.json'
+export const ALPHA_KEY = 'release-v2/dsh02/launcher-manifest.json'
+export const CHANNEL_KEY = 'release-v2/dsh021rc/launcher-manifest.json'
+export const SOURCE_ID = 'runtime-v2-dsh021rc'
+export const ALIAS_KEY = 'download/deepblue-deepseek-harness-launcher-win-x64-online.exe'
+export const REPLACED_IDS = ['harness-core', 'launcher-ui', 'agent-host']
+export const sha = bytes => createHash('sha256').update(bytes).digest('hex')
+export const objectPath = key => `/${key.split('/').map(encodeURIComponent).join('/')}`
+export const publicUrl = key => `https://${HOSTNAME}${objectPath(key)}`
+export const jsonBytes = value => Buffer.from(`${JSON.stringify(value, null, 2)}\n`)
+export const parseJson = bytes => JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/u, ''))
+export const exactKeys = (object, keys) => assert.deepEqual(Object.keys(object).sort(), [...keys].sort())
+
+export function assertGithubReadback(run, logs, plan) {
+  assert.equal(run.head_sha, plan.sourceCommit, 'Readback must use the frozen publishing source')
+  assert.equal(run.path, '.github/workflows/verify-039-public-artifacts.yml')
+  assert.equal(run.event, 'workflow_dispatch')
+  assert.equal(run.status, 'completed')
+  assert.equal(run.conclusion, 'success')
+  for (const artifact of plan.items) {
+    const marker = `PUBLIC_READBACK_VERIFIED ${path.basename(artifact.file)} ${artifact.sha256} ${artifact.size}`
+    assert.ok(logs.split(/\r?\n/u).some(line => line.endsWith(marker)), `Full-byte workflow evidence missing: ${artifact.role}`)
+  }
+}
+
+export async function fileDigest(file) {
+  const hash = createHash('sha256')
+  let size = 0
+  for await (const chunk of createReadStream(file)) { size += chunk.length; hash.update(chunk) }
+  return { sha256: hash.digest('hex'), size }
+}
+
+export async function releaseFile(relative, maxBytes = 2_000_000_000) {
+  assert.match(relative, /^(?:modules\/)?[0-9A-Za-z+._-]+$/u, 'Unsafe release-relative file')
+  assert.ok(!relative.includes('..'))
+  const file = path.join(RELEASE, ...relative.split('/'))
+  const metadata = await lstat(file)
+  assert.ok(metadata.isFile() && !metadata.isSymbolicLink() && metadata.size > 0 && metadata.size <= maxBytes, 'Not a bounded regular release file')
+  const resolved = await realpath(file)
+  const relativeReal = path.relative(await realpath(RELEASE), resolved)
+  assert.ok(relativeReal && relativeReal !== '..' && !relativeReal.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeReal), 'Release file escaped real release directory')
+  return file
+}
+
+export async function trustedManifest(bytes) {
+  const key = createPublicKey(await readFile(path.join(ROOT, 'resources/runtime-update-public-key.pem')))
+  const manifest = parseJson(bytes)
+  assert.ok(verifyRuntimeCatalogManifest(manifest, key), 'Invalid signature or runtime graph')
+  return manifest
+}
+
+// The public release includes only mirrors verified by this operator. Never
+// retain a newly advertised Gitee mirror merely because a builder emitted it.
+export function normalizeReplacement(record) {
+  assert.ok(record && typeof record === 'object' && REPLACED_IDS.includes(record.id), 'Missing expected replacement module record')
+  const module = structuredClone(record)
+  delete module.fileName
+  delete module.treeSha256
+  exactKeys(module, ['id', 'version', 'required', 'installWhen', 'dependencies', 'artifacts', ...(module.probe ? ['probe'] : [])])
+  assert.ok(REPLACED_IDS.includes(module.id))
+  assert.equal(module.artifacts.length, 1)
+  module.artifacts[0].mirrors = ['oss', 'github'].map(id => {
+    const mirror = module.artifacts[0].mirrors.find(item => item.id === id)
+    assert.ok(mirror, `Missing ${id} mirror for ${module.id}`)
+    exactKeys(mirror, ['id', 'url'])
+    return structuredClone(mirror)
+  })
+  return module
+}
+
+export function replacementItem(module) {
+  const artifact = module.artifacts[0]
+  assert.equal(artifact.platform, 'win32')
+  assert.equal(artifact.arch, 'x64')
+  assert.equal(artifact.format, 'tar.gz')
+  const oss = new URL(artifact.mirrors.find(item => item.id === 'oss').url)
+  const github = new URL(artifact.mirrors.find(item => item.id === 'github').url)
+  for (const url of [oss, github]) assert.ok(url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && !url.port)
+  assert.equal(oss.hostname, HOSTNAME)
+  const key = decodeURIComponent(oss.pathname).slice(1)
+  assert.match(key, /^modules\/[0-9A-Za-z+._-]+\.tar\.gz$/u)
+  assert.ok(!key.includes('..'))
+  const fileName = key.slice('modules/'.length)
+  assert.equal(github.hostname, 'github.com')
+  const prefix = `/${REPOSITORY}/releases/download/`
+  assert.ok(github.pathname.startsWith(prefix))
+  const parts = github.pathname.slice(prefix.length).split('/').map(decodeURIComponent)
+  assert.equal(parts.length, 2)
+  assert.equal(parts[1], fileName)
+  assert.match(parts[0], /^[0-9A-Za-z+._-]+$/u)
+  if (module.id === 'harness-core') {
+    assert.equal(module.version, DSH_VERSION)
+    assert.equal(fileName, `harness-core-${DSH_VERSION}-win-x64-${artifact.sha256.slice(0, 16)}.tar.gz`)
+    assert.equal(parts[0], `runtime-module-harness-core-${DSH_VERSION}-${artifact.sha256.slice(0, 16)}`)
+    assert.deepEqual({ required: module.required, installWhen: module.installWhen, dependencies: module.dependencies }, { required: true, installWhen: 'harness', dependencies: ['node-runtime'] })
+    assert.equal(module.probe, undefined)
+  } else if (module.id === 'launcher-ui') {
+    assert.match(module.version, /^ui-[a-f0-9]{16}$/u)
+    assert.equal(fileName, `launcher-ui-${module.version}-win-x64-${artifact.sha256.slice(0, 16)}.tar.gz`)
+    assert.equal(parts[0], `launcher-ui-${module.version}`)
+    assert.deepEqual({ required: module.required, installWhen: module.installWhen, dependencies: module.dependencies }, { required: true, installWhen: 'launcher', dependencies: [] })
+    assert.equal(module.probe, undefined)
+  } else {
+    assert.match(module.version, /^1\.0\.0\+[a-f0-9]{12}$/u)
+    assert.equal(fileName, `agent-host-${module.version}-win-x64.tar.gz`)
+    assert.equal(parts[0], `agent-host-${module.version}`)
+    assert.deepEqual({ required: module.required, installWhen: module.installWhen, dependencies: module.dependencies }, { required: false, installWhen: 'launcher', dependencies: [] })
+    assert.equal(module.probe, undefined)
+  }
+  return { role: module.id, key, file: key, githubTag: parts[0], sha256: artifact.sha256, size: artifact.size }
+}
+
+export function makePayloads(before, replacements, online, generatedAt, alphaBefore, metadata, rcBefore) {
+  assert.equal(before.schemaVersion, 2)
+  assert.ok(rcBefore && rcBefore.launcher.version === '0.10.38')
+  assert.ok(Date.parse(generatedAt) > Date.parse(before.generatedAt))
+  assert.deepEqual(replacements.map(item => item.id).sort(), [...REPLACED_IDS].sort())
+  replacements.forEach(replacementItem)
+  const legacy = structuredClone(before)
+  legacy.generatedAt = generatedAt
+  legacy.launcher = { ...legacy.launcher, version: VERSION,
+    notes: ['大肥鱼社区：DeepSeek 同好可创建话题，在帖内文字留言、发送图片和表情。', '发现区保留 AI 新闻、AI 游戏和更多；其他资源在更多页介绍并打开网站。', '新下载入口 dsh.ailishishu.com；模型连接、智能体工作台和个性化功能保留。', ...before.launcher.notes],
+    artifacts: [{ platform: 'win32', arch: 'x64', distribution: 'online', url: publicUrl(ALIAS_KEY), sha256: online.sha256, size: online.size }] }
+  const alpha = structuredClone(alphaBefore)
+  alpha.generatedAt = generatedAt
+  alpha.launcher = structuredClone(legacy.launcher)
+  const channel = structuredClone(rcBefore)
+  channel.generatedAt = generatedAt
+  channel.launcher = structuredClone(legacy.launcher)
+  channel.runtimeModules = rcBefore.runtimeModules.map(item => structuredClone(replacements.find(next => next.id === item.id) || item))
+  assertPayloadPair(before, legacy, channel, online, alphaBefore, metadata, rcBefore)
+  assertAlphaAnnouncement(alphaBefore, alpha, legacy)
+  return { legacy, channel, alpha }
+}
+
+export function assertAlphaAnnouncement(before, candidate, legacy) {
+  exactKeys(candidate, Object.keys(before))
+  for (const key of Object.keys(before)) if (!['generatedAt','launcher'].includes(key)) assert.deepEqual(candidate[key], before[key], `Alpha2 changed ${key}`)
+  assert.deepEqual(candidate.launcher, legacy.launcher)
+  for (const key of Object.keys(before.launcher)) if (!['version','notes','artifacts'].includes(key)) assert.deepEqual(candidate.launcher[key], before.launcher[key], `Alpha2 launcher changed ${key}`)
+  assert.equal(candidate.generatedAt, legacy.generatedAt)
+  assert.equal(candidate.runtimeModules.find(item => item.id === 'harness-core').version, '0.2.1-alpha.2')
+}
+
+export function assertPayloadPair(before, legacy, channel, online, alphaBefore, metadata, rcBefore) {
+  exactKeys(legacy, Object.keys(before)); exactKeys(channel, Object.keys(rcBefore))
+  assert.ok(validateRuntimeModules(legacy.runtimeModules) && validateRuntimeModules(channel.runtimeModules))
+  assert.ok(Date.parse(legacy.generatedAt) > Date.parse(before.generatedAt))
+  assert.equal(channel.generatedAt, legacy.generatedAt)
+  for (const key of Object.keys(before)) if (!['generatedAt','launcher'].includes(key)) assert.deepEqual(legacy[key], before[key], `Legacy changed ${key}`)
+  for (const key of Object.keys(rcBefore)) if (!['generatedAt','launcher','runtimeModules'].includes(key)) assert.deepEqual(channel[key], rcBefore[key], `RC2 unrelated field changed ${key}`)
+  exactKeys(legacy.launcher, Object.keys(before.launcher))
+  for (const key of Object.keys(before.launcher)) if (!['version','notes','artifacts'].includes(key)) assert.deepEqual(legacy.launcher[key], before.launcher[key])
+  assert.equal(legacy.launcher.version, VERSION)
+  assert.deepEqual(legacy.launcher.artifacts, [{ platform: 'win32', arch: 'x64', distribution: 'online', url: publicUrl(ALIAS_KEY), sha256: online.sha256, size: online.size }])
+  assert.deepEqual(channel.launcher, legacy.launcher)
+  assert.deepEqual(channel.runtimeModules.map(item => item.id), rcBefore.runtimeModules.map(item => item.id))
+  for (const module of rcBefore.runtimeModules) {
+    const next = channel.runtimeModules.find(item => item.id === module.id)
+    if (module.id === 'launcher-ui') { replacementItem(next); assert.notDeepEqual(next, module, 'UI must actually change') }
+    else assert.deepEqual(next, module, `${module.id} must remain byte-for-byte compatible`)
+  }
+}
+
+export function pointerState(actual, baseline, candidateSha256) {
+  if (actual.status === 200 && actual.sha256 === candidateSha256) return 'candidate'
+  if (actual.status === baseline.status && (actual.status === 404 || actual.sha256 === baseline.sha256)) return 'baseline'
+  throw new Error('Public pointer is neither approved baseline nor exact candidate; stop for review')
+}
+
+export function assertPublicQa(gate, plan, planSha256, candidates) {
+  assert.equal(gate.schemaVersion, 1)
+  assert.equal(gate.passed, true)
+  assert.equal(gate.planSha256, planSha256)
+  assert.equal(gate.sourceCommit, plan.sourceCommit)
+  assert.equal(gate.catalogUrl, publicUrl(CHANNEL_KEY))
+  assert.equal(gate.catalogSha256, candidates.channel.sha256)
+  assert.equal(gate.bootstrapSha256, plan.alias.sha256)
+  assert.equal(gate.shellSha256, plan.items.find(item => item.role === 'shell').sha256)
+  assert.equal(gate.installedLauncherVersion, VERSION)
+  assert.equal(gate.installedDshVersion, DSH_VERSION)
+  assert.equal(gate.sourceId, SOURCE_ID)
+  for (const field of ['emptyDirectoryInstall', 'realPublicDownload', 'authenticatedBrowser', 'legacyCatalogStillDsh01', 'alpha2CatalogStillCompatible', 'userDataRollback', 'nodeRuntimeUnchanged', 'packageManagerUnchanged']) assert.equal(gate[field], true, `QA missing ${field}`)
+  assert.equal(gate.realTask?.kind, 'isolated-mysql-community', 'Real community handlers must pass against isolated MySQL tables')
+  assert.equal(gate.realTask?.passed, true)
+  assert.equal(gate.communityUi?.passed, true)
+  assert.ok(gate.evidence.some(item => item.file === gate.communityUi.report), 'Packaged community UI evidence must be hash-bound')
+  assert.ok(typeof gate.realTask?.report === 'string' && gate.realTask.report.length > 0)
+  assert.ok(Number.isFinite(Date.parse(gate.testedAt)) && Date.parse(gate.testedAt) >= Date.parse(plan.createdAt))
+  assert.ok(Array.isArray(gate.evidence) && gate.evidence.length > 0)
+  assert.ok(gate.evidence.some(item => item.file === gate.realTask.report), 'Real-model task report must be hash-bound evidence')
+  for (const item of gate.evidence) {
+    exactKeys(item, ['file', 'size', 'sha256'])
+    assert.match(item.file, /^(?:output|release)\/[0-9A-Za-z+._/-]+$/u)
+    assert.ok(!item.file.split('/').includes('..'))
+    assert.match(item.sha256, /^[a-f0-9]{64}$/u)
+    assert.ok(Number.isSafeInteger(item.size) && item.size > 0 && item.size <= 16 * 1024 * 1024)
+  }
+}

@@ -30,7 +30,7 @@ export interface WorkspaceData {
 }
 export interface WorkspaceTimelineRow { id: string; role: 'user' | 'assistant'; text: string; time: string; task?: WorkspaceTask }
 const POLL_MS = 4000
-const DOWNLOAD_URL = 'https://deepseek.ailishishu.com/'
+const DOWNLOAD_URL = 'https://dsh.ailishishu.com/'
 const REVOKED_DEVICE_HELP = '设备已从账号移除。重新登录启动器后自动登记；原项目文件不会删除'
 const ACTIVE_TASKS = new Set(['queued', 'delivered', 'running', 'awaiting_approval', 'cancel_requested'])
 const object = (value: unknown): JsonRecord => value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : {}

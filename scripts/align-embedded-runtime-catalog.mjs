@@ -15,7 +15,7 @@ const generated=JSON.parse(await readFile(target,'utf8'))
 const dsh02=process.env.LAUNCHER_RELEASE_DSH02==='1'
 if(dsh02) {
  const pkg=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'))
- assert.ok(['0.10.37','0.10.38'].includes(pkg.version))
+ assert.ok(['0.10.37','0.10.38','0.10.39'].includes(pkg.version))
  assert.equal(generated.modules.find(m=>m.id==='harness-core')?.version,pkg.dependencies['@deepseek-ai/dsh'])
  assert.equal(baseline.payload.runtimeModules.find(m=>m.id==='harness-core')?.version,'0.1.1-rc.2')
 }

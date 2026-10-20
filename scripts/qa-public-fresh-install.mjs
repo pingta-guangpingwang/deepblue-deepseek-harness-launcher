@@ -94,7 +94,7 @@ try {
         if (await preview.isVisible()) await preview.click()
         authenticatedBrowser = !new URL(web.url()).searchParams.has('token') && (await web.locator('body').innerText()).includes('新会话')
         if (!authenticatedBrowser) throw new Error('Authenticated public DSH browser did not render the workspace')
-        await web.screenshot({ path: path.join(outputRoot, 'public-fresh-install-authenticated-dsh.png') })
+        await web.screenshot({ path: path.join(outputRoot, 'public-fresh-install-authenticated-dsh.png'), animations: 'disabled' })
       } else if (!response.ok) throw new Error(`Harness service returned HTTP ${response.status}`)
       break
     }
@@ -105,7 +105,7 @@ try {
   }
 
   if (!finalSnapshot?.serviceUrl || finalSnapshot.runStatus !== 'running') throw new Error(`Harness did not become ready within ${Math.round(timeoutMs / 60_000)} minutes`)
-  if (finalSnapshot.launcherVersion !== '0.10.38' || finalSnapshot.activeHarnessVersion !== '0.2.1-rc.2') throw new Error('Public release QA requires the exact 0.10.38 / DSH 0.2.1-rc.2 candidate')
+  if (finalSnapshot.launcherVersion !== '0.10.39' || finalSnapshot.activeHarnessVersion !== '0.2.1-rc.2') throw new Error('Public release QA requires the exact 0.10.39 / DSH 0.2.1-rc.2 candidate')
   const channels = finalSnapshot.settings.sources.filter(item => item.enabled && item.kind === 'manifest')
   if (channels.length !== 1 || channels[0].id !== 'runtime-v2-dsh021rc' || channels[0].baseUrl !== 'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh021rc/launcher-manifest.json') throw new Error('New kernel must use only the approved DSH 0.2 public catalog')
   if (!authenticatedBrowser) throw new Error('DSH 0.2 authenticated browser acceptance missing')
@@ -113,6 +113,21 @@ try {
   if (environment.node?.status !== 'ready' || environment.harness?.status !== 'ready') throw new Error('Fresh public install did not prepare both Node.js and Harness')
   await page.screenshot({ path: path.join(outputRoot, 'public-fresh-install-harness-running.png') })
   await page.evaluate(async () => window.launcher.stopHarness())
+  await page.getByRole('button', { name: '更多', exact: true }).click()
+  await page.getByRole('heading', { name: '在 AI历史书，继续探索', exact: true }).waitFor()
+  const moreCards = await page.locator('.launcher-more-grid article').count()
+  if (moreCards !== 9) throw new Error('Public More page is incomplete')
+  if (await page.locator('.sidebar').getByRole('button', { name: '提示词', exact: true }).count()) throw new Error('Retired directory is still in the sidebar')
+  await page.screenshot({ path: path.join(outputRoot, 'public-more-page.png'), animations: 'disabled' })
+  const forum = await page.evaluate(async () => window.launcher.communityRequest({ scope: 'forum', method: 'GET', action: 'bootstrap', realm: 'tool', circle: 'deepseek', sort: 'latest' }))
+  if (!forum.ok || !Array.isArray(forum.threads) || !forum.threads.every(item => item.space?.slug === 'deepseek')) throw new Error('Public DeepSeek topic readback failed')
+  await page.getByRole('button', { name: '大肥鱼社区', exact: true }).click()
+  await page.getByRole('heading', { name: '大肥鱼社区', exact: true }).waitFor()
+  await page.getByRole('button', { name: '最新发布', exact: true }).click()
+  if (forum.threads.length) await page.locator('.fish-topic-title').first().waitFor()
+  await page.screenshot({ path: path.join(outputRoot, 'public-community-page.png'), animations: 'disabled' })
+  await writeFile(path.join(outputRoot, 'public-community-ui-report.json'), JSON.stringify({ passed: true, packaged: true, mockedIpc: false, launcherVersion: finalSnapshot.launcherVersion, moreCards, livePublicForumRead: true, topicsRead: forum.threads.length, oldSidebarRemoved: true, postWritesPerformed: false, testedAt: new Date().toISOString() }, null, 2) + '\n')
+
   const reportText = `${JSON.stringify({
     passed: true,
     testedAt: new Date().toISOString(),

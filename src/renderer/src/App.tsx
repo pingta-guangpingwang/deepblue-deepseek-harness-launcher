@@ -113,20 +113,10 @@ import { useLauncherAppearance } from './launcher-appearance'
 import { LAUNCHER_SKINS } from '../../shared/launcher-skins'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
-  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '兴趣社区', icon: MessageCircle }] },
-  { label: '能力库', items: [
-    { id: 'prompts', label: '提示词', icon: MessageSquareText },
-    { id: 'skills', label: 'Skill', icon: Sparkles },
-    { id: 'workflows', label: '工作流', icon: Workflow },
-    { id: 'knowledge', label: '知识库', icon: Database },
-    { id: 'tools', label: 'AI 工具', icon: Wrench },
-    { id: 'agents', label: '智能体', icon: Bot },
-    { id: 'library', label: '安装列表', icon: PackageCheck },
-    { id: 'models', label: '模型连接', icon: Library }
-  ] },
-  { label: '发现', items: [{ id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'careers', label: '职场进化', icon: BriefcaseBusiness }] },
+  { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '大肥鱼社区', icon: MessageCircle }] },
+  { label: '发现', items: [{ id: 'news', label: 'AI 新闻', icon: Bell }, { id: 'games', label: 'AI 游戏', icon: Gamepad2 }, { id: 'more', label: '更多', icon: AppWindow }] },
   { label: '个性化', items: [{ id: 'skins', label: '皮肤商店', icon: Palette }, { id: 'pets', label: '宠物商店', icon: PawPrint }] },
-  { label: '管理', items: [{ id: 'versions', label: '版本管理', icon: Box }, { id: 'workspaces', label: '工作区', icon: Folder }, { id: 'diagnostics', label: '日志诊断', icon: SquareTerminal }, { id: 'settings', label: '设置', icon: Settings }] }
+  { label: '管理', items: [{ id: 'models', label: '模型连接', icon: Library }, { id: 'versions', label: '版本管理', icon: Box }, { id: 'workspaces', label: '工作区', icon: Folder }, { id: 'diagnostics', label: '日志诊断', icon: SquareTerminal }, { id: 'settings', label: '设置', icon: Settings }] }
 ]
 
 const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
@@ -144,7 +134,8 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   library: { title: '能力安装列表', subtitle: '集中确认待安装资源；Skill 原生安装，其他资料进入受控能力库。' },
   models: { title: '模型连接', subtitle: '连接主流平台或自定义接口；只有已添加的模型会进入全局切换器。' },
   ecosystem: { title: 'DSH 开源生态', subtitle: '选择真正需要的插件能力，明确权限后安装到当前 Web profile。' },
-  community: { title: '兴趣社区', subtitle: '与 AI历史书网站使用同一账号、聊天室和帖子数据，直接在启动器内聊天。' },
+  community: { title: '大肥鱼社区', subtitle: 'DeepSeek 同好话题 · 留言与斗图' },
+  more: { title: '更多', subtitle: '在 AI历史书网站继续探索资源与学习内容。' },
   news: { title: 'AI 新闻', subtitle: '免费浏览最新 10 条与热门排行；登录后继续在启动器内展开。' },
   games: { title: 'AI 游戏试玩', subtitle: '同步网站完整游戏与项目目录；本站作品可在启动器内登录试玩。' },
   careers: { title: '职场进化', subtitle: '直接读取网站 33 个职业及工作模块；只有长课程教学按需打开网页。' },
@@ -1319,6 +1310,21 @@ function MultimodalTestLab({ snapshot, onTest }: {
   </section>
 }
 
+const moreEntries = [
+  ['提示词', '按场景查看提示词范例，找到适合当前任务的写法。', '/tools/?type=prompt'],
+  ['Skill', '浏览技能说明、来源与安装方式，再选择适合自己的能力。', '/tools/?type=skill'],
+  ['工作流', '查看自动化流程、操作步骤与项目来源。', '/tools/?type=workflow'],
+  ['知识库', '查找参考资料与整理方法，补充项目所需知识。', '/tools/?type=knowledge'],
+  ['AI 工具', '按用途查找工具，对比功能与使用入口。', '/tools/'],
+  ['智能体', '了解不同智能体的用途、限制和开源项目。', '/tools/?type=agent'],
+  ['职场进化', '按职业找到 AI 工作方法与学习内容。', '/careers/'],
+  ['DSH 开源生态', '到网站查看 DeepSeek Harness 插件介绍与来源。', '/tools/?type=plugin'],
+  ['安装与使用指引', '查看资源安装和启动器使用教程；已有本地资源保留。', '/learn/deepseek-harness/beginner/']
+] as const
+function MorePage(): ReactNode {
+  return <section className="launcher-more"><header><h1>在 AI历史书，继续探索</h1><p>常用内容留在启动器。工具、技能与学习资料，在网站按需查看。</p></header><div className="launcher-more-grid">{moreEntries.map(([title, description, route]) => <article key={route}><h2>{title}</h2><p>{description}</p><button className="quiet-button" onClick={() => openExternal(`https://ailishishu.com${route}`)}>去网站查看<ExternalLink size={15} /></button></article>)}</div></section>
+}
+
 function ModelsPage({ snapshot, busy, onSave, onRemove, onSetActive, onSetWebSearch, onRefreshUsage, onTest }: {
   snapshot: LauncherSnapshot
   busy: string
@@ -2413,7 +2419,7 @@ export default function App(): ReactNode {
         <nav>{navigation.map((group) => <div className="nav-group" key={group.label}><span className="nav-group-label">{group.label}</span>{group.items.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => activatePage(item.id)}><Icon size={18} /><span>{item.label}</span>{page === item.id && <i />}</button> })}</div>)}</nav>
         <div className="sidebar-account">
           {snapshot.account.status === 'signed_in'
-            ? <><button className="sidebar-account-main" onClick={() => setPage('library')} title="打开账号同步的本机能力"><span className="account-avatar">{snapshot.account.user?.name.slice(0, 1)}</span><span><strong>{snapshot.account.user?.name}</strong><small>AI历史书账号 · 会话已加密记住</small></span></button><button className="sidebar-account-exit" aria-label="退出 AI历史书账号" onClick={accountLogout}><LogOut size={15} /></button></>
+            ? <><button className="sidebar-account-main" onClick={() => setPage('more')} title="浏览 AI历史书更多内容"><span className="account-avatar">{snapshot.account.user?.name.slice(0, 1)}</span><span><strong>{snapshot.account.user?.name}</strong><small>AI历史书账号 · 会话已加密记住</small></span></button><button className="sidebar-account-exit" aria-label="退出 AI历史书账号" onClick={accountLogout}><LogOut size={15} /></button></>
             : <button className="sidebar-login" disabled={busy === 'account-login'} onClick={accountLogin}><KeyRound size={17} /><span><strong>登录 AI历史书</strong><small>同步收藏，参与评论</small></span></button>}
         </div>
         <div className="sidebar-status"><span><StatusDot status={snapshot.runStatus === 'running' ? 'ready' : snapshot.runStatus === 'error' ? 'missing' : 'warning'} />{statusLabel}</span><strong>DeepSeek Harness</strong><small>{snapshot.activeHarnessVersion} · {snapshot.distributionMode === 'offline' ? '完整离线版' : '在线轻量版'}</small></div>
@@ -2453,15 +2459,11 @@ export default function App(): ReactNode {
           {page === 'skins' && <SkinStorePage snapshot={snapshot} busy={busy} onRefresh={refreshSkins} onDownload={downloadSkin} onPreview={previewSkin} onApply={applySkin} onApplyDesktop={applySkinToDesktop} onStopDesktop={stopDynamicDesktop} onRemove={removeSkin} onToggleFavorite={toggleSkinFavorite} onClear={clearSkin} />}
           {page === 'pets' && <PetStorePage snapshot={snapshot} busy={busy} onRefresh={refreshPets} onDownload={downloadPet} onPreview={previewPet} onApply={applyPet} onApplyDesktop={applyPetToDesktop} onStopDesktop={stopDesktopPet} onClear={clearPet} onImport={importPet} onRemove={removePet} onRemoveCustom={removeCustomPet} onToggleFavorite={togglePetFavorite} />}
           {page === 'versions' && <VersionsPage snapshot={snapshot} busy={busy} onInstall={install} onRollback={rollback} onSources={checkSources} onLauncherUpdate={downloadLauncherUpdate} />}
-          {(page === 'prompts' || page === 'skills' || page === 'workflows' || page === 'knowledge' || page === 'agents') && <ResourceDirectoryPage kind={page} snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} />}
-          {page === 'tools' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
-          {page === 'library' && <ResourceLibraryPage snapshot={snapshot} busy={busy} onInstall={installLibraryResource} onRemove={removeLibraryResource} onOpen={(target) => void window.launcher?.openPath(target)} />}
           {page === 'models' && <ModelsPage snapshot={snapshot} busy={busy} onSave={saveModelProvider} onRemove={removeModelProvider} onSetActive={setActiveModel} onSetWebSearch={setDeepSeekWebSearch} onRefreshUsage={refreshModelUsage} onTest={testMultimodal} />}
-          {page === 'ecosystem' && <ToolsHubPage snapshot={snapshot} busy={busy} operation={pluginOperation} initialSection="ecosystem" onRefresh={refreshDiscovery} onToggleFavorite={toggleFavorite} onQueue={queueResource} onInstall={installLibraryResource} onLogin={accountLogin} onPluginAction={pluginAction} />}
-          {page === 'community' && <CommunityPage snapshot={snapshot} onLogin={accountLogin} />}
+          {page === 'community' && <CommunityPage key={snapshot.account.user?.id || snapshot.account.status} snapshot={snapshot} onLogin={accountLogin} />}
+          {page === 'more' && <MorePage />}
           {page === 'news' && <NewsPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onLogin={accountLogin} />}
           {page === 'games' && <GamesPage snapshot={snapshot} busy={busy} onRefresh={refreshDiscovery} onPlay={playGame} />}
-          {page === 'careers' && <CareersPage snapshot={snapshot} onRefresh={refreshDiscovery} />}
           {page === 'workspaces' && <WorkspacesPage snapshot={snapshot} onChoose={chooseWorkspace} onOpen={(path) => void window.launcher?.openPath(path)} />}
           {page === 'diagnostics' && <DiagnosticsPage snapshot={snapshot} busy={busy} onRefresh={refresh} onRepair={repair} onSources={checkSources} />}
           {page === 'settings' && <SettingsPage snapshot={snapshot} actionMessage={settingsMessage} onSave={saveSettings} onChooseStorage={chooseStorageRoot} onOpen={(target) => void window.launcher?.openPath(target)} onCreateShortcuts={createShortcuts} />}

@@ -7,18 +7,20 @@ const mainSource = readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
 
 describe('launcher information architecture', () => {
   it('keeps the native community visible near Home', () => {
-    const runGroup = appSource.slice(appSource.indexOf("{ label: '运行'"), appSource.indexOf("{ label: '能力库'"))
+    const runGroup = appSource.slice(appSource.indexOf("{ label: '运行'"), appSource.indexOf("{ label: '发现'"))
     const ids = [...runGroup.matchAll(/id: '([^']+)'/g)].map((match) => match[1])
     expect(ids).toEqual(['home', 'agent-workspace', 'community'])
     expect(appSource).toContain("{page === 'community' && <CommunityPage")
   })
 
-  it('nests DSH web plugins under AI tools instead of the sidebar', () => {
+  it('keeps only news, games and More in discovery and moves models to management', () => {
     const navigationSource = appSource.slice(appSource.indexOf('const navigation'), appSource.indexOf('const pageTitles'))
-    expect(navigationSource).not.toContain("id: 'ecosystem'")
-    expect(appSource).toContain('aria-label="AI 工具内容切换"')
-    expect(appSource).toContain('<strong>DSH 生态</strong><small>Web profile 插件</small>')
-    expect(appSource).toContain("section === 'ecosystem'")
+    expect(navigationSource).not.toContain("label: '能力库'")
+    for (const id of ['prompts', 'skills', 'tools', 'library', 'careers', 'ecosystem']) expect(navigationSource).not.toContain(`id: '${id}'`)
+    for (const id of ['news', 'games', 'more', 'models', 'agent-workspace', 'skins', 'pets']) expect(navigationSource).toContain(`id: '${id}'`)
+    expect(appSource).toContain('function MorePage()')
+    expect(appSource).toContain('https://ailishishu.com${route}')
+    expect(appSource).not.toContain("{page === 'tools' &&")
   })
 
   it('fails closed when an old launcher does not expose the community IPC bridge', () => {

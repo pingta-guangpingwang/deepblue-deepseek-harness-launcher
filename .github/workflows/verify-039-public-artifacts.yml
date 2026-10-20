@@ -1,0 +1,66 @@
+name: Publish and verify fixed 0.10.39 public artifacts
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Upload exact OSS bytes to the fixed candidate releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = pingta-guangpingwang/deepblue-deepseek-harness-launcher
+          scratch="$(mktemp -d)"
+          upload_fixed() {
+            local tag="$1" object="$2" expected_sha="$3" expected_size="$4"
+            local name="${object##*/}"
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$scratch/meta.json"
+            test "$(jq -r .tag_name "$scratch/meta.json")" = "$tag"
+            case "$tag" in runtime-v0.10.39|v0.10.39|launcher-ui-ui-2c5e548775a9357b) test "$(jq -r .target_commitish "$scratch/meta.json")" = "$GITHUB_SHA" ;; esac
+            if test "$(jq --arg n "$name" '[.assets[]|select(.name==$n)]|length' "$scratch/meta.json")" = 0; then
+              curl --proto '=https' --tlsv1.2 --fail --show-error --max-time 900 --max-filesize "$expected_size" --retry 2 \
+                "https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/$object" -o "$scratch/$name"
+              test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+              printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+              gh release upload "$tag" "$scratch/$name" --repo "$GITHUB_REPOSITORY"
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$scratch/meta.json"
+            test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.digest' "$scratch/meta.json")" = "sha256:$expected_sha"
+            test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.size' "$scratch/meta.json")" = "$expected_size"
+            if test "$(jq -r .draft "$scratch/meta.json")" = true; then gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease; fi
+          }
+          upload_fixed runtime-v0.10.39 modules/launcher-shell-0.10.39-win-x64-c580f43f65245349.7z c580f43f652453494b7894af4723dba9d0dbdd004be9498403be6f544c872a4c 83588387
+          upload_fixed v0.10.39 download/deepblue-deepseek-harness-launcher-0.10.39-win-x64-online.exe c695e7830ac730bfd254cf55f8fe7f218ce43648f54b2717eafa6b369d636052 697145
+          upload_fixed v0.10.39 download/deepblue-deepseek-harness-launcher-0.10.39-win-x64-offline.exe 29868f9fe47ce54ae2f5313108b15b4e931af90801826a2fe0bc7d2755488b23 246355829
+          upload_fixed runtime-module-harness-core-0.2.1-rc.2-c5e6fed19086e7b4 modules/harness-core-0.2.1-rc.2-win-x64-c5e6fed19086e7b4.tar.gz c5e6fed19086e7b448abca9d1386a956471cb4fd281fa28a97e85f12818c453e 164693643
+          upload_fixed launcher-ui-ui-2c5e548775a9357b modules/launcher-ui-ui-2c5e548775a9357b-win-x64-770b7d21c79cde78.tar.gz 770b7d21c79cde78e59498b9ef787f56c446124fa34505c05ffc07150ebdac20 844799
+          upload_fixed agent-host-1.0.0+6940487a11f0 modules/agent-host-1.0.0+6940487a11f0-win-x64.tar.gz 629f896768ddd5a8b2a4a1b7bdc77524fd08a3b69dc5db6d5cac595fdcfc9d7b 292402
+      - name: Anonymous full-byte readback of all six public GitHub artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = pingta-guangpingwang/deepblue-deepseek-harness-launcher
+          scratch="$(mktemp -d)"
+          verify_public() {
+            local tag="$1" name="$2" expected_sha="$3" expected_size="$4"
+            local final_url
+            final_url="$(curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --show-error --location \
+              --max-time 900 --max-filesize "$expected_size" --retry 2 \
+              "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$name" \
+              -o "$scratch/$name" -w '%{url_effective}')"
+            case "$final_url" in https://release-assets.githubusercontent.com/*|https://objects.githubusercontent.com/*) ;; *) exit 2 ;; esac
+            test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+            printf 'PUBLIC_READBACK_VERIFIED %s %s %s\n' "$name" "$expected_sha" "$expected_size"
+          }
+          verify_public runtime-v0.10.39 launcher-shell-0.10.39-win-x64-c580f43f65245349.7z c580f43f652453494b7894af4723dba9d0dbdd004be9498403be6f544c872a4c 83588387
+          verify_public v0.10.39 deepblue-deepseek-harness-launcher-0.10.39-win-x64-online.exe c695e7830ac730bfd254cf55f8fe7f218ce43648f54b2717eafa6b369d636052 697145
+          verify_public v0.10.39 deepblue-deepseek-harness-launcher-0.10.39-win-x64-offline.exe 29868f9fe47ce54ae2f5313108b15b4e931af90801826a2fe0bc7d2755488b23 246355829
+          verify_public runtime-module-harness-core-0.2.1-rc.2-c5e6fed19086e7b4 harness-core-0.2.1-rc.2-win-x64-c5e6fed19086e7b4.tar.gz c5e6fed19086e7b448abca9d1386a956471cb4fd281fa28a97e85f12818c453e 164693643
+          verify_public launcher-ui-ui-2c5e548775a9357b launcher-ui-ui-2c5e548775a9357b-win-x64-770b7d21c79cde78.tar.gz 770b7d21c79cde78e59498b9ef787f56c446124fa34505c05ffc07150ebdac20 844799
+          verify_public agent-host-1.0.0+6940487a11f0 agent-host-1.0.0+6940487a11f0-win-x64.tar.gz 629f896768ddd5a8b2a4a1b7bdc77524fd08a3b69dc5db6d5cac595fdcfc9d7b 292402
