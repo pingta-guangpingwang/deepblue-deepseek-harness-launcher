@@ -35,6 +35,10 @@ try {
   const cta = page.getByRole('link', { name: '去深蓝试玩学习' })
   await cta.waitFor()
   assert.equal(await cta.getAttribute('href'), 'https://shenlanai.com/ai-games/')
+  await app.evaluate(({ shell }) => { globalThis.__qaExternalUrls = []; shell.openExternal = async url => { globalThis.__qaExternalUrls.push(url) } })
+  await cta.click()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  assert.ok((await app.evaluate(() => globalThis.__qaExternalUrls)).includes('https://shenlanai.com/ai-games/'))
   report.externalLearningCta = { url: 'https://shenlanai.com/ai-games/', passed: true }
   await page.screenshot({ path: path.join(output, 'catalog.png') })
   const slug = process.env.QA_GAME_SLUG || games[0].slug
@@ -88,6 +92,10 @@ try {
   await runtimeFrame.waitForLoadState('domcontentloaded')
   const runtimeText = await runtimeFrame.locator('body').innerText()
   await runtimeFrame.locator('body').click({ position: { x: 240, y: 220 } })
+  await runtimeFrame.locator('body').press('Enter')
+  await new Promise(resolve => setTimeout(resolve, 300))
+  await runtimeFrame.locator('body').press('Enter')
+  await new Promise(resolve => setTimeout(resolve, 300))
   await runtimeFrame.locator('body').press('Enter')
   await runtimeFrame.locator('body').press('ArrowRight')
   await game.screenshot({ path: path.join(output, 'gameplay.png') })
