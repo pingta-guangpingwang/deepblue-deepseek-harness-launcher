@@ -104,7 +104,7 @@ try {
 let app, oldPid
 const psLiteral = value => "'" + value.replaceAll("'", "''") + "'"
 async function powershell(script) {
-  const { stdout } = await runFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, timeout: 20000, maxBuffer: 1024 * 1024 })
+  const { stdout } = await runFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from("[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false);$ProgressPreference='SilentlyContinue';" + script, 'utf16le').toString('base64')], { windowsHide: true, timeout: 20000, maxBuffer: 1024 * 1024 })
   return stdout.trim()
 }
 async function ownedProcesses() {
