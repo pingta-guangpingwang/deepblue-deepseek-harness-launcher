@@ -22,6 +22,32 @@ export interface LauncherInstallerDownloadProgress {
   totalBytes: number
 }
 
+/** Limits progress snapshot publication while always keeping the first and final update. */
+export function createLauncherProgressGate(
+  now: () => number = () => performance.now(),
+  intervalMs = 250
+): (receivedBytes: number, totalBytes: number) => boolean {
+  let lastPublishedAt: number | undefined
+  let finalPublished = false
+  return (receivedBytes, totalBytes) => {
+    const currentTime = now()
+    if (lastPublishedAt === undefined) {
+      lastPublishedAt = currentTime
+      finalPublished = receivedBytes === totalBytes
+      return true
+    }
+    if (receivedBytes === totalBytes) {
+      if (finalPublished) return false
+      finalPublished = true
+      lastPublishedAt = currentTime
+      return true
+    }
+    if (currentTime - lastPublishedAt < intervalMs) return false
+    lastPublishedAt = currentTime
+    return true
+  }
+}
+
 export interface LauncherInstallerDownloadDependencies {
   fetch?: (url: string, init: RequestInit) => Promise<Response>
   signal?: AbortSignal

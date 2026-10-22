@@ -5,7 +5,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { ChildProcess, spawn } from 'node:child_process'
-import { downloadVerifiedLauncherInstaller, installedLauncherRoot, silentLauncherUpdateArgs, spawnLauncherInstaller } from './launcher-update'
+import { createLauncherProgressGate, downloadVerifiedLauncherInstaller, installedLauncherRoot, silentLauncherUpdateArgs, spawnLauncherInstaller } from './launcher-update'
 
 const bytes = Buffer.from('signed complete offline installer')
 const artifact = {
@@ -21,6 +21,41 @@ async function cacheDirectory(): Promise<string> {
 }
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(root => rm(root, { recursive: true, force: true })))
+})
+
+describe('launcher installer progress publication gate', () => {
+  it('bounds a high-fragment burst while still publishing the final byte update', () => {
+    let now = 0
+    const shouldPublish = createLauncherProgressGate(() => now)
+    let publications = 0
+    const chunks = 5000
+    for (let received = 1; received < chunks; received += 1) {
+      now += 1
+      if (shouldPublish(received, chunks)) publications += 1
+    }
+    expect(publications).toBeLessThanOrEqual(20)
+    expect(shouldPublish(chunks, chunks)).toBe(true)
+    expect(shouldPublish(chunks, chunks)).toBe(false)
+  })
+
+  it('publishes progress during a slow download after each interval', () => {
+    let now = 0
+    const shouldPublish = createLauncherProgressGate(() => now)
+    expect(shouldPublish(1, 100)).toBe(true)
+    expect(shouldPublish(2, 100)).toBe(false)
+    now = 249
+    expect(shouldPublish(3, 100)).toBe(false)
+    now = 250
+    expect(shouldPublish(4, 100)).toBe(true)
+    now = 500
+    expect(shouldPublish(5, 100)).toBe(true)
+  })
+
+  it('publishes cache-reuse final-only progress immediately', () => {
+    const shouldPublish = createLauncherProgressGate(() => 0)
+    expect(shouldPublish(8192, 8192)).toBe(true)
+    expect(shouldPublish(8192, 8192)).toBe(false)
+  })
 })
 
 describe('launcher kernel update handoff', () => {
