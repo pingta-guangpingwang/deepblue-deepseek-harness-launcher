@@ -17,11 +17,29 @@ if (-not (Test-Path -LiteralPath $csc -PathType Leaf)) { throw 'The .NET Framewo
 & $csc /nologo /target:exe /optimize+ /platform:anycpu /out:$verifier (Join-Path $PSScriptRoot 'bootstrap\HashVerifier.cs')
 if ($LASTEXITCODE -ne 0) { throw "Hash verifier compilation failed ($LASTEXITCODE)." }
 
-$sevenZip = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'build-cache\7zip@1.0.0') -Recurse -Filter '7za.exe' -File | Select-Object -First 1 -ExpandProperty FullName
-$nsisRoot = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'build-cache\nsis-3.0.4.1') -Directory | Where-Object Name -Like 'nsis-*' | Select-Object -First 1 -ExpandProperty FullName
-$resourcesRoot = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'build-cache\nsis-resources-3.4.1') -Directory | Where-Object Name -Like 'nsis-resources-*' | Select-Object -First 1 -ExpandProperty FullName
-$makeNsis = Join-Path $nsisRoot 'makensis.exe'
-$pluginRoot = Join-Path $resourcesRoot 'plugins\x86-unicode'
+$appBuilderManifest = Join-Path $projectRoot 'node_modules\app-builder-lib\package.json'
+if (-not (Test-Path -LiteralPath $appBuilderManifest -PathType Leaf)) { throw 'app-builder-lib is required to resolve the installer build tools.' }
+if (-not $env:ELECTRON_BUILDER_CACHE) { $env:ELECTRON_BUILDER_CACHE = Join-Path $projectRoot 'build-cache\electron-builder-cache' }
+$verifiedNsisRoot = Join-Path $projectRoot 'build-cache\electron-builder-official\extracted\nsis-3.0.4.1'
+$verifiedResourcesRoot = Join-Path $projectRoot 'build-cache\electron-builder-official\extracted\nsis-resources-3.4.1'
+if (-not $env:ELECTRON_BUILDER_NSIS_DIR -and (Test-Path -LiteralPath $verifiedNsisRoot -PathType Container)) { $env:ELECTRON_BUILDER_NSIS_DIR = $verifiedNsisRoot }
+if (-not $env:ELECTRON_BUILDER_NSIS_RESOURCES_DIR -and (Test-Path -LiteralPath $verifiedResourcesRoot -PathType Container)) { $env:ELECTRON_BUILDER_NSIS_RESOURCES_DIR = $verifiedResourcesRoot }
+$toolResolver = @'
+const { createRequire } = require('node:module')
+const path = require('node:path')
+const appBuilderRequire = createRequire(process.argv[1])
+const windows = appBuilderRequire('./out/toolsets/windows')
+const sevenZip = appBuilderRequire('./out/toolsets/7zip')
+Promise.all([sevenZip.getPath7za(), windows.getMakeNsisPath(undefined), windows.getNsisPluginsPath(undefined)])
+  .then(([sevenZipPath, makeNsis, pluginsPath]) => console.log(JSON.stringify({ sevenZipPath, makeNsis, pluginsPath })))
+  .catch(error => { console.error(error); process.exitCode = 1 })
+'@
+$toolOutput = & node -e $toolResolver $appBuilderManifest
+if ($LASTEXITCODE -ne 0 -or -not $toolOutput) { throw 'app-builder-lib could not resolve the installer build tools.' }
+try { $toolPaths = ($toolOutput | Select-Object -Last 1) | ConvertFrom-Json } catch { throw "Could not parse app-builder-lib tool paths: $toolOutput" }
+$sevenZip = [string]$toolPaths.sevenZipPath
+$makeNsis = [string]$toolPaths.makeNsis.path
+$pluginRoot = Join-Path ([string]$toolPaths.pluginsPath) 'x86-unicode'
 $appIcon = Join-Path $releaseRoot '.icon-ico\icon.ico'
 foreach ($required in @($sevenZip, $makeNsis, $pluginRoot, $appIcon)) { if (-not (Test-Path -LiteralPath $required)) { throw "Build dependency missing: $required" } }
 
@@ -72,6 +90,8 @@ $giteePartLines += '!macroend'
 $lines += $giteePartLines
 Set-Content -LiteralPath $include -Value $lines -Encoding UTF8
 
+$previousNsisDir = $env:NSISDIR
+if ($toolPaths.makeNsis.env.NSISDIR) { $env:NSISDIR = [string]$toolPaths.makeNsis.env.NSISDIR }
 & $makeNsis `
   "/INPUTCHARSET" "UTF8" `
   "/DPLUGIN_ROOT=$pluginRoot" `
@@ -82,6 +102,7 @@ Set-Content -LiteralPath $include -Value $lines -Encoding UTF8
   "/DAPP_ICON=$appIcon" `
   (Join-Path $PSScriptRoot 'bootstrap\installer.nsi')
 if ($LASTEXITCODE -ne 0) { throw "Bootstrap NSIS build failed ($LASTEXITCODE)." }
+if ($null -eq $previousNsisDir) { Remove-Item Env:NSISDIR -ErrorAction SilentlyContinue } else { $env:NSISDIR = $previousNsisDir }
 
 $info = Get-Item -LiteralPath $output
 $stream = [IO.File]::OpenRead($output)

@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs'
 import { access, cp, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { discoverMainRuntimePackages } from './launcher-runtime-packages.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
@@ -11,6 +12,9 @@ const packagedRoot = path.join(releaseRoot, 'win-unpacked')
 const stagingRoot = path.join(releaseRoot, `.launcher-shell-stage-${process.pid}`)
 const generatedFile = path.join(releaseRoot, 'launcher-shell.generated.json')
 const launcherPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+process.env.ELECTRON_BUILDER_CACHE ??= path.join(root, 'build-cache', 'electron-builder-cache')
+const appBuilderRequire = createRequire(path.join(root, 'node_modules', 'app-builder-lib', 'package.json'))
+const { getPath7za } = appBuilderRequire('./out/toolsets/7zip')
 const GITEE_PART_BYTES = 5 * 1024 * 1024
 const includeGiteeMirror = process.env.DSH_DISABLE_GITEE_RUNTIME_MIRROR !== '1'
 
@@ -21,18 +25,6 @@ async function exists(target) {
   } catch {
     return false
   }
-}
-
-async function locate(directory, name) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const target = path.join(directory, entry.name)
-    if (entry.isFile() && entry.name.toLowerCase() === name.toLowerCase()) return target
-    if (entry.isDirectory()) {
-      const match = await locate(target, name)
-      if (match) return match
-    }
-  }
-  return undefined
 }
 
 async function packageClosure(modulesRoot, roots) {
@@ -70,8 +62,8 @@ async function pruneModules(modulesRoot, selected) {
   }
 }
 
-async function run(executable, args) {
-  const child = spawn(executable, args, { cwd: root, windowsHide: true, stdio: 'inherit' })
+async function run(executable, args, env = {}) {
+  const child = spawn(executable, args, { cwd: root, env: { ...process.env, ...env }, windowsHide: true, stdio: 'inherit' })
   const code = await new Promise((resolve, reject) => {
     child.once('error', reject)
     child.once('exit', resolve)
@@ -142,8 +134,8 @@ for (const forbidden of ['node', 'pnpm', '@deepseek-ai/dsh']) {
 }
 for (const required of selected) await access(path.join(modulesRoot, ...required.split('/'), 'package.json'))
 
-const sevenZip = await locate(path.join(root, 'build-cache', '7zip@1.0.0'), '7za.exe')
-if (!sevenZip) throw new Error('Bundled 7za.exe was not found; run electron-builder once before packaging the shell')
+const sevenZip = await getPath7za()
+await access(sevenZip)
 const temporaryArchive = path.join(releaseRoot, `launcher-shell-${launcherPackage.version}-win-x64.next.7z`)
 await rm(temporaryArchive, { force: true })
 await run(sevenZip, ['a', '-t7z', '-mx=9', '-mmt=on', temporaryArchive, path.join(stagingRoot, '*')])
