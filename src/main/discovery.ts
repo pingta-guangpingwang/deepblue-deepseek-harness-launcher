@@ -8,10 +8,10 @@ import type {
 } from '../shared/types'
 
 const SITE = 'https://ailishishu.com'
+const SHENLAN_SITE = 'https://shenlanai.com'
 const NEWS_URL = `${SITE}/ailishishu-stats/api/news.php?limit=30&compact=1`
-const LIVE_GAMES_URL = `${SITE}/ailishishu-stats/api/games.php?action=list&limit=100`
-const GLOBAL_GAMES_URL = `${SITE}/games/data/global-ai-games.json`
-const SHOWCASE_URL = `${SITE}/games/data/global-ai-game-showcase.json`
+const LIVE_GAMES_URL = `${SHENLAN_SITE}/api/games.php?action=list&limit=100`
+const GAME_RESOURCES_URL = `${SHENLAN_SITE}/ai-games/data/game-resources.json?v=20261021-2`
 const CAREERS_URL = `${SITE}/ailishishu-stats/api/v1/careers.php?limit=80`
 const RESOURCE_URL = `${SITE}/ailishishu-stats/api/v1/resources.php?sort=heat&limit=100&type=`
 const TOOL_TYPES = ['ai_native_tool', 'software_tool', 'workflow_platform'] as const
@@ -42,6 +42,17 @@ function safeHttps(value: unknown, fallback = ''): string {
     return url.protocol === 'https:' ? url.toString() : fallback
   } catch {
     return fallback
+  }
+}
+
+function safeGameHttps(value: unknown): string {
+  const candidate = safeHttps(value)
+  if (!candidate) return ''
+  try {
+    const url = new URL(candidate)
+    return url.username || url.password ? '' : url.toString()
+  } catch {
+    return ''
   }
 }
 
@@ -80,69 +91,55 @@ function liveGame(value: unknown): LauncherGameItem | undefined {
   return {
     slug,
     title,
-    summary: text(row.shortDescription, text(row.longDescription, '登录后开始试玩。')),
+    summary: text(row.shortDescription, text(row.longDescription, '点击即可开始试玩。')),
     coverUrl: safeHttps(row.coverUrl) || undefined,
     category: text(row.category, 'creative'),
     tags: stringList(row.tags, 5),
     featured: Boolean(row.editorReview) || slug === 'yugong-yishan',
-    loginRequired: true,
-    url: `${SITE}/games/player.html?slug=${encodeURIComponent(slug)}`,
+    loginRequired: false,
+    url: `${SHENLAN_SITE}/ai-games/player.html?slug=${encodeURIComponent(slug)}`,
     mode: 'hosted_playable',
-    sourceName: text(creator.name, 'AI历史书游戏创作者')
+    sourceName: '深蓝AI游戏工坊',
+    stars: number(record(row.openSource).stars) || undefined,
+    sourceUrl: safeGameHttps(record(row.openSource).repositoryUrl) || repositoryUrl(text(record(row.openSource).repository))
   }
 }
 
-function globalGame(value: unknown): LauncherGameItem | undefined {
+function validCachedGame(item: LauncherGameItem): boolean {
+  if (!/^[a-z0-9-]{2,80}$/.test(item.slug) || !item.title.trim()) return false
+  if (item.mode === 'hosted_playable') return item.loginRequired === false && item.url === `${SHENLAN_SITE}/ai-games/player.html?slug=${encodeURIComponent(item.slug)}`
+  if (item.mode === 'external_playable') return Boolean(safeGameHttps(item.url))
+  return item.url.startsWith(`${SHENLAN_SITE}/ai-games/`) && Boolean(item.sourceUrl && safeGameHttps(item.sourceUrl))
+}
+
+function gameResource(value: unknown): LauncherGameItem | undefined {
   const row = record(value)
   const source = record(row.source)
   const review = record(row.review)
   const slug = text(row.slug)
   const title = text(row.title)
   if (!slug || !title || !/^[a-z0-9-]{2,80}$/.test(slug)) return undefined
+  const rawMode = text(row.mode)
+  if (!['external_playable', 'official_landmark', 'source_only'].includes(rawMode)) return undefined
+  const mode = rawMode as LauncherGameItem['mode']
+  const official = record(row.official)
+  const playUrl = safeGameHttps(row.playUrl)
+  if (mode === 'external_playable' && !playUrl) return undefined
+  const sourceUrl = safeGameHttps(source.repoUrl) || repositoryUrl(text(source.repo)) || safeGameHttps(official.sourceUrl)
   return {
     slug,
     title,
     summary: text(row.shortDescription, text(row.longDescription, 'AI 游戏项目。')),
-    coverUrl: `${SITE}/games/assets/global/${encodeURIComponent(slug)}.webp`,
-    category: text(row.category, 'creative'),
-    tags: stringList(row.tags, 5),
-    featured: Boolean(review.score) || Boolean(row.editorialException),
-    loginRequired: true,
-    url: `${SITE}/games/player.html?slug=${encodeURIComponent(slug)}`,
-    mode: 'hosted_playable',
-    sourceName: text(source.repo, '全球 AI 游戏策展组'),
-    stars: number(source.stars),
-    sourceUrl: safeHttps(source.url) || repositoryUrl(source.repo)
-  }
-}
-
-function showcaseGame(value: unknown): LauncherGameItem | undefined {
-  const row = record(value)
-  const source = record(row.source)
-  const official = record(row.official)
-  const review = record(row.review)
-  const slug = text(row.slug)
-  const title = text(row.title)
-  const rawMode = text(row.mode)
-  if (!slug || !title || !/^[a-z0-9-]{2,80}$/.test(slug)) return undefined
-  const mode: LauncherGameItem['mode'] = rawMode === 'external_playable' || rawMode === 'official_landmark' ? rawMode : 'source_only'
-  const destination = mode === 'external_playable'
-    ? safeHttps(row.playUrl, `${SITE}/games/?project=${encodeURIComponent(slug)}#projectDetail`)
-    : `${SITE}/games/?project=${encodeURIComponent(slug)}#projectDetail`
-  return {
-    slug,
-    title,
-    summary: text(row.shortDescription, text(row.longDescription, '打开项目说明查看玩法与来源。')),
     coverUrl: safeHttps(row.coverUrl) || undefined,
     category: text(row.category, 'creative'),
     tags: stringList(row.tags, 5),
     featured: number(review.score) >= 8,
     loginRequired: false,
-    url: destination,
+    url: mode === 'external_playable' ? playUrl : `${SHENLAN_SITE}/ai-games/?project=${encodeURIComponent(slug)}`,
     mode,
-    sourceName: text(source.repo, text(official.provider, '公开项目')),
+    sourceName: text(source.repo, text(official.provider, '深蓝AI游戏工坊精选')),
     stars: number(source.stars),
-    sourceUrl: safeHttps(source.url) || repositoryUrl(source.repo) || safeHttps(official.url)
+    sourceUrl
   }
 }
 
@@ -260,8 +257,7 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
     const requests = await Promise.allSettled([
       json(NEWS_URL, controller.signal),
       json(LIVE_GAMES_URL, controller.signal),
-      json(GLOBAL_GAMES_URL, controller.signal, false),
-      json(SHOWCASE_URL, controller.signal, false),
+      json(GAME_RESOURCES_URL, controller.signal, false),
       json(CAREERS_URL, controller.signal),
       ...TOOL_TYPES.map((type) => resourceDirectory(type, controller.signal)),
       ...RESOURCE_TYPES.map((type) => resourceDirectory(type, controller.signal))
@@ -275,19 +271,24 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
     }
     const news = value(0)
     const live = value(1)
-    const global = value(2)
-    const showcase = value(3)
-    const careersPayload = value(4)
-    const toolPayloads = TOOL_TYPES.map((_type, index) => value(5 + index)).filter(Boolean) as Record<string, unknown>[]
-    const resourcePayloads = RESOURCE_TYPES.map((type, index) => ({ type, payload: value(5 + TOOL_TYPES.length + index) })).filter((entry) => Boolean(entry.payload)) as Array<{ type: typeof RESOURCE_TYPES[number]; payload: Record<string, unknown> }>
+    const gameResources = value(2)
+    const careersPayload = value(3)
+    const toolPayloads = TOOL_TYPES.map((_type, index) => value(4 + index)).filter(Boolean) as Record<string, unknown>[]
+    const resourcePayloads = RESOURCE_TYPES.map((type, index) => ({ type, payload: value(4 + TOOL_TYPES.length + index) })).filter((entry) => Boolean(entry.payload)) as Array<{ type: typeof RESOURCE_TYPES[number]; payload: Record<string, unknown> }>
 
     const stream = news && Array.isArray(news.stream) ? news.stream.map(newsItem).filter((item): item is LauncherNewsItem => Boolean(item)).slice(0, 30) : old.news
     const hot = news && Array.isArray(news.hot) ? news.hot.map(newsItem).filter((item): item is LauncherNewsItem => Boolean(item)).slice(0, 10) : old.hotNews
-    const games = unique([
-      ...(live && Array.isArray(live.games) ? live.games.map(liveGame).filter((item): item is LauncherGameItem => Boolean(item)) : []),
-      ...(global && Array.isArray(global.games) ? global.games.map(globalGame).filter((item): item is LauncherGameItem => Boolean(item)) : []),
-      ...(showcase && Array.isArray(showcase.items) ? showcase.items.map(showcaseGame).filter((item): item is LauncherGameItem => Boolean(item)) : [])
-    ], (item) => item.slug)
+    const liveIsCurrent = live?.ok === true && Array.isArray(live.games)
+    const resourcesAreCurrent = gameResources && Array.isArray(gameResources.items)
+    if (live && !liveIsCurrent) errors.push('深蓝试玩目录格式无效')
+    if (gameResources && !resourcesAreCurrent) errors.push('深蓝精选目录格式无效')
+    const hostedGames = liveIsCurrent
+      ? (live.games as unknown[]).map(liveGame).filter((item): item is LauncherGameItem => Boolean(item))
+      : old.games.filter((item) => item.mode === 'hosted_playable' && validCachedGame(item))
+    const resourceGames = resourcesAreCurrent
+      ? (gameResources.items as unknown[]).map(gameResource).filter((item): item is LauncherGameItem => Boolean(item))
+      : old.games.filter((item) => item.mode !== 'hosted_playable' && validCachedGame(item))
+    const games = unique([...hostedGames, ...resourceGames], (item) => item.slug)
     const tools = unique(toolPayloads.flatMap((payload) => Array.isArray(payload.data) ? payload.data.map(resourceItem).filter((item): item is LauncherResourceItem => Boolean(item)) : []), (item) => item.id)
     const resourcesByType = new Map(resourcePayloads.map(({ type, payload }) => [type, unique(Array.isArray(payload.data) ? payload.data.map(resourceItem).filter((item): item is LauncherResourceItem => Boolean(item)) : [], (item) => item.id)]))
     const prompts = resourcesByType.get('prompt') || old.prompts
@@ -297,7 +298,7 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
     const agents = resourcesByType.get('agent') || old.agents
     const extensions = unique([...skills, ...workflows, ...agents], (item) => item.id)
     const careers = careersPayload && Array.isArray(careersPayload.data) ? careersPayload.data.map(careerItem).filter((item): item is LauncherCareerItem => Boolean(item)) : old.careers
-    const finalGames = games.length ? games : old.games
+    const finalGames = games
     const finalTools = tools.length ? tools : old.tools
     const finalExtensions = extensions.length ? extensions : old.extensions
     const finalCareers = careers.length ? careers : old.careers
@@ -320,9 +321,12 @@ export async function fetchDiscovery(previous?: DiscoveryHubState): Promise<Disc
       message: errors.length ? `部分在线目录暂未更新，已保留可用内容（${errors.length} 项读取失败）。` : undefined
     }
   } catch (error) {
+    const cachedGames = old.games.filter(validCachedGame)
     return {
       ...old,
-      status: old.news.length || old.games.length || old.tools.length || old.careers.length ? 'ready' : 'offline',
+      games: cachedGames,
+      totals: { ...old.totals, games: cachedGames.length },
+      status: old.news.length || cachedGames.length || old.tools.length || old.careers.length ? 'ready' : 'offline',
       updatedAt: new Date().toISOString(),
       message: error instanceof Error && error.name === 'AbortError' ? '目录连接超时，已保留上次内容。' : '目录暂时不可用，已保留上次内容。'
     }

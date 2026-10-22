@@ -844,6 +844,11 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
 .discovery-toolbar { grid-column: 1 / -1; min-height: 92px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .discovery-toolbar h2 { margin: 2px 0 3px; font-size: 20px; }
 .discovery-toolbar p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.discovery-toolbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.game-learning-link { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; color: #fff; background: linear-gradient(135deg, #1760ba, #2581d8); box-shadow: 0 5px 14px rgba(23, 96, 186, .2); font-size: 13px; font-weight: 700; text-decoration: none; }
+.game-learning-link:hover { color: #fff; background: linear-gradient(135deg, #124f9f, #176fc4); transform: translateY(-1px); }
+.game-kernel-update-notice { color: var(--amber-strong, #8a5b00); border-color: var(--amber-border, #f2d99c); background: var(--amber-soft, #fff8e8); }
+.game-kernel-update-notice > div { display: flex; align-items: center; gap: 9px; font-size: 13px; }
 .news-feed { display: grid; gap: 8px; }
 .news-row { width: 100%; min-height: 118px; padding: 15px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 12px; align-items: start; border: 1px solid var(--border); border-radius: 12px; color: var(--text); background: var(--surface); text-align: left; cursor: pointer; }
 .news-row:hover { border-color: #aebcff; background: color-mix(in srgb, var(--surface) 97%, var(--blue-soft)); }
@@ -914,6 +919,8 @@ button:disabled { opacity: .48; cursor: not-allowed; transform: none !important;
   .provider-picker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
   .model-dialog-body { overflow-y: auto; }
   .career-intro, .career-boundary, .discovery-toolbar { align-items: flex-start; flex-direction: column; }
+  .discovery-toolbar-actions { width: 100%; flex-wrap: wrap; }
+  .game-learning-link { flex: 1 1 240px; }
   .career-intro .primary-button { width: 100%; }
 }
 

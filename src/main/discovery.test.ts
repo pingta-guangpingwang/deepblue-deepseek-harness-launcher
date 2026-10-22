@@ -5,16 +5,15 @@ function response(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
 }
 
-describe('online Ailishishu directories', () => {
+describe('online Shenlan game directory', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('merges hosted games, website showcase, tools, extensions and all careers', async () => {
+  it('loads anonymous Shenlan trials in server order and migrated game resources', async () => {
     vi.stubGlobal('fetch', vi.fn((input: string | URL | Request) => {
       const url = String(input)
       if (url.includes('/news.php')) return Promise.resolve(response({ ok: true, stream: [{ id: 'n1', title: '新闻', summary: '摘要', sourceUrl: 'https://example.com', source: '公开来源' }], hot: [] }))
-      if (url.includes('/games.php')) return Promise.resolve(response({ ok: true, games: [{ slug: 'hosted-one', title: '站内游戏', shortDescription: '可试玩', tags: [] }] }))
-      if (url.includes('global-ai-games.json')) return Promise.resolve(response({ games: [{ slug: 'global-one', title: '全球游戏', shortDescription: '全球项目', tags: [], source: { repo: 'repo' } }] }))
-      if (url.includes('global-ai-game-showcase.json')) return Promise.resolve(response({ items: [{ slug: 'showcase-one', title: '开源项目', shortDescription: '项目说明', tags: [], mode: 'source_only', source: { repo: 'repo2' } }] }))
+      if (url === 'https://shenlanai.com/api/games.php?action=list&limit=100') return Promise.resolve(response({ ok: true, games: [{ sequenceNumber: 9, slug: 'trial-nine', title: '第九款', shortDescription: '匿名试玩', category: 'arcade', tags: [], creator: { name: '深蓝' }, loginRequired: false }, { sequenceNumber: 8, slug: 'trial-eight', title: '第八款', shortDescription: '匿名试玩', category: 'arcade', tags: [], creator: { name: '深蓝' }, loginRequired: false }] }))
+      if (url.startsWith('https://shenlanai.com/ai-games/data/game-resources.json')) return Promise.resolve(response({ items: [{ slug: 'source-game', title: '开源项目', shortDescription: '项目说明', category: 'strategy', tags: ['资料'], mode: 'source_only', playUrl: 'https://example.com/play', source: { repo: 'author/repo', repoUrl: 'https://github.com/author/repo', stars: 500 } }, { slug: 'official-game', title: '官网试玩', shortDescription: '直接体验', category: 'story', tags: [], mode: 'external_playable', playUrl: 'https://example.com/game', source: { repo: 'owner/project' } }, { slug: 'unsafe-game', title: '不安全外链', category: 'story', tags: [], mode: 'external_playable', playUrl: 'https://user:secret@example.com/game' }] }))
       if (url.includes('/careers.php')) return Promise.resolve(response({ ok: true, data: Array.from({ length: 33 }, (_, index) => ({ id: `role-${index}`, title: `职业${index}`, industryName: '行业', tasks: [{ id: `task-${index}`, title: '任务', summary: '具体任务' }] })) }))
       const type = new URL(url).searchParams.get('type') || 'resource'
       return Promise.resolve(response({ ok: true, data: [{ id: `${type}-1`, type, title: type, summary: '真实目录条目', capabilities: ['能力'] }] }))
@@ -22,7 +21,13 @@ describe('online Ailishishu directories', () => {
 
     const result = await fetchDiscovery()
     expect(result.status).toBe('ready')
-    expect(result.games.map((item) => item.slug)).toEqual(['hosted-one', 'global-one', 'showcase-one'])
+    expect(result.games.map((item) => item.slug)).toEqual(['trial-nine', 'trial-eight', 'source-game', 'official-game'])
+    expect(result.games.slice(0, 2).map((item) => item.url)).toEqual([
+      'https://shenlanai.com/ai-games/player.html?slug=trial-nine',
+      'https://shenlanai.com/ai-games/player.html?slug=trial-eight'
+    ])
+    expect(result.games.slice(0, 2).every((item) => item.mode === 'hosted_playable' && item.loginRequired === false && item.sourceName === '深蓝AI游戏工坊')).toBe(true)
+    expect(result.games[3]).toMatchObject({ mode: 'external_playable', url: 'https://example.com/game' })
     expect(result.careers).toHaveLength(33)
     expect(result.tools).toHaveLength(3)
     expect(result.extensions).toHaveLength(3)
@@ -33,6 +38,19 @@ describe('online Ailishishu directories', () => {
     expect(result.agents[0]?.type).toBe('agent')
     expect(result.news[0]?.summary).toBe('摘要')
     expect(result.news[0]).not.toHaveProperty('whyImportant')
+  })
+
+  it('uses a successful empty Shenlan list to remove stale hosted trials', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes('/games.php')) return Promise.resolve(response({ ok: true, games: [] }))
+      if (url.includes('game-resources.json')) return Promise.resolve(response({ items: [] }))
+      return Promise.resolve(response({ ok: true, stream: [], hot: [], data: [] }))
+    }))
+    const previous = { status: 'ready' as const, updatedAt: 'old', news: [], hotNews: [], games: [{ slug: 'removed-game', title: '已下架', summary: '', category: '', tags: [], featured: false, loginRequired: false, url: 'https://shenlanai.com/ai-games/player.html?slug=removed-game', mode: 'hosted_playable' as const, sourceName: '深蓝AI游戏工坊' }], tools: [], extensions: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [], totals: { games: 1, tools: 0, extensions: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 } }
+    const result = await fetchDiscovery(previous)
+    expect(result.games).toEqual([])
+    expect(result.totals.games).toBe(0)
   })
 
   it('loads the same public article content used by the website reader', async () => {
@@ -57,13 +75,27 @@ describe('online Ailishishu directories', () => {
       status: 'ready' as const,
       updatedAt: 'old',
       news: [], hotNews: [],
-      games: [{ slug: 'kept', title: '保留游戏', summary: '缓存', category: 'game', tags: [], featured: false, loginRequired: false, url: 'https://ailishishu.com/games/', mode: 'source_only' as const }],
+      games: [{ slug: 'kept-game', title: '保留游戏', summary: '缓存', category: 'game', tags: [], featured: false, loginRequired: false, url: 'https://shenlanai.com/ai-games/?project=kept-game', mode: 'source_only' as const, sourceUrl: 'https://github.com/owner/repo' }],
       tools: [], extensions: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [],
       totals: { games: 1, tools: 0, extensions: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 }
     }))()
     const result = await fetchDiscovery(previous)
-    expect(result.games[0]?.slug).toBe('kept')
+    expect(result.games[0]?.slug).toBe('kept-game')
     expect(result.status).toBe('ready')
+  })
+
+  it('drops noncanonical game URLs from a failed-source cache and reports the failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))))
+    const previous = {
+      status: 'ready' as const, updatedAt: 'old', news: [], hotNews: [],
+      games: [{ slug: 'old-game', title: '旧来源游戏', summary: '', category: '', tags: [], featured: false, loginRequired: true, url: 'https://ailishishu.com/games/player.html?slug=old-game', mode: 'hosted_playable' as const }],
+      tools: [], extensions: [], prompts: [], skills: [], workflows: [], knowledgeBases: [], agents: [], careers: [],
+      totals: { games: 1, tools: 0, extensions: 0, prompts: 0, skills: 0, workflows: 0, knowledgeBases: 0, agents: 0, careers: 0 }
+    }
+    const result = await fetchDiscovery(previous)
+    expect(result.games).toEqual([])
+    expect(result.totals.games).toBe(0)
+    expect(result.message).toMatch(/保留可用内容/)
   })
 
   it('loads structured tool and Skill details for the native launcher sheet', async () => {

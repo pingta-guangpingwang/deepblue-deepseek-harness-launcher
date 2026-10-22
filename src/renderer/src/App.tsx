@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from 'react'
+import React, { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type RefObject } from 'react'
 import {
   Activity,
   AppWindow,
@@ -111,6 +111,7 @@ import { AgentWorkspacePage } from './AgentWorkspacePage'
 import { AgentConnectionStatus } from './AgentConnectionStatus'
 import { useLauncherAppearance } from './launcher-appearance'
 import { LAUNCHER_SKINS } from '../../shared/launcher-skins'
+import { supportsNativeGameWindow } from './games-version'
 
 const navigation: Array<{ label: string; items: Array<{ id: PageId; label: string; icon: typeof Home }> }> = [
   { label: '运行', items: [{ id: 'home', label: '首页', icon: Home }, { id: 'agent-workspace', label: '智能体工作台', icon: Monitor }, { id: 'community', label: '大肥鱼社区', icon: MessageCircle }] },
@@ -196,6 +197,8 @@ function openExternal(url: string): void {
   if (window.launcher) void window.launcher.openExternal(url)
   else window.open(url, '_blank', 'noopener,noreferrer')
 }
+
+const SHENLAN_GAMES_URL = 'https://shenlanai.com/ai-games/'
 
 function BrandMark(): ReactNode {
   return (
@@ -1571,7 +1574,7 @@ function GameDetailSheet({ game, onClose, onPlay }: { game: LauncherGameItem; on
     closeRef.current?.focus()
     return () => window.removeEventListener('keydown', keydown)
   }, [onClose])
-  const playable = game.mode === 'hosted_playable' || game.mode === 'external_playable'
+  const playable = game.mode === 'hosted_playable'
   const copy = async (): Promise<void> => {
     const value = `${game.title}\n\n${game.summary}\n\n类型：${game.category}\n标签：${game.tags.join('、')}\n来源：${game.sourceName || 'AI历史书游戏目录'}`
     if (window.launcher) await window.launcher.copyText(value)
@@ -1580,22 +1583,24 @@ function GameDetailSheet({ game, onClose, onPlay }: { game: LauncherGameItem; on
     window.setTimeout(() => setCopied(false), 1600)
   }
   return <div className="detail-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="detail-sheet game-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="game-detail-title">
-    <header className="detail-sheet-header"><div><span className="eyebrow">AI GAME · 启动器内资料</span><h2 id="game-detail-title">{game.title}</h2><p>{game.sourceName || 'AI历史书游戏目录'}{game.stars ? ` · ★ ${game.stars.toLocaleString('zh-CN')}` : ''}</p></div><button ref={closeRef} className="icon-button" aria-label="关闭游戏资料" onClick={onClose}><X size={17} /></button></header>
-    <div className="detail-sheet-body"><div className="game-detail-cover">{game.coverUrl ? <img src={game.coverUrl} alt={`${game.title}封面`} referrerPolicy="no-referrer" /> : <Gamepad2 />}</div><p className="detail-lead">{game.summary}</p><div className="tag-row detail-tags">{game.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><article className="detail-boundary"><Info size={17} /><div><strong>{playable ? '试玩说明' : '项目资料'}</strong><p>{playable ? '按钮只在真正开始试玩时打开受控游戏窗口；目录说明始终留在启动器。' : '这是开源或经典项目档案，不会把“查看详情”伪装成网页跳转。'}</p></div></article></div>
+    <header className="detail-sheet-header"><div><span className="eyebrow">AI GAME · 启动器内资料</span><h2 id="game-detail-title">{game.title}</h2><p>{game.sourceName || '深蓝AI游戏工坊精选'}{game.stars ? ` · ★ ${game.stars.toLocaleString('zh-CN')}` : ''}</p></div><button ref={closeRef} className="icon-button" aria-label="关闭游戏资料" onClick={onClose}><X size={17} /></button></header>
+    <div className="detail-sheet-body"><div className="game-detail-cover">{game.coverUrl ? <img src={game.coverUrl} alt={`${game.title}封面`} referrerPolicy="no-referrer" /> : <Gamepad2 />}</div><p className="detail-lead">{game.summary}</p><div className="tag-row detail-tags">{game.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><article className="detail-boundary"><Info size={17} /><div><strong>{playable ? '启动器内试玩' : game.mode === 'external_playable' ? '官网试玩' : '项目资料'}</strong><p>{playable ? '在启动器的受控弹窗中启动深蓝试玩。' : game.mode === 'external_playable' ? '此官方游戏由项目网站运行，将在默认浏览器中打开。' : '这是开源或经典项目档案，可查看来源与项目说明。'}</p></div></article></div>
     <footer className="detail-sheet-actions"><button className="small-button" onClick={() => void copy()}><Copy size={16} />{copied ? '已复制' : '复制项目简介'}</button>{playable && <button className="primary-button" onClick={onPlay}><Play size={15} />进入试玩</button>}{game.sourceUrl && <button className="quiet-button" onClick={() => openExternal(game.sourceUrl!)}>打开源码或官网<ExternalLink size={14} /></button>}</footer>
   </section></div>
 }
 
-function GamesPage({ snapshot, busy, onRefresh, onPlay }: { snapshot: LauncherSnapshot; busy: string; onRefresh: () => void; onPlay: (slug: string) => void }): ReactNode {
+export function GamesPage({ snapshot, busy, onRefresh, onPlay }: { snapshot: LauncherSnapshot; busy: string; onRefresh: () => void; onPlay: (slug: string) => void }): ReactNode {
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<'all' | LauncherSnapshot['discovery']['games'][number]['mode']>('all')
   const [visibleCount, setVisibleCount] = useState(18)
   const [selectedGame, setSelectedGame] = useState<LauncherGameItem>()
+  const nativePlayAvailable = supportsNativeGameWindow(snapshot.launcherVersion)
   const games = snapshot.discovery.games.filter((game) => (mode === 'all' || game.mode === mode) && `${game.title} ${game.summary} ${game.tags.join(' ')} ${game.sourceName || ''}`.toLowerCase().includes(query.toLowerCase()))
   return <div className="stack-layout">
-    <Card className="discovery-toolbar"><div><span className="eyebrow">AI GAME LAB · 在线目录</span><h2>{snapshot.discovery.games.length} 款试玩与项目已同步</h2><p>本站游戏在启动器内登录并试玩；官方试玩与开源项目清楚标注来源。</p></div><button className="quiet-button" disabled={busy === 'discovery'} onClick={onRefresh}><RefreshCw size={14} className={busy === 'discovery' ? 'spin' : ''} />刷新目录</button></Card>
-    <Card className="catalog-toolbar game-catalog-toolbar"><div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(18) }} placeholder="搜索游戏、玩法、标签或来源" /></div><div className="game-mode-tabs">{([['all', '全部'], ['hosted_playable', '站内试玩'], ['external_playable', '官方试玩'], ['source_only', '开源项目'], ['official_landmark', '经典项目']] as const).map(([id, label]) => <button key={id} aria-pressed={mode === id} onClick={() => { setMode(id); setVisibleCount(18) }}>{label}</button>)}</div></Card>
-    <div className="game-discovery-grid">{games.slice(0, visibleCount).map((game) => { const playable = game.mode === 'hosted_playable' || game.mode === 'external_playable'; return <article className="game-discovery-card" key={game.slug}><div className="game-cover">{game.coverUrl ? <img src={game.coverUrl} alt={`${game.title}封面`} loading="lazy" referrerPolicy="no-referrer" /> : <Gamepad2 />}<span>{game.mode === 'hosted_playable' ? '站内试玩' : game.mode === 'external_playable' ? '官方试玩' : game.mode === 'official_landmark' ? '经典项目' : '源码与资料'}</span></div><div><div className="game-title-line"><h2>{game.title}</h2>{game.stars ? <small>★ {game.stars.toLocaleString('zh-CN')}</small> : null}</div><p>{game.summary}</p><div className="tag-row">{game.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><small className="game-source">{game.sourceName || 'AI历史书游戏目录'}</small><button className="primary-button" onClick={() => playable ? onPlay(game.slug) : setSelectedGame(game)}>{playable ? <Play size={15} /> : <Info size={15} />}{game.mode === 'hosted_playable' ? (snapshot.account.status === 'signed_in' ? '启动器内试玩' : '登录并试玩') : game.mode === 'external_playable' ? '打开官方试玩' : '启动器内看资料'}</button></div></article> })}</div>
+    <Card className="discovery-toolbar"><div><span className="eyebrow">深蓝 AI 游戏工坊 · 在线目录</span><h2>{snapshot.discovery.games.length} 款试玩与项目已同步</h2><p>深蓝已上架游戏可在启动器受控弹窗试玩；精选官网与开源项目会标明体验方式。</p></div><div className="discovery-toolbar-actions"><a className="game-learning-link" href={SHENLAN_GAMES_URL} onClick={(event) => { event.preventDefault(); openExternal(SHENLAN_GAMES_URL) }}>去深蓝试玩学习<ExternalLink size={15} /></a><button className="quiet-button" disabled={busy === 'discovery'} onClick={onRefresh}><RefreshCw size={14} className={busy === 'discovery' ? 'spin' : ''} />刷新目录</button></div></Card>
+    {snapshot.discovery.games.some((game) => game.mode === 'hosted_playable') && !nativePlayAvailable && <Card className="game-kernel-update-notice"><div role="status"><Info size={17} /><span>更新启动器到 0.10.40 后，即可在启动器弹窗直接试玩这些深蓝游戏。</span></div></Card>}
+    <Card className="catalog-toolbar game-catalog-toolbar"><div className="search-field"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(18) }} placeholder="搜索游戏、玩法、标签或来源" /></div><div className="game-mode-tabs">{([['all', '全部'], ['hosted_playable', '深蓝试玩'], ['external_playable', '官网试玩'], ['source_only', '开源项目'], ['official_landmark', '经典项目']] as const).map(([id, label]) => <button key={id} aria-pressed={mode === id} onClick={() => { setMode(id); setVisibleCount(18) }}>{label}</button>)}</div></Card>
+    <div className="game-discovery-grid">{games.slice(0, visibleCount).map((game) => { const hosted = game.mode === 'hosted_playable'; const external = game.mode === 'external_playable'; return <article className="game-discovery-card" key={game.slug}><div className="game-cover">{game.coverUrl ? <img src={game.coverUrl} alt={`${game.title}封面`} loading="lazy" referrerPolicy="no-referrer" /> : <Gamepad2 />}<span>{hosted ? '深蓝试玩' : external ? '官网试玩' : game.mode === 'official_landmark' ? '经典项目' : '源码与资料'}</span></div><div><div className="game-title-line"><h2>{game.title}</h2>{game.stars ? <small>★ {game.stars.toLocaleString('zh-CN')}</small> : null}</div><p>{game.summary}</p><div className="tag-row">{game.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><small className="game-source">{game.sourceName || '深蓝AI游戏工坊精选'}</small><button className="primary-button" disabled={hosted && !nativePlayAvailable} onClick={() => hosted ? (nativePlayAvailable && onPlay(game.slug)) : external ? openExternal(game.url) : setSelectedGame(game)}>{hosted ? nativePlayAvailable ? <Play size={15} /> : <Info size={15} /> : external ? <ExternalLink size={15} /> : <Info size={15} />}{hosted ? nativePlayAvailable ? '启动器内试玩' : '更新启动器后试玩' : external ? '前往官网试玩' : '启动器内看资料'}</button></div></article> })}</div>
     {!games.length && <Card><EmptyState icon={<Gamepad2 />} title="没有匹配的游戏" text="换一个分类或关键词，目录内容不会因筛选被删除。" /></Card>}
     {visibleCount < games.length && <button className="load-more-directory" onClick={() => setVisibleCount((count) => count + 18)}>继续显示 {Math.min(18, games.length - visibleCount)} 款</button>}
     {selectedGame && <GameDetailSheet game={selectedGame} onClose={() => setSelectedGame(undefined)} onPlay={() => onPlay(selectedGame.slug)} />}
