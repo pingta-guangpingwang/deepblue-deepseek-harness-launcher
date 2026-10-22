@@ -28,7 +28,7 @@ import { AgentHostBridge } from './agent-host-bridge'
 import { ProjectDirectoryPicker } from './project-directory-picker'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
 import type { AgentHostAction, AgentWorkspaceRequest } from '../shared/agent-host'
-import { downloadVerifiedLauncherInstaller, installedLauncherRoot, spawnLauncherInstaller } from './launcher-update'
+import { createLauncherProgressGate, downloadVerifiedLauncherInstaller, installedLauncherRoot, spawnLauncherInstaller } from './launcher-update'
 import { automaticHotUpdateKey, chooseKernelInstaller } from './automatic-updates'
 import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
 import { pluginOperationTimeoutMs, pluginPnpmArguments, profileHasActivePlugin, type WebProfileManifest } from './plugin-policy'
@@ -935,11 +935,12 @@ export class LauncherController {
     task.totalBytes = update.artifact.size; task.receivedBytes = 0; task.progress = 0
     this.emit()
     try {
+      const publishProgress = createLauncherProgressGate()
       const cached = await downloadVerifiedLauncherInstaller(update.artifact, path.join(app.getPath('userData'), 'updates'), progress => {
         task.receivedBytes = progress.receivedBytes; task.totalBytes = progress.totalBytes
         task.progress = Math.min(98, Math.round(progress.receivedBytes / progress.totalBytes * 100))
         task.detail = `正在下载并校验：${(progress.receivedBytes / 1024 / 1024).toFixed(1)} / ${(progress.totalBytes / 1024 / 1024).toFixed(1)} MB`
-        this.emit()
+        if (publishProgress(progress.receivedBytes, progress.totalBytes)) this.emit()
       })
       task.progress = 100; task.receivedBytes = update.artifact.size
       if (this.updateWorkIsBusy(task.id)) throw new Error('安装包已校验并缓存，请结束当前运行任务后再次点击安装，无需重新下载')
