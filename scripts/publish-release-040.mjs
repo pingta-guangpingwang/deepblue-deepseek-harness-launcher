@@ -84,7 +84,7 @@ const alphaBytes = await readFile(await releaseFile(alphaPlan.payload.signedFile
 const alphaManifest = await trustedManifest(alphaBytes)
 assert.deepEqual(alphaManifest.payload, parseJson(alphaPayloadBytes))
 candidates.alpha = { bytes: alphaBytes, manifest: alphaManifest, sha256: sha(alphaBytes) }
-assertPayloadPair(before.payload, candidates.legacy.manifest.payload, candidates.channel.manifest.payload, plan.alias, alphaBefore.payload, await loadBundledReleaseMetadata(), rcBefore.payload)
+assertPayloadPair(before.payload, candidates.legacy.manifest.payload, candidates.channel.manifest.payload, plan.alias, alphaBefore.payload, await loadBundledReleaseMetadata(), rcBefore.payload, plan.items.find(item => item.role === 'offline'))
 assertAlphaAnnouncement(alphaBefore.payload, candidates.alpha.manifest.payload, candidates.legacy.manifest.payload)
 assert.equal(plan.items.length, 4)
 assert.deepEqual(plan.items.map(item => item.role).sort(), ['shell', 'online', 'offline', ...REPLACED_IDS].sort())

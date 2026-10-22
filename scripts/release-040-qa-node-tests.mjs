@@ -38,8 +38,9 @@ if (qa) {
     harness: [{ version: core, notes: ['existing runtime'] }], modelTemplates: [{ id: 'unchanged' }], models: [{ id: 'deepseek-flash' }] })
   const legacy = baseline('0.1.1-rc.2'), alpha = baseline('0.2.1-alpha.2'), rc = baseline(DSH_VERSION)
   const online = { sha256: hash('b'), size: 123 }
+  const offline = { sha256: hash('f'), size: 2048 }
   const ui = module('launcher-ui', 'ui-2222222222222222', 'c')
-  const payloads = () => makePayloads(legacy, [ui], online, '2026-10-22T02:00:00.000Z', alpha, {}, rc)
+  const payloads = () => makePayloads(legacy, [ui], online, '2026-10-22T02:00:00.000Z', alpha, {}, rc, offline)
   test('40 preserves legacy/alpha graphs and all four non-UI RC2 production descriptors', () => {
     const p = payloads()
     assert.equal(p.channel.launcher.version, VERSION)
@@ -50,18 +51,37 @@ if (qa) {
     assert.equal(p.channel.runtimeModules.find(item => item.id === 'launcher-ui').version, ui.version)
     assertAlphaAnnouncement(alpha, p.alpha, p.legacy)
   })
+  test('signed announcements bind exactly the online alias and immutable full offline installer', () => {
+    const p = payloads()
+    assert.deepEqual(p.legacy.launcher.artifacts, [
+      { platform: 'win32', arch: 'x64', distribution: 'online', url: publicUrl(qa.ALIAS_KEY), ...online },
+      { platform: 'win32', arch: 'x64', distribution: 'offline', url: publicUrl(`download/deepblue-deepseek-harness-launcher-${VERSION}-win-x64-offline.exe`), ...offline }
+    ])
+    assert.deepEqual(p.channel.launcher.artifacts, p.legacy.launcher.artifacts)
+    assert.deepEqual(p.alpha.launcher.artifacts, p.legacy.launcher.artifacts)
+    for (const change of [artifacts => { artifacts.pop() }, artifacts => { artifacts.push(artifacts[1]) },
+      artifacts => { artifacts[1].url = publicUrl('download/old-offline.exe') }, artifacts => { artifacts[1].sha256 = hash('a') },
+      artifacts => { artifacts[1].size++ }, artifacts => { artifacts[1].distribution = 'online' }]) {
+      const bad = payloads(); change(bad.legacy.launcher.artifacts)
+      bad.channel.launcher = structuredClone(bad.legacy.launcher)
+      assert.throws(() => assertPayloadPair(legacy, bad.legacy, bad.channel, online, alpha, {}, rc, offline))
+    }
+    for (const input of [undefined, { ...offline, sha256: 'wrong' }, { ...offline, size: 0 }]) {
+      assert.throws(() => makePayloads(legacy, [ui], online, '2026-10-22T02:00:00.000Z', alpha, {}, rc, input))
+    }
+  })
   test('core, Node, pnpm, Host, old runtime graphs and unrelated catalog drift fail closed', () => {
     for (const index of [0, 1, 2, 4]) {
       const p = payloads()
       p.channel.runtimeModules[index].artifacts[0].sha256 = hash('d')
-      assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc))
+      assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc, offline))
     }
     for (const field of ['models', 'modelTemplates', 'harness']) {
       const p = payloads(); p.channel[field] = []
-      assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc))
+      assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc, offline))
     }
     const p = payloads(); p.legacy.runtimeModules[3] = ui
-    assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc))
+    assert.throws(() => assertPayloadPair(legacy, p.legacy, p.channel, online, alpha, {}, rc, offline))
     const a = payloads(); a.alpha.runtimeModules[3] = ui
     assert.throws(() => assertAlphaAnnouncement(alpha, a.alpha, a.legacy))
   })
@@ -69,17 +89,17 @@ if (qa) {
     for (const version of ['0.10.38', '0.10.40']) {
       for (const position of ['legacy', 'alpha', 'rc']) {
         const old = structuredClone({ legacy, alpha, rc }); old[position].launcher.version = version
-        assert.throws(() => makePayloads(old.legacy, [ui], online, '2026-10-22T02:00:00.000Z', old.alpha, {}, old.rc))
+        assert.throws(() => makePayloads(old.legacy, [ui], online, '2026-10-22T02:00:00.000Z', old.alpha, {}, old.rc, offline))
       }
     }
     for (const replacements of [[ui, ui], [ui, rc.runtimeModules[1]], [rc.runtimeModules[3]]]) {
-      assert.throws(() => makePayloads(legacy, replacements, online, '2026-10-22T02:00:00.000Z', alpha, {}, rc))
+      assert.throws(() => makePayloads(legacy, replacements, online, '2026-10-22T02:00:00.000Z', alpha, {}, rc, offline))
     }
     assert.throws(() => qa.replacementItem(rc.runtimeModules[1]))
     assert.throws(() => qa.replacementItem(rc.runtimeModules[4]))
     const wrongCore = structuredClone(rc)
     wrongCore.runtimeModules[1].version = '0.2.1-rc.3'
-    assert.throws(() => makePayloads(legacy, [ui], online, '2026-10-22T02:00:00.000Z', alpha, {}, wrongCore))
+    assert.throws(() => makePayloads(legacy, [ui], online, '2026-10-22T02:00:00.000Z', alpha, {}, wrongCore, offline))
   })
   test('remote pointer conflicts and source/workflow mismatches reject publication evidence', () => {
     assert.equal(pointerState({ status: 200, sha256: hash('a') }, { status: 200, sha256: hash('a') }, hash('b')), 'baseline')
@@ -93,7 +113,7 @@ if (qa) {
     }
     assert.throws(() => assertGithubReadback(run, '', plan))
   })
-  const plan = { sourceCommit: 'a'.repeat(40), createdAt: '2026-10-22T01:00:00.000Z', alias: online, items: [{ role: 'shell', sha256: hash('c') }] }
+  const plan = { sourceCommit: 'a'.repeat(40), createdAt: '2026-10-22T01:00:00.000Z', alias: online, items: [{ role: 'shell', sha256: hash('c') }, { role: 'offline', ...offline }] }
   const gate = () => ({ schemaVersion: 1, passed: true, planSha256: hash('d'), sourceCommit: plan.sourceCommit,
     catalogUrl: publicUrl(CHANNEL_KEY), catalogSha256: hash('e'), bootstrapSha256: online.sha256, shellSha256: hash('c'),
     installedLauncherVersion: VERSION, installedDshVersion: DSH_VERSION, sourceId: SOURCE_ID,
@@ -106,7 +126,8 @@ if (qa) {
     gamesCatalog: { source: 'https://shenlanai.com/api/games.php?action=list', count: 27, serverOrderPreserved: true },
     externalLearningCta: { url: 'https://shenlanai.com/ai-games/', passed: true },
     selfUpdate: { passed: true, report: 'output/qa/self-update.json', proactivePrompt: true, automaticModules: true, interruptedRetry: true,
-      kernelDownloadVerified: true, inPlaceInstallerHandoff: true, profilePreserved: true },
+      kernelDownloadVerified: true, inPlaceInstallerHandoff: true, profilePreserved: true, installerDistribution: 'offline',
+      fullyDownloadedBeforeQuit: true, installerSha256: offline.sha256, installerSize: offline.size },
     testedAt: '2026-10-22T02:00:00Z', evidence: [{ file: 'output/qa/gameplay.json', size: 10, sha256: hash('a') }, { file: 'output/qa/sandbox.json', size: 10, sha256: hash('b') }, { file: 'output/qa/self-update.json', size: 10, sha256: hash('c') }] })
   test('public gate requires actual guest interaction and a sandboxed native popup with hash-bound evidence', () => {
     assertPublicQa(gate(), plan, hash('d'), { channel: { sha256: hash('e') } })
@@ -126,6 +147,14 @@ if (qa) {
     }
     const bad = gate(); bad.evidence = bad.evidence.filter(item => item.file !== bad.selfUpdate.report)
     assert.throws(() => assertPublicQa(bad, plan, hash('d'), { channel: { sha256: hash('e') } }))
+  })
+  test('self-update gate binds fully downloaded offline bytes before installer handoff', () => {
+    assertPublicQa(gate(), plan, hash('d'), { channel: { sha256: hash('e') } })
+    for (const change of [g => { g.selfUpdate.installerDistribution = 'online' }, g => { g.selfUpdate.fullyDownloadedBeforeQuit = false },
+      g => { g.selfUpdate.installerSha256 = hash('a') }, g => { g.selfUpdate.installerSize++ }]) {
+      const bad = gate(); change(bad)
+      assert.throws(() => assertPublicQa(bad, plan, hash('d'), { channel: { sha256: hash('e') } }))
+    }
   })
   test('workflow executes its real plan validator and rejects hash/source/tag/core tuple changes', async () => {
     const workflow = YAML.parse(await readFile(new URL('../.github/workflows/verify-040-public-artifacts.yml', import.meta.url), 'utf8'))

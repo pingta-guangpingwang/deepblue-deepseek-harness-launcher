@@ -75,6 +75,7 @@ assert.equal(shellOss?.url, publicUrl(`modules/${shell.fileName}`))
 assert.equal(shellGithub?.url, `https://github.com/pingta-guangpingwang/deepblue-deepseek-harness-launcher/releases/download/runtime-v${VERSION}/${shell.fileName}`)
 assert.deepEqual(windowsRecord.value.map(item => item.edition).sort(), ['offline', 'online'])
 const online = windowsRecord.value.find(item => item.edition === 'online')
+const offline = windowsRecord.value.find(item => item.edition === 'offline')
 for (const item of windowsRecord.value) assert.equal(item.fileName, `deepblue-deepseek-harness-launcher-${VERSION}-win-x64-${item.edition}.exe`)
 assert.equal(runtimeRecord.value.schemaVersion, 1)
 const replacements = [normalizeReplacement(uiRecord.value)]
@@ -112,7 +113,7 @@ for (const item of items) {
 }
 const createdAt = new Date().toISOString()
 const metadata = await loadBundledReleaseMetadata()
-const payloads = makePayloads(before.payload, replacements, online, createdAt, alphaBefore.payload, metadata, rcBefore.payload)
+const payloads = makePayloads(before.payload, replacements, online, createdAt, alphaBefore.payload, metadata, rcBefore.payload, offline)
 const payloadBytes = { legacy: jsonBytes(payloads.legacy), channel: jsonBytes(payloads.channel), alpha: jsonBytes(payloads.alpha) }
 const plan = {
   schemaVersion: 1, version: VERSION, dshVersion: DSH_VERSION, sourceCommit, createdAt,
