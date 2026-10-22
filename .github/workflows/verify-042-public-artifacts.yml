@@ -1,0 +1,124 @@
+name: Publish and verify reviewed 0.10.42 public artifacts
+on:
+  workflow_dispatch:
+    inputs:
+      plan_json:
+        description: Exact reviewed release-042-plan.json (no credentials)
+        required: true
+        type: string
+      plan_sha256:
+        description: SHA256 of the canonical reviewed plan
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PLAN_JSON: ${{ inputs.plan_json }}
+      PLAN_SHA256: ${{ inputs.plan_sha256 }}
+    steps:
+      - name: Validate the source and four immutable artifact tuples in the reviewed plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = pingta-guangpingwang/deepblue-deepseek-harness-launcher
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import {createHash} from 'node:crypto'
+          import {writeFileSync} from 'node:fs'
+          const plan=JSON.parse(process.env.PLAN_JSON)
+          const bytes=Buffer.from(JSON.stringify(plan,null,2)+'\n')
+          const hash=createHash('sha256').update(bytes).digest('hex')
+          assert.match(process.env.PLAN_SHA256,/^[a-f0-9]{64}$/u)
+          assert.equal(hash,process.env.PLAN_SHA256,'Reviewed plan SHA256 mismatch')
+          assert.equal(plan.schemaVersion,1)
+          assert.equal(plan.version,'0.10.42')
+          assert.equal(plan.dshVersion,'0.2.1-rc.2')
+          assert.equal(plan.policy,'legacy-alpha2-preserved-rc2-ui-only-042-v1')
+          assert.deepEqual(plan.artifactPolicy,{reusedRoles:['launcher-ui'],newVersionRoles:['shell','online','offline']})
+          assert.equal(plan.sourceCommit,process.env.GITHUB_SHA,'Workflow must use the frozen publishing source')
+          assert.deepEqual(plan.source,{id:'runtime-v2-dsh021rc',url:'https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/release-v2/dsh021rc/launcher-manifest.json'})
+          assert.equal(plan.items.length,4)
+          assert.deepEqual(plan.items.map(item=>item.role).sort(),['launcher-ui','offline','online','shell'])
+          assert.equal(new Set(plan.items.map(item=>item.key)).size,4)
+          assert.deepEqual(plan.items.find(item=>item.role==='launcher-ui'),{
+            role:'launcher-ui',key:'modules/launcher-ui-ui-e2de8a2b9def70e5-win-x64-e4ddf58d1672e4db.tar.gz',
+            file:'modules/launcher-ui-ui-e2de8a2b9def70e5-win-x64-e4ddf58d1672e4db.tar.gz',githubTag:'launcher-ui-ui-e2de8a2b9def70e5',
+            sha256:'e4ddf58d1672e4dbcfa82af2af3ab51b124908cd516571bcee2c74f4fa2cc9e4',size:845231
+          })
+          const rows=[]
+          for(const item of plan.items){
+            assert.deepEqual(Object.keys(item).sort(),['role','key','file','githubTag','sha256','size'].sort())
+            assert.match(item.sha256,/^[a-f0-9]{64}$/u)
+            assert.ok(Number.isSafeInteger(item.size)&&item.size>0&&item.size<=2_000_000_000)
+            const prefix=item.sha256.slice(0,16)
+            let name,tag
+            if(item.role==='shell'){
+              name=`launcher-shell-0.10.42-win-x64-${prefix}.7z`; tag='runtime-v0.10.42'
+            }else if(item.role==='online'||item.role==='offline'){
+              name=`deepblue-deepseek-harness-launcher-0.10.42-win-x64-${item.role}.exe`; tag='v0.10.42'
+            }else{
+              const match=/^modules\/(launcher-ui-(ui-[a-f0-9]{16})-win-x64-[a-f0-9]{16}\.tar\.gz)$/u.exec(item.key)
+              assert.ok(match,'Unexpected UI artifact name')
+              name=`launcher-ui-${match[2]}-win-x64-${prefix}.tar.gz`; tag=`launcher-ui-${match[2]}`
+            }
+            const key=`${item.role==='online'||item.role==='offline'?'download':'modules'}/${name}`
+            assert.equal(item.key,key)
+            assert.equal(item.file,item.role==='launcher-ui'?key:name)
+            assert.equal(item.githubTag,tag)
+            rows.push([item.role,tag,key,name,item.sha256,item.size].join('\t'))
+          }
+          writeFileSync('release-042-plan.json',bytes)
+          writeFileSync('release-042-artifacts.tsv',rows.join('\n')+'\n')
+          console.log(`PUBLIC_PLAN_VERIFIED ${hash}`)
+          NODE
+      - name: Upload exact OSS bytes to the fixed candidate releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          while IFS=$'\t' read -r role tag object name expected_sha expected_size; do
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$scratch/meta.json"
+            test "$(jq -r .tag_name "$scratch/meta.json")" = "$tag"
+            if test "$role" = launcher-ui; then
+              # Reuse only the published UI bytes. Never upload, retarget, or
+              # edit its existing release while publishing the 042 kernel.
+              test "$(jq -r .draft "$scratch/meta.json")" = false
+              test "$(jq --arg n "$name" '[.assets[]|select(.name==$n)]|length' "$scratch/meta.json")" = 1
+              test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.digest' "$scratch/meta.json")" = "sha256:$expected_sha"
+              test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.size' "$scratch/meta.json")" = "$expected_size"
+              printf 'EXACT_UI_REUSE_VERIFIED %s %s %s\n' "$name" "$expected_sha" "$expected_size"
+              continue
+            fi
+            test "$(jq -r .target_commitish "$scratch/meta.json")" = "$GITHUB_SHA"
+            if test "$(jq --arg n "$name" '[.assets[]|select(.name==$n)]|length' "$scratch/meta.json")" = 0; then
+              curl --proto '=https' --tlsv1.2 --fail --show-error --max-time 900 --max-filesize "$expected_size" --retry 2 \
+                "https://ailishishu-deepseek-harness.oss-cn-beijing.aliyuncs.com/$object" -o "$scratch/$name"
+              test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+              printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+              gh release upload "$tag" "$scratch/$name" --repo "$GITHUB_REPOSITORY"
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$scratch/meta.json"
+            test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.digest' "$scratch/meta.json")" = "sha256:$expected_sha"
+            test "$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.size' "$scratch/meta.json")" = "$expected_size"
+            if test "$(jq -r .draft "$scratch/meta.json")" = true; then gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease; fi
+          done < release-042-artifacts.tsv
+      - name: Anonymous full-byte readback of all four public GitHub artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          while IFS=$'\t' read -r role tag object name expected_sha expected_size; do
+            final_url="$(curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --show-error --location \
+              --max-time 900 --max-filesize "$expected_size" --retry 2 \
+              "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$name" \
+              -o "$scratch/$name" -w '%{url_effective}')"
+            case "$final_url" in https://release-assets.githubusercontent.com/*|https://objects.githubusercontent.com/*) ;; *) exit 2 ;; esac
+            test "$(stat -c%s "$scratch/$name")" = "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "$scratch/$name" | sha256sum --check -
+            printf 'PUBLIC_READBACK_VERIFIED %s %s %s\n' "$name" "$expected_sha" "$expected_size"
+          done < release-042-artifacts.tsv
