@@ -138,7 +138,7 @@ export function makePayloads(before, replacements, online, generatedAt, alphaBef
   const legacy = structuredClone(before)
   legacy.generatedAt = generatedAt
   legacy.launcher = { ...legacy.launcher, version: VERSION,
-    notes: ['AI 游戏目录同步深蓝已上架试玩，按网站顺序展示；可在启动器内独立沙箱窗口直接试玩。', '游戏页面保留“去深蓝试玩学习”入口；加载失败可重试，关闭试玩窗口即可返回启动器。', '小模块自动热更新；基础内核更新先完整下载并校验安装包，再退出并原地安装、重开，保留已有配置与数据。', '本次需更新基础内核至 0.10.40；DSH 0.2.1-rc.2、Node、pnpm 和智能体工作台运行模块保持原版本与字节。', ...before.launcher.notes],
+    notes: ['AI 游戏目录同步深蓝已上架试玩，按网站顺序展示；可在启动器内独立沙箱窗口直接试玩。', '游戏页面保留“去深蓝试玩学习”入口；加载失败可重试，关闭试玩窗口即可返回启动器。', '小模块自动热更新；基础内核更新先完整下载并校验离线安装包，可复用已校验缓存，再退出并原地安装、重开，保留已有配置与数据；下载中断后下次仍提示更新。', '本次需更新基础内核至 0.10.40；DSH 0.2.1-rc.2、Node、pnpm 和智能体工作台运行模块保持原版本与字节。', ...before.launcher.notes],
     artifacts: launcherArtifacts(online, offline) }
   const alpha = structuredClone(alphaBefore)
   alpha.generatedAt = generatedAt
@@ -202,7 +202,7 @@ export function assertPublicQa(gate, plan, planSha256, candidates) {
   assert.equal(gate.installedLauncherVersion, VERSION)
   assert.equal(gate.installedDshVersion, DSH_VERSION)
   assert.equal(gate.sourceId, SOURCE_ID)
-  for (const field of ['emptyDirectoryInstall', 'realPublicDownload', 'authenticatedBrowser', 'legacyCatalogStillDsh01', 'alpha2CatalogStillCompatible', 'userDataRollback', 'nodeRuntimeUnchanged', 'packageManagerUnchanged', 'harnessCoreUnchanged', 'agentHostUnchanged']) assert.equal(gate[field], true, `QA missing ${field}`)
+  for (const field of ['emptyDirectoryInstall', 'realPublicDownload', 'controlledBrowser', 'legacyCatalogStillDsh01', 'alpha2CatalogStillCompatible', 'userDataRollback', 'nodeRuntimeUnchanged', 'packageManagerUnchanged', 'harnessCoreUnchanged', 'agentHostUnchanged']) assert.equal(gate[field], true, `QA missing ${field}`)
   assert.equal(gate.realTask?.kind, 'public-shenlan-guest-gameplay', 'An actual public guest game must be played in the installed launcher')
   assert.equal(gate.realTask?.passed, true)
   assert.match(gate.realTask?.gameSlug || '', /^[a-z0-9][a-z0-9-]{0,79}$/u)

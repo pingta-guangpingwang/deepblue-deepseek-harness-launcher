@@ -51,6 +51,14 @@ if (qa) {
     assert.equal(p.channel.runtimeModules.find(item => item.id === 'launcher-ui').version, ui.version)
     assertAlphaAnnouncement(alpha, p.alpha, p.legacy)
   })
+  test('040 public gate requires controlled anonymous browser evidence without account authentication', () => {
+    const good = gate()
+    assert.equal(good.authenticatedBrowser, undefined)
+    assertPublicQa(good, plan, hash('d'), { channel: { sha256: hash('e') } })
+    const bad = gate(); delete bad.controlledBrowser; bad.authenticatedBrowser = true
+    assert.throws(() => assertPublicQa(bad, plan, hash('d'), { channel: { sha256: hash('e') } }))
+    assert.ok(payloads().channel.launcher.notes.some(note => note.includes('离线安装包') && note.includes('已校验缓存')))
+  })
   test('signed announcements bind exactly the online alias and immutable full offline installer', () => {
     const p = payloads()
     assert.deepEqual(p.legacy.launcher.artifacts, [
@@ -117,7 +125,7 @@ if (qa) {
   const gate = () => ({ schemaVersion: 1, passed: true, planSha256: hash('d'), sourceCommit: plan.sourceCommit,
     catalogUrl: publicUrl(CHANNEL_KEY), catalogSha256: hash('e'), bootstrapSha256: online.sha256, shellSha256: hash('c'),
     installedLauncherVersion: VERSION, installedDshVersion: DSH_VERSION, sourceId: SOURCE_ID,
-    emptyDirectoryInstall: true, realPublicDownload: true, authenticatedBrowser: true, legacyCatalogStillDsh01: true,
+    emptyDirectoryInstall: true, realPublicDownload: true, controlledBrowser: true, legacyCatalogStillDsh01: true,
     alpha2CatalogStillCompatible: true, userDataRollback: true, nodeRuntimeUnchanged: true, packageManagerUnchanged: true,
     harnessCoreUnchanged: true, agentHostUnchanged: true,
     realTask: { kind: 'public-shenlan-guest-gameplay', passed: true, report: 'output/qa/gameplay.json', gameSlug: 'sample-game', interactionVerified: true, guestSessionEnded: true },
