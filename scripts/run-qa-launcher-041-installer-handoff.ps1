@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)][ValidatePattern('^[a-f0-9]{64}$')][string]$PlanSha256,
   [string]$PlanPath,
   [string]$ManifestPath,
@@ -7,6 +7,28 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+function Stop-OwnedHandoffProcesses([string[]]$ExecutablePaths, [string]$InstallerDirectory, [int]$TimeoutMilliseconds = 10000) {
+  $timer = [Diagnostics.Stopwatch]::StartNew()
+  while ($true) {
+    $owned = @(Get-CimInstance Win32_Process | Where-Object {
+      $_.ExecutablePath -and (($ExecutablePaths -contains $_.ExecutablePath) -or $_.ExecutablePath.StartsWith($InstallerDirectory + '\', [StringComparison]::OrdinalIgnoreCase))
+    })
+    if ($owned.Count -eq 0) { return }
+    if ($timer.ElapsedMilliseconds -ge $TimeoutMilliseconds) { throw 'Owned QA processes did not exit within the cleanup timeout; host restoration is blocked.' }
+    $handles = @($owned | ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
+    if ($handles.Count -eq 0) { Start-Sleep -Milliseconds 50; continue }
+    try {
+      foreach ($handle in $handles) { Stop-Process -InputObject $handle -ErrorAction SilentlyContinue }
+      foreach ($handle in $handles) {
+        $remaining = [int][Math]::Max(0, $TimeoutMilliseconds - $timer.ElapsedMilliseconds)
+        if (-not $handle.WaitForExit($remaining)) { throw 'Owned QA process exit could not be confirmed; host restoration is blocked.' }
+      }
+    } finally {
+      foreach ($handle in $handles) { $handle.Dispose() }
+    }
+    # Rescan after exit so a child launched during installer shutdown is covered.
+  }
+}
 $projectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $node = (Get-Command node -ErrorAction Stop).Source
 $gate = Join-Path $PSScriptRoot 'qa-launcher-041-installer-handoff.mjs'
@@ -108,41 +130,43 @@ try {
     # installer or restarted app racing the host-state restoration below.
     $install = Join-Path $output 'install with spaces'
     $ownedExecutables = @((Join-Path $install 'shells\0.10.39\深蓝DeepSeekHarness启动器.exe'), (Join-Path $install 'shells\0.10.41\深蓝DeepSeekHarness启动器.exe'), (Join-Path $output 'safe alternate installer default\shells\0.10.41\深蓝DeepSeekHarness启动器.exe'))
+    $ownedProcessesExited = $false
     try {
       $installerPrefix = Join-Path $output 'profile\home\AppData\Roaming\deepseek-harness-launcher\updates'
-      $installers = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($installerPrefix + '\', [StringComparison]::OrdinalIgnoreCase) })
-      foreach ($installer in $installers) { Stop-Process -Id $installer.ProcessId -ErrorAction SilentlyContinue }
-      Get-CimInstance Win32_Process | Where-Object { $ownedExecutables -contains $_.ExecutablePath } | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
+      Stop-OwnedHandoffProcesses -ExecutablePaths $ownedExecutables -InstallerDirectory $installerPrefix
+      $ownedProcessesExited = $true
     } catch { $restoreFailures.Add('Isolated process cleanup: ' + $_.Exception.Message) }
-    foreach ($record in $registryBackups) {
-      try {
-        $provider = 'Registry::HKEY_CURRENT_USER\' + $record.Key.Substring(5)
-        if (Test-Path -LiteralPath $provider) { & reg.exe delete $record.Key /f | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'Exact key removal failed' } }
-        if ($record.Existed) {
-          & reg.exe import $record.Backup | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw 'Full registry import failed' }
-          $readback = $record.Backup + '.restored.reg'
-          & reg.exe export $record.Key $readback /y | Out-Null
-          if ($LASTEXITCODE -ne 0 -or (Get-FileHash -LiteralPath $readback -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $record.Backup -Algorithm SHA256).Hash) { throw 'Restored registry export differs from the full backup' }
-        } elseif (Test-Path -LiteralPath $provider) { throw 'Originally absent registry key remains after restoration' }
-      } catch { $restoreFailures.Add($record.Key + ': ' + $_.Exception.Message) }
+    if ($ownedProcessesExited) {
+      foreach ($record in $registryBackups) {
+        try {
+          $provider = 'Registry::HKEY_CURRENT_USER\' + $record.Key.Substring(5)
+          if (Test-Path -LiteralPath $provider) { & reg.exe delete $record.Key /f | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'Exact key removal failed' } }
+          if ($record.Existed) {
+            & reg.exe import $record.Backup | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Full registry import failed' }
+            $readback = $record.Backup + '.restored.reg'
+            & reg.exe export $record.Key $readback /y | Out-Null
+            if ($LASTEXITCODE -ne 0 -or (Get-FileHash -LiteralPath $readback -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $record.Backup -Algorithm SHA256).Hash) { throw 'Restored registry export differs from the full backup' }
+          } elseif (Test-Path -LiteralPath $provider) { throw 'Originally absent registry key remains after restoration' }
+        } catch { $restoreFailures.Add($record.Key + ': ' + $_.Exception.Message) }
+      }
+      foreach ($record in $fileBackups) {
+        try {
+          if ($record.Existed) {
+            Copy-Item -LiteralPath $record.Backup -Destination $record.Path -Force
+            $item = Get-Item -LiteralPath $record.Path
+            $item.CreationTimeUtc = $record.Created; $item.LastWriteTimeUtc = $record.Modified; $item.Attributes = $record.Attributes
+            if ((Get-FileHash -LiteralPath $record.Path -Algorithm SHA256).Hash -ne $record.Sha256) { throw 'Restored shortcut differs from backup' }
+          } elseif (Test-Path -LiteralPath $record.Path -PathType Leaf) { Remove-Item -LiteralPath $record.Path -Force }
+        } catch { $restoreFailures.Add($record.Path + ': ' + $_.Exception.Message) }
+      }
+      foreach ($record in $directoryBackups) {
+        try {
+          if (-not $record.Existed -and (Test-Path -LiteralPath $record.Path -PathType Container) -and @(Get-ChildItem -LiteralPath $record.Path -Force).Count -eq 0) { Remove-Item -LiteralPath $record.Path }
+        } catch { $restoreFailures.Add($record.Path + ': ' + $_.Exception.Message) }
+      }
     }
-    foreach ($record in $fileBackups) {
-      try {
-        if ($record.Existed) {
-          Copy-Item -LiteralPath $record.Backup -Destination $record.Path -Force
-          $item = Get-Item -LiteralPath $record.Path
-          $item.CreationTimeUtc = $record.Created; $item.LastWriteTimeUtc = $record.Modified; $item.Attributes = $record.Attributes
-          if ((Get-FileHash -LiteralPath $record.Path -Algorithm SHA256).Hash -ne $record.Sha256) { throw 'Restored shortcut differs from backup' }
-        } elseif (Test-Path -LiteralPath $record.Path -PathType Leaf) { Remove-Item -LiteralPath $record.Path -Force }
-      } catch { $restoreFailures.Add($record.Path + ': ' + $_.Exception.Message) }
-    }
-    foreach ($record in $directoryBackups) {
-      try {
-        if (-not $record.Existed -and (Test-Path -LiteralPath $record.Path -PathType Container) -and @(Get-ChildItem -LiteralPath $record.Path -Force).Count -eq 0) { Remove-Item -LiteralPath $record.Path }
-      } catch { $restoreFailures.Add($record.Path + ': ' + $_.Exception.Message) }
-    }
-    [pscustomobject]@{ Restored = ($restoreFailures.Count -eq 0); Failures = @($restoreFailures); GateExitCode = $gateExit; EvidenceRetained = $output } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'host-state-restore.json') -Encoding UTF8
+    [pscustomobject]@{ Restored = ($restoreFailures.Count -eq 0); OwnedProcessesExited = $ownedProcessesExited; Failures = @($restoreFailures); GateExitCode = $gateExit; EvidenceRetained = $output } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'host-state-restore.json') -Encoding UTF8
   }
   foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process') }
 }
