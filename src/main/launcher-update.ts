@@ -151,6 +151,7 @@ export function installedLauncherRoot(executablePath: string): string | undefine
 
 export function silentLauncherUpdateArgs(installRoot: string, parentPid?: number): string[] {
   if (parentPid !== undefined && (!Number.isSafeInteger(parentPid) || parentPid < 1 || parentPid > 0xffffffff)) throw new Error('安装器等待 PID 无效')
+  if (/["\r\n]/.test(installRoot)) throw new Error('安装目录路径包含不安全字符')
   // NSIS requires /D to be the final argument and does not accept quotes around it.
   return ['/S', '/AUTOSTART', ...(parentPid === undefined ? [] : ['--force-run', `/WAITPID=${parentPid}`]), `/D=${path.resolve(installRoot)}`]
 }
@@ -160,8 +161,11 @@ export async function spawnLauncherInstaller(
   installRoot: string,
   options: { parentPid?: number; spawn?: typeof spawn } = {}
 ): Promise<void> {
+  if (/["\r\n]/.test(installerPath)) throw new Error('安装器路径包含不安全字符')
   const child = (options.spawn || spawn)(installerPath, silentLauncherUpdateArgs(installRoot, options.parentPid), {
-    detached: true, stdio: 'ignore', windowsHide: true
+    // Windows' default argument quoting makes NSIS ignore a spaced /D value.
+    // Quote only argv0 so its own GetParameters parser still finds the options.
+    detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true, argv0: `"${installerPath}"`
   })
   // A process handle alone is insufficient: launch errors arrive asynchronously.
   await once(child, 'spawn')

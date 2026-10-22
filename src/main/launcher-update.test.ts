@@ -48,6 +48,10 @@ describe('launcher kernel update handoff', () => {
     expect(() => silentLauncherUpdateArgs('E:\\apps\\DeepBlueDeepSeekHarness', -1)).toThrow(/PID/)
   })
 
+  it.each(['"', '\r', '\n'])('rejects an unsafe verbatim destination character %j', character => {
+    expect(() => silentLauncherUpdateArgs(`E:\\apps\\unsafe${character}path`)).toThrow(/路径/)
+  })
+
   it('does not complete a handoff until the detached installer has spawned', async () => {
     const child = new EventEmitter() as ChildProcess
     child.unref = vi.fn()
@@ -62,8 +66,30 @@ describe('launcher kernel update handoff', () => {
     await pending
     expect(child.unref).toHaveBeenCalledOnce()
     expect(start).toHaveBeenCalledWith('E:\\updates\\verified.exe', ['/S', '/AUTOSTART', '--force-run', '/WAITPID=1234', '/D=E:\\apps\\DeepBlueDeepSeekHarness'], {
-      detached: true, stdio: 'ignore', windowsHide: true
+      detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true, argv0: '"E:\\updates\\verified.exe"'
     })
+  })
+
+  it('preserves the unquoted NSIS destination when installer and install paths contain spaces', async () => {
+    const child = new EventEmitter() as ChildProcess
+    child.unref = vi.fn()
+    const start = vi.fn(() => child) as unknown as typeof spawn
+    const installer = 'E:\\user profile\\verified installer.exe'
+    const destination = 'E:\\custom applications\\DeepBlue Harness'
+    const pending = spawnLauncherInstaller(installer, destination, { parentPid: 1234, spawn: start })
+    child.emit('spawn')
+    await pending
+    const [, args, options] = vi.mocked(start).mock.calls[0]!
+    expect(args).toEqual(['/S', '/AUTOSTART', '--force-run', '/WAITPID=1234', `/D=${destination}`])
+    // NSIS rejects a quoted /D argument. Node must leave it verbatim while
+    // preserving a quoted executable name for GetParameters in the installer.
+    expect(options).toMatchObject({ windowsVerbatimArguments: true, argv0: `"${installer}"` })
+  })
+
+  it.each(['"', '\r', '\n'])('rejects an unsafe installer executable character %j before spawning', async character => {
+    const start = vi.fn() as unknown as typeof spawn
+    await expect(spawnLauncherInstaller(`E:\\updates\\unsafe${character}installer.exe`, 'E:\\apps\\launcher', { spawn: start })).rejects.toThrow(/路径/)
+    expect(start).not.toHaveBeenCalled()
   })
 
   it('rejects an installer launch error without reporting a handoff', async () => {
