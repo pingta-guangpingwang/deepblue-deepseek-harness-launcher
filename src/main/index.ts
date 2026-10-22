@@ -238,14 +238,15 @@ function registerIpc(): void {
   ipcMain.handle('desktop-pet:drag-end', (event, position: unknown) => controller?.endDesktopPetDrag(event.sender.id, position))
   ipcMain.handle('desktop-pet:deepseek-balance', (event) => controller?.desktopPetDeepSeekBalance(event.sender.id))
   ipcMain.handle('launcher:get-snapshot', event => { requireLauncherSender(event); return controller?.getSnapshot() })
+  ipcMain.handle('launcher:interface-busy', (event, operation: string) => { requireLauncherSender(event); controller?.setInterfaceBusy(operation) })
   ipcMain.handle('launcher:refresh-environment', () => controller?.refreshEnvironment())
-  ipcMain.handle('launcher:check-sources', () => controller?.checkSources())
+  ipcMain.handle('launcher:check-sources', event => { requireLauncherSender(event); return controller?.checkSources() })
   ipcMain.handle('launcher:start', () => controller?.startHarness())
   ipcMain.handle('launcher:stop', () => controller?.stopHarness())
   ipcMain.handle('launcher:restart', () => controller?.restartHarness())
   ipcMain.handle('launcher:install', (_event, version?: string) => controller?.installHarness(version))
-  ipcMain.handle('launcher:apply-runtime-updates', () => controller?.applyRuntimeUpdates())
-  ipcMain.handle('launcher:download-update', () => controller?.downloadLauncherUpdate())
+  ipcMain.handle('launcher:apply-runtime-updates', event => { requireLauncherSender(event); return controller?.applyRuntimeUpdates() })
+  ipcMain.handle('launcher:download-update', event => { requireLauncherSender(event); return controller?.downloadLauncherUpdate() })
   ipcMain.handle('launcher:rollback', (_event, version: string) => controller?.rollbackHarness(version))
   ipcMain.handle('launcher:repair', () => controller?.repair())
   ipcMain.handle('launcher:choose-workspace', () => controller?.chooseWorkspace())
@@ -270,7 +271,7 @@ function registerIpc(): void {
   ipcMain.handle('launcher:account-logout', () => controller?.accountLogout())
   ipcMain.handle('launcher:refresh-favorites', () => controller?.refreshFavorites())
   ipcMain.handle('launcher:toggle-resource-favorite', (_event, id: string) => controller?.toggleResourceFavorite(id))
-  ipcMain.handle('launcher:play-game', (_event, slug: string) => controller?.playGame(slug))
+  ipcMain.handle('launcher:play-game', (event, slug: string) => { requireLauncherSender(event); return controller?.playGame(slug) })
   ipcMain.handle('launcher:save-model-provider', (_event, draft: ModelProviderDraft) => controller?.saveModelProvider(draft))
   ipcMain.handle('launcher:remove-model-provider', (_event, providerId: string) => controller?.removeModelProvider(providerId))
   ipcMain.handle('launcher:set-active-model', (_event, provider: string, model: string) => controller?.setActiveModel(provider, model))
@@ -396,7 +397,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', (event) => {
   if (controller?.isAgentHostBusy()) {
     const choice = dialog.showMessageBoxSync({ type: 'warning', title: '智能体任务仍在运行', message: '退出启动器会中断本机智能体任务。', detail: '选择继续后台运行，可以关闭主窗口并保留远程连接。', buttons: ['继续后台运行', '退出并中断任务'], defaultId: 0, cancelId: 0 })
-    if (choice === 0) { event.preventDefault(); quitting = false; mainWindow?.hide(); syncDesktopTray(); return }
+    if (choice === 0) { event.preventDefault(); controller?.cancelInstallerHandoff(); quitting = false; mainWindow?.hide(); syncDesktopTray(); return }
   }
   quitting = true
   void controller?.dispose().catch(() => {})

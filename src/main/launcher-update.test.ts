@@ -43,7 +43,7 @@ describe('launcher kernel update handoff', () => {
 
   it('waits for the old parent process before the final destination argument', () => {
     expect(silentLauncherUpdateArgs('E:\\apps\\DeepBlueDeepSeekHarness', 1234)).toEqual([
-      '/S', '/AUTOSTART', '/WAITPID=1234', '/D=E:\\apps\\DeepBlueDeepSeekHarness'
+      '/S', '/AUTOSTART', '--force-run', '/WAITPID=1234', '/D=E:\\apps\\DeepBlueDeepSeekHarness'
     ])
     expect(() => silentLauncherUpdateArgs('E:\\apps\\DeepBlueDeepSeekHarness', -1)).toThrow(/PID/)
   })
@@ -61,7 +61,7 @@ describe('launcher kernel update handoff', () => {
     child.emit('spawn')
     await pending
     expect(child.unref).toHaveBeenCalledOnce()
-    expect(start).toHaveBeenCalledWith('E:\\updates\\verified.exe', ['/S', '/AUTOSTART', '/WAITPID=1234', '/D=E:\\apps\\DeepBlueDeepSeekHarness'], {
+    expect(start).toHaveBeenCalledWith('E:\\updates\\verified.exe', ['/S', '/AUTOSTART', '--force-run', '/WAITPID=1234', '/D=E:\\apps\\DeepBlueDeepSeekHarness'], {
       detached: true, stdio: 'ignore', windowsHide: true
     })
   })

@@ -1,6 +1,5 @@
-import { app, clipboard, dialog, shell, type BrowserWindow } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, Menu, shell } from 'electron'
 import { access, appendFile, chmod, cp, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
-import { createWriteStream } from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -29,12 +28,14 @@ import { AgentHostBridge } from './agent-host-bridge'
 import { ProjectDirectoryPicker } from './project-directory-picker'
 import { normalizeLauncherSkin } from '../shared/launcher-skins'
 import type { AgentHostAction, AgentWorkspaceRequest } from '../shared/agent-host'
-import { installedLauncherRoot, silentLauncherUpdateArgs } from './launcher-update'
+import { downloadVerifiedLauncherInstaller, installedLauncherRoot, spawnLauncherInstaller } from './launcher-update'
+import { automaticHotUpdateKey, chooseKernelInstaller } from './automatic-updates'
 import { cleanPluginOutput, pluginActionLabel, updatePluginProgress } from './plugin-operation'
 import { pluginOperationTimeoutMs, pluginPnpmArguments, profileHasActivePlugin, type WebProfileManifest } from './plugin-policy'
 import { ModelStore } from './model-store'
 import { fetchDiscovery, fetchNewsDetail, fetchResourceDetail, loadingDiscovery } from './discovery'
-import { AccountService, openContentWindow } from './account'
+import { AccountService } from './account'
+import { GameWindows, gamePlayerUrl } from './game-window'
 import { coreRuntimeMissing } from '../shared/environment-health'
 import { advanceHarnessReadiness } from './service-readiness'
 import { desktopWallpaperCapability } from '../shared/desktop-wallpaper'
@@ -123,6 +124,12 @@ export class LauncherController {
   private petBalanceBridge!: PetBalanceBridge
   private readonly petStore = new PetStore()
   private readonly accountService = new AccountService()
+  private readonly gameWindows = new GameWindows({
+    createWindow: options => new BrowserWindow(options),
+    openExternal: url => shell.openExternal(url),
+    setMenu: (window, items) => window.setMenu(Menu.buildFromTemplate(items)),
+    onClosed: () => this.emit()
+  })
   private modelStore!: ModelStore
   private moduleStore!: RuntimeModuleStore
   private runtimeModules: RuntimeModuleRelease[] = []
@@ -134,6 +141,14 @@ export class LauncherController {
   private readonly browserHandoff = new HarnessBrowserHandoff()
   private agentHost?: AgentHostBridge
   private modelInitialization?: Promise<void>
+  private kernelUpdatePromise?: Promise<LauncherSnapshot>
+  private runtimeUpdatePromise?: Promise<LauncherSnapshot>
+  private interfaceOperation = ''
+  private installerHandoff = false
+  private autoUpdateTimer?: ReturnType<typeof setTimeout>
+  private readonly automaticUpdateAttempts = new Set<string>()
+  private disposing = false
+  private catalogSyncPromise?: Promise<boolean>
 
   constructor(private readonly window: BrowserWindow, private readonly launcherUi?: LauncherUiSelection, private readonly onViewEvent: (channel: string, payload?: unknown) => void = () => {}) {}
 
@@ -314,12 +329,15 @@ export class LauncherController {
   isAgentHostBusy(): boolean { return this.agentHost?.isBusy() === true }
   agentHostState() { return this.agentHost?.snapshot() }
   async agentHostAction(action: AgentHostAction) {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候')
     if (!this.agentHost) throw new Error('托管模块没有加载，请检查更新后重试')
     return this.agentHost.action(action)
   }
   agentWorkspaceRequest(request: AgentWorkspaceRequest) { return this.accountService.agentWorkspaceRequest(request) }
 
   async dispose(): Promise<void> {
+    this.disposing = true
+    if (this.autoUpdateTimer) clearTimeout(this.autoUpdateTimer)
     clearDshProcessAuth(launcherDataPaths(this.config.activeVersion).dshHome, this.service?.pid)
     this.harnessStartupUrl = undefined
     await this.agentHost?.dispose()
@@ -411,6 +429,7 @@ export class LauncherController {
   }
 
   async startHarness(): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在交接启动器更新，请稍候')
     if (this.startHarnessPromise) return this.startHarnessPromise
     const pending = this.startHarnessOnce()
     this.startHarnessPromise = pending
@@ -558,6 +577,7 @@ export class LauncherController {
   }
 
   async installHarness(version = this.snapshot.latestHarnessVersion): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候')
     if (this.service || this.agentHost?.isBusy()) { this.log('WARN', '请先停止 Harness 并完成托管任务，再切换核心版本'); return this.getSnapshot() }
     if (this.snapshot.tasks.some((task) => task.status === 'running' && task.id.startsWith('install-'))) {
       for (let attempt = 0; attempt < 1_200; attempt += 1) {
@@ -694,19 +714,50 @@ export class LauncherController {
   }
 
   async applyRuntimeUpdates(): Promise<LauncherSnapshot> {
+    if (this.runtimeUpdatePromise) return this.runtimeUpdatePromise
+    this.runtimeUpdatePromise = this.performRuntimeUpdates()
+    try { return await this.runtimeUpdatePromise } finally { this.runtimeUpdatePromise = undefined; this.scheduleAutomaticUpdates() }
+  }
+
+  private async performRuntimeUpdates(): Promise<LauncherSnapshot> {
+    // Finish an already-running catalog refresh before capturing one immutable
+    // target/dependency graph. Later refreshes are blocked by the operation lock.
+    if (this.catalogSyncPromise) await this.catalogSyncPromise
+    if (this.kernelUpdatePromise || this.installerHandoff) return this.getSnapshot()
     if (this.snapshot.runtimeUpdates.status === 'installing' || this.snapshot.runtimeUpdates.status === 'restarting') return this.getSnapshot()
-    const requested = [...this.snapshot.runtimeUpdates.items]
+    if (this.updateWorkIsBusy()) {
+      this.snapshot.runtimeUpdates.message = '更新已就绪。请先结束运行中的任务和试玩，空闲后会继续处理；也可下次启动再更新。'
+      this.emit()
+      return this.getSnapshot()
+    }
+    const requested = structuredClone(this.snapshot.runtimeUpdates.items)
+    const catalog = structuredClone(this.runtimeModules)
     if (!requested.length) return this.getSnapshot()
     const requestedIds = new Set(requested.map((item) => item.id))
     const releases = [...new Map(requested.flatMap((item) => {
-      const target = this.runtimeModules.find((release) => release.id === item.id)
-      return target ? runtimeModulePlan(target, this.runtimeModules, process.platform, process.arch) : []
+      const target = catalog.find((release) => release.id === item.id && release.version === item.nextVersion)
+      return target ? runtimeModulePlan(target, catalog, process.platform, process.arch) : []
     }).filter(({ release }) => requestedIds.has(release.id)).map(({ release }) => [release.id, release])).values()]
+    for (const release of releases) {
+      for (const { release: dependency } of runtimeModulePlan(release, catalog, process.platform, process.arch)) {
+        const active = (await this.moduleStore.versions(dependency.id)).active || this.snapshot.runtimeUpdates.modules.find(item => item.id === dependency.id)?.currentVersion
+        if (active && isNewerVersion(active, dependency.version)) {
+          this.snapshot.runtimeUpdates.message = `${RUNTIME_MODULE_LABELS[dependency.id]} 的本机版本更新，已保留当前版本，请重新检测目录。`
+          this.emit(); return this.getSnapshot()
+        }
+      }
+    }
     if (releases.length !== requested.length) {
       this.snapshot.runtimeUpdates = { ...this.snapshot.runtimeUpdates, status: 'failed', message: '签名目录已变化，请重新检查更新' }
       this.emit()
       return this.getSnapshot()
     }
+
+    if (this.updateWorkIsBusy()) {
+      this.snapshot.runtimeUpdates.message = '更新已准备好，等待当前操作结束后继续。'
+      this.emit(); return this.getSnapshot()
+    }
+    this.automaticUpdateAttempts.add(requested.map(item => item.id + ':' + item.nextVersion).sort().join('|'))
 
     const task = this.addTask(`runtime-update-${Date.now()}`, '更新启动器功能模块', `准备更新 ${requested.length} 个模块`)
     task.steps = requested.map((item) => ({
@@ -728,7 +779,7 @@ export class LauncherController {
       taskId: task.id,
       message: '正在下载并校验签名模块，请保持启动器运行'
     }
-    this.log('INFO', `用户确认更新 ${requested.map((item) => `${item.label} ${item.nextVersion}`).join('、')}`)
+    this.log('INFO', `开始更新 ${requested.map((item) => `${item.label} ${item.nextVersion}`).join('、')}`)
     this.emit()
 
     const activated: RuntimeModuleId[] = []
@@ -741,7 +792,7 @@ export class LauncherController {
       for (const release of releases) {
         await this.moduleStore.install(
           release,
-          this.runtimeModules,
+          catalog,
           process.platform,
           process.arch,
           (progress) => this.updateModuleTask(task, progress)
@@ -765,7 +816,10 @@ export class LauncherController {
       const updatedModules = this.snapshot.runtimeUpdates.modules.map((item) => requestedIds.has(item.id)
         ? { ...item, currentVersion: item.nextVersion, disposition: 'current' as const, message: '本轮更新已安装并通过校验' }
         : item)
-      if (requestedIds.has('agent-host')) await this.agentHost?.reload()
+      if (requestedIds.has('agent-host')) {
+        if (this.agentHost?.isBusy()) throw new Error('智能体刚开始执行任务，已暂缓服务切换，稍后请重试更新')
+        await this.agentHost?.reload()
+      }
       const requiresRelaunch = [...requestedIds].some((id) => !['launcher-ui', 'package-manager', 'agent-host'].includes(id))
       const launcherUiRelease = releases.find((release) => release.id === 'launcher-ui')
       if (!requiresRelaunch) {
@@ -818,7 +872,7 @@ export class LauncherController {
           this.log('ERROR', `${RUNTIME_MODULE_LABELS[moduleId]} 自动回滚失败：${rollbackFailure}`)
         }
       }
-      if (activated.includes('agent-host') || requestedIds.has('node-runtime') || requestedIds.has('harness-core')) {
+      if (!this.agentHost?.isBusy() && (activated.includes('agent-host') || requestedIds.has('node-runtime') || requestedIds.has('harness-core'))) {
         await this.agentHost?.reload().catch((error) => { this.log('WARN', `托管服务恢复失败：${error instanceof Error ? error.message : String(error)}`) })
       }
       task.status = 'failed'
@@ -836,6 +890,7 @@ export class LauncherController {
   }
 
   async rollbackHarness(version: string): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候')
     if (this.service || this.agentHost?.isBusy()) { this.log('WARN', '请先停止 Harness 并完成托管任务，再回退核心'); return this.getSnapshot() }
     if (version === '0.1.1-rc.2') {
       const stored = await this.moduleStore.versions('harness-core')
@@ -863,65 +918,107 @@ export class LauncherController {
   }
 
   async downloadLauncherUpdate(): Promise<LauncherSnapshot> {
-    const update = this.snapshot.launcherUpdate
-    if (!update) return this.getSnapshot()
-    const task = this.addTask(`launcher-${Date.now()}`, `下载启动器 ${update.version}`, '准备下载签名清单指定的整合包')
+    if (this.kernelUpdatePromise) return this.kernelUpdatePromise
+    if (this.runtimeUpdatePromise) return this.getSnapshot()
+    if (!this.snapshot.launcherUpdate || this.snapshot.runtimeUpdates.status === 'installing' || this.snapshot.runtimeUpdates.status === 'restarting') return this.getSnapshot()
+    this.kernelUpdatePromise = this.performLauncherUpdate()
+    try { return await this.kernelUpdatePromise } finally { this.kernelUpdatePromise = undefined }
+  }
+
+  private async performLauncherUpdate(): Promise<LauncherSnapshot> {
+    const update = structuredClone(this.snapshot.launcherUpdate!)
+    if (this.updateWorkIsBusy()) {
+      this.snapshot.runtimeUpdates.message = '安装更新已就绪，请先结束运行中的任务和试玩，再点击下载并安装。'
+      this.emit(); return this.getSnapshot()
+    }
+    const task = this.addTask(`launcher-${Date.now()}`, `下载启动器 ${update.version}`, '正在下载完整安装包，校验完成后自动安装并重启')
+    task.totalBytes = update.artifact.size; task.receivedBytes = 0; task.progress = 0
     this.emit()
-    const fileName = `deepblue-launcher-kernel-${update.version}-${Date.now()}.exe`
-    const target = path.join(app.getPath('temp'), fileName)
-    const temporary = `${target}.download`
     try {
-      const response = await fetch(update.artifact.url, { signal: AbortSignal.timeout(120_000) })
-      if (!response.ok || !response.body) throw new Error(`下载返回 HTTP ${response.status}`)
-      const total = Number(response.headers.get('content-length')) || update.artifact.size
-      const output = createWriteStream(temporary)
-      const hasher = createHash('sha256')
-      let received = 0
-      for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-        hasher.update(chunk)
-        received += chunk.byteLength
-        if (!output.write(chunk)) await once(output, 'drain')
-        task.progress = total ? Math.min(98, Math.round((received / total) * 100)) : Math.min(98, task.progress + 1)
-        task.detail = `${(received / 1024 / 1024).toFixed(1)} MB${total ? ` / ${(total / 1024 / 1024).toFixed(1)} MB` : ''}`
+      const cached = await downloadVerifiedLauncherInstaller(update.artifact, path.join(app.getPath('userData'), 'updates'), progress => {
+        task.receivedBytes = progress.receivedBytes; task.totalBytes = progress.totalBytes
+        task.progress = Math.min(98, Math.round(progress.receivedBytes / progress.totalBytes * 100))
+        task.detail = `正在下载并校验：${(progress.receivedBytes / 1024 / 1024).toFixed(1)} / ${(progress.totalBytes / 1024 / 1024).toFixed(1)} MB`
         this.emit()
+      })
+      task.progress = 100; task.receivedBytes = update.artifact.size
+      if (this.updateWorkIsBusy(task.id)) throw new Error('安装包已校验并缓存，请结束当前运行任务后再次点击安装，无需重新下载')
+      let installRoot = installedLauncherRoot(process.execPath)
+      if (!installRoot && app.isPackaged) {
+        const flatRoot = path.dirname(process.execPath)
+        const entries = await readdir(flatRoot)
+        if (entries.some(name => /^(?:uninstall.+|卸载.+)\.exe$/i.test(name))) installRoot = flatRoot
       }
-      output.end()
-      await once(output, 'finish')
-      const digest = hasher.digest('hex')
-      if (digest.toLowerCase() !== update.artifact.sha256.toLowerCase()) throw new Error('SHA-256 完整性校验失败')
-      await rm(target, { force: true })
-      await rename(temporary, target)
-      task.progress = 100
-      task.status = 'completed'
-      const installRoot = installedLauncherRoot(process.execPath)
-      if (!installRoot) {
-        task.detail = `安装器已保存到 ${target}；当前为开发或便携运行方式，请手动安装`
-        this.log('WARN', task.detail)
-        shell.showItemInFolder(target)
+      if (!installRoot || !app.isPackaged) {
+        task.status = 'completed'; task.detail = '安装包已校验并缓存。当前是开发或便携运行，安装器已在启动器内打开，请选择安装目录。'
+        await shell.openPath(cached.path)
       } else {
-        task.detail = '内核安装器已校验，正在自动安装并重启到新版本'
-        this.log('INFO', `${task.detail}：${update.version}`)
-        if (this.service) await this.stopHarness()
-        const installer = spawn(target, silentLauncherUpdateArgs(installRoot), {
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: true
-        })
-        installer.unref()
+        if (this.updateWorkIsBusy(task.id)) throw new Error('安装包已缓存，请结束当前操作后再次安装，无需重新下载')
+        this.installerHandoff = true
+        task.detail = cached.reused ? '复用已校验安装包，正在原地安装并自动重启' : '完整安装包已校验，正在原地安装并自动重启'
         this.emit()
-        setTimeout(() => app.exit(0), 700)
+        await spawnLauncherInstaller(cached.path, installRoot, { parentPid: process.pid })
+        task.status = 'completed'
+        this.log('INFO', `启动器 ${update.version} 已交给安装器，沿用现有目录与用户数据`)
+        this.emit()
+        app.quit()
       }
     } catch (error) {
-      await rm(temporary, { force: true }).catch(() => undefined)
+      this.installerHandoff = false
       task.status = 'failed'
-      task.detail = error instanceof Error ? error.message : String(error)
-      this.log('ERROR', `启动器更新下载失败：${task.detail}`)
+      task.detail = (error instanceof Error ? error.message : String(error)) + '；当前启动器保持可用，可重试或下次启动继续更新。'
+      this.snapshot.runtimeUpdates.message = task.detail
+      this.log('ERROR', `启动器更新未完成：${task.detail}`)
     }
     this.emit()
     return this.getSnapshot()
   }
 
+  private updateWorkIsBusy(excludeTaskId?: string): boolean {
+    return Boolean(this.service || this.startHarnessPromise || this.pluginActionPromise || this.agentHost?.isBusy() || this.gameWindows.size ||
+      !['', 'sources', 'runtime-updates', 'launcher-update'].includes(this.interfaceOperation) ||
+      this.snapshot.tasks.some(task => task.status === 'running' && task.id !== excludeTaskId))
+  }
+
+  setInterfaceBusy(operation: string): void {
+    if (typeof operation !== 'string' || operation.length > 60) throw new Error('界面操作状态无效')
+    this.interfaceOperation = operation
+    this.scheduleAutomaticUpdates()
+  }
+
+  cancelInstallerHandoff(): void {
+    if (!this.installerHandoff) return
+    this.installerHandoff = false
+    const task = this.snapshot.tasks.find(item => item.title.startsWith('下载启动器'))
+    if (task) { task.status = 'failed'; task.detail = '退出已取消，当前启动器继续运行。安装包已缓存，下次可直接重试安装。' }
+    this.emit()
+  }
+
+  private scheduleAutomaticUpdates(): void {
+    if (this.disposing || this.autoUpdateTimer || this.kernelUpdatePromise || this.runtimeUpdatePromise || this.installerHandoff || this.snapshot.runtimeUpdates.status !== 'available') return
+    const items = this.snapshot.runtimeUpdates.items
+    const dependenciesCurrent = items.every(item => {
+      const release = this.runtimeModules.find(candidate => candidate.id === item.id && candidate.version === item.nextVersion)
+      return release && release.dependencies.every(id => this.snapshot.runtimeUpdates.modules.some(module => module.id === id && module.disposition === 'current'))
+    })
+    const waitingForWork = this.updateWorkIsBusy()
+    const key = automaticHotUpdateKey(items, { verifiedCatalog: Boolean(this.lastVerifiedCatalogAt), setupRequired: !this.config.settings.storageSetupCompleted,
+      kernelPending: Boolean(this.snapshot.launcherUpdate), busy: false, dependenciesCurrent })
+    if (!key || this.automaticUpdateAttempts.has(key)) return
+    this.autoUpdateTimer = setTimeout(() => {
+      this.autoUpdateTimer = undefined
+      if (this.disposing) return
+      if (this.updateWorkIsBusy() || this.kernelUpdatePromise || this.snapshot.launcherUpdate || this.snapshot.runtimeUpdates.status !== 'available') { this.scheduleAutomaticUpdates(); return }
+      const currentKey = this.snapshot.runtimeUpdates.items.map(item => item.id + ':' + item.nextVersion).sort().join('|')
+      if (currentKey !== key) { this.scheduleAutomaticUpdates(); return }
+      if (this.automaticUpdateAttempts.has(key)) return
+      void this.applyRuntimeUpdates().catch(error => { this.log('ERROR', `自动热更新未完成：${error instanceof Error ? error.message : String(error)}`); this.emit() })
+    }, waitingForWork ? 15000 : 1500)
+    this.autoUpdateTimer.unref()
+  }
+
   async repair(): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候')
     const task = this.addTask(`repair-${Date.now()}`, '快速修复运行环境', '重新核对内置组件')
     this.emit()
     await this.refreshEnvironment()
@@ -1123,6 +1220,7 @@ export class LauncherController {
   }
 
   async pluginAction(action: 'install' | 'update' | 'remove', packageSpec: string): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候')
     if (this.pluginActionPromise) throw new Error('已有插件操作正在进行，请在安装进度窗口查看')
     const operation = this.performPluginAction(action, packageSpec)
     this.pluginActionPromise = operation
@@ -1351,15 +1449,18 @@ export class LauncherController {
   }
 
   async playGame(slug: string): Promise<LauncherSnapshot> {
+    if (this.installerHandoff || this.runtimeUpdatePromise) throw new Error('正在安装启动器更新，请稍候再开始试玩')
+    gamePlayerUrl(slug)
     const game = this.snapshot.discovery.games.find((item) => item.slug === slug)
     if (!game) throw new Error('没有找到这款游戏，请刷新目录后重试')
     if (game.mode === 'source_only' || game.mode === 'official_landmark') throw new Error('这是一项项目资料，请在启动器详情中阅读')
-    if (game.loginRequired && this.snapshot.account.status !== 'signed_in') {
-      this.snapshot.account = await this.accountService.signIn(this.window)
-      this.emit()
-      if (this.snapshot.account.status !== 'signed_in') return this.getSnapshot()
+    if (game.mode === 'hosted_playable') {
+      this.gameWindows.open(this.window, game.slug, game.title)
+    } else {
+      const target = new URL(game.url)
+      if (target.protocol !== 'https:' || target.username || target.password) throw new Error('官方试玩地址无效')
+      await shell.openExternal(target.href)
     }
-    await openContentWindow(this.window, game.url, game.title)
     return this.getSnapshot()
   }
 
@@ -1903,6 +2004,13 @@ export class LauncherController {
   }
 
   private async syncOnlineCatalog(): Promise<boolean> {
+    if (this.catalogSyncPromise) return this.catalogSyncPromise
+    this.catalogSyncPromise = this.performCatalogSync()
+    try { return await this.catalogSyncPromise } finally { this.catalogSyncPromise = undefined }
+  }
+
+  private async performCatalogSync(): Promise<boolean> {
+    if (this.kernelUpdatePromise || this.runtimeUpdatePromise || ['installing', 'restarting'].includes(this.snapshot.runtimeUpdates.status)) return false
     const registry = this.registryUrl()
     const [npmVersion, signedCatalog] = await Promise.all([
       fetchLatestNpmVersion(registry),
@@ -1922,15 +2030,15 @@ export class LauncherController {
       }
     }
     if (signedCatalog) {
+      if (this.kernelUpdatePromise || this.runtimeUpdatePromise || ['installing', 'restarting'].includes(this.snapshot.runtimeUpdates.status)) return false
+      if (this.lastVerifiedCatalogAt && Date.parse(signedCatalog.generatedAt) < Date.parse(this.lastVerifiedCatalogAt)) return false
+      if (signedCatalog.launcher && isNewerVersion(app.getVersion(), signedCatalog.launcher.version)) {
+        this.log('INFO', '当前启动器版本新于在线目录，保留本机界面与模块，等待新版签名目录。')
+        return false
+      }
       this.lastVerifiedCatalogAt = signedCatalog.generatedAt
       this.runtimeModules = mergeBundledRuntimeMirrors(signedCatalog.runtimeModules || [], this.bundledRuntimeModules)
-      const matchingArtifact = signedCatalog.launcher?.artifacts.find((artifact) =>
-        artifact.platform === process.platform &&
-        artifact.arch === process.arch &&
-        artifact.distribution === this.distributionMode
-      ) || signedCatalog.launcher?.artifacts.find((artifact) =>
-        artifact.platform === process.platform && artifact.arch === process.arch && !artifact.distribution
-      )
+      const matchingArtifact = signedCatalog.launcher && chooseKernelInstaller(signedCatalog.launcher.artifacts, process.platform, process.arch, this.distributionMode)
       this.snapshot.launcherUpdate = undefined
       if (matchingArtifact && signedCatalog.launcher && isNewerVersion(signedCatalog.launcher.version, app.getVersion())) {
         this.snapshot.launcherUpdate = {
@@ -2524,5 +2632,6 @@ export class LauncherController {
   private emit(): void {
     if (!this.window.isDestroyed()) this.window.webContents.send('launcher:snapshot', this.getSnapshot())
     this.onViewEvent('launcher:snapshot', this.getSnapshot())
+    this.scheduleAutomaticUpdates()
   }
 }

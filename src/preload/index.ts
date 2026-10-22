@@ -22,6 +22,7 @@ const api: LauncherApi = {
   createShortcuts: () => ipcRenderer.invoke('launcher:create-shortcuts'),
   openPath: (path: string) => ipcRenderer.invoke('launcher:open-path', path),
   openExternal: (url: string) => ipcRenderer.invoke('launcher:open-external', url),
+  setInterfaceBusy: (operation: string) => ipcRenderer.invoke('launcher:interface-busy', operation),
   saveSettings: (patch: Partial<LauncherSettings>) => ipcRenderer.invoke('launcher:save-settings', patch),
   pluginAction: (action, packageSpec) => ipcRenderer.invoke('launcher:plugin-action', action, packageSpec),
   refreshDiscovery: () => ipcRenderer.invoke('launcher:refresh-discovery'),

@@ -138,7 +138,7 @@ const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   community: { title: '大肥鱼社区', subtitle: 'DeepSeek 同好话题 · 留言与斗图' },
   more: { title: '更多', subtitle: '在 AI历史书网站继续探索资源与学习内容。' },
   news: { title: 'AI 新闻', subtitle: '免费浏览最新 10 条与热门排行；登录后继续在启动器内展开。' },
-  games: { title: 'AI 游戏试玩', subtitle: '同步网站完整游戏与项目目录；本站作品可在启动器内登录试玩。' },
+  games: { title: 'AI 游戏试玩', subtitle: '同步深蓝游戏与项目目录，在启动器窗口直接试玩。' },
   careers: { title: '职场进化', subtitle: '直接读取网站 33 个职业及工作模块；只有长课程教学按需打开网页。' },
   workspaces: { title: '工作区', subtitle: '选择 Harness 启动目录，并快速返回最近项目。' },
   diagnostics: { title: '日志诊断', subtitle: '把环境、网络和进程问题说清楚，再提供可执行的修复动作。' },
@@ -1864,8 +1864,8 @@ function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLauncherUpdate, onCh
   const update = snapshot.runtimeUpdates
   const runtimeTask = update.taskId ? snapshot.tasks.find((item) => item.id === update.taskId) : undefined
   const launcherTask = snapshot.tasks.find((item) => item.title.startsWith('下载启动器'))
-  const task = runtimeTask || (busy === 'launcher-update' ? launcherTask : undefined)
-  const installing = update.status === 'installing' || update.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update'
+  const task = busy === 'launcher-update' || launcherTask?.status === 'running' ? launcherTask : runtimeTask
+  const installing = update.status === 'installing' || update.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update' || launcherTask?.status === 'running'
   const checking = busy === 'sources'
   const totalBytes = update.items.reduce((sum, item) => sum + item.size, 0)
   const modules = update.modules || update.items.map((item) => ({ ...item, disposition: 'automatic' as const, message: '可由启动器独立下载并热更新' }))
@@ -1930,7 +1930,7 @@ function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLauncherUpdate, onCh
         })}
         {snapshot.launcherUpdate && <div className="runtime-update-item manual launcher-kernel">
           <span className="runtime-update-state manual"><CircleAlert size={16} /></span>
-          <span><strong>启动器基础内核</strong><small>v{snapshot.launcherVersion} <ArrowRight size={12} /> v{snapshot.launcherUpdate.version}<em>需要运行安装器；会沿用当前安装目录并自动重启</em></small></span>
+          <span><strong>启动器基础内核</strong><small>v{snapshot.launcherVersion} <ArrowRight size={12} /> v{snapshot.launcherUpdate.version}<em>完整下载并校验后自动退出、原地安装和重启，保留配置与数据</em></small></span>
           <b className="runtime-update-badge manual">需安装器更新</b>
         </div>}
         {!modules.length && !snapshot.launcherUpdate && <div className="runtime-update-empty"><PackageCheck size={20} /><span>{checking ? '正在读取组件版本…' : '暂时没有可核对的签名模块；可重新检测在线目录。'}</span></div>}
@@ -1942,13 +1942,12 @@ function RuntimeUpdateDialog({ snapshot, busy, onConfirm, onLauncherUpdate, onCh
         <small>{compactBytes(task.receivedBytes || 0)} / {compactBytes(task.totalBytes || totalBytes)} · {task.detail}</small>
       </div>}
 
-      <div className="runtime-update-note"><ShieldCheck size={17} /><span>每个模块都会校验大小和 SHA-256，并先安装到临时目录；任一模块失败会恢复本轮已切换的版本。</span></div>
+      <div className="runtime-update-note"><ShieldCheck size={17} /><span>小模块会在空闲时自动热更新。完整安装包先下载并校验，再退出安装；中断后下次启动会再次提示，已校验的安装包可直接复用。</span></div>
       <div className="runtime-update-actions">
         <button className="quiet-button" onClick={onCollapse}>{installing ? '收起，后台更新' : '关闭'}</button>
-        {!installing && !checking && snapshot.launcherUpdate && update.items.length > 0 && <button className="quiet-button" onClick={onLauncherUpdate}><HardDriveDownload size={17} />安装基础内核</button>}
+        {!installing && !checking && snapshot.launcherUpdate && <button className="primary-button" onClick={onLauncherUpdate}><HardDriveDownload size={17} />下载并安装新版本 · {compactBytes(snapshot.launcherUpdate.artifact.size)}</button>}
         {checking && <button className="primary-button" disabled><LoaderCircle className="spin" size={17} />正在检测…</button>}
-        {!installing && !checking && update.items.length > 0 && <button className="primary-button" onClick={onConfirm}><Download size={17} />{update.status === 'failed' ? '重试模块更新' : `更新 ${update.items.length} 个模块 · ${compactBytes(totalBytes)}`}</button>}
-        {!installing && !checking && !update.items.length && snapshot.launcherUpdate && <button className="primary-button" onClick={onLauncherUpdate}><HardDriveDownload size={17} />安装基础内核 · {compactBytes(snapshot.launcherUpdate.artifact.size)}</button>}
+        {!installing && !checking && !snapshot.launcherUpdate && update.items.length > 0 && <button className="primary-button" onClick={onConfirm}><Download size={17} />{update.status === 'failed' ? '重试模块更新' : `更新 ${update.items.length} 个模块 · ${compactBytes(totalBytes)}`}</button>}
         {!installing && !checking && !update.items.length && !snapshot.launcherUpdate && <button className="primary-button" onClick={onCheck}><RefreshCw size={17} />重新检测</button>}
         {installing && <span className="runtime-update-locked"><LoaderCircle className="spin" size={17} />{update.status === 'restarting' ? '正在重启，请稍候…' : '更新继续在后台执行，可随时重新打开查看'}</span>}
       </div>
@@ -2086,6 +2085,8 @@ export default function App(): ReactNode {
   const pluginOperationActive = pluginOperationActiveStatuses.has(pluginOperation.status)
   const runtimeUpdateSignature = [snapshot.launcherUpdate?.version || '', ...snapshot.runtimeUpdates.items.map((item) => `${item.id}:${item.nextVersion}`)].filter(Boolean).join('|')
   const updateOperationActive = snapshot.runtimeUpdates.status === 'installing' || snapshot.runtimeUpdates.status === 'restarting' || busy === 'runtime-updates' || busy === 'launcher-update'
+
+  useEffect(() => { void window.launcher?.setInterfaceBusy?.(busy).catch(() => {}) }, [busy])
 
   useEffect(() => {
     if (!snapshot.installation.setupRequired && runtimeUpdateSignature && runtimeUpdateSignature !== announcedUpdateSignature) {

@@ -1,10 +1,12 @@
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
+!include "${__FILEDIR__}\installer-wait.nsh"
 
 ; Keep the lightweight bootstrap and the complete offline installer on one
 ; shared install root. This covers users who switch editions during an update.
 !macro customInit
   ${GetParameters} $R0
+  !insertmacro WaitForLauncherExit "$R0"
   ClearErrors
   ${GetOptions} $R0 "/D=" $R1
   ${If} ${Errors}

@@ -771,6 +771,7 @@ export interface LauncherApi {
   createShortcuts(): Promise<LauncherSnapshot>
   openPath(path: string): Promise<void>
   openExternal(url: string): Promise<void>
+  setInterfaceBusy?(operation: string): Promise<void>
   saveSettings(patch: Partial<LauncherSettings>): Promise<LauncherSnapshot>
   pluginAction(action: 'install' | 'update' | 'remove', packageSpec: string): Promise<LauncherSnapshot>
   refreshDiscovery(): Promise<LauncherSnapshot>

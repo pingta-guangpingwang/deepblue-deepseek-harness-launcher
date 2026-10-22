@@ -5,6 +5,7 @@ RequestExecutionLevel user
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
+!include "${__FILEDIR__}\..\installer-wait.nsh"
 
 !include "${RELEASE_INCLUDE}"
 !addplugindir "${PLUGIN_ROOT}"
@@ -47,6 +48,7 @@ Var LegacyUninstall
 
 Function .onInit
   ${GetParameters} $0
+  !insertmacro WaitForLauncherExit "$0"
   ; InstallDirRegKey covers current bootstrap installs. Only consult legacy
   ; electron-builder records while NSIS is still on the default destination,
   ; so an explicit final /D= argument always wins during automatic updates.
@@ -92,6 +94,11 @@ Section "安装启动器" SEC_MAIN
   File /oname=HashVerifier.exe "${HASH_VERIFIER_EXE}"
   File /oname=7za.exe "${SEVEN_ZIP_EXE}"
 
+!ifdef OFFLINE_SHELL
+  ; Complete signed release: no network request is allowed after handoff.
+  File /oname=launcher-shell.7z "${OFFLINE_SHELL_ARCHIVE}"
+  StrCpy $DownloadStatus "OK"
+!else
   ${If} $LocalShell != ""
     DetailPrint "使用本机验收制品"
     CopyFiles /SILENT "$LocalShell" "$PLUGINSDIR\launcher-shell.7z"
@@ -104,6 +111,7 @@ Section "安装启动器" SEC_MAIN
     !insertmacro DownloadMirror "${SHELL_URL_OSS}" "OSS 国内镜像"
     !insertmacro DownloadMirror "${SHELL_URL_GITHUB}" "GitHub Releases"
   ${EndIf}
+!endif
 
   ${If} $DownloadStatus != "OK"
     MessageBox MB_ICONSTOP "国内镜像与 GitHub UI 壳线路均下载失败（$DownloadStatus）。请检查网络后重试，或使用百度网盘完整离线包。"
@@ -149,6 +157,13 @@ Section "安装启动器" SEC_MAIN
   RMDir /r "$INSTDIR\shells\.previous-${SHELL_VERSION}"
 
   ${If} $QaMode != "1"
+    ; Remove only the old registration and flat shortcut for this exact root.
+    ; Never run its recursive uninstaller: custom data may live in that root.
+    ReadRegStr $LegacyInstallRoot HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\078eda7a-bb67-538c-a4c8-0b0ff5470883" "InstallLocation"
+    ${If} $LegacyInstallRoot == "$INSTDIR"
+      DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\078eda7a-bb67-538c-a4c8-0b0ff5470883"
+      Delete "$SMPROGRAMS\深蓝DeepSeekHarness启动器.lnk"
+    ${EndIf}
     WriteUninstaller "$INSTDIR\卸载深蓝DeepSeekHarness启动器.exe"
     WriteRegStr HKCU "Software\DeepBlue\DeepSeekHarnessLauncher" "InstallRoot" "$INSTDIR"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepBlueDeepSeekHarnessLauncher" "DisplayName" "深蓝DeepSeekHarness启动器"

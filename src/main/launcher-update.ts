@@ -35,7 +35,7 @@ function secureHttpsUrl(value: string): URL {
 
 function installerUrl(artifact: LauncherInstallerArtifact): URL {
   if (!/^[a-f0-9]{64}$/i.test(artifact.sha256)) throw new Error('安装器缺少有效 SHA-256')
-  if (!Number.isSafeInteger(artifact.size) || artifact.size < 1) throw new Error('安装器签名大小无效')
+  if (!Number.isSafeInteger(artifact.size) || artifact.size < 1 || artifact.size > 2_000_000_000) throw new Error('安装器签名大小无效')
   const url = secureHttpsUrl(artifact.url)
   if (![INSTALLER_OSS_HOST, 'github.com'].includes(url.hostname)) throw new Error('安装器地址不在可信下载域名中')
   return url
@@ -152,7 +152,7 @@ export function installedLauncherRoot(executablePath: string): string | undefine
 export function silentLauncherUpdateArgs(installRoot: string, parentPid?: number): string[] {
   if (parentPid !== undefined && (!Number.isSafeInteger(parentPid) || parentPid < 1 || parentPid > 0xffffffff)) throw new Error('安装器等待 PID 无效')
   // NSIS requires /D to be the final argument and does not accept quotes around it.
-  return ['/S', '/AUTOSTART', ...(parentPid === undefined ? [] : [`/WAITPID=${parentPid}`]), `/D=${path.resolve(installRoot)}`]
+  return ['/S', '/AUTOSTART', ...(parentPid === undefined ? [] : ['--force-run', `/WAITPID=${parentPid}`]), `/D=${path.resolve(installRoot)}`]
 }
 
 export async function spawnLauncherInstaller(
